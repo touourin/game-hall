@@ -5,6 +5,7 @@ import {
   Crown,
   LogIn,
   Plus,
+  RotateCcw,
   ShieldCheck,
   Sparkles,
   UsersRound,
@@ -56,6 +57,27 @@ async function chooseRoom(code: string) {
         <span><ShieldCheck :size="15" /> 身份私密</span>
         <span><Sparkles :size="15" /> 湖中仙女</span>
       </div>
+    </section>
+
+    <section
+      v-if="room.resumableRoomCode"
+      class="surface resume-room-card"
+    >
+      <div>
+        <span class="resume-room-icon"><RotateCcw :size="20" /></span>
+        <div>
+          <strong>你有一局正在进行</strong>
+          <small>房间 {{ room.resumableRoomCode }} · 座位和身份仍为你保留</small>
+        </div>
+      </div>
+      <button
+        class="primary-button"
+        type="button"
+        :disabled="room.busy"
+        @click="room.returnToRoom"
+      >
+        返回游戏 <ChevronRight :size="17" />
+      </button>
     </section>
 
     <section class="surface room-browser">

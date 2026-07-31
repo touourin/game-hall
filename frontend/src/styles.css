@@ -296,6 +296,61 @@ button:disabled {
   padding: 8px 18px 20px;
 }
 
+.resume-room-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-color: rgba(225, 188, 104, 0.32);
+  padding: 14px;
+  background:
+    radial-gradient(circle at 10% 50%, rgba(225, 188, 104, 0.14), transparent 36%),
+    var(--surface);
+}
+
+.resume-room-card > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.resume-room-card > div > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.resume-room-card strong {
+  font-size: 12px;
+}
+
+.resume-room-card small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resume-room-card .primary-button {
+  flex: 0 0 auto;
+  min-height: 42px;
+  padding: 0 13px;
+  font-size: 11px;
+}
+
+.resume-room-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  color: var(--gold);
+  background: rgba(225, 188, 104, 0.1);
+}
+
 .room-browser {
   overflow: hidden;
   padding: 14px;
@@ -1333,6 +1388,72 @@ button:disabled {
   font-weight: 900;
 }
 
+.initial-lady-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-color: rgba(171, 223, 220, 0.28);
+  padding: 14px;
+  background:
+    radial-gradient(circle at 12% 50%, rgba(69, 147, 143, 0.17), transparent 32%),
+    linear-gradient(135deg, rgba(25, 78, 74, 0.42), rgba(11, 45, 43, 0.76));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
+}
+
+.initial-lady-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(171, 223, 220, 0.24);
+  border-radius: 15px;
+  color: #abdfdc;
+  background: rgba(69, 147, 143, 0.12);
+}
+
+.initial-lady-card > div {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+
+.initial-lady-card small {
+  color: #abdfdc;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.initial-lady-card strong {
+  overflow: hidden;
+  color: #d9f4ef;
+  font-family: "Songti SC", serif;
+  font-size: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.initial-lady-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.initial-lady-card > em {
+  flex: 0 0 auto;
+  border: 1px solid rgba(171, 223, 220, 0.2);
+  border-radius: 999px;
+  padding: 6px 8px;
+  color: #cdece7;
+  background: rgba(69, 147, 143, 0.12);
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 900;
+}
+
 .player-number-roster {
   display: grid;
   gap: 12px;
@@ -1427,12 +1548,34 @@ button:disabled {
   background: var(--gold);
 }
 
+.player-number-roster em.lady-holder-badge {
+  color: #d6f3ee;
+  background: rgba(69, 147, 143, 0.38);
+}
+
 @media (max-width: 420px) {
+  .resume-room-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .resume-room-card .primary-button {
+    width: 100%;
+  }
+
   .first-leader-card > em {
     display: none;
   }
 
+  .initial-lady-card > em {
+    display: none;
+  }
+
   .first-leader-card strong {
+    font-size: 16px;
+  }
+
+  .initial-lady-card strong {
     font-size: 16px;
   }
 }
@@ -1789,6 +1932,92 @@ button:disabled {
 .final-hero > strong {
   color: #c4d5ce;
   font-size: 11px;
+}
+
+.assassination-alignments {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.assassination-alignments > header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--gold);
+}
+
+.assassination-alignments > header > div {
+  display: grid;
+  gap: 2px;
+}
+
+.assassination-alignments > header strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.assassination-alignments > header small {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.assassination-alignments > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+  gap: 7px;
+}
+
+.assassination-alignments > div > span {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 7px 8px;
+}
+
+.assassination-alignments > div > span.good {
+  border-color: rgba(98, 198, 155, 0.24);
+  background: rgba(45, 126, 89, 0.14);
+}
+
+.assassination-alignments > div > span.evil {
+  border-color: rgba(225, 114, 114, 0.28);
+  background: rgba(153, 58, 63, 0.16);
+}
+
+.assassination-alignments b {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+}
+
+.assassination-alignments .good b,
+.assassination-alignments .good em {
+  color: #b5ead0;
+}
+
+.assassination-alignments .evil b,
+.assassination-alignments .evil em {
+  color: #efadad;
+}
+
+.assassination-alignments > div strong {
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assassination-alignments em {
+  border-radius: 999px;
+  padding: 4px 6px;
+  background: rgba(5, 27, 28, 0.38);
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 900;
 }
 
 .assassination-record {
@@ -2423,6 +2652,39 @@ button:disabled {
   text-align: left;
 }
 
+.exit-room-modal {
+  width: min(100%, 440px);
+}
+
+.exit-room-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+
+.exit-room-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 48px;
+  border: 0;
+  border-radius: 14px;
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.exit-room-actions .secondary-button {
+  border: 1px solid var(--line);
+  color: #d7e4df;
+  background: rgba(14, 45, 44, 0.72);
+}
+
+.exit-room-actions .danger-button {
+  box-shadow: 0 8px 20px rgba(130, 36, 44, 0.2);
+}
+
 .rename-player-modal {
   width: min(100%, 480px);
   max-height: min(88dvh, 700px);
@@ -2546,6 +2808,21 @@ button:disabled {
   font-size: 9px;
 }
 
+.replay-leader {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 4px;
+  margin-top: 3px;
+  border: 1px solid rgba(225, 188, 104, 0.24);
+  border-radius: 999px;
+  padding: 5px 7px;
+  color: #ffe4a0;
+  background: rgba(225, 188, 104, 0.1);
+  font-size: 8px;
+  font-weight: 900;
+}
+
 .replay-round > header > span {
   flex: 0 0 auto;
   border-radius: 999px;
@@ -2592,6 +2869,21 @@ button:disabled {
 .replay-team strong {
   color: #d4e2dd;
   background: rgba(20, 58, 56, 0.78);
+}
+
+.replay-team strong.leader {
+  border: 1px solid rgba(225, 188, 104, 0.28);
+  color: #ffe4a0;
+  background: rgba(112, 82, 35, 0.24);
+}
+
+.replay-team strong small {
+  margin-left: 3px;
+  border-radius: 999px;
+  padding: 2px 4px;
+  color: #2c240f;
+  background: var(--gold);
+  font-size: 6px;
 }
 
 .replay-mission-result {

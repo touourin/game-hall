@@ -225,6 +225,9 @@ class GameEngine:
 
     def assassinate(self, room: Room, actor_id: str, target_id: str) -> None:
         self._require_phase(room, Phase.ASSASSINATION)
+        target = self._require_player(room, target_id)
+        if target.alignment != Alignment.GOOD:
+            raise GameRuleError("最终刺杀只能选择好人阵营玩家")
         self._resolve_assassination(room, actor_id, target_id, early=False)
         self._touch(room)
 

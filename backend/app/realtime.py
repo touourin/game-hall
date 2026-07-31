@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from collections import defaultdict
 from collections.abc import Callable
 from typing import Any
@@ -56,6 +57,13 @@ async def broadcast_lobby() -> None:
     await sio.emit("lobby:rooms", build_lobby_view(rooms.rooms.values()))
 
 
+async def cleanup_abandoned_rooms() -> None:
+    while True:
+        await asyncio.sleep(60)
+        if rooms.cleanup_abandoned():
+            await broadcast_lobby()
+
+
 async def bind_session(
     sid: str, room: Room, player_id: str
 ) -> None:
@@ -65,6 +73,7 @@ async def bind_session(
     await sio.enter_room(sid, player_channel(room.code, player_id))
     active_sids[(room.code, player_id)].add(sid)
     room.player(player_id).connected = True
+    rooms.update_human_presence(room)
 
 
 async def context_for_sid(sid: str) -> tuple[Room, str]:
@@ -142,6 +151,7 @@ async def disconnect(sid: str, reason: str) -> None:
         room.player(player_id).connected = False
         room.revision += 1
         active_sids.pop(key, None)
+        rooms.update_human_presence(room)
         await broadcast_room(room)
 
 
@@ -203,15 +213,24 @@ async def resume_room(sid: str, raw_data: Any) -> dict[str, Any]:
 async def leave_room(sid: str, raw_data: Any = None) -> dict[str, Any]:
     try:
         room, player_id = await context_for_sid(sid)
+        seat_preserved = room.phase != Phase.LOBBY
         async with room.lock:
-            rooms.leave_lobby(room, player_id)
+            if not seat_preserved:
+                rooms.leave_lobby(room, player_id)
         await sio.leave_room(sid, player_channel(room.code, player_id))
-        active_sids[(room.code, player_id)].discard(sid)
+        active_key = (room.code, player_id)
+        active_sids[active_key].discard(sid)
+        if not active_sids[active_key]:
+            active_sids.pop(active_key, None)
+            if seat_preserved:
+                room.player(player_id).connected = False
+                room.revision += 1
+                rooms.update_human_presence(room)
         await sio.save_session(sid, {})
         if room.code in rooms.rooms:
             await broadcast_room(room)
         await broadcast_lobby()
-        return {"ok": True}
+        return {"ok": True, "seatPreserved": seat_preserved}
     except (RoomError, GameRuleError, KeyError) as error:
         return error_response(error)
 

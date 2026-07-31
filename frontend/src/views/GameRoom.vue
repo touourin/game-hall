@@ -52,6 +52,7 @@ const showPlayerNumbers = ref(false)
 const showLadyHistory = ref(false)
 const showEarlyAssassination = ref(false)
 const showRenamePlayers = ref(false)
+const showExitConfirm = ref(false)
 const renameTargetId = ref<string | null>(null)
 const renameDraft = ref('')
 const chatHeight = ref<number | null>(null)
@@ -272,6 +273,11 @@ async function assassinate() {
   await room.perform('game:assassinate', {
     target_id: assassinTargetId.value,
   })
+}
+
+async function confirmExitRoom() {
+  showExitConfirm.value = false
+  await room.leaveRoom()
 }
 
 async function earlyAssassinate() {
@@ -621,6 +627,14 @@ async function shareInviteLink() {
             <CircleHelp :size="21" />
           </button>
         </template>
+        <button
+          class="header-action exit-room-trigger"
+          type="button"
+          aria-label="退出当前房间"
+          @click="showExitConfirm = true"
+        >
+          <DoorOpen :size="20" />
+        </button>
       </div>
     </header>
 
@@ -709,7 +723,7 @@ async function shareInviteLink() {
             v-if="snapshot.actions.canLeave"
             class="text-button danger-text"
             type="button"
-            @click="room.leaveRoom"
+            @click="showExitConfirm = true"
           >
             <DoorOpen :size="16" /> 离开
           </button>
@@ -875,6 +889,20 @@ async function shareInviteLink() {
         <em>首先带队</em>
       </div>
 
+      <div
+        v-if="snapshot.settings.ladyEnabled && snapshot.lady.holderId"
+        class="surface initial-lady-card"
+        role="status"
+      >
+        <span class="initial-lady-icon"><Sparkles :size="24" /></span>
+        <div>
+          <small>湖中仙女初始持有者</small>
+          <strong>{{ playerLabel(snapshot.lady.holderId) }}</strong>
+          <p>第 2 次任务结束后，由这位玩家首先秘密查验阵营</p>
+        </div>
+        <em>持有仙女</em>
+      </div>
+
       <div class="surface player-number-roster">
         <header>
           <UsersRound :size="19" />
@@ -901,6 +929,15 @@ async function shareInviteLink() {
                 class="leader-badge"
               >
                 <Crown :size="10" /> 队长
+              </em>
+              <em
+                v-if="
+                  snapshot.settings.ladyEnabled &&
+                  player.id === snapshot.lady.holderId
+                "
+                class="lady-holder-badge"
+              >
+                <Sparkles :size="10" /> 仙女
               </em>
             </span>
           </span>
@@ -1258,6 +1295,27 @@ async function shareInviteLink() {
         <strong>找出梅林，邪恶阵营仍可翻盘</strong>
       </div>
 
+      <div class="surface assassination-alignments">
+        <header>
+          <Eye :size="19" />
+          <div>
+            <strong>最终阵营公开</strong>
+            <small>奥伯伦已与坏人会合；具体角色在刺杀后揭晓</small>
+          </div>
+        </header>
+        <div>
+          <span
+            v-for="player in snapshot.players"
+            :key="player.id"
+            :class="player.alignment"
+          >
+            <b>{{ player.seat + 1 }}号</b>
+            <strong>{{ playerDisplayName(player) }}</strong>
+            <em>{{ player.alignment === 'evil' ? '坏人' : '好人' }}</em>
+          </span>
+        </div>
+      </div>
+
       <template v-if="snapshot.actions.canAssassinate">
         <div class="selection-counter">
           <span>选择你认为的梅林</span>
@@ -1266,7 +1324,7 @@ async function shareInviteLink() {
         <div class="player-grid">
           <button
             v-for="player in snapshot.players.filter(
-              (item) => item.id !== snapshot.self.id,
+              (item) => item.alignment === 'good',
             )"
             :key="player.id"
             type="button"
@@ -1384,6 +1442,52 @@ async function shareInviteLink() {
         等待房主决定是否再来一局
       </div>
     </section>
+
+    <div
+      v-if="showExitConfirm"
+      class="modal-backdrop"
+      @click.self="showExitConfirm = false"
+    >
+      <section
+        class="modal-card exit-room-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="确认退出房间"
+      >
+        <button
+          class="modal-close"
+          type="button"
+          aria-label="取消退出"
+          @click="showExitConfirm = false"
+        >
+          <X :size="20" />
+        </button>
+        <span class="modal-icon"><DoorOpen :size="25" /></span>
+        <h2>退出当前房间？</h2>
+        <p v-if="snapshot.phase === 'lobby'">
+          你会离开圆桌并让出号码；如果你是房主，房主将自动移交。
+        </p>
+        <p v-else>
+          你的座位、号码和身份都会保留，可以从首页随时返回本局。
+        </p>
+        <div class="exit-room-actions">
+          <button
+            type="button"
+            class="secondary-button"
+            @click="showExitConfirm = false"
+          >
+            继续游戏
+          </button>
+          <button
+            type="button"
+            class="danger-button"
+            @click="confirmExitRoom"
+          >
+            <DoorOpen :size="17" /> 确认退出
+          </button>
+        </div>
+      </section>
+    </div>
 
     <div
       v-if="showRenamePlayers && snapshot.actions.canRenamePlayers"
@@ -1639,7 +1743,11 @@ async function shareInviteLink() {
                 <strong>
                   第 {{ proposal.missionNumber }} 次任务
                 </strong>
-                <small>第 {{ proposal.attempt }} 次组队 · 队长 {{ playerLabel(proposal.leaderId) }}</small>
+                <small>第 {{ proposal.attempt }} 次组队</small>
+                <span class="replay-leader">
+                  <Crown :size="12" />
+                  队长 {{ playerLabel(proposal.leaderId) }}
+                </span>
               </div>
               <span :class="proposal.accepted ? 'accepted' : 'rejected'">
                 {{ proposal.accepted ? '通过' : '否决' }}
@@ -1652,8 +1760,10 @@ async function shareInviteLink() {
                 <strong
                   v-for="playerId in proposal.teamIds"
                   :key="playerId"
+                  :class="{ leader: playerId === proposal.leaderId }"
                 >
                   {{ playerLabel(playerId) }}
+                  <small v-if="playerId === proposal.leaderId">队长</small>
                 </strong>
               </div>
             </div>

@@ -186,6 +186,31 @@ describe('GameRoom role reveal', () => {
     expect(leaderRosterItem.text()).toContain('队长')
   })
 
+  it('announces the initial Lady holder before the first mission', () => {
+    const snapshot = roleRevealSnapshot(1)
+    snapshot.players.push({
+      id: 'p2',
+      name: '仙女持有者',
+      seat: 1,
+      connected: true,
+      isBot: false,
+      isHost: false,
+      isLeader: false,
+      isSelected: false,
+    })
+    snapshot.lady.holderId = 'p2'
+
+    const wrapper = mount(GameRoom, {
+      props: { snapshot },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.get('.initial-lady-card').text()).toContain(
+      '2号 仙女持有者',
+    )
+    expect(wrapper.get('.player-number-roster').text()).toContain('仙女')
+  })
+
   it('shows numbered AI players and lets the host add another one', async () => {
     const snapshot = roleRevealSnapshot(1)
     snapshot.phase = 'lobby'
@@ -259,6 +284,10 @@ describe('GameRoom role reveal', () => {
     expect(wrapper.get('.replay-modal').text()).toContain(
       '1号 测试玩家 赞成',
     )
+    expect(wrapper.get('.replay-leader').text()).toContain(
+      '队长 1号 测试玩家',
+    )
+    expect(wrapper.get('.replay-team .leader').text()).toContain('队长')
     expect(wrapper.get('.replay-modal').text()).toContain('通过')
     expect(wrapper.find('.game-toolbar').exists()).toBe(false)
   })
@@ -490,6 +519,77 @@ describe('GameRoom role reveal', () => {
     await modal.get('.player-tile').trigger('click')
     expect(modal.get('.danger-button').attributes('disabled')).toBeUndefined()
     expect(modal.get('.danger-button').text()).toContain('2号 梅林候选人')
+  })
+
+  it('reveals every alignment and only offers good targets in final assassination', () => {
+    const snapshot = roleRevealSnapshot(1)
+    snapshot.phase = 'assassination'
+    snapshot.actions.canConfirmRole = false
+    snapshot.actions.canAssassinate = true
+    snapshot.self.role = {
+      code: 'assassin',
+      label: '刺客',
+      alignment: 'evil',
+      description: '找出梅林。',
+      knowledge: [],
+    }
+    snapshot.players[0]!.alignment = 'evil'
+    snapshot.players.push(
+      {
+        id: 'p2',
+        name: '奥伯伦',
+        seat: 1,
+        connected: true,
+        isBot: false,
+        isHost: false,
+        isLeader: false,
+        isSelected: false,
+        alignment: 'evil',
+      },
+      {
+        id: 'p3',
+        name: '梅林候选',
+        seat: 2,
+        connected: true,
+        isBot: false,
+        isHost: false,
+        isLeader: false,
+        isSelected: false,
+        alignment: 'good',
+      },
+    )
+
+    const wrapper = mount(GameRoom, {
+      props: { snapshot },
+      global: { plugins: [createPinia()] },
+    })
+
+    const alignments = wrapper.get('.assassination-alignments').text()
+    expect(alignments).toContain('奥伯伦')
+    expect(alignments).toContain('坏人')
+    expect(alignments).toContain('梅林候选')
+    expect(alignments).toContain('好人')
+    expect(wrapper.get('.player-grid').text()).toContain('梅林候选')
+    expect(wrapper.get('.player-grid').text()).not.toContain('奥伯伦')
+  })
+
+  it('asks for confirmation before exiting an active game', async () => {
+    const snapshot = roleRevealSnapshot(1)
+    const pinia = createPinia()
+    const room = useRoomStore(pinia)
+    const leaveRoom = vi.spyOn(room, 'leaveRoom').mockResolvedValue()
+    const wrapper = mount(GameRoom, {
+      props: { snapshot },
+      global: { plugins: [pinia] },
+    })
+
+    await wrapper.get('.exit-room-trigger').trigger('click')
+    expect(wrapper.get('.exit-room-modal').text()).toContain(
+      '座位、号码和身份都会保留',
+    )
+    await wrapper.get('.exit-room-modal .danger-button').trigger('click')
+
+    expect(leaveRoom).toHaveBeenCalledOnce()
   })
 
   it('renders the early assassination target in the final record', () => {

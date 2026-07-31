@@ -43,6 +43,10 @@ def build_lobby_view(all_rooms: Iterable[Room]) -> list[dict[str, Any]]:
         if room.phase == Phase.LOBBY
         and room.settings.listed
         and len(room.players) < 10
+        and any(
+            not player.is_bot and player.connected
+            for player in room.players
+        )
     ]
     return [
         {
@@ -85,10 +89,11 @@ def build_player_view(
             and player.id == room.leader.id,
             "isSelected": player.id in room.selected_team_ids,
         }
+        if room.phase in (Phase.ASSASSINATION, Phase.GAME_OVER):
+            item["alignment"] = player.alignment.value
         if room.phase == Phase.GAME_OVER and player.role is not None:
             item["role"] = player.role.value
             item["roleLabel"] = ROLE_LABELS[player.role]
-            item["alignment"] = player.alignment.value
         players.append(item)
 
     private_role = None
@@ -146,7 +151,7 @@ def build_player_view(
         and player_count in GOOD_EVIL_COUNTS,
         "canUpdateSettings": room.phase == Phase.LOBBY
         and viewer.id == room.host_id,
-        "canLeave": room.phase == Phase.LOBBY,
+        "canLeave": True,
         "canConfirmRole": room.phase == Phase.ROLE_REVEAL
         and viewer.id not in room.role_confirmed_ids,
         "canProposeTeam": room.phase == Phase.TEAM_BUILDING

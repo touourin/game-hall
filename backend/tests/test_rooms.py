@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from backend.app.game.models import Phase
@@ -52,6 +54,52 @@ def test_host_can_add_and_remove_ai_players_from_lobby():
     manager.kick_player(room, host.id, first_ai.id)
     assert [player.seat for player in room.players] == [0, 1]
     assert second_ai in room.players
+
+
+def test_room_with_only_ai_players_is_removed_when_last_human_leaves():
+    manager = RoomManager()
+    room, host, _ = manager.create_room("亚瑟")
+    manager.add_ai_player(room, host.id)
+
+    manager.leave_lobby(room, host.id)
+
+    assert room.code not in manager.rooms
+
+
+def test_all_offline_humans_start_grace_period_before_room_cleanup():
+    manager = RoomManager()
+    room, host, _ = manager.create_room("亚瑟")
+    manager.add_ai_player(room, host.id)
+    disconnected_at = datetime(2026, 8, 1, tzinfo=timezone.utc)
+    host.connected = False
+
+    manager.update_human_presence(room, now=disconnected_at)
+
+    assert manager.cleanup_abandoned(
+        now=disconnected_at + timedelta(minutes=4, seconds=59)
+    ) == []
+    assert manager.cleanup_abandoned(
+        now=disconnected_at + timedelta(minutes=5)
+    ) == [room.code]
+    assert room.code not in manager.rooms
+
+
+def test_human_reconnect_cancels_abandoned_room_cleanup():
+    manager = RoomManager()
+    room, host, _ = manager.create_room("亚瑟")
+    disconnected_at = datetime(2026, 8, 1, tzinfo=timezone.utc)
+    host.connected = False
+    manager.update_human_presence(room, now=disconnected_at)
+    host.connected = True
+
+    manager.update_human_presence(
+        room, now=disconnected_at + timedelta(minutes=3)
+    )
+
+    assert room.all_humans_offline_since is None
+    assert manager.cleanup_abandoned(
+        now=disconnected_at + timedelta(minutes=10)
+    ) == []
 
 
 def test_only_host_can_add_ai_players_and_only_in_lobby():

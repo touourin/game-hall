@@ -18,6 +18,7 @@ export interface AckResponse {
   roomCode?: string
   playerId?: string
   resumeToken?: string
+  seatPreserved?: boolean
 }
 
 export function emitWithAck(

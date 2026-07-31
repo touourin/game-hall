@@ -183,6 +183,20 @@ def test_assassin_only_wins_when_target_is_merlin():
     assert room.assassination_was_early is False
 
 
+def test_final_assassination_rejects_evil_target():
+    engine, room = start_room(7)
+    assassin = next(player for player in room.players if player.role == Role.ASSASSIN)
+    evil_target = next(
+        player
+        for player in room.players
+        if player.alignment == Alignment.EVIL and player.id != assassin.id
+    )
+    room.phase = Phase.ASSASSINATION
+
+    with pytest.raises(GameRuleError, match="只能选择好人阵营"):
+        engine.assassinate(room, assassin.id, evil_target.id)
+
+
 def test_assassin_can_win_with_enabled_early_assassination():
     engine, room = start_room()
     confirm_all_roles(engine, room)

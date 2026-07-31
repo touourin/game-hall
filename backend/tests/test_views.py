@@ -16,6 +16,19 @@ def test_player_view_never_exposes_other_roles_during_game():
     assert all("role" not in player for player in view["players"])
 
 
+def test_final_assassination_reveals_alignments_but_not_roles():
+    engine, room = start_room(7)
+    room.phase = Phase.ASSASSINATION
+
+    view = build_player_view(room, room.players[0], engine)
+
+    assert all(player["alignment"] in ("good", "evil") for player in view["players"])
+    assert all("role" not in player for player in view["players"])
+    oberon = next(player for player in room.players if player.role == Role.OBERON)
+    oberon_view = next(player for player in view["players"] if player["id"] == oberon.id)
+    assert oberon_view["alignment"] == "evil"
+
+
 def test_merlin_sees_evil_except_mordred():
     engine, room = start_room(8)
     merlin = next(player for player in room.players if player.role == Role.MERLIN)
@@ -112,6 +125,15 @@ def test_lobby_view_only_lists_public_joinable_rooms():
             "ladyEnabled": True,
         }
     ]
+
+
+def test_lobby_view_hides_room_when_every_human_is_offline():
+    manager = RoomManager()
+    room, host, _ = manager.create_room("亚瑟")
+    manager.add_ai_player(room, host.id)
+    host.connected = False
+
+    assert build_lobby_view(manager.rooms.values()) == []
 
 
 def test_player_view_contains_public_team_vote_replay():

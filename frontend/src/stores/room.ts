@@ -31,6 +31,9 @@ export const useRoomStore = defineStore('room', () => {
   let initialized = false
 
   const inRoom = computed(() => snapshot.value !== null)
+  const resumableRoomCode = computed(() =>
+    snapshot.value === null ? session.value?.roomCode ?? null : null,
+  )
 
   function init() {
     if (initialized) return
@@ -134,8 +137,15 @@ export const useRoomStore = defineStore('room', () => {
     const response = await perform('room:leave')
     if (response) {
       snapshot.value = null
-      clearSession()
+      if (!response.seatPreserved) {
+        clearSession()
+      }
     }
+  }
+
+  async function returnToRoom() {
+    if (!session.value || snapshot.value) return
+    await resume()
   }
 
   function saveSession(nextSession: StoredSession) {
@@ -160,11 +170,13 @@ export const useRoomStore = defineStore('room', () => {
     busy,
     error,
     inRoom,
+    resumableRoomCode,
     init,
     perform,
     createRoom,
     joinRoom,
     leaveRoom,
+    returnToRoom,
     clearError,
   }
 })

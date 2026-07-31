@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import secrets
 import string
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from .game.models import ChatMessage, GameSettings, Phase, Player, Room
 
@@ -19,6 +19,7 @@ ROOM_ALPHABET = "".join(
 )
 MAX_CHAT_MESSAGES = 100
 MAX_CHAT_LENGTH = 300
+ABANDONED_ROOM_GRACE = timedelta(minutes=5)
 
 
 def hash_token(token: str) -> str:
@@ -110,12 +111,43 @@ class RoomManager:
         if room.phase != Phase.LOBBY:
             raise RoomError("游戏开始后不能退出座位，请等待本局结束")
         self._remove_player(room, player_id)
-        if not room.players:
+        if not any(not player.is_bot for player in room.players):
             self.rooms.pop(room.code, None)
             return
         if room.host_id == player_id:
             room.host_id = room.players[0].id
         room.revision += 1
+
+    def update_human_presence(
+        self, room: Room, *, now: datetime | None = None
+    ) -> None:
+        if any(
+            not player.is_bot and player.connected
+            for player in room.players
+        ):
+            room.all_humans_offline_since = None
+            return
+        if room.all_humans_offline_since is None:
+            room.all_humans_offline_since = now or datetime.now(timezone.utc)
+
+    def cleanup_abandoned(
+        self,
+        *,
+        now: datetime | None = None,
+        grace: timedelta = ABANDONED_ROOM_GRACE,
+    ) -> list[str]:
+        current_time = now or datetime.now(timezone.utc)
+        removed_codes: list[str] = []
+        for code, room in list(self.rooms.items()):
+            self.update_human_presence(room, now=current_time)
+            abandoned_since = room.all_humans_offline_since
+            if (
+                abandoned_since is not None
+                and current_time - abandoned_since >= grace
+            ):
+                self.rooms.pop(code, None)
+                removed_codes.append(code)
+        return removed_codes
 
     def kick_player(
         self, room: Room, actor_id: str, target_id: str

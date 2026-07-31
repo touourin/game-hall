@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+from contextlib import suppress
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -10,13 +12,19 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .access import access_password, access_token, verify_access_token, verify_password
-from .realtime import sio
+from .realtime import cleanup_abandoned_rooms, sio
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     access_password()
-    yield
+    cleanup_task = asyncio.create_task(cleanup_abandoned_rooms())
+    try:
+        yield
+    finally:
+        cleanup_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await cleanup_task
 
 
 api = FastAPI(title="Avalon LAN", version="0.1.0", lifespan=lifespan)
