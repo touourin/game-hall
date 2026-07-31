@@ -459,7 +459,9 @@ async function shareInviteLink() {
               :aria-label="`我的号码是 ${playerNumber(snapshot.self.id)} 号，查看玩家号码表`"
               @click="showPlayerNumbers = true"
             >
-              我 · {{ playerNumber(snapshot.self.id) }}号
+              <UsersRound :size="14" />
+              <span>号码表</span>
+              <small>我{{ playerNumber(snapshot.self.id) }}号</small>
             </button>
           </strong>
         </div>
@@ -513,9 +515,15 @@ async function shareInviteLink() {
       :replayable-missions="replayMissionNumbers"
       @select-mission="openReplay"
     />
+    <p
+      v-if="snapshot.game.proposalHistory.length"
+      class="mission-replay-hint"
+    >
+      <History :size="14" />
+      点击有记录的任务圈查看该轮复盘
+    </p>
     <div
       v-if="
-        snapshot.game.proposalHistory.length ||
         snapshot.lady.history.length ||
         snapshot.actions.canEarlyAssassinate
       "
@@ -529,15 +537,6 @@ async function shareInviteLink() {
       >
         <Swords :size="17" />
         提前刺杀
-      </button>
-      <button
-        v-if="snapshot.game.proposalHistory.length"
-        type="button"
-        @click="openReplay()"
-      >
-        <History :size="17" />
-        投票复盘
-        <span>{{ snapshot.game.proposalHistory.length }}</span>
       </button>
       <button
         v-if="snapshot.lady.history.length"

@@ -547,16 +547,28 @@ button:disabled {
 }
 
 .self-number-trigger {
-  min-height: 25px;
-  border: 1px solid rgba(225, 188, 104, 0.32);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 31px;
+  border: 1px solid rgba(225, 188, 104, 0.48);
   border-radius: 999px;
-  padding: 0 8px;
-  color: #f5d886;
-  background: rgba(225, 188, 104, 0.1);
-  font-size: 9px;
+  padding: 0 9px;
+  color: #ffdf87;
+  background: rgba(154, 121, 55, 0.28);
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.18);
+  font-size: 10px;
   font-weight: 900;
   white-space: nowrap;
   cursor: pointer;
+}
+
+.self-number-trigger small {
+  border-left: 1px solid rgba(225, 188, 104, 0.32);
+  padding-left: 5px;
+  color: #fff0c0;
+  font-size: 8px;
+  font-weight: 900;
 }
 
 .room-brand span {
@@ -715,6 +727,17 @@ button:disabled {
   color: #b39b65;
   font-size: 8px;
   white-space: nowrap;
+}
+
+.mission-replay-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin: -14px 0 18px;
+  color: #9fbaaf;
+  font-size: 9px;
+  font-weight: 750;
 }
 
 .game-toolbar {

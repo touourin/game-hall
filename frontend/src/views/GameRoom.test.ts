@@ -120,7 +120,8 @@ describe('GameRoom role reveal', () => {
       global: { plugins: [createPinia()] },
     })
 
-    expect(wrapper.get('.self-number-trigger').text()).toContain('我 · 1号')
+    expect(wrapper.get('.self-number-trigger').text()).toContain('号码表')
+    expect(wrapper.get('.self-number-trigger').text()).toContain('我1号')
     await wrapper.get('.self-number-trigger').trigger('click')
 
     const numberList = wrapper.get('.player-number-list').text()
@@ -221,13 +222,14 @@ describe('GameRoom role reveal', () => {
       global: { plugins: [createPinia()] },
     })
 
-    await wrapper.get('.game-toolbar button').trigger('click')
+    await wrapper.findAll('.mission-node')[0].trigger('click')
 
-    expect(wrapper.get('.replay-modal').text()).toContain('投票复盘')
+    expect(wrapper.get('.replay-modal').text()).toContain('第 1 轮复盘')
     expect(wrapper.get('.replay-modal').text()).toContain(
       '1号 测试玩家 赞成',
     )
     expect(wrapper.get('.replay-modal').text()).toContain('通过')
+    expect(wrapper.find('.game-toolbar').exists()).toBe(false)
   })
 
   it('opens a mission-specific replay from the mission track', async () => {
