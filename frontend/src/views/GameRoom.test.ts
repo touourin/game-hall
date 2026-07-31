@@ -340,7 +340,9 @@ describe('GameRoom role reveal', () => {
     expect(wrapper.classes()).toContain('chat-open')
 
     const initialStyle = wrapper.get('main').attributes('style') ?? ''
-    const initialHeightMatch = initialStyle.match(/([\d.]+)px/)
+    const initialHeightMatch = initialStyle.match(
+      /--chat-sheet-height:\s*([\d.]+)px/,
+    )
     expect(initialHeightMatch).not.toBeNull()
     const initialHeight = Number.parseFloat(initialHeightMatch![1]!)
     const resizeHandle = wrapper.get('.chat-resize-handle')
@@ -358,7 +360,9 @@ describe('GameRoom role reveal', () => {
     resizeHandle.element.dispatchEvent(pointerMove)
     await nextTick()
     const resizedStyle = wrapper.get('main').attributes('style') ?? ''
-    const resizedHeightMatch = resizedStyle.match(/([\d.]+)px/)
+    const resizedHeightMatch = resizedStyle.match(
+      /--chat-sheet-height:\s*([\d.]+)px/,
+    )
     expect(resizedHeightMatch).not.toBeNull()
     const resizedHeight = Number.parseFloat(resizedHeightMatch![1]!)
     expect(resizedHeight).toBeGreaterThan(initialHeight)
@@ -367,6 +371,52 @@ describe('GameRoom role reveal', () => {
     expect(wrapper.get('.chat-size-button').attributes('aria-label')).toBe(
       '还原聊天框',
     )
+  })
+
+  it('lets desktop users drag the chat window into unused space', async () => {
+    const snapshot = roleRevealSnapshot(1)
+    snapshot.phase = 'team_voting'
+    snapshot.actions.canConfirmRole = false
+    const wrapper = mount(GameRoom, {
+      props: { snapshot },
+      global: { plugins: [createPinia()] },
+    })
+
+    await wrapper.get('.chat-dock').trigger('click')
+    const sheet = wrapper.get('.chat-sheet')
+    Object.defineProperty(sheet.element, 'getBoundingClientRect', {
+      value: () => ({
+        left: 400,
+        top: 160,
+        right: 900,
+        bottom: 660,
+        width: 500,
+        height: 500,
+        x: 400,
+        y: 160,
+        toJSON: () => ({}),
+      }),
+    })
+    const moveHandle = wrapper.get('.chat-move-handle')
+    const pointerDown = new MouseEvent('pointerdown', {
+      bubbles: true,
+      clientX: 500,
+      clientY: 220,
+    })
+    Object.defineProperty(pointerDown, 'pointerId', { value: 2 })
+    moveHandle.element.dispatchEvent(pointerDown)
+    const pointerMove = new MouseEvent('pointermove', {
+      bubbles: true,
+      clientX: 560,
+      clientY: 270,
+    })
+    Object.defineProperty(pointerMove, 'pointerId', { value: 2 })
+    moveHandle.element.dispatchEvent(pointerMove)
+    await nextTick()
+
+    const style = wrapper.get('main').attributes('style') ?? ''
+    expect(style).toContain('--chat-sheet-offset-x: 60px')
+    expect(style).toContain('--chat-sheet-offset-y: 50px')
   })
 
   it('shows the irreversible early assassination confirmation to the assassin', async () => {

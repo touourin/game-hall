@@ -16,6 +16,7 @@ import {
   Maximize2,
   MessageCircle,
   Minimize2,
+  Move,
   Pencil,
   QrCode,
   RotateCcw,
@@ -56,7 +57,10 @@ const renameDraft = ref('')
 const chatHeight = ref<number | null>(null)
 const chatRestoreHeight = ref<number | null>(null)
 const chatMaximized = ref(false)
+const chatMoving = ref(false)
+const chatOffset = ref({ x: 0, y: 0 })
 const chatDraft = ref('')
+const chatSheet = ref<HTMLElement | null>(null)
 const chatList = ref<HTMLElement | null>(null)
 const inviteCopied = ref(false)
 const selectedReplayMission = ref<number | null>(null)
@@ -144,12 +148,23 @@ const chatPanelStyle = computed<Record<string, string>>(() => {
   if (chatHeight.value !== null) {
     style['--chat-sheet-height'] = `${chatHeight.value}px`
   }
+  style['--chat-sheet-offset-x'] = `${chatOffset.value.x}px`
+  style['--chat-sheet-offset-y'] = `${chatOffset.value.y}px`
   return style
 })
 
 let chatResizePointerId: number | null = null
 let chatResizeStartY = 0
 let chatResizeStartHeight = 0
+let chatMovePointerId: number | null = null
+let chatMoveStartX = 0
+let chatMoveStartY = 0
+let chatMoveStartOffsetX = 0
+let chatMoveStartOffsetY = 0
+let chatMoveStartLeft = 0
+let chatMoveStartTop = 0
+let chatMoveWidth = 0
+let chatMoveHeight = 0
 
 watch(
   () => props.snapshot.phase,
@@ -298,9 +313,15 @@ function viewportHeight(): number {
   return window.visualViewport?.height ?? window.innerHeight
 }
 
+function desktopChatEnabled(): boolean {
+  return window.innerWidth >= 1000
+}
+
 function chatHeightLimits(): { min: number; max: number } {
-  const max = Math.max(220, viewportHeight() - 12)
-  return { min: Math.min(260, max), max }
+  const edgeSpace = desktopChatEnabled() ? 48 : 12
+  const max = Math.max(220, viewportHeight() - edgeSpace)
+  const preferredMin = desktopChatEnabled() ? 320 : 260
+  return { min: Math.min(preferredMin, max), max }
 }
 
 function clampChatHeight(height: number): number {
@@ -309,7 +330,10 @@ function clampChatHeight(height: number): number {
 }
 
 function defaultChatHeight(): number {
-  return clampChatHeight(Math.min(viewportHeight() * 0.44, 390))
+  const preferred = desktopChatEnabled()
+    ? Math.min(viewportHeight() * 0.66, 620)
+    : Math.min(viewportHeight() * 0.44, 390)
+  return clampChatHeight(preferred)
 }
 
 function currentChatHeight(): number {
@@ -337,6 +361,7 @@ function endChatResize(event: PointerEvent) {
   ;(event.currentTarget as HTMLElement).releasePointerCapture?.(
     event.pointerId,
   )
+  void nextTick(constrainChatOffset)
 }
 
 function resizeChatBy(pixels: number) {
@@ -355,7 +380,94 @@ async function toggleChatSize() {
     chatHeight.value = chatHeightLimits().max
     chatMaximized.value = true
   }
+  await nextTick()
+  constrainChatOffset()
   await scrollChatToBottom()
+}
+
+function clampWindowPosition(
+  left: number,
+  top: number,
+  width: number,
+  height: number,
+): { left: number; top: number } {
+  const edge = 12
+  const maxLeft = Math.max(edge, window.innerWidth - width - edge)
+  const maxTop = Math.max(edge, viewportHeight() - height - edge)
+  return {
+    left: Math.min(maxLeft, Math.max(edge, left)),
+    top: Math.min(maxTop, Math.max(edge, top)),
+  }
+}
+
+function beginChatMove(event: PointerEvent) {
+  if (!desktopChatEnabled() || !chatSheet.value) return
+  const rect = chatSheet.value.getBoundingClientRect()
+  chatMovePointerId = event.pointerId
+  chatMoveStartX = event.clientX
+  chatMoveStartY = event.clientY
+  chatMoveStartOffsetX = chatOffset.value.x
+  chatMoveStartOffsetY = chatOffset.value.y
+  chatMoveStartLeft = rect.left
+  chatMoveStartTop = rect.top
+  chatMoveWidth = rect.width
+  chatMoveHeight = rect.height
+  chatMoving.value = true
+  event.preventDefault()
+  ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
+}
+
+function moveChat(event: PointerEvent) {
+  if (event.pointerId !== chatMovePointerId) return
+  const position = clampWindowPosition(
+    chatMoveStartLeft + event.clientX - chatMoveStartX,
+    chatMoveStartTop + event.clientY - chatMoveStartY,
+    chatMoveWidth,
+    chatMoveHeight,
+  )
+  chatOffset.value = {
+    x: chatMoveStartOffsetX + position.left - chatMoveStartLeft,
+    y: chatMoveStartOffsetY + position.top - chatMoveStartTop,
+  }
+}
+
+function endChatMove(event: PointerEvent) {
+  if (event.pointerId !== chatMovePointerId) return
+  chatMovePointerId = null
+  chatMoving.value = false
+  ;(event.currentTarget as HTMLElement).releasePointerCapture?.(
+    event.pointerId,
+  )
+}
+
+function moveChatBy(horizontal: number, vertical: number) {
+  if (!desktopChatEnabled() || !chatSheet.value) return
+  const rect = chatSheet.value.getBoundingClientRect()
+  const position = clampWindowPosition(
+    rect.left + horizontal,
+    rect.top + vertical,
+    rect.width,
+    rect.height,
+  )
+  chatOffset.value = {
+    x: chatOffset.value.x + position.left - rect.left,
+    y: chatOffset.value.y + position.top - rect.top,
+  }
+}
+
+function constrainChatOffset() {
+  if (!desktopChatEnabled() || !chatSheet.value) return
+  const rect = chatSheet.value.getBoundingClientRect()
+  const position = clampWindowPosition(
+    rect.left,
+    rect.top,
+    rect.width,
+    rect.height,
+  )
+  chatOffset.value = {
+    x: chatOffset.value.x + position.left - rect.left,
+    y: chatOffset.value.y + position.top - rect.top,
+  }
 }
 
 function selectRenameTarget(player: PlayerView) {
@@ -1571,7 +1683,9 @@ async function shareInviteLink() {
 
     <section
       v-if="showChat"
+      ref="chatSheet"
       class="chat-sheet chat-sheet--docked"
+      :class="{ 'is-moving': chatMoving }"
       role="region"
       aria-label="房间文字聊天"
     >
@@ -1596,7 +1710,21 @@ async function shareInviteLink() {
           <span />
         </div>
         <header class="chat-sheet-header">
-          <div>
+          <div
+            class="chat-move-handle"
+            role="button"
+            tabindex="0"
+            aria-label="拖动聊天窗口，方向键也可移动"
+            @pointerdown="beginChatMove"
+            @pointermove="moveChat"
+            @pointerup="endChatMove"
+            @pointercancel="endChatMove"
+            @keydown.left.prevent="moveChatBy(-30, 0)"
+            @keydown.right.prevent="moveChatBy(30, 0)"
+            @keydown.up.prevent="moveChatBy(0, -30)"
+            @keydown.down.prevent="moveChatBy(0, 30)"
+          >
+            <Move class="chat-move-icon" :size="17" aria-hidden="true" />
             <span class="chat-online-dot" />
             <div>
               <strong>圆桌密谈</strong>

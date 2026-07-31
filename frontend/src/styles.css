@@ -1951,6 +1951,17 @@ button:disabled {
   gap: 10px;
 }
 
+.chat-move-handle {
+  min-width: 0;
+  flex: 1;
+}
+
+.chat-move-icon {
+  display: none;
+  flex: 0 0 auto;
+  color: var(--gold);
+}
+
 .chat-sheet-header > div > div {
   display: grid;
   gap: 2px;
@@ -1995,6 +2006,43 @@ button:disabled {
   border-radius: 50%;
   background: var(--green);
   box-shadow: 0 0 0 5px rgba(98, 198, 155, 0.1);
+}
+
+@media (min-width: 1000px) {
+  .chat-sheet {
+    right: 24px;
+    bottom: 24px;
+    left: auto;
+    width: min(500px, calc(100vw - 48px));
+    min-height: min(320px, calc(100dvh - 48px));
+    max-height: calc(100dvh - 48px);
+    margin: 0;
+    border-bottom: 1px solid rgba(211, 232, 219, 0.17);
+    border-radius: 24px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.46);
+    transform: translate(
+      var(--chat-sheet-offset-x, 0),
+      var(--chat-sheet-offset-y, 0)
+    );
+  }
+
+  .game-page.chat-open {
+    padding-bottom: calc(92px + env(safe-area-inset-bottom));
+  }
+
+  .chat-move-handle {
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+  }
+
+  .chat-sheet.is-moving .chat-move-handle {
+    cursor: grabbing;
+  }
+
+  .chat-move-icon {
+    display: block;
+  }
 }
 
 .chat-list {
