@@ -1,0 +1,26 @@
+# macOS and IDE files
+.DS_Store
+.idea/
+.vscode/
+
+# Environment variables and local secrets
+.env
+.env.*
+!.env.example
+
+# Python artifacts
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node.js and Vue artifacts
+node_modules/
+frontend/node_modules/
+frontend/dist/
+coverage/
+*.log

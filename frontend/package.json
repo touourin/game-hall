@@ -1,0 +1,29 @@
+{
+  "name": "avalon-lan-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "dependencies": {
+    "@lucide/vue": "^1.27.0",
+    "pinia": "^3.0.4",
+    "qrcode.vue": "^3.6.0",
+    "socket.io-client": "^4.8.3",
+    "vue": "^3.5.24"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@vitejs/plugin-vue": "^6.0.3",
+    "@vue/test-utils": "^2.4.6",
+    "jsdom": "^27.2.0",
+    "typescript": "~5.9.3",
+    "vite": "^8.0.0",
+    "vitest": "^4.0.15",
+    "vue-tsc": "^3.1.5"
+  }
+}

@@ -1,0 +1,7 @@
+services:
+  avalon:
+    build: .
+    container_name: avalon-lan
+    restart: unless-stopped
+    ports:
+      - "8800:8000"
