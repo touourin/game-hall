@@ -47,6 +47,7 @@ const showIdentity = ref(false)
 const showRules = ref(false)
 const showChat = ref(false)
 const showReplay = ref(false)
+const showPlayerNumbers = ref(false)
 const showLadyHistory = ref(false)
 const showEarlyAssassination = ref(false)
 const showRenamePlayers = ref(false)
@@ -58,6 +59,7 @@ const chatMaximized = ref(false)
 const chatDraft = ref('')
 const chatList = ref<HTMLElement | null>(null)
 const inviteCopied = ref(false)
+const selectedReplayMission = ref<number | null>(null)
 const seenChatIds = ref(
   new Set(props.snapshot.chat.messages.map((message) => message.id)),
 )
@@ -120,6 +122,21 @@ const unreadChatCount = computed(
         message.senderId !== props.snapshot.self.id &&
         !seenChatIds.value.has(message.id),
     ).length,
+)
+const replayMissionNumbers = computed(() => [
+  ...new Set(
+    props.snapshot.game.proposalHistory.map(
+      (proposal) => proposal.missionNumber,
+    ),
+  ),
+])
+const replayProposals = computed(() =>
+  selectedReplayMission.value === null
+    ? props.snapshot.game.proposalHistory
+    : props.snapshot.game.proposalHistory.filter(
+        (proposal) =>
+          proposal.missionNumber === selectedReplayMission.value,
+      ),
 )
 const canShareInvite = typeof navigator.share === 'function'
 const chatPanelStyle = computed<Record<string, string>>(() => {
@@ -197,6 +214,11 @@ function playerClasses(player: PlayerView) {
     offline: !player.connected,
     leader: player.isLeader,
   }
+}
+
+function openReplay(missionNumber: number | null = null) {
+  selectedReplayMission.value = missionNumber
+  showReplay.value = true
 }
 
 function missionOutcome(missionNumber: number) {
@@ -429,7 +451,17 @@ async function shareInviteLink() {
         <Crown :size="20" />
         <div>
           <span>{{ phaseTitle }}</span>
-          <strong>房间 {{ snapshot.roomCode }}</strong>
+          <strong>
+            房间 {{ snapshot.roomCode }}
+            <button
+              class="self-number-trigger"
+              type="button"
+              :aria-label="`我的号码是 ${playerNumber(snapshot.self.id)} 号，查看玩家号码表`"
+              @click="showPlayerNumbers = true"
+            >
+              我 · {{ playerNumber(snapshot.self.id) }}号
+            </button>
+          </strong>
         </div>
       </div>
       <div class="header-actions">
@@ -478,6 +510,8 @@ async function shareInviteLink() {
       :current-mission="snapshot.game.missionNumber"
       :history="snapshot.game.missionHistory"
       :player-count="snapshot.players.length"
+      :replayable-missions="replayMissionNumbers"
+      @select-mission="openReplay"
     />
     <div
       v-if="
@@ -499,7 +533,7 @@ async function shareInviteLink() {
       <button
         v-if="snapshot.game.proposalHistory.length"
         type="button"
-        @click="showReplay = true"
+        @click="openReplay()"
       >
         <History :size="17" />
         投票复盘
@@ -1446,12 +1480,16 @@ async function shareInviteLink() {
           <X :size="20" />
         </button>
         <span class="modal-icon"><History :size="25" /></span>
-        <h2>投票复盘</h2>
-        <p>按时间记录每次组队和公开表决</p>
+        <h2>
+          {{ selectedReplayMission === null ? '投票复盘' : `第 ${selectedReplayMission} 轮复盘` }}
+        </h2>
+        <p>
+          {{ selectedReplayMission === null ? '按时间记录每次组队和公开表决' : '本轮全部组队和公开表决' }}
+        </p>
 
         <div class="replay-list">
           <article
-            v-for="(proposal, index) in snapshot.game.proposalHistory"
+            v-for="(proposal, index) in replayProposals"
             :key="`${proposal.missionNumber}-${proposal.attempt}-${index}`"
             class="replay-round"
           >
@@ -1647,6 +1685,44 @@ async function shareInviteLink() {
         </div>
         <strong class="modal-room-code">{{ snapshot.roomCode }}</strong>
         <small>{{ shareUrl }}</small>
+      </section>
+    </div>
+
+    <div
+      v-if="showPlayerNumbers"
+      class="modal-backdrop"
+      @click.self="showPlayerNumbers = false"
+    >
+      <section
+        class="modal-card player-number-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="玩家号码表"
+      >
+        <button
+          class="modal-close"
+          type="button"
+          aria-label="关闭玩家号码表"
+          @click="showPlayerNumbers = false"
+        >
+          <X :size="20" />
+        </button>
+        <span class="modal-icon"><UsersRound :size="25" /></span>
+        <h2>玩家号码表</h2>
+        <p>本局号码保持不变</p>
+
+        <div class="player-number-list">
+          <div
+            v-for="player in snapshot.players"
+            :key="player.id"
+            :class="{ self: player.id === snapshot.self.id }"
+          >
+            <span>{{ player.seat + 1 }}</span>
+            <strong>{{ player.name }}</strong>
+            <small v-if="player.isBot">AI</small>
+            <small v-if="player.id === snapshot.self.id">你</small>
+          </div>
+        </div>
       </section>
     </div>
 

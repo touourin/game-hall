@@ -540,6 +540,25 @@ button:disabled {
   gap: 2px;
 }
 
+.room-brand strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.self-number-trigger {
+  min-height: 25px;
+  border: 1px solid rgba(225, 188, 104, 0.32);
+  border-radius: 999px;
+  padding: 0 8px;
+  color: #f5d886;
+  background: rgba(225, 188, 104, 0.1);
+  font-size: 9px;
+  font-weight: 900;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
 .room-brand span {
   color: var(--muted);
   font-size: 11px;
@@ -612,10 +631,24 @@ button:disabled {
   justify-self: center;
   border: 1px solid var(--line);
   border-radius: 50%;
+  padding: 0;
   color: #6f8d83;
   background: rgba(11, 40, 40, 0.7);
   font-size: 13px;
   font-weight: 800;
+  cursor: default;
+}
+
+.mission-node:disabled {
+  opacity: 1;
+}
+
+.mission-node.replayable {
+  cursor: pointer;
+}
+
+.mission-node.replayable:hover {
+  transform: translateY(-1px);
 }
 
 .mission-node:not(:last-child)::after {
@@ -647,7 +680,36 @@ button:disabled {
   background: rgba(133, 47, 52, 0.65);
 }
 
-.mission-node small {
+.mission-requirement {
+  display: inline-flex;
+  align-items: baseline;
+  line-height: 1;
+}
+
+.mission-requirement small {
+  margin-left: 1px;
+  font-size: 8px;
+}
+
+.mission-outcome {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border: 2px solid #092224;
+  border-radius: 50%;
+  color: #092224;
+  background: currentColor;
+}
+
+.mission-outcome svg {
+  color: #f2fbf6;
+}
+
+.mission-fail-note {
   position: absolute;
   top: 44px;
   color: #b39b65;
@@ -1016,6 +1078,7 @@ button:disabled {
 }
 
 .switch span {
+  position: relative;
   display: block;
   width: 100%;
   height: 100%;
@@ -1025,13 +1088,17 @@ button:disabled {
 }
 
 .switch span::after {
+  position: absolute;
+  top: 50%;
+  left: 3px;
   display: block;
   width: 20px;
   height: 20px;
-  margin: 3px;
+  margin: 0;
   border-radius: 50%;
   background: #a9bbb4;
   content: "";
+  transform: translateY(-50%);
   transition: transform 150ms ease;
 }
 
@@ -1041,7 +1108,7 @@ button:disabled {
 
 .switch input:checked + span::after {
   background: #fff1c8;
-  transform: translateX(20px);
+  transform: translate(20px, -50%);
 }
 
 .role-preset {
@@ -2078,6 +2145,68 @@ button:disabled {
   width: min(100%, 620px);
   max-height: min(88vh, 760px);
   overflow: hidden;
+}
+
+.player-number-modal {
+  max-height: min(88vh, 680px);
+  overflow: hidden;
+}
+
+.player-number-list {
+  display: grid;
+  gap: 7px;
+  max-height: min(54vh, 470px);
+  margin-top: 18px;
+  overflow-y: auto;
+}
+
+.player-number-list > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 6px 10px 6px 7px;
+  background: rgba(5, 27, 28, 0.54);
+  text-align: left;
+}
+
+.player-number-list > div.self {
+  border-color: rgba(225, 188, 104, 0.35);
+  background: rgba(225, 188, 104, 0.08);
+}
+
+.player-number-list > div > span {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(225, 188, 104, 0.25);
+  border-radius: 11px;
+  color: var(--gold);
+  background: rgba(225, 188, 104, 0.08);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.player-number-list > div > strong {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-number-list > div > small {
+  border-radius: 999px;
+  padding: 4px 7px;
+  color: #b7e8d2;
+  background: rgba(64, 151, 115, 0.18);
+  font-size: 8px;
+  font-weight: 900;
 }
 
 .early-assassination-modal {

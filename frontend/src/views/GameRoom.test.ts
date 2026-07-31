@@ -103,6 +103,32 @@ function roleRevealSnapshot(revision: number): RoomSnapshot {
 }
 
 describe('GameRoom role reveal', () => {
+  it('keeps the player own number visible and opens the full number list', async () => {
+    const snapshot = roleRevealSnapshot(1)
+    snapshot.players.push({
+      id: 'p2',
+      name: '第二位玩家',
+      seat: 1,
+      connected: true,
+      isBot: false,
+      isHost: false,
+      isLeader: false,
+      isSelected: false,
+    })
+    const wrapper = mount(GameRoom, {
+      props: { snapshot },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.get('.self-number-trigger').text()).toContain('我 · 1号')
+    await wrapper.get('.self-number-trigger').trigger('click')
+
+    const numberList = wrapper.get('.player-number-list').text()
+    expect(numberList).toContain('测试玩家')
+    expect(numberList).toContain('第二位玩家')
+    expect(numberList).toContain('你')
+  })
+
   it('shows every player number and name on the identity confirmation page', () => {
     const snapshot = roleRevealSnapshot(1)
     snapshot.players.push({
@@ -202,6 +228,43 @@ describe('GameRoom role reveal', () => {
       '1号 测试玩家 赞成',
     )
     expect(wrapper.get('.replay-modal').text()).toContain('通过')
+  })
+
+  it('opens a mission-specific replay from the mission track', async () => {
+    const snapshot = roleRevealSnapshot(1)
+    snapshot.phase = 'team_building'
+    snapshot.actions.canConfirmRole = false
+    snapshot.game.missionNumber = 2
+    snapshot.game.proposalHistory = [
+      {
+        missionNumber: 1,
+        attempt: 1,
+        leaderId: 'p1',
+        teamIds: ['p1'],
+        votes: [{ playerId: 'p1', approve: false }],
+        accepted: false,
+      },
+      {
+        missionNumber: 2,
+        attempt: 1,
+        leaderId: 'p1',
+        teamIds: ['p1'],
+        votes: [{ playerId: 'p1', approve: true }],
+        accepted: true,
+      },
+    ]
+
+    const wrapper = mount(GameRoom, {
+      props: { snapshot },
+      global: { plugins: [createPinia()] },
+    })
+
+    await wrapper.findAll('.mission-node')[0].trigger('click')
+
+    const replay = wrapper.get('.replay-modal')
+    expect(replay.get('h2').text()).toContain('第 1 轮复盘')
+    expect(replay.text()).toContain('反对')
+    expect(replay.text()).not.toContain('赞成')
   })
 
   it('shows the lady history and only reveals the viewer own result', async () => {
