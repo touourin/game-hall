@@ -1,36 +1,41 @@
-import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { defineStore } from 'pinia'
 import { emitWithAck, socket, type AckResponse } from '../socket'
-import type { LobbyRoom, RoomSnapshot } from '../types/game'
+import type {
+  ArcadeGameKey,
+  ArcadeLobbyRoom,
+  ArcadeSnapshot,
+} from '../types/arcade'
 
-interface StoredSession {
+interface StoredArcadeSession {
+  gameKey: ArcadeGameKey
   roomCode: string
   playerId: string
   resumeToken: string
 }
 
-const SESSION_KEY = 'avalon:current-session'
+const SESSION_KEY = 'gamehall:arcade-session'
 
-function readSession(): StoredSession | null {
+function readSession(): StoredArcadeSession | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY)
-    return raw ? (JSON.parse(raw) as StoredSession) : null
+    return raw ? (JSON.parse(raw) as StoredArcadeSession) : null
   } catch {
     return null
   }
 }
 
-export const useRoomStore = defineStore('room', () => {
-  const snapshot = ref<RoomSnapshot | null>(null)
-  const availableRooms = ref<LobbyRoom[]>([])
-  const connected = ref(false)
-  const restoring = ref(false)
+export const useArcadeStore = defineStore('arcade', () => {
+  const snapshot = ref<ArcadeSnapshot | null>(null)
+  const availableRooms = ref<ArcadeLobbyRoom[]>([])
   const busy = ref(false)
   const error = ref<string | null>(null)
-  const session = ref<StoredSession | null>(readSession())
+  const session = ref<StoredArcadeSession | null>(readSession())
   let initialized = false
 
-  const inRoom = computed(() => snapshot.value !== null)
+  const resumableGame = computed(() =>
+    snapshot.value === null ? session.value?.gameKey ?? null : null,
+  )
   const resumableRoomCode = computed(() =>
     snapshot.value === null ? session.value?.roomCode ?? null : null,
   )
@@ -38,40 +43,17 @@ export const useRoomStore = defineStore('room', () => {
   function init() {
     if (initialized) return
     initialized = true
-
     socket.on('connect', async () => {
-      connected.value = true
-      if (session.value) {
-        await resume()
+      if (session.value && !snapshot.value) await resume()
+    })
+    socket.on('arcade:lobby', (rooms: ArcadeLobbyRoom[]) => {
+      availableRooms.value = rooms
+    })
+    socket.on('arcade:snapshot', (next: ArcadeSnapshot) => {
+      if (!snapshot.value || next.revision >= snapshot.value.revision) {
+        snapshot.value = next
       }
     })
-    socket.on('disconnect', () => {
-      connected.value = false
-    })
-    socket.on('connect_error', () => {
-      connected.value = false
-      error.value = '暂时连接不到游戏服务器'
-    })
-    socket.on('room:snapshot', (nextSnapshot: RoomSnapshot) => {
-      if (
-        snapshot.value === null ||
-        nextSnapshot.revision >= snapshot.value.revision
-      ) {
-        snapshot.value = nextSnapshot
-      }
-    })
-    socket.on('lobby:rooms', (nextRooms: LobbyRoom[]) => {
-      availableRooms.value = nextRooms
-    })
-    socket.on('room:kicked', (payload: { message?: string }) => {
-      snapshot.value = null
-      clearSession()
-      error.value = payload.message ?? '你已离开房间'
-      window.setTimeout(() => {
-        if (!socket.connected) socket.connect()
-      }, 250)
-    })
-    socket.connect()
   }
 
   async function perform(
@@ -95,10 +77,14 @@ export const useRoomStore = defineStore('room', () => {
     }
   }
 
-  async function createRoom(name: string) {
-    const response = await perform('room:create', { name })
+  async function createRoom(gameKey: ArcadeGameKey, name: string) {
+    const response = await perform('arcade:create', {
+      game_key: gameKey,
+      name,
+    })
     if (response?.roomCode && response.playerId && response.resumeToken) {
       saveSession({
+        gameKey,
         roomCode: response.roomCode,
         playerId: response.playerId,
         resumeToken: response.resumeToken,
@@ -106,13 +92,19 @@ export const useRoomStore = defineStore('room', () => {
     }
   }
 
-  async function joinRoom(roomCode: string, name: string) {
-    const response = await perform('room:join', {
+  async function joinRoom(
+    gameKey: ArcadeGameKey,
+    roomCode: string,
+    name: string,
+  ) {
+    const response = await perform('arcade:join', {
+      game_key: gameKey,
       room_code: roomCode.trim().toUpperCase(),
       name,
     })
     if (response?.roomCode && response.playerId && response.resumeToken) {
       saveSession({
+        gameKey,
         roomCode: response.roomCode,
         playerId: response.playerId,
         resumeToken: response.resumeToken,
@@ -122,35 +114,46 @@ export const useRoomStore = defineStore('room', () => {
 
   async function resume() {
     if (!session.value) return
-    restoring.value = true
-    const response = await perform('room:resume', {
+    const response = await perform('arcade:resume', {
       room_code: session.value.roomCode,
       token: session.value.resumeToken,
     })
     if (!response) {
       clearSession()
+      error.value = null
     }
-    restoring.value = false
   }
 
   async function leaveRoom() {
-    const response = await perform('room:leave')
+    const response = await perform('arcade:leave')
     if (response) {
       snapshot.value = null
-      if (!response.seatPreserved) {
-        clearSession()
-      }
+      if (!response.seatPreserved) clearSession()
     }
   }
 
-  async function returnToRoom() {
-    if (!session.value || snapshot.value) return
-    await resume()
+  async function startGame() {
+    await perform('arcade:start')
   }
 
-  function saveSession(nextSession: StoredSession) {
-    session.value = nextSession
-    localStorage.setItem(SESSION_KEY, JSON.stringify(nextSession))
+  async function action(
+    actionName: string,
+    payload: Record<string, unknown> = {},
+  ) {
+    await perform('arcade:action', { action: actionName, payload })
+  }
+
+  async function restartGame() {
+    await perform('arcade:restart')
+  }
+
+  async function returnToRoom() {
+    if (session.value && !snapshot.value) await resume()
+  }
+
+  function saveSession(next: StoredArcadeSession) {
+    session.value = next
+    localStorage.setItem(SESSION_KEY, JSON.stringify(next))
   }
 
   function clearSession() {
@@ -164,8 +167,6 @@ export const useRoomStore = defineStore('room', () => {
 
   function resetForLogout() {
     snapshot.value = null
-    connected.value = false
-    restoring.value = false
     busy.value = false
     error.value = null
     clearSession()
@@ -174,17 +175,17 @@ export const useRoomStore = defineStore('room', () => {
   return {
     snapshot,
     availableRooms,
-    connected,
-    restoring,
     busy,
     error,
-    inRoom,
+    resumableGame,
     resumableRoomCode,
     init,
-    perform,
     createRoom,
     joinRoom,
     leaveRoom,
+    startGame,
+    action,
+    restartGame,
     returnToRoom,
     clearError,
     resetForLogout,

@@ -28,10 +28,10 @@ import {
   UsersRound,
   X,
 } from '@lucide/vue'
-import MissionTrack from '../components/MissionTrack.vue'
-import SecretCard from '../components/SecretCard.vue'
-import { useRoomStore } from '../stores/room'
-import type { PlayerView, RoomSnapshot } from '../types/game'
+import MissionTrack from './components/MissionTrack.vue'
+import SecretCard from './components/SecretCard.vue'
+import { useRoomStore } from './store'
+import type { PlayerView, RoomSnapshot } from './types'
 
 const props = defineProps<{ snapshot: RoomSnapshot }>()
 const room = useRoomStore()

@@ -2,8 +2,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from backend.app.game.models import Phase
-from backend.app.rooms import RoomError, RoomManager
+from backend.app.games.avalon.models import Phase
+from backend.app.games.avalon.rooms import RoomError, RoomManager
 
 
 def test_create_join_and_resume_room():

@@ -1,8 +1,22 @@
-# 圆桌密令 · Avalon LAN
+# 私人游戏大厅
 
-一个为手机和局域网设计的阿瓦隆实时房间。服务端掌握完整状态，每台手机只会收到该玩家有权看到的信息。
+一个为手机和局域网设计的多人游戏大厅。账号、战绩、排行榜和实时房间能力由平台层统一提供，每款游戏的规则与界面独立维护。
 
 ## 已实现
+
+### 游戏大厅
+
+- 阿瓦隆、五子棋、中国象棋、围棋和斗地主统一入口
+- 五款游戏共用访问密码、个人账号、登录会话、皮肤与排行榜
+- 每款游戏均可查看独立战绩，也可在大厅查看全部战绩与总榜
+- 通用公开房间列表、邀请码、掉线重连、认输、再来一局和结算落库
+- 五子棋：15 路棋盘、回合校验、五连胜负与和棋
+- 中国象棋：完整基础走子、蹩马腿、塞象眼、炮架、将帅照面、自将校验、将死与困毙
+- 围棋：19 路棋盘、提子、禁入点、简单劫、停一手、中国面积数子与 7.5 目贴目
+- 斗地主：三人叫分、地主底牌、主要牌型比较、炸弹/王炸、不出与农民协作胜负
+- 手机与电脑自适应棋盘；斗地主手牌在手机上独立横向滚动
+
+### 阿瓦隆
 
 - 5–10 人创建、加入和重新连接房间
 - 访问密码之后的个人账号注册、登录和 30 天会话保持
@@ -91,9 +105,12 @@ npm run dev
 npm test
 npm run build
 npm run smoke
+npm --prefix frontend run smoke:arcade
 ```
 
-`npm run smoke` 需要开发服务正在运行，它会通过真实 Socket.IO 连接模拟五名玩家发送聊天消息并完成第一轮任务。
+`npm run smoke` 需要开发服务正在运行，它会注册五个测试账号，通过真实 Socket.IO 连接模拟五名玩家发送聊天消息并完成第一轮任务。可用 `AVALON_SMOKE_ACCESS_PASSWORD` 和 `AVALON_SMOKE_PREFIX` 指定测试访问密码与账号前缀。
+
+`npm --prefix frontend run smoke:arcade` 需要本地 Docker 服务运行在 `http://127.0.0.1:8800`。它会注册三个测试账号，通过真实 Socket.IO 依次完成五子棋、象棋、围棋和斗地主的创建、加入、开局、结算及 MySQL 战绩检查。可通过 `ARCADE_SMOKE_URL`、`ARCADE_SMOKE_ACCESS_PASSWORD` 和 `ARCADE_SMOKE_PREFIX` 指定地址、访问密码与账号前缀。两种冒烟脚本都会输出测试账号前缀，验证后可按该前缀从测试数据库清理账号。
 
 生产构建后，也可以在已经准备好 MySQL 和 Redis、且 `.env` 包含 `DATABASE_URL` 与 `REDIS_URL` 时直接运行：
 
@@ -114,9 +131,9 @@ npm run smoke
 
 ## 数据库与实时通信
 
-Docker 部署使用 MySQL 8.4 保存账号、会话、游戏目录、战绩与排行榜，并通过 Alembic 在应用启动前自动执行数据库迁移。表结构已经按多游戏大厅拆分，后续五子棋、围棋和象棋可以共用账号体系，并通过 `games.key` 区分各游戏战绩。
+Docker 部署使用 MySQL 8.4 保存账号、会话、游戏目录、战绩与排行榜，并通过 Alembic 在应用启动前自动执行数据库迁移。所有游戏通过 `games.key` 区分战绩，通用统计接口可以查询单款游戏或全部游戏。
 
-Redis 负责 Socket.IO 跨进程消息协调，并启用 AOF 持久化。当前圆桌、聊天记录和正在进行的阿瓦隆状态仍保存在应用进程内存中：
+Redis 负责 Socket.IO 跨进程消息协调，并启用 AOF 持久化。当前房间、聊天记录和正在进行的游戏状态仍保存在应用进程内存中：
 
 - 服务重启后，正在进行的房间会消失。
 - 服务重启不会丢失账号、登录会话和已结束对局的战绩。
@@ -141,10 +158,20 @@ docker exec avalon-mysql sh -c 'exec mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASSWOR
 ## 项目结构
 
 ```text
-frontend/              Vue 3 + TypeScript + Pinia
-backend/app/game/      纯 Python 游戏规则与状态机
-backend/app/realtime.py
-                       Socket.IO 房间事件
-backend/app/views.py   玩家专属状态视图
-backend/tests/         规则、安全边界与房间测试
+frontend/src/views/         游戏大厅、通用房间与账号界面
+frontend/src/stores/        通用实时房间状态
+frontend/src/games/avalon/  阿瓦隆界面与状态
+frontend/src/games/gomoku/  五子棋界面
+frontend/src/games/xiangqi/ 中国象棋界面
+frontend/src/games/go/      围棋界面
+frontend/src/games/doudizhu/
+                            斗地主界面
+backend/app/arcade/         通用房间、实时协议与玩家视图
+backend/app/games/          各游戏独立规则引擎与注册表
+backend/app/accounts.py     共用账号、战绩和排行榜
+backend/tests/              规则、安全边界、房间与持久化测试
 ```
+
+## 当前规则边界
+
+当前版本定位为可联网测试的第一版：围棋采用落子结束时的自动面积数子，暂未提供双方标记死子的确认阶段；中国象棋暂未实现长将、长捉与重复局面判罚；斗地主暂未加入倍数、春天、计分和托管。房间状态尚未持久化，因此应用重启会中断正在进行的对局，但已经结束并写入 MySQL 的战绩不会丢失。

@@ -50,4 +50,3 @@ def roles_for_player_count(player_count: int) -> list[Role]:
 
     evil_roles.extend([Role.MINION] * (evil_count - len(evil_roles)))
     return good_roles + evil_roles
-

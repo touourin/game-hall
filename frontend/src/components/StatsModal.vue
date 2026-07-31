@@ -9,6 +9,7 @@ import {
   type StatsSummary,
 } from '../stats'
 
+const props = defineProps<{ gameKey?: string; gameName?: string }>()
 defineEmits<{ close: [] }>()
 
 const summary = ref<StatsSummary | null>(null)
@@ -27,10 +28,20 @@ const roleLabels: Record<string, string> = {
   mordred: '莫德雷德',
   oberon: '奥伯伦',
   minion: '莫德雷德的爪牙',
+  black: '黑方',
+  white: '白方',
+  red: '红方',
+  landlord: '地主',
+  farmer: '农民',
 }
 
 function roleLabel(role: string): string {
   return roleLabels[role] ?? role
+}
+
+function winnerLabel(match: MatchDetail): string {
+  if (match.gameKey === 'avalon') return match.winner === 'good' ? '好人获胜' : '坏人获胜'
+  return `${roleLabel(match.winner)}获胜`
 }
 
 function formatDate(value: string): string {
@@ -73,7 +84,7 @@ async function openMatch(matchId: string) {
 
 onMounted(async () => {
   try {
-    const data = await loadPersonalStats()
+    const data = await loadPersonalStats(props.gameKey)
     summary.value = data.summary
     history.value = data.history
   } catch (caught) {
@@ -96,30 +107,30 @@ onMounted(async () => {
           <ArrowLeft :size="16" /> 返回战绩列表
         </button>
         <span class="modal-icon"><History :size="24" /></span>
-        <h2>房间 {{ selectedMatch.roomCode }} 对局记录</h2>
+        <h2>{{ selectedMatch.gameName }} · 房间 {{ selectedMatch.roomCode }}</h2>
         <p>{{ formatDate(selectedMatch.endedAt) }} · {{ selectedMatch.playerCount }} 人局</p>
 
         <div class="match-detail-result" :class="selectedMatch.winner">
-          <strong>{{ selectedMatch.winner === 'good' ? '好人获胜' : '坏人获胜' }}</strong>
+          <strong>{{ winnerLabel(selectedMatch) }}</strong>
           <span>{{ selectedMatch.reason }}</span>
         </div>
 
-        <div class="match-detail-section">
+        <div v-if="selectedMatch.gameKey === 'avalon'" class="match-detail-section">
           <span>最终身份</span>
           <div class="match-player-list">
             <div v-for="player in selectedMatch.details.players" :key="player.id">
               <b>{{ player.seat + 1 }}号</b>
               <strong>{{ player.name }}<small v-if="player.isBot">AI</small></strong>
-              <em :class="player.alignment">{{ roleLabel(player.role) }}</em>
+              <em :class="player.alignment">{{ roleLabel(player.role ?? '') }}</em>
             </div>
           </div>
         </div>
 
-        <div class="match-detail-section">
+        <div v-if="selectedMatch.gameKey === 'avalon'" class="match-detail-section">
           <span>任务结果</span>
           <div class="match-mission-list">
             <div
-              v-for="mission in selectedMatch.details.missions"
+              v-for="mission in selectedMatch.details.missions ?? []"
               :key="mission.number"
               :class="mission.success ? 'success' : 'failed'"
             >
@@ -130,11 +141,11 @@ onMounted(async () => {
           </div>
         </div>
 
-        <div class="match-detail-section">
+        <div v-if="selectedMatch.gameKey === 'avalon'" class="match-detail-section">
           <span>组队与投票复盘</span>
           <div class="match-proposal-list">
             <article
-              v-for="(proposal, index) in selectedMatch.details.proposals"
+              v-for="(proposal, index) in selectedMatch.details.proposals ?? []"
               :key="`${proposal.missionNumber}-${proposal.attempt}-${index}`"
             >
               <header>
@@ -158,7 +169,7 @@ onMounted(async () => {
           </div>
         </div>
 
-        <div v-if="selectedMatch.details.ladyChecks.length" class="match-detail-section">
+        <div v-if="selectedMatch.gameKey === 'avalon' && selectedMatch.details.ladyChecks?.length" class="match-detail-section">
           <span>湖中仙女查验</span>
           <div class="match-lady-list">
             <div v-for="check in selectedMatch.details.ladyChecks" :key="`${check.missionNumber}-${check.targetId}`">
@@ -174,12 +185,22 @@ onMounted(async () => {
           </div>
         </div>
 
-        <div v-if="selectedMatch.details.assassinTargetId" class="match-assassination-record">
+        <div v-if="selectedMatch.gameKey === 'avalon' && selectedMatch.details.assassinTargetId" class="match-assassination-record">
           <strong>{{ selectedMatch.details.assassinationWasEarly ? '提前刺杀' : '最终刺杀' }}</strong>
           <span>目标：{{ playerLabel(selectedMatch, selectedMatch.details.assassinTargetId) }}</span>
           <em :class="selectedMatch.assassinationHit ? 'hit' : 'miss'">
             {{ selectedMatch.assassinationHit ? '命中梅林' : '刺杀失败' }}
           </em>
+        </div>
+
+        <div v-if="selectedMatch.gameKey !== 'avalon'" class="match-detail-section">
+          <span>参赛玩家</span>
+          <div class="match-player-list">
+            <div v-for="player in selectedMatch.details.players" :key="player.id">
+              <b>{{ player.seat + 1 }}号</b>
+              <strong>{{ player.name }}</strong>
+            </div>
+          </div>
         </div>
 
         <p class="match-detail-note">
@@ -189,8 +210,8 @@ onMounted(async () => {
 
       <template v-else>
         <span class="modal-icon"><History :size="24" /></span>
-        <h2>我的战绩</h2>
-        <p>保存胜负、角色和完整任务结果；聊天内容不会被记录。</p>
+        <h2>{{ props.gameName ? `${props.gameName}战绩` : '我的全部战绩' }}</h2>
+        <p>每款游戏独立记录胜负，对局详情绑定当前账号。</p>
 
         <div v-if="loading" class="stats-loading">
           <LoaderCircle :size="24" /> 正在读取战绩…
@@ -201,7 +222,7 @@ onMounted(async () => {
             <div><strong>{{ summary.wins }}</strong><span>胜场</span></div>
             <div><strong>{{ summary.winRate }}%</strong><span>胜率</span></div>
           </div>
-          <div class="alignment-summary">
+          <div v-if="props.gameKey === 'avalon'" class="alignment-summary">
             <span><Shield :size="15" /> 好人 {{ summary.goodWins }}/{{ summary.goodGames }}</span>
             <span><Swords :size="15" /> 坏人 {{ summary.evilWins }}/{{ summary.evilGames }}</span>
           </div>
@@ -212,7 +233,8 @@ onMounted(async () => {
                 {{ match.won ? '胜' : '负' }}
               </span>
               <span class="match-history-copy">
-                <strong>{{ roleLabel(match.role) }} · {{ match.alignment === 'good' ? '好人' : '坏人' }}</strong>
+                <strong v-if="match.gameKey === 'avalon'">{{ roleLabel(match.role) }} · {{ match.alignment === 'good' ? '好人' : '坏人' }}</strong>
+                <strong v-else>{{ match.gameName }} · {{ roleLabel(match.role) }}</strong>
                 <small>{{ formatDate(match.endedAt) }} · {{ match.playerCount }} 人 · 房间 {{ match.roomCode }}</small>
               </span>
               <em :class="{ unranked: !match.ranked }">{{ match.ranked ? '计榜' : '测试局' }}</em>

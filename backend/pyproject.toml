@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "avalon-lan-server"
-version = "0.1.0"
-description = "Authoritative LAN game server for Avalon"
+version = "0.2.0"
+description = "Authoritative LAN server for a private multiplayer game hall"
 requires-python = ">=3.11"
 dependencies = [
   "alembic>=1.14,<2",

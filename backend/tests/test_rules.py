@@ -1,5 +1,5 @@
-from backend.app.game.models import Role
-from backend.app.game.rules import (
+from backend.app.games.avalon.models import Role
+from backend.app.games.avalon.rules import (
     GOOD_EVIL_COUNTS,
     MISSION_TEAM_SIZES,
     mission_fail_threshold,
@@ -29,4 +29,3 @@ def test_fourth_mission_needs_two_fails_for_seven_or_more_players():
     assert mission_fail_threshold(7, 3) == 2
     assert mission_fail_threshold(10, 3) == 2
     assert mission_fail_threshold(10, 2) == 1
-

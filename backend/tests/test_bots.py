@@ -1,5 +1,5 @@
-from backend.app.game.bots import advance_ai_players
-from backend.app.game.models import Alignment, MissionRecord, Phase, Role
+from backend.app.games.avalon.bots import advance_ai_players
+from backend.app.games.avalon.models import Alignment, MissionRecord, Phase, Role
 
 from .test_engine import start_room
 

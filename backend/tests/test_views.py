@@ -1,7 +1,7 @@
-from backend.app.game.engine import GameEngine
-from backend.app.game.models import Alignment, MissionRecord, Phase, Role
-from backend.app.rooms import RoomManager
-from backend.app.views import build_lobby_view, build_player_view
+from backend.app.games.avalon.engine import GameEngine
+from backend.app.games.avalon.models import Alignment, MissionRecord, Phase, Role
+from backend.app.games.avalon.rooms import RoomManager
+from backend.app.games.avalon.views import build_lobby_view, build_player_view
 
 from .test_engine import start_room
 

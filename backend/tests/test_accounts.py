@@ -1,5 +1,5 @@
 from backend.app.accounts import AccountStore
-from backend.app.game.models import Alignment, Phase, Role
+from backend.app.games.avalon.models import Alignment, Phase, Role
 
 from .test_engine import start_room
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Check, X } from '@lucide/vue'
-import type { MissionRecord } from '../types/game'
+import type { MissionRecord } from '../types'
 
 const props = defineProps<{
   currentMission: number

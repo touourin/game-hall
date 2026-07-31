@@ -24,11 +24,18 @@ from .database import (
     normalize_database_url,
     users,
 )
-from .game.models import Room, Role
+from .games.avalon.models import Room, Role
 
 
 SESSION_LIFETIME = timedelta(days=30)
 GAME_KEY = "avalon"
+GAME_NAMES = {
+    "avalon": "阿瓦隆",
+    "gomoku": "五子棋",
+    "xiangqi": "中国象棋",
+    "go": "围棋",
+    "doudizhu": "斗地主",
+}
 
 
 class AccountError(ValueError):
@@ -64,18 +71,21 @@ class AccountStore:
             metadata.create_all(self.engine)
         now = self._now()
         with self.engine.begin() as connection:
-            existing_game = connection.execute(
-                select(games.c.key).where(games.c.key == GAME_KEY)
-            ).scalar_one_or_none()
-            if existing_game is None:
-                connection.execute(
-                    insert(games).values(
-                        key=GAME_KEY,
-                        name="阿瓦隆",
-                        enabled=True,
-                        created_at=now,
-                    )
-                )
+            existing_games = set(
+                connection.execute(select(games.c.key)).scalars().all()
+            )
+            missing_games = [
+                {
+                    "key": key,
+                    "name": name,
+                    "enabled": True,
+                    "created_at": now,
+                }
+                for key, name in GAME_NAMES.items()
+                if key not in existing_games
+            ]
+            if missing_games:
+                connection.execute(insert(games), missing_games)
         self._initialized = True
 
     def ping(self) -> None:
@@ -269,13 +279,78 @@ class AccountStore:
             return False
         return True
 
+    def record_game_match(
+        self,
+        *,
+        game_key: str,
+        match_id: str,
+        room_code: str,
+        winner: str,
+        reason: str,
+        started_at: str,
+        ended_at: str,
+        details: dict[str, Any],
+        players: list[dict[str, Any]],
+        ranked: bool = True,
+    ) -> bool:
+        if game_key not in GAME_NAMES or not players:
+            return False
+        self.initialize()
+        try:
+            with self.engine.begin() as connection:
+                existing = connection.execute(
+                    select(matches.c.id).where(matches.c.id == match_id)
+                ).scalar_one_or_none()
+                if existing is not None:
+                    return False
+                connection.execute(
+                    insert(matches).values(
+                        id=match_id,
+                        game_key=game_key,
+                        room_code=room_code,
+                        player_count=len(players),
+                        winner=winner,
+                        reason=reason,
+                        ranked=ranked,
+                        assassination_hit=None,
+                        started_at=self._parse_datetime(started_at),
+                        ended_at=self._parse_datetime(ended_at),
+                        details_json=details,
+                    )
+                )
+                connection.execute(
+                    insert(match_players),
+                    [
+                        {
+                            "match_id": match_id,
+                            "account_id": player["accountId"],
+                            "display_name": player["displayName"],
+                            "seat": player["seat"],
+                            "role": player["role"],
+                            "alignment": player["alignment"],
+                            "won": player["won"],
+                            "is_host": player["isHost"],
+                        }
+                        for player in players
+                    ],
+                )
+        except IntegrityError:
+            return False
+        return True
+
     def history_for_account(
-        self, account_id: str, *, limit: int = 50
+        self,
+        account_id: str,
+        *,
+        game_key: str | None = None,
+        limit: int = 50,
     ) -> list[dict]:
         self.initialize()
         statement = (
             select(
                 matches.c.id,
+                matches.c.game_key,
+                games.c.name.label("game_name"),
                 matches.c.room_code,
                 matches.c.player_count,
                 matches.c.winner,
@@ -291,20 +366,21 @@ class AccountStore:
             .select_from(
                 match_players.join(
                     matches, matches.c.id == match_players.c.match_id
-                )
+                ).join(games, games.c.key == matches.c.game_key)
             )
-            .where(
-                match_players.c.account_id == account_id,
-                matches.c.game_key == GAME_KEY,
-            )
+            .where(match_players.c.account_id == account_id)
             .order_by(matches.c.ended_at.desc())
             .limit(min(max(limit, 1), 100))
         )
+        if game_key is not None:
+            statement = statement.where(matches.c.game_key == game_key)
         with self.engine.connect() as connection:
             rows = connection.execute(statement).mappings().all()
         return [self._history_row(row) for row in rows]
 
-    def summary_for_account(self, account_id: str) -> dict[str, int | float]:
+    def summary_for_account(
+        self, account_id: str, *, game_key: str | None = None
+    ) -> dict[str, int | float]:
         self.initialize()
         statement = (
             select(
@@ -357,11 +433,10 @@ class AccountStore:
                     matches, matches.c.id == match_players.c.match_id
                 )
             )
-            .where(
-                match_players.c.account_id == account_id,
-                matches.c.game_key == GAME_KEY,
-            )
+            .where(match_players.c.account_id == account_id)
         )
+        if game_key is not None:
+            statement = statement.where(matches.c.game_key == game_key)
         with self.engine.connect() as connection:
             row = connection.execute(statement).mappings().one()
         game_count = int(row["games"])
@@ -376,7 +451,9 @@ class AccountStore:
             "evilWins": int(row["evil_wins"]),
         }
 
-    def leaderboard(self, *, limit: int = 50) -> list[dict]:
+    def leaderboard(
+        self, *, game_key: str | None = None, limit: int = 50
+    ) -> list[dict]:
         self.initialize()
         game_count = func.count().label("games")
         win_count = func.coalesce(
@@ -394,10 +471,7 @@ class AccountStore:
                     matches, matches.c.id == match_players.c.match_id
                 ).join(users, users.c.id == match_players.c.account_id)
             )
-            .where(
-                matches.c.ranked.is_(True),
-                matches.c.game_key == GAME_KEY,
-            )
+            .where(matches.c.ranked.is_(True))
             .group_by(users.c.id, users.c.display_name, users.c.created_at)
             .order_by(
                 win_count.desc(),
@@ -407,6 +481,8 @@ class AccountStore:
             )
             .limit(min(max(limit, 1), 100))
         )
+        if game_key is not None:
+            statement = statement.where(matches.c.game_key == game_key)
         with self.engine.connect() as connection:
             rows = connection.execute(statement).mappings().all()
         return [
@@ -428,6 +504,8 @@ class AccountStore:
         statement = (
             select(
                 matches.c.id,
+                matches.c.game_key,
+                games.c.name.label("game_name"),
                 matches.c.room_code,
                 matches.c.player_count,
                 matches.c.winner,
@@ -442,11 +520,10 @@ class AccountStore:
                 matches.join(
                     match_players,
                     match_players.c.match_id == matches.c.id,
-                )
+                ).join(games, games.c.key == matches.c.game_key)
             )
             .where(
                 matches.c.id == match_id,
-                matches.c.game_key == GAME_KEY,
                 match_players.c.account_id == account_id,
             )
         )
@@ -459,6 +536,8 @@ class AccountStore:
             details = json.loads(details)
         return {
             "id": row["id"],
+            "gameKey": row["game_key"],
+            "gameName": row["game_name"],
             "roomCode": row["room_code"],
             "playerCount": row["player_count"],
             "winner": row["winner"],
@@ -492,6 +571,8 @@ class AccountStore:
     def _history_row(cls, row: Mapping[str, Any]) -> dict:
         return {
             "id": row["id"],
+            "gameKey": row["game_key"],
+            "gameName": row["game_name"],
             "roomCode": row["room_code"],
             "playerCount": row["player_count"],
             "winner": row["winner"],

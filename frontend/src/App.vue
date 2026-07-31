@@ -23,13 +23,19 @@ import {
   setSocketAccountToken,
   socket,
 } from './socket'
-import { useRoomStore } from './stores/room'
+import { useRoomStore } from './games/avalon/store'
+import { useArcadeStore } from './stores/arcade'
+import type { GameCatalogItem } from './types/arcade'
 import AccessGate from './views/AccessGate.vue'
 import AccountGate from './views/AccountGate.vue'
 import HomeView from './views/HomeView.vue'
-import GameRoom from './views/GameRoom.vue'
+import GameRoom from './games/avalon/GameRoom.vue'
+import GameHall from './views/GameHall.vue'
+import ArcadeHome from './views/ArcadeHome.vue'
+import ArcadeRoom from './views/ArcadeRoom.vue'
 
 const room = useRoomStore()
+const arcade = useArcadeStore()
 const accessState = ref<'checking' | 'locked' | 'unlocked'>('checking')
 const accessBusy = ref(false)
 const accessError = ref<string | null>(null)
@@ -38,14 +44,31 @@ const accountState = ref<'checking' | 'locked' | 'authenticated'>('checking')
 const accountBusy = ref(false)
 const accountError = ref<string | null>(null)
 const account = ref<AccountProfile | null>(null)
+const selectedGame = ref<GameCatalogItem | null>(initialSelectedGame())
+
+function initialSelectedGame(): GameCatalogItem | null {
+  const params = new URLSearchParams(window.location.search)
+  const gameKey = params.get('game')
+  const catalog: Record<string, GameCatalogItem> = {
+    avalon: { key: 'avalon', name: '阿瓦隆', players: '5–10 人', description: '身份推理与团队博弈' },
+    gomoku: { key: 'gomoku', name: '五子棋', players: '2 人', description: '15 路棋盘，率先连成五子' },
+    xiangqi: { key: 'xiangqi', name: '中国象棋', players: '2 人', description: '楚河汉界，完整走子规则' },
+    go: { key: 'go', name: '围棋', players: '2 人', description: '19 路中国规则' },
+    doudizhu: { key: 'doudizhu', name: '斗地主', players: '3 人', description: '叫地主与完整牌型对战' },
+  }
+  if (gameKey && catalog[gameKey]) return catalog[gameKey]
+  if (params.get('room')) return catalog.avalon
+  return null
+}
 
 function enterGame(profile: AccountProfile, token: string) {
   account.value = profile
   accountState.value = 'authenticated'
   rememberAccountToken(token)
   setSocketAccountToken(token)
-  document.title = '圆桌密令 · 阿瓦隆'
+  document.title = '私人游戏大厅'
   room.init()
+  arcade.init()
   if (!socket.connected) socket.connect()
 }
 
@@ -135,6 +158,7 @@ async function logout() {
   setSocketAccountToken('')
   socket.disconnect()
   room.resetForLogout()
+  arcade.resetForLogout()
   account.value = null
   accountError.value = null
   accountState.value = 'locked'
@@ -175,17 +199,35 @@ onMounted(async () => {
       正在重新连接游戏服务器…
     </div>
 
-    <HomeView v-if="!room.snapshot" :account="account" @logout="logout" />
-    <GameRoom v-else :snapshot="room.snapshot" />
+    <GameRoom v-if="room.snapshot" :snapshot="room.snapshot" />
+    <ArcadeRoom v-else-if="arcade.snapshot" :snapshot="arcade.snapshot" />
+    <GameHall
+      v-else-if="!selectedGame"
+      :account="account"
+      @logout="logout"
+      @select="selectedGame = $event"
+    />
+    <HomeView
+      v-else-if="selectedGame.key === 'avalon'"
+      :account="account"
+      @logout="logout"
+      @back="selectedGame = null"
+    />
+    <ArcadeHome
+      v-else
+      :account="account"
+      :game="selectedGame"
+      @back="selectedGame = null"
+    />
 
-    <div v-if="room.error" class="toast" role="alert">
-      <span>{{ room.error }}</span>
-      <button class="icon-button" aria-label="关闭提示" @click="room.clearError">
+    <div v-if="room.error || arcade.error" class="toast" role="alert">
+      <span>{{ room.error || arcade.error }}</span>
+      <button class="icon-button" aria-label="关闭提示" @click="room.clearError(); arcade.clearError()">
         <X :size="18" />
       </button>
     </div>
 
-    <div v-if="room.busy" class="busy-indicator" aria-label="正在处理">
+    <div v-if="room.busy || arcade.busy" class="busy-indicator" aria-label="正在处理">
       <span />
       <span />
       <span />

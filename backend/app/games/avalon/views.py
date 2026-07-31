@@ -3,9 +3,9 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-from .game.engine import EARLY_ASSASSINATION_PHASES, GameEngine
-from .game.models import Alignment, Phase, Player, Role, Room
-from .game.rules import (
+from .engine import EARLY_ASSASSINATION_PHASES, GameEngine
+from .models import Alignment, Phase, Player, Role, Room
+from .rules import (
     GOOD_EVIL_COUNTS,
     mission_fail_threshold,
     mission_team_size,

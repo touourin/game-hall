@@ -116,4 +116,8 @@ async def test_socket_connection_requires_both_tokens(
         {"token": access_token(), "accountToken": account_token},
     ) is None
     save_session.assert_awaited_once()
-    emit.assert_awaited_once()
+    assert emit.await_count == 2
+    assert {call.args[0] for call in emit.await_args_list} == {
+        "lobby:rooms",
+        "arcade:lobby",
+    }

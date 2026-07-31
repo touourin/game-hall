@@ -1,13 +1,14 @@
 {
   "name": "avalon-lan-web",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "smoke:arcade": "node scripts/arcade-smoke.mjs"
   },
   "dependencies": {
     "@lucide/vue": "^1.27.0",

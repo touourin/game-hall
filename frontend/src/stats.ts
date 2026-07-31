@@ -13,24 +13,28 @@ export interface StatsSummary {
 
 export interface MatchHistoryItem {
   id: string
+  gameKey: string
+  gameName: string
   roomCode: string
   playerCount: number
-  winner: 'good' | 'evil'
+  winner: string
   reason: string
   ranked: boolean
   assassinationHit: boolean | null
   endedAt: string
   displayName: string
   role: string
-  alignment: 'good' | 'evil'
+  alignment: string
   won: boolean
 }
 
 export interface MatchDetail {
   id: string
+  gameKey: string
+  gameName: string
   roomCode: string
   playerCount: number
-  winner: 'good' | 'evil'
+  winner: string
   reason: string
   ranked: boolean
   assassinationHit: boolean | null
@@ -41,17 +45,17 @@ export interface MatchDetail {
       id: string
       name: string
       seat: number
-      isBot: boolean
-      role: string
-      alignment: 'good' | 'evil'
+      isBot?: boolean
+      role?: string
+      alignment?: string
     }>
-    missions: Array<{
+    missions?: Array<{
       number: number
       teamIds: string[]
       success: boolean
       failCount: number
     }>
-    proposals: Array<{
+    proposals?: Array<{
       missionNumber: number
       attempt: number
       leaderId: string
@@ -59,14 +63,15 @@ export interface MatchDetail {
       votes: Record<string, boolean>
       accepted: boolean
     }>
-    ladyChecks: Array<{
+    ladyChecks?: Array<{
       inspectorId: string
       targetId: string
       alignment: 'good' | 'evil'
       missionNumber: number
     }>
-    assassinTargetId: string | null
-    assassinationWasEarly: boolean
+    assassinTargetId?: string | null
+    assassinationWasEarly?: boolean
+    state?: Record<string, unknown>
   }
 }
 
@@ -110,7 +115,7 @@ async function statsRequest<T>(path: string): Promise<T> {
   return (await response.json()) as T
 }
 
-export async function loadPersonalStats(): Promise<{
+export async function loadPersonalStats(gameKey?: string): Promise<{
   summary: StatsSummary
   history: MatchHistoryItem[]
 }> {
@@ -118,7 +123,7 @@ export async function loadPersonalStats(): Promise<{
     ok: boolean
     summary: StatsSummary
     history: MatchHistoryItem[]
-  }>('/api/stats/me')
+  }>(`/api/stats/me${gameKey ? `?game=${encodeURIComponent(gameKey)}` : ''}`)
   return { summary: response.summary, history: response.history }
 }
 
@@ -129,10 +134,10 @@ export async function loadMatchDetail(matchId: string): Promise<MatchDetail> {
   return response.match
 }
 
-export async function loadLeaderboard(): Promise<LeaderboardEntry[]> {
+export async function loadLeaderboard(gameKey?: string): Promise<LeaderboardEntry[]> {
   const response = await statsRequest<{
     ok: boolean
     players: LeaderboardEntry[]
-  }>('/api/leaderboard')
+  }>(`/api/leaderboard${gameKey ? `?game=${encodeURIComponent(gameKey)}` : ''}`)
   return response.players
 }

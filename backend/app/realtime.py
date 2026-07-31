@@ -11,12 +11,12 @@ from pydantic import BaseModel, ValidationError
 
 from .access import verify_access_token
 from .accounts import account_store
-from .game.bots import advance_ai_players
-from .game.engine import GameEngine, GameRuleError
-from .game.models import Phase, Room
-from .infrastructure import redis_url
-from .rooms import RoomError, RoomManager
-from .schemas import (
+from .arcade.realtime import arcade_realtime
+from .games.avalon.bots import advance_ai_players
+from .games.avalon.engine import GameEngine, GameRuleError
+from .games.avalon.models import Phase, Room
+from .games.avalon.rooms import RoomError, RoomManager
+from .games.avalon.schemas import (
     ChatPayload,
     EarlyAssassinationSettingPayload,
     JoinPayload,
@@ -29,7 +29,8 @@ from .schemas import (
     TeamPayload,
     TeamVotePayload,
 )
-from .views import build_lobby_view, build_player_view
+from .games.avalon.views import build_lobby_view, build_player_view
+from .infrastructure import redis_url
 
 
 redis_connection_url = redis_url()
@@ -44,6 +45,7 @@ sio = socketio.AsyncServer(
     logger=False,
     engineio_logger=False,
 )
+arcade_realtime.bind(sio)
 rooms = RoomManager()
 engine = GameEngine()
 active_sids: dict[tuple[str, str], set[str]] = defaultdict(set)
@@ -72,6 +74,7 @@ async def cleanup_abandoned_rooms() -> None:
         await asyncio.sleep(60)
         if rooms.cleanup_abandoned():
             await broadcast_lobby()
+        await arcade_realtime.cleanup()
 
 
 async def bind_session(
@@ -173,11 +176,13 @@ async def connect(sid: str, environ: dict, auth: Any) -> bool | None:
         build_lobby_view(rooms.rooms.values()),
         to=sid,
     )
+    await arcade_realtime.on_connect(sid)
     return None
 
 
 @sio.event
 async def disconnect(sid: str, reason: str) -> None:
+    await arcade_realtime.on_disconnect(sid)
     try:
         room, player_id = await context_for_sid(sid)
     except (RoomError, KeyError):

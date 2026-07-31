@@ -4,8 +4,8 @@ import random
 
 import pytest
 
-from backend.app.game.engine import GameEngine, GameRuleError
-from backend.app.game.models import (
+from backend.app.games.avalon.engine import GameEngine, GameRuleError
+from backend.app.games.avalon.models import (
     Alignment,
     GameSettings,
     MissionRecord,

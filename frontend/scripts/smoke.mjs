@@ -1,6 +1,8 @@
 import { io } from 'socket.io-client'
 
 const serverUrl = process.env.AVALON_SERVER_URL ?? 'http://127.0.0.1:8800'
+const accessPassword = process.env.AVALON_SMOKE_ACCESS_PASSWORD ?? 'avalon'
+const accountPrefix = process.env.AVALON_SMOKE_PREFIX ?? `smk${Date.now().toString(36)}`
 const clients = []
 const snapshots = []
 const waiters = []
@@ -44,9 +46,43 @@ function emitAck(client, event, payload = {}) {
   })
 }
 
-async function newClient(index) {
+async function jsonRequest(path, options = {}) {
+  const response = await fetch(`${serverUrl}${path}`, options)
+  const body = await response.json()
+  if (!response.ok) throw new Error(body.detail ?? `${path} 失败`)
+  return body
+}
+
+async function registerAccounts() {
+  const access = await jsonRequest('/api/access/unlock', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: accessPassword }),
+  })
+  const accounts = []
+  for (let index = 0; index < 5; index += 1) {
+    accounts.push(
+      await jsonRequest('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Avalon-Access': access.token,
+        },
+        body: JSON.stringify({
+          username: `${accountPrefix}_${index + 1}`,
+          password: 'SmokePass123!',
+          display_name: `测试玩家${index + 1}`,
+        }),
+      }),
+    )
+  }
+  return { accessToken: access.token, accounts }
+}
+
+async function newClient(index, accessToken, accountToken) {
   const client = io(serverUrl, {
     autoConnect: false,
+    auth: { token: accessToken, accountToken },
     transports: ['websocket'],
   })
   client.on('room:snapshot', (snapshot) => {
@@ -63,7 +99,8 @@ async function newClient(index) {
 }
 
 try {
-  const host = await newClient(0)
+  const { accessToken, accounts } = await registerAccounts()
+  const host = await newClient(0, accessToken, accounts[0].token)
   const created = await emitAck(host, 'room:create', { name: '测试玩家1' })
   const lobbyBeforeStart = await emitAck(host, 'lobby:list')
   if (
@@ -75,7 +112,7 @@ try {
   }
 
   for (let index = 1; index < 5; index += 1) {
-    const client = await newClient(index)
+    const client = await newClient(index, accessToken, accounts[index].token)
     await emitAck(client, 'room:join', {
       room_code: created.roomCode,
       name: `测试玩家${index + 1}`,
@@ -166,6 +203,7 @@ try {
   console.log(
     JSON.stringify({
       ok: true,
+      accountPrefix,
       roomCode: created.roomCode,
       players: snapshots[0].players.length,
       chatMessages: snapshots[0].chat.messages.length,

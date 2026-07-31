@@ -5,7 +5,7 @@ import secrets
 import string
 from datetime import datetime, timedelta, timezone
 
-from .game.models import ChatMessage, GameSettings, Phase, Player, Room
+from .models import ChatMessage, GameSettings, Phase, Player, Room
 
 
 class RoomError(ValueError):

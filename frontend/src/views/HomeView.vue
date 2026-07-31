@@ -2,6 +2,7 @@
 import { computed, nextTick, ref } from 'vue'
 import {
   ChevronRight,
+  ArrowLeft,
   Crown,
   History,
   LogIn,
@@ -14,14 +15,14 @@ import {
   Trophy,
   UsersRound,
 } from '@lucide/vue'
-import { useRoomStore } from '../stores/room'
+import { useRoomStore } from '../games/avalon/store'
 import type { AccountProfile } from '../account'
 import LeaderboardModal from '../components/LeaderboardModal.vue'
 import StatsModal from '../components/StatsModal.vue'
 import ThemeModal from '../components/ThemeModal.vue'
 
 const props = defineProps<{ account: AccountProfile }>()
-defineEmits<{ logout: [] }>()
+defineEmits<{ logout: []; back: [] }>()
 
 const room = useRoomStore()
 const params = new URLSearchParams(window.location.search)
@@ -71,6 +72,9 @@ async function chooseRoom(code: string) {
         </span>
       </div>
       <div class="account-bar-actions">
+        <button type="button" aria-label="返回游戏大厅" @click="$emit('back')">
+          <ArrowLeft :size="16" /><span>大厅</span>
+        </button>
         <button type="button" aria-label="查看战绩" @click="showStats = true">
           <History :size="16" /><span>战绩</span>
         </button>
@@ -209,10 +213,12 @@ async function chooseRoom(code: string) {
 
     <p class="home-note">战绩绑定账号 · 适合 5–10 人 · 请连接同一个 Wi‑Fi</p>
 
-    <StatsModal v-if="showStats" @close="showStats = false" />
+    <StatsModal v-if="showStats" game-key="avalon" game-name="阿瓦隆" @close="showStats = false" />
     <LeaderboardModal
       v-if="showLeaderboard"
       :account-id="account.id"
+      game-key="avalon"
+      game-name="阿瓦隆"
       @close="showLeaderboard = false"
     />
     <ThemeModal v-if="showTheme" @close="showTheme = false" />

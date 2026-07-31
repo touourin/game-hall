@@ -2,8 +2,8 @@ import { createPinia } from 'pinia'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { vi } from 'vitest'
-import { useRoomStore } from '../stores/room'
-import type { RoomSnapshot } from '../types/game'
+import { useRoomStore } from './store'
+import type { RoomSnapshot } from './types'
 import GameRoom from './GameRoom.vue'
 
 function roleRevealSnapshot(revision: number): RoomSnapshot {

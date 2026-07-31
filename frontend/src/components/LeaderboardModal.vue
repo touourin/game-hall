@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue'
 import { LoaderCircle, Trophy, X } from '@lucide/vue'
 import { loadLeaderboard, type LeaderboardEntry } from '../stats'
 
-const props = defineProps<{ accountId: string }>()
+const props = defineProps<{ accountId: string; gameKey?: string; gameName?: string }>()
 defineEmits<{ close: [] }>()
 
 const players = ref<LeaderboardEntry[]>([])
@@ -12,7 +12,7 @@ const error = ref<string | null>(null)
 
 onMounted(async () => {
   try {
-    players.value = await loadLeaderboard()
+    players.value = await loadLeaderboard(props.gameKey)
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : '读取排行榜失败'
   } finally {
@@ -28,7 +28,7 @@ onMounted(async () => {
         <X :size="20" />
       </button>
       <span class="modal-icon"><Trophy :size="25" /></span>
-      <h2>圆桌排行榜</h2>
+      <h2>{{ props.gameName ? `${props.gameName}排行榜` : '游戏总排行榜' }}</h2>
       <p>按胜场排序，同胜场时依次比较胜率和有效场次。</p>
 
       <div v-if="loading" class="stats-loading">

@@ -12,7 +12,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .access import access_password, access_token, verify_access_token, verify_password
-from .accounts import AccountError, account_store
+from .accounts import AccountError, GAME_NAMES, account_store
+from .games.registry import GAME_CATALOG
 from .infrastructure import redis_status
 from .realtime import cleanup_abandoned_rooms, sio
 
@@ -30,7 +31,7 @@ async def lifespan(_: FastAPI):
             await cleanup_task
 
 
-api = FastAPI(title="Avalon LAN", version="0.1.0", lifespan=lifespan)
+api = FastAPI(title="Private Game Hall", version="0.2.0", lifespan=lifespan)
 
 
 class AccessRequest(BaseModel):
@@ -172,24 +173,46 @@ def logout_account(
 
 @api.get("/api/stats/me")
 def personal_stats(
+    game: str | None = None,
     authorization: str | None = Header(default=None),
     x_avalon_access: str | None = Header(default=None),
 ) -> dict:
     account = require_account_session(authorization, x_avalon_access)
+    if game is not None and game not in GAME_NAMES:
+        raise HTTPException(status_code=404, detail="没有找到这个游戏")
     return {
         "ok": True,
-        "summary": account_store().summary_for_account(account.id),
-        "history": account_store().history_for_account(account.id),
+        "summary": account_store().summary_for_account(
+            account.id, game_key=game
+        ),
+        "history": account_store().history_for_account(
+            account.id, game_key=game
+        ),
     }
 
 
 @api.get("/api/leaderboard")
 def leaderboard(
+    game: str | None = None,
     authorization: str | None = Header(default=None),
     x_avalon_access: str | None = Header(default=None),
 ) -> dict:
     require_account_session(authorization, x_avalon_access)
-    return {"ok": True, "players": account_store().leaderboard()}
+    if game is not None and game not in GAME_NAMES:
+        raise HTTPException(status_code=404, detail="没有找到这个游戏")
+    return {
+        "ok": True,
+        "players": account_store().leaderboard(game_key=game),
+    }
+
+
+@api.get("/api/games")
+def game_catalog(
+    authorization: str | None = Header(default=None),
+    x_avalon_access: str | None = Header(default=None),
+) -> dict:
+    require_account_session(authorization, x_avalon_access)
+    return {"ok": True, "games": GAME_CATALOG}
 
 
 @api.get("/api/matches/{match_id}")
