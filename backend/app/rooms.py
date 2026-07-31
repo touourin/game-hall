@@ -211,32 +211,6 @@ class RoomManager:
         room.settings.early_assassination_enabled = enabled
         room.revision += 1
 
-    def rename_player(
-        self, room: Room, actor_id: str, target_id: str, player_name: str
-    ) -> None:
-        if room.host_id != actor_id:
-            raise RoomError("只有房主可以修改玩家名字")
-        if target_id == actor_id:
-            raise RoomError("房主只能修改其他玩家的名字")
-        try:
-            target = room.player(target_id)
-        except KeyError as exc:
-            raise RoomError("玩家不存在") from exc
-
-        name = self._normalize_name(player_name)
-        if any(
-            player.id != target_id
-            and player.name.casefold() == name.casefold()
-            for player in room.players
-        ):
-            raise RoomError("房间里已经有同名玩家")
-
-        target.name = name
-        for message in room.chat_messages:
-            if message.sender_id == target_id:
-                message.sender_name = name
-        room.revision += 1
-
     def send_chat(
         self, room: Room, player_id: str, content: str
     ) -> ChatMessage:

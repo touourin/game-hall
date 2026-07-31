@@ -4,15 +4,31 @@ import hashlib
 import json
 import os
 import secrets
-import sqlite3
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
+from sqlalchemy import case, delete, func, insert, select
+from sqlalchemy.engine import Engine
+from sqlalchemy.exc import IntegrityError
+
+from .database import (
+    account_sessions,
+    build_engine,
+    games,
+    match_players,
+    matches,
+    metadata,
+    normalize_database_url,
+    users,
+)
 from .game.models import Room, Role
 
 
 SESSION_LIFETIME = timedelta(days=30)
+GAME_KEY = "avalon"
 
 
 class AccountError(ValueError):
@@ -36,67 +52,38 @@ class Account:
 
 
 class AccountStore:
-    def __init__(self, database_path: str | Path) -> None:
-        self.database_path = str(database_path)
+    def __init__(self, database_source: str | Path) -> None:
+        self.database_url = normalize_database_url(database_source)
+        self.engine: Engine = build_engine(self.database_url)
+        self._initialized = False
 
     def initialize(self) -> None:
-        if self.database_path != ":memory:":
-            Path(self.database_path).parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as connection:
-            connection.executescript(
-                """
-                CREATE TABLE IF NOT EXISTS accounts (
-                    id TEXT PRIMARY KEY,
-                    username TEXT NOT NULL,
-                    username_key TEXT NOT NULL UNIQUE,
-                    display_name TEXT NOT NULL,
-                    password_salt BLOB NOT NULL,
-                    password_hash BLOB NOT NULL,
-                    created_at TEXT NOT NULL
-                );
+        if self._initialized:
+            return
+        if self.engine.dialect.name == "sqlite":
+            metadata.create_all(self.engine)
+        now = self._now()
+        with self.engine.begin() as connection:
+            existing_game = connection.execute(
+                select(games.c.key).where(games.c.key == GAME_KEY)
+            ).scalar_one_or_none()
+            if existing_game is None:
+                connection.execute(
+                    insert(games).values(
+                        key=GAME_KEY,
+                        name="阿瓦隆",
+                        enabled=True,
+                        created_at=now,
+                    )
+                )
+        self._initialized = True
 
-                CREATE TABLE IF NOT EXISTS account_sessions (
-                    token_hash TEXT PRIMARY KEY,
-                    account_id TEXT NOT NULL REFERENCES accounts(id)
-                        ON DELETE CASCADE,
-                    expires_at TEXT NOT NULL,
-                    created_at TEXT NOT NULL
-                );
+    def ping(self) -> None:
+        with self.engine.connect() as connection:
+            connection.execute(select(1)).scalar_one()
 
-                CREATE INDEX IF NOT EXISTS account_sessions_account_idx
-                    ON account_sessions(account_id);
-
-                CREATE TABLE IF NOT EXISTS matches (
-                    id TEXT PRIMARY KEY,
-                    room_code TEXT NOT NULL,
-                    player_count INTEGER NOT NULL,
-                    winner TEXT NOT NULL,
-                    reason TEXT NOT NULL,
-                    ranked INTEGER NOT NULL,
-                    assassination_hit INTEGER,
-                    started_at TEXT NOT NULL,
-                    ended_at TEXT NOT NULL,
-                    details_json TEXT NOT NULL
-                );
-
-                CREATE TABLE IF NOT EXISTS match_players (
-                    match_id TEXT NOT NULL REFERENCES matches(id)
-                        ON DELETE CASCADE,
-                    account_id TEXT NOT NULL REFERENCES accounts(id)
-                        ON DELETE CASCADE,
-                    display_name TEXT NOT NULL,
-                    seat INTEGER NOT NULL,
-                    role TEXT NOT NULL,
-                    alignment TEXT NOT NULL,
-                    won INTEGER NOT NULL,
-                    is_host INTEGER NOT NULL,
-                    PRIMARY KEY (match_id, account_id)
-                );
-
-                CREATE INDEX IF NOT EXISTS match_players_account_idx
-                    ON match_players(account_id, match_id);
-                """
-            )
+    def dispose(self) -> None:
+        self.engine.dispose()
 
     def register(
         self, username: str, password: str, display_name: str
@@ -106,33 +93,28 @@ class AccountStore:
         self._validate_password(password)
         salt = secrets.token_bytes(16)
         password_hash = self._password_hash(password, salt)
+        created_at = self._now()
         account = Account(
             id=secrets.token_urlsafe(12),
             username=normalized_username,
             display_name=normalized_display_name,
-            created_at=self._now().isoformat(timespec="seconds"),
+            created_at=self._iso_datetime(created_at),
         )
         self.initialize()
         try:
-            with self._connect() as connection:
+            with self.engine.begin() as connection:
                 connection.execute(
-                    """
-                    INSERT INTO accounts (
-                        id, username, username_key, display_name,
-                        password_salt, password_hash, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        account.id,
-                        account.username,
-                        username_key,
-                        account.display_name,
-                        salt,
-                        password_hash,
-                        account.created_at,
-                    ),
+                    insert(users).values(
+                        id=account.id,
+                        username=account.username,
+                        username_key=username_key,
+                        display_name=account.display_name,
+                        password_salt=salt,
+                        password_hash=password_hash,
+                        created_at=created_at,
+                    )
                 )
-        except sqlite3.IntegrityError as exc:
+        except IntegrityError as exc:
             raise AccountError("这个账号名已经被注册") from exc
         return account, self._create_session(account.id)
 
@@ -140,16 +122,21 @@ class AccountStore:
         _, username_key = self._normalize_username(username)
         self._validate_password(password)
         self.initialize()
-        with self._connect() as connection:
-            row = connection.execute(
-                """
-                SELECT id, username, display_name, password_salt,
-                       password_hash, created_at
-                FROM accounts
-                WHERE username_key = ?
-                """,
-                (username_key,),
-            ).fetchone()
+        with self.engine.connect() as connection:
+            row = (
+                connection.execute(
+                    select(
+                        users.c.id,
+                        users.c.username,
+                        users.c.display_name,
+                        users.c.password_salt,
+                        users.c.password_hash,
+                        users.c.created_at,
+                    ).where(users.c.username_key == username_key)
+                )
+                .mappings()
+                .first()
+            )
         if row is None:
             raise AccountError("账号或密码不正确")
         candidate_hash = self._password_hash(password, row["password_salt"])
@@ -162,34 +149,47 @@ class AccountStore:
         if not token:
             return None
         self.initialize()
-        now = self._now().isoformat(timespec="seconds")
+        now = self._now()
         token_hash = self._token_hash(token)
-        with self._connect() as connection:
+        with self.engine.begin() as connection:
             connection.execute(
-                "DELETE FROM account_sessions WHERE expires_at <= ?",
-                (now,),
+                delete(account_sessions).where(
+                    account_sessions.c.expires_at <= now
+                )
             )
-            row = connection.execute(
-                """
-                SELECT accounts.id, accounts.username,
-                       accounts.display_name, accounts.created_at
-                FROM account_sessions
-                JOIN accounts ON accounts.id = account_sessions.account_id
-                WHERE account_sessions.token_hash = ?
-                  AND account_sessions.expires_at > ?
-                """,
-                (token_hash, now),
-            ).fetchone()
+            row = (
+                connection.execute(
+                    select(
+                        users.c.id,
+                        users.c.username,
+                        users.c.display_name,
+                        users.c.created_at,
+                    )
+                    .select_from(
+                        account_sessions.join(
+                            users,
+                            users.c.id == account_sessions.c.account_id,
+                        )
+                    )
+                    .where(
+                        account_sessions.c.token_hash == token_hash,
+                        account_sessions.c.expires_at > now,
+                    )
+                )
+                .mappings()
+                .first()
+            )
         return self._account_from_row(row) if row is not None else None
 
     def logout(self, token: str | None) -> None:
         if not token:
             return
         self.initialize()
-        with self._connect() as connection:
+        with self.engine.begin() as connection:
             connection.execute(
-                "DELETE FROM account_sessions WHERE token_hash = ?",
-                (self._token_hash(token),),
+                delete(account_sessions).where(
+                    account_sessions.c.token_hash == self._token_hash(token)
+                )
             )
 
     def record_match(self, room: Room) -> bool:
@@ -223,106 +223,153 @@ class AccountStore:
             if assassination_target is not None
             else None
         )
-        ended_at = self._now().isoformat(timespec="seconds")
+        ended_at = self._now()
+        started_at = self._parse_datetime(room.game_started_at)
         details = self._match_details(room)
         self.initialize()
-        with self._connect() as connection:
-            inserted = connection.execute(
-                """
-                INSERT OR IGNORE INTO matches (
-                    id, room_code, player_count, winner, reason, ranked,
-                    assassination_hit, started_at, ended_at, details_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    room.game_id,
-                    room.code,
-                    len(room.players),
-                    room.winner.value,
-                    room.win_reason,
-                    int(ranked),
-                    (
-                        int(assassination_hit)
-                        if assassination_hit is not None
-                        else None
-                    ),
-                    room.game_started_at,
-                    ended_at,
-                    json.dumps(details, ensure_ascii=False),
-                ),
-            ).rowcount
-            if not inserted:
-                return False
-            connection.executemany(
-                """
-                INSERT INTO match_players (
-                    match_id, account_id, display_name, seat, role,
-                    alignment, won, is_host
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                [
-                    (
-                        room.game_id,
-                        player.account_id,
-                        player.name,
-                        player.seat,
-                        player.role.value,
-                        player.alignment.value,
-                        int(player.alignment == room.winner),
-                        int(player.id == room.host_id),
+        try:
+            with self.engine.begin() as connection:
+                existing = connection.execute(
+                    select(matches.c.id).where(matches.c.id == room.game_id)
+                ).scalar_one_or_none()
+                if existing is not None:
+                    return False
+                connection.execute(
+                    insert(matches).values(
+                        id=room.game_id,
+                        game_key=GAME_KEY,
+                        room_code=room.code,
+                        player_count=len(room.players),
+                        winner=room.winner.value,
+                        reason=room.win_reason,
+                        ranked=ranked,
+                        assassination_hit=assassination_hit,
+                        started_at=started_at,
+                        ended_at=ended_at,
+                        details_json=details,
                     )
+                )
+                player_rows = [
+                    {
+                        "match_id": room.game_id,
+                        "account_id": player.account_id,
+                        "display_name": player.name,
+                        "seat": player.seat,
+                        "role": player.role.value,
+                        "alignment": player.alignment.value,
+                        "won": player.alignment == room.winner,
+                        "is_host": player.id == room.host_id,
+                    }
                     for player in human_players
                     if player.account_id is not None
-                ],
-            )
+                ]
+                if player_rows:
+                    connection.execute(insert(match_players), player_rows)
+        except IntegrityError:
+            return False
         return True
 
     def history_for_account(
         self, account_id: str, *, limit: int = 50
     ) -> list[dict]:
         self.initialize()
-        with self._connect() as connection:
-            rows = connection.execute(
-                """
-                SELECT matches.id, matches.room_code, matches.player_count,
-                       matches.winner, matches.reason, matches.ranked,
-                       matches.assassination_hit, matches.ended_at,
-                       match_players.display_name, match_players.role,
-                       match_players.alignment, match_players.won
-                FROM match_players
-                JOIN matches ON matches.id = match_players.match_id
-                WHERE match_players.account_id = ?
-                ORDER BY matches.ended_at DESC
-                LIMIT ?
-                """,
-                (account_id, min(max(limit, 1), 100)),
-            ).fetchall()
+        statement = (
+            select(
+                matches.c.id,
+                matches.c.room_code,
+                matches.c.player_count,
+                matches.c.winner,
+                matches.c.reason,
+                matches.c.ranked,
+                matches.c.assassination_hit,
+                matches.c.ended_at,
+                match_players.c.display_name,
+                match_players.c.role,
+                match_players.c.alignment,
+                match_players.c.won,
+            )
+            .select_from(
+                match_players.join(
+                    matches, matches.c.id == match_players.c.match_id
+                )
+            )
+            .where(
+                match_players.c.account_id == account_id,
+                matches.c.game_key == GAME_KEY,
+            )
+            .order_by(matches.c.ended_at.desc())
+            .limit(min(max(limit, 1), 100))
+        )
+        with self.engine.connect() as connection:
+            rows = connection.execute(statement).mappings().all()
         return [self._history_row(row) for row in rows]
 
     def summary_for_account(self, account_id: str) -> dict[str, int | float]:
         self.initialize()
-        with self._connect() as connection:
-            row = connection.execute(
-                """
-                SELECT COUNT(*) AS games,
-                       COALESCE(SUM(won), 0) AS wins,
-                       COALESCE(SUM(alignment = 'good'), 0) AS good_games,
-                       COALESCE(SUM(alignment = 'good' AND won = 1), 0)
-                           AS good_wins,
-                       COALESCE(SUM(alignment = 'evil'), 0) AS evil_games,
-                       COALESCE(SUM(alignment = 'evil' AND won = 1), 0)
-                           AS evil_wins
-                FROM match_players
-                WHERE account_id = ?
-                """,
-                (account_id,),
-            ).fetchone()
-        games = int(row["games"])
-        wins = int(row["wins"])
+        statement = (
+            select(
+                func.count().label("games"),
+                func.coalesce(
+                    func.sum(case((match_players.c.won.is_(True), 1), else_=0)),
+                    0,
+                ).label("wins"),
+                func.coalesce(
+                    func.sum(
+                        case((match_players.c.alignment == "good", 1), else_=0)
+                    ),
+                    0,
+                ).label("good_games"),
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (
+                                (match_players.c.alignment == "good")
+                                & match_players.c.won.is_(True),
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ).label("good_wins"),
+                func.coalesce(
+                    func.sum(
+                        case((match_players.c.alignment == "evil", 1), else_=0)
+                    ),
+                    0,
+                ).label("evil_games"),
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (
+                                (match_players.c.alignment == "evil")
+                                & match_players.c.won.is_(True),
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ).label("evil_wins"),
+            )
+            .select_from(
+                match_players.join(
+                    matches, matches.c.id == match_players.c.match_id
+                )
+            )
+            .where(
+                match_players.c.account_id == account_id,
+                matches.c.game_key == GAME_KEY,
+            )
+        )
+        with self.engine.connect() as connection:
+            row = connection.execute(statement).mappings().one()
+        game_count = int(row["games"])
+        win_count = int(row["wins"])
         return {
-            "games": games,
-            "wins": wins,
-            "winRate": round(wins / games * 100, 1) if games else 0,
+            "games": game_count,
+            "wins": win_count,
+            "winRate": round(win_count / game_count * 100, 1) if game_count else 0,
             "goodGames": int(row["good_games"]),
             "goodWins": int(row["good_wins"]),
             "evilGames": int(row["evil_games"]),
@@ -331,25 +378,37 @@ class AccountStore:
 
     def leaderboard(self, *, limit: int = 50) -> list[dict]:
         self.initialize()
-        with self._connect() as connection:
-            rows = connection.execute(
-                """
-                SELECT accounts.id, accounts.display_name,
-                       COUNT(*) AS games,
-                       SUM(match_players.won) AS wins
-                FROM match_players
-                JOIN matches ON matches.id = match_players.match_id
-                JOIN accounts ON accounts.id = match_players.account_id
-                WHERE matches.ranked = 1
-                GROUP BY accounts.id, accounts.display_name
-                ORDER BY wins DESC,
-                         (1.0 * wins / COUNT(*)) DESC,
-                         games DESC,
-                         accounts.created_at ASC
-                LIMIT ?
-                """,
-                (min(max(limit, 1), 100),),
-            ).fetchall()
+        game_count = func.count().label("games")
+        win_count = func.coalesce(
+            func.sum(case((match_players.c.won.is_(True), 1), else_=0)), 0
+        ).label("wins")
+        statement = (
+            select(
+                users.c.id,
+                users.c.display_name,
+                game_count,
+                win_count,
+            )
+            .select_from(
+                match_players.join(
+                    matches, matches.c.id == match_players.c.match_id
+                ).join(users, users.c.id == match_players.c.account_id)
+            )
+            .where(
+                matches.c.ranked.is_(True),
+                matches.c.game_key == GAME_KEY,
+            )
+            .group_by(users.c.id, users.c.display_name, users.c.created_at)
+            .order_by(
+                win_count.desc(),
+                (win_count * 1.0 / game_count).desc(),
+                game_count.desc(),
+                users.c.created_at.asc(),
+            )
+            .limit(min(max(limit, 1), 100))
+        )
+        with self.engine.connect() as connection:
+            rows = connection.execute(statement).mappings().all()
         return [
             {
                 "rank": index,
@@ -366,21 +425,38 @@ class AccountStore:
         self, match_id: str, account_id: str
     ) -> dict | None:
         self.initialize()
-        with self._connect() as connection:
-            row = connection.execute(
-                """
-                SELECT matches.id, matches.room_code, matches.player_count,
-                       matches.winner, matches.reason, matches.ranked,
-                       matches.assassination_hit, matches.started_at,
-                       matches.ended_at, matches.details_json
-                FROM matches
-                JOIN match_players ON match_players.match_id = matches.id
-                WHERE matches.id = ? AND match_players.account_id = ?
-                """,
-                (match_id, account_id),
-            ).fetchone()
+        statement = (
+            select(
+                matches.c.id,
+                matches.c.room_code,
+                matches.c.player_count,
+                matches.c.winner,
+                matches.c.reason,
+                matches.c.ranked,
+                matches.c.assassination_hit,
+                matches.c.started_at,
+                matches.c.ended_at,
+                matches.c.details_json,
+            )
+            .select_from(
+                matches.join(
+                    match_players,
+                    match_players.c.match_id == matches.c.id,
+                )
+            )
+            .where(
+                matches.c.id == match_id,
+                matches.c.game_key == GAME_KEY,
+                match_players.c.account_id == account_id,
+            )
+        )
+        with self.engine.connect() as connection:
+            row = connection.execute(statement).mappings().first()
         if row is None:
             return None
+        details = row["details_json"]
+        if isinstance(details, str):
+            details = json.loads(details)
         return {
             "id": row["id"],
             "roomCode": row["room_code"],
@@ -393,32 +469,27 @@ class AccountStore:
                 if row["assassination_hit"] is not None
                 else None
             ),
-            "startedAt": row["started_at"],
-            "endedAt": row["ended_at"],
-            "details": json.loads(row["details_json"]),
+            "startedAt": self._iso_datetime(row["started_at"]),
+            "endedAt": self._iso_datetime(row["ended_at"]),
+            "details": details,
         }
 
     def _create_session(self, account_id: str) -> str:
         token = secrets.token_urlsafe(32)
         now = self._now()
-        with self._connect() as connection:
+        with self.engine.begin() as connection:
             connection.execute(
-                """
-                INSERT INTO account_sessions (
-                    token_hash, account_id, expires_at, created_at
-                ) VALUES (?, ?, ?, ?)
-                """,
-                (
-                    self._token_hash(token),
-                    account_id,
-                    (now + SESSION_LIFETIME).isoformat(timespec="seconds"),
-                    now.isoformat(timespec="seconds"),
-                ),
+                insert(account_sessions).values(
+                    token_hash=self._token_hash(token),
+                    account_id=account_id,
+                    expires_at=now + SESSION_LIFETIME,
+                    created_at=now,
+                )
             )
         return token
 
-    @staticmethod
-    def _history_row(row: sqlite3.Row) -> dict:
+    @classmethod
+    def _history_row(cls, row: Mapping[str, Any]) -> dict:
         return {
             "id": row["id"],
             "roomCode": row["room_code"],
@@ -431,7 +502,7 @@ class AccountStore:
                 if row["assassination_hit"] is not None
                 else None
             ),
-            "endedAt": row["ended_at"],
+            "endedAt": cls._iso_datetime(row["ended_at"]),
             "displayName": row["display_name"],
             "role": row["role"],
             "alignment": row["alignment"],
@@ -485,21 +556,13 @@ class AccountStore:
             "assassinationWasEarly": room.assassination_was_early,
         }
 
-    def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.database_path, timeout=5)
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA foreign_keys = ON")
-        if self.database_path != ":memory:":
-            connection.execute("PRAGMA journal_mode = WAL")
-        return connection
-
-    @staticmethod
-    def _account_from_row(row: sqlite3.Row) -> Account:
+    @classmethod
+    def _account_from_row(cls, row: Mapping[str, Any]) -> Account:
         return Account(
             id=row["id"],
             username=row["username"],
             display_name=row["display_name"],
-            created_at=row["created_at"],
+            created_at=cls._iso_datetime(row["created_at"]),
         )
 
     @staticmethod
@@ -507,7 +570,9 @@ class AccountStore:
         normalized = username.strip()
         if not 2 <= len(normalized) <= 20:
             raise AccountError("账号名需要 2–20 个字符")
-        if not all(character.isalnum() or character in "_-" for character in normalized):
+        if not all(
+            character.isalnum() or character in "_-" for character in normalized
+        ):
             raise AccountError("账号名只能使用文字、数字、下划线或短横线")
         return normalized, normalized.casefold()
 
@@ -542,15 +607,33 @@ class AccountStore:
 
     @staticmethod
     def _now() -> datetime:
-        return datetime.now(timezone.utc)
+        return datetime.now(timezone.utc).replace(tzinfo=None)
+
+    @staticmethod
+    def _parse_datetime(value: str) -> datetime:
+        parsed = datetime.fromisoformat(value)
+        if parsed.tzinfo is not None:
+            parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+        return parsed
+
+    @staticmethod
+    def _iso_datetime(value: datetime | str) -> str:
+        if isinstance(value, str):
+            return value
+        return value.replace(tzinfo=timezone.utc).isoformat(timespec="seconds")
 
 
 _stores: dict[str, AccountStore] = {}
 
 
 def account_store() -> AccountStore:
-    default_path = Path(__file__).resolve().parents[2] / ".data" / "avalon.sqlite3"
-    path = os.environ.get("AVALON_DB_PATH", str(default_path))
-    if path not in _stores:
-        _stores[path] = AccountStore(path)
-    return _stores[path]
+    source = os.environ.get("DATABASE_URL")
+    if source is None:
+        default_path = (
+            Path(__file__).resolve().parents[2] / ".data" / "avalon.sqlite3"
+        )
+        source = os.environ.get("AVALON_DB_PATH", str(default_path))
+    key = normalize_database_url(source)
+    if key not in _stores:
+        _stores[key] = AccountStore(key)
+    return _stores[key]

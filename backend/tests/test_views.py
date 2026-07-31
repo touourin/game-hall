@@ -81,16 +81,6 @@ def test_chat_history_is_visible_to_every_room_member():
     assert view["chat"]["messages"][-1]["content"] == "这支队伍我赞成"
 
 
-def test_only_host_can_see_player_rename_action():
-    engine, room = start_room(5)
-    host_view = build_player_view(room, room.player(room.host_id), engine)
-    guest = next(player for player in room.players if player.id != room.host_id)
-    guest_view = build_player_view(room, guest, engine)
-
-    assert host_view["actions"]["canRenamePlayers"] is True
-    assert guest_view["actions"]["canRenamePlayers"] is False
-
-
 def test_ai_player_marker_and_add_action_are_in_player_view():
     manager = RoomManager()
     room, host, _ = manager.create_room("亚瑟")

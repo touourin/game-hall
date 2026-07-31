@@ -95,7 +95,6 @@ function roleRevealSnapshot(revision: number): RoomSnapshot {
       canAcknowledgeLady: false,
       canAssassinate: false,
       canEarlyAssassinate: false,
-      canRenamePlayers: false,
       canAddAiPlayer: false,
       canRestart: false,
     },
@@ -635,41 +634,4 @@ describe('GameRoom role reveal', () => {
     expect(record).toContain('真实身份为 梅林')
   })
 
-  it('lets the host rename another player during an active vote', async () => {
-    const snapshot = roleRevealSnapshot(1)
-    snapshot.phase = 'team_voting'
-    snapshot.actions.canConfirmRole = false
-    snapshot.actions.canRenamePlayers = true
-    snapshot.players.push({
-      id: 'p2',
-      name: '旧名字',
-      seat: 1,
-      connected: true,
-      isBot: false,
-      isHost: false,
-      isLeader: false,
-      isSelected: false,
-    })
-    const pinia = createPinia()
-    const room = useRoomStore(pinia)
-    const perform = vi.spyOn(room, 'perform').mockResolvedValue({ ok: true })
-    const wrapper = mount(GameRoom, {
-      props: { snapshot },
-      global: { plugins: [pinia] },
-    })
-
-    await wrapper.get('[aria-label="修改玩家名字"]').trigger('click')
-
-    const modal = wrapper.get('.rename-player-modal')
-    expect(modal.text()).toContain('2')
-    expect(modal.text()).toContain('旧名字')
-    await modal.get('.rename-player-input input').setValue('新名字')
-    await modal.get('.primary-button').trigger('click')
-
-    expect(perform).toHaveBeenCalledWith('room:rename-player', {
-      target_id: 'p2',
-      name: '新名字',
-    })
-    expect(wrapper.find('.rename-player-modal').exists()).toBe(false)
-  })
 })

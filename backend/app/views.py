@@ -172,7 +172,6 @@ def build_player_view(
         "canEarlyAssassinate": room.settings.early_assassination_enabled
         and room.phase in EARLY_ASSASSINATION_PHASES
         and viewer.role == Role.ASSASSIN,
-        "canRenamePlayers": viewer.id == room.host_id and player_count > 1,
         "canAddAiPlayer": room.phase == Phase.LOBBY
         and viewer.id == room.host_id
         and player_count < 10,

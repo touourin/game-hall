@@ -26,10 +26,6 @@ class EarlyAssassinationSettingPayload(BaseModel):
     enabled: bool
 
 
-class RenamePlayerPayload(NamePayload):
-    target_id: str = Field(min_length=1, max_length=64)
-
-
 class TeamPayload(BaseModel):
     team_ids: list[str] = Field(min_length=1, max_length=5)
 

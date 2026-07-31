@@ -177,31 +177,3 @@ def test_host_controls_early_assassination_house_rule():
 
     with pytest.raises(RoomError, match="只有房主"):
         manager.set_early_assassination_enabled(room, guest.id, False)
-
-
-def test_host_can_rename_another_player_during_a_game():
-    manager = RoomManager()
-    room, host, _ = manager.create_room("亚瑟")
-    _, guest, _ = manager.join_room(room.code, "旧名字")
-    message = manager.send_chat(room, guest.id, "我赞成")
-    room.phase = Phase.TEAM_VOTING
-    previous_revision = room.revision
-
-    manager.rename_player(room, host.id, guest.id, "  新   名字  ")
-
-    assert guest.name == "新 名字"
-    assert message.sender_name == "新 名字"
-    assert room.revision == previous_revision + 1
-
-
-def test_rename_player_rejects_unauthorized_self_and_duplicate_names():
-    manager = RoomManager()
-    room, host, _ = manager.create_room("亚瑟")
-    _, guest, _ = manager.join_room(room.code, "兰斯洛特")
-
-    with pytest.raises(RoomError, match="只有房主"):
-        manager.rename_player(room, guest.id, host.id, "新名字")
-    with pytest.raises(RoomError, match="其他玩家"):
-        manager.rename_player(room, host.id, host.id, "新名字")
-    with pytest.raises(RoomError, match="同名"):
-        manager.rename_player(room, host.id, guest.id, "亚瑟")

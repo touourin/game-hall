@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from .access import access_password, access_token, verify_access_token, verify_password
 from .accounts import AccountError, account_store
+from .infrastructure import redis_status
 from .realtime import cleanup_abandoned_rooms, sio
 
 
@@ -78,8 +79,20 @@ def require_account_session(
 
 
 @api.get("/api/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok"}
+def health() -> dict[str, str]:
+    try:
+        account_store().ping()
+        cache_status = redis_status()
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="基础服务暂不可用",
+        ) from error
+    return {
+        "status": "ok",
+        "database": "ok",
+        "redis": cache_status,
+    }
 
 
 @api.post("/api/access/unlock")

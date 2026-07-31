@@ -87,7 +87,6 @@ export interface RoomActions {
   canAcknowledgeLady: boolean
   canAssassinate: boolean
   canEarlyAssassinate: boolean
-  canRenamePlayers: boolean
   canAddAiPlayer: boolean
   canRestart: boolean
 }

@@ -14,6 +14,7 @@ from .accounts import account_store
 from .game.bots import advance_ai_players
 from .game.engine import GameEngine, GameRuleError
 from .game.models import Phase, Room
+from .infrastructure import redis_url
 from .rooms import RoomError, RoomManager
 from .schemas import (
     ChatPayload,
@@ -23,7 +24,6 @@ from .schemas import (
     ListedSettingPayload,
     MissionVotePayload,
     NamePayload,
-    RenamePlayerPayload,
     ResumePayload,
     TargetPayload,
     TeamPayload,
@@ -32,8 +32,15 @@ from .schemas import (
 from .views import build_lobby_view, build_player_view
 
 
+redis_connection_url = redis_url()
+socket_manager = (
+    socketio.AsyncRedisManager(redis_connection_url, channel="avalon")
+    if redis_connection_url is not None
+    else None
+)
 sio = socketio.AsyncServer(
     async_mode="asgi",
+    client_manager=socket_manager,
     logger=False,
     engineio_logger=False,
 )
@@ -341,18 +348,6 @@ async def kick_player(sid: str, raw_data: Any) -> dict[str, Any]:
         return {"ok": True}
     except (ValidationError, RoomError, GameRuleError, KeyError) as error:
         return error_response(error)
-
-
-@sio.on("room:rename-player")
-async def rename_player(sid: str, raw_data: Any) -> dict[str, Any]:
-    return await execute_action(
-        sid,
-        raw_data,
-        RenamePlayerPayload,
-        lambda room, player_id, payload: rooms.rename_player(
-            room, player_id, payload.target_id, payload.name
-        ),
-    )
 
 
 @sio.on("game:start")

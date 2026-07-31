@@ -17,7 +17,6 @@ import {
   MessageCircle,
   Minimize2,
   Move,
-  Pencil,
   QrCode,
   RotateCcw,
   Send,
@@ -51,10 +50,7 @@ const showReplay = ref(false)
 const showPlayerNumbers = ref(false)
 const showLadyHistory = ref(false)
 const showEarlyAssassination = ref(false)
-const showRenamePlayers = ref(false)
 const showExitConfirm = ref(false)
-const renameTargetId = ref<string | null>(null)
-const renameDraft = ref('')
 const chatHeight = ref<number | null>(null)
 const chatRestoreHeight = ref<number | null>(null)
 const chatMaximized = ref(false)
@@ -88,11 +84,6 @@ const assassinPlayer = computed(() =>
 const assassinTarget = computed(() =>
   props.snapshot.players.find(
     (player) => player.id === props.snapshot.result.assassinTargetId,
-  ),
-)
-const renameTarget = computed(() =>
-  props.snapshot.players.find(
-    (player) => player.id === renameTargetId.value,
   ),
 )
 const assassinationHit = computed(
@@ -476,32 +467,6 @@ function constrainChatOffset() {
   }
 }
 
-function selectRenameTarget(player: PlayerView) {
-  renameTargetId.value = player.id
-  renameDraft.value = player.name
-}
-
-function openRenamePlayers() {
-  const candidates = props.snapshot.players.filter(
-    (player) => player.id !== props.snapshot.self.id,
-  )
-  if (!candidates.length) return
-  const selected =
-    candidates.find((player) => player.id === renameTargetId.value) ??
-    candidates[0]!
-  selectRenameTarget(selected)
-  showRenamePlayers.value = true
-}
-
-async function renamePlayer() {
-  if (!renameTargetId.value || !renameDraft.value.trim()) return
-  const response = await room.perform('room:rename-player', {
-    target_id: renameTargetId.value,
-    name: renameDraft.value.trim(),
-  })
-  if (response) showRenamePlayers.value = false
-}
-
 function formatMessageTime(value: string): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
@@ -590,15 +555,6 @@ async function shareInviteLink() {
         </div>
       </div>
       <div class="header-actions">
-        <button
-          v-if="snapshot.actions.canRenamePlayers"
-          class="header-action"
-          type="button"
-          aria-label="修改玩家名字"
-          @click="openRenamePlayers"
-        >
-          <Pencil :size="19" />
-        </button>
         <button
           v-if="snapshot.phase === 'lobby'"
           class="header-action"
@@ -1486,74 +1442,6 @@ async function shareInviteLink() {
             <DoorOpen :size="17" /> 确认退出
           </button>
         </div>
-      </section>
-    </div>
-
-    <div
-      v-if="showRenamePlayers && snapshot.actions.canRenamePlayers"
-      class="modal-backdrop"
-      @click.self="showRenamePlayers = false"
-    >
-      <section
-        class="modal-card rename-player-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label="修改玩家名字"
-      >
-        <button
-          class="modal-close"
-          type="button"
-          aria-label="关闭修改名字"
-          @click="showRenamePlayers = false"
-        >
-          <X :size="20" />
-        </button>
-        <span class="modal-icon"><Pencil :size="24" /></span>
-        <h2>修改玩家名字</h2>
-        <p>仅改变显示名称，玩家号码、身份和游戏进度不会变化。</p>
-
-        <div class="rename-player-list" aria-label="选择要改名的玩家">
-          <button
-            v-for="player in snapshot.players.filter(
-              (item) => item.id !== snapshot.self.id,
-            )"
-            :key="player.id"
-            type="button"
-            :class="{ selected: renameTargetId === player.id }"
-            @click="selectRenameTarget(player)"
-          >
-            <span class="avatar number-avatar">{{ player.seat + 1 }}</span>
-            <strong>{{ playerDisplayName(player) }}</strong>
-            <Check v-if="renameTargetId === player.id" :size="17" />
-          </button>
-        </div>
-
-        <label class="rename-player-input">
-          <span>新名字</span>
-          <input
-            v-model="renameDraft"
-            type="text"
-            maxlength="12"
-            autocomplete="off"
-            placeholder="输入 1–12 个字符"
-            @keydown.enter.prevent="renamePlayer"
-          />
-        </label>
-
-        <button
-          class="primary-button wide-button"
-          type="button"
-          :disabled="
-            !renameDraft.trim() ||
-            renameDraft.trim() === renameTarget?.name ||
-            room.busy
-          "
-          @click="renamePlayer"
-        >
-          <Check :size="18" />
-          确认修改
-        </button>
-        <small class="rename-player-note">已有聊天记录的署名也会同步更新</small>
       </section>
     </div>
 
