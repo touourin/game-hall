@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import QrcodeVue from 'qrcode.vue'
 import {
   ArrowRight,
+  Bot,
   Check,
   ChevronRight,
   CircleHelp,
@@ -159,10 +160,12 @@ watch(
 )
 
 function playerName(playerId: string | null): string {
-  return (
-    props.snapshot.players.find((player) => player.id === playerId)?.name ??
-    '未知玩家'
-  )
+  const player = props.snapshot.players.find((item) => item.id === playerId)
+  return player ? playerDisplayName(player) : '未知玩家'
+}
+
+function playerDisplayName(player: PlayerView): string {
+  return player.isBot ? `${player.name} · AI` : player.name
 }
 
 function playerNumber(playerId: string | null): number | null {
@@ -542,14 +545,25 @@ async function shareInviteLink() {
           <span>圆桌成员</span>
           <strong>{{ snapshot.players.length }} / 10</strong>
         </div>
-        <button
-          v-if="snapshot.actions.canLeave"
-          class="text-button danger-text"
-          type="button"
-          @click="room.leaveRoom"
-        >
-          <DoorOpen :size="16" /> 离开
-        </button>
+        <div class="lobby-heading-actions">
+          <button
+            v-if="snapshot.actions.canAddAiPlayer"
+            class="text-button add-ai-button"
+            type="button"
+            :disabled="room.busy"
+            @click="room.perform('room:add-ai-player')"
+          >
+            <Bot :size="16" /> 添加 AI
+          </button>
+          <button
+            v-if="snapshot.actions.canLeave"
+            class="text-button danger-text"
+            type="button"
+            @click="room.leaveRoom"
+          >
+            <DoorOpen :size="16" /> 离开
+          </button>
+        </div>
       </div>
 
       <div class="player-list">
@@ -561,23 +575,28 @@ async function shareInviteLink() {
         >
           <span class="avatar number-avatar">{{ player.seat + 1 }}</span>
           <div>
-            <strong>{{ player.name }}</strong>
+            <strong>
+              {{ player.name }}
+              <span v-if="player.isBot" class="ai-player-badge">AI</span>
+            </strong>
             <small>
               {{ player.seat + 1 }} 号玩家
               <template v-if="player.id === snapshot.self.id"> · 你</template>
             </small>
           </div>
-          <span v-if="player.isHost" class="status-badge gold">房主</span>
-          <button
-            v-else-if="snapshot.self.isHost"
-            class="kick-button"
-            type="button"
-            :aria-label="`移除 ${player.name}`"
-            @click="room.perform('room:kick', { target_id: player.id })"
-          >
-            <X :size="15" /> 移除
-          </button>
-          <span v-else-if="!player.connected" class="status-badge">离线</span>
+          <div class="player-row-actions">
+            <span v-if="player.isHost" class="status-badge gold">房主</span>
+            <span v-if="!player.connected" class="status-badge">离线</span>
+            <button
+              v-if="snapshot.self.isHost && !player.isHost"
+              class="kick-button"
+              type="button"
+              :aria-label="`移除 ${player.name}`"
+              @click="room.perform('room:kick', { target_id: player.id })"
+            >
+              <X :size="15" /> 移除
+            </button>
+          </div>
         </div>
       </div>
 
@@ -707,7 +726,7 @@ async function shareInviteLink() {
             :class="{ self: player.id === snapshot.self.id }"
           >
             <b>{{ player.seat + 1 }}号</b>
-            <strong>{{ player.name }}</strong>
+            <strong>{{ playerDisplayName(player) }}</strong>
             <em v-if="player.id === snapshot.self.id">你</em>
           </span>
         </div>
@@ -793,7 +812,7 @@ async function shareInviteLink() {
             @click="toggleTeamPlayer(player.id)"
           >
             <span class="avatar number-avatar">{{ player.seat + 1 }}</span>
-            <strong>{{ player.name }}</strong>
+            <strong>{{ playerDisplayName(player) }}</strong>
             <small v-if="player.isLeader">队长</small>
             <Check v-if="selectedTeamIds.includes(player.id)" :size="18" />
           </button>
@@ -828,7 +847,7 @@ async function shareInviteLink() {
         <div class="selected-team">
           <div v-for="player in selectedPlayers" :key="player.id">
             <span class="avatar number-avatar">{{ player.seat + 1 }}</span>
-            <strong>{{ player.name }}</strong>
+            <strong>{{ playerDisplayName(player) }}</strong>
           </div>
         </div>
       </div>
@@ -879,7 +898,7 @@ async function shareInviteLink() {
         <div class="selected-team">
           <div v-for="player in selectedPlayers" :key="player.id">
             <span class="avatar number-avatar">{{ player.seat + 1 }}</span>
-            <strong>{{ player.name }}</strong>
+            <strong>{{ playerDisplayName(player) }}</strong>
           </div>
         </div>
       </div>
@@ -994,7 +1013,7 @@ async function shareInviteLink() {
             @click="ladyTargetId = player.id"
           >
             <span class="avatar number-avatar">{{ player.seat + 1 }}</span>
-            <strong>{{ player.name }}</strong>
+            <strong>{{ playerDisplayName(player) }}</strong>
             <Sparkles v-if="ladyTargetId === player.id" :size="18" />
           </button>
         </div>
@@ -1081,7 +1100,7 @@ async function shareInviteLink() {
             @click="assassinTargetId = player.id"
           >
             <span class="avatar number-avatar">{{ player.seat + 1 }}</span>
-            <strong>{{ player.name }}</strong>
+            <strong>{{ playerDisplayName(player) }}</strong>
             <Swords v-if="assassinTargetId === player.id" :size="18" />
           </button>
         </div>
@@ -1142,7 +1161,7 @@ async function shareInviteLink() {
             <span class="avatar number-avatar">
               {{ assassinPlayer.seat + 1 }}
             </span>
-            <strong>{{ assassinPlayer.name }}</strong>
+            <strong>{{ playerDisplayName(assassinPlayer) }}</strong>
             <small>刺客</small>
           </div>
           <ArrowRight :size="20" />
@@ -1150,7 +1169,7 @@ async function shareInviteLink() {
             <span class="avatar number-avatar">
               {{ assassinTarget.seat + 1 }}
             </span>
-            <strong>{{ assassinTarget.name }}</strong>
+            <strong>{{ playerDisplayName(assassinTarget) }}</strong>
             <small>{{ assassinTarget.roleLabel }}</small>
           </div>
         </div>
@@ -1170,7 +1189,7 @@ async function shareInviteLink() {
           class="reveal-row"
         >
           <span class="avatar number-avatar">{{ player.seat + 1 }}</span>
-          <strong>{{ player.name }}</strong>
+          <strong>{{ playerDisplayName(player) }}</strong>
           <span :class="['alignment-label', player.alignment]">
             {{ player.roleLabel }}
           </span>
@@ -1225,7 +1244,7 @@ async function shareInviteLink() {
             @click="selectRenameTarget(player)"
           >
             <span class="avatar number-avatar">{{ player.seat + 1 }}</span>
-            <strong>{{ player.name }}</strong>
+            <strong>{{ playerDisplayName(player) }}</strong>
             <Check v-if="renameTargetId === player.id" :size="17" />
           </button>
         </div>
@@ -1296,7 +1315,7 @@ async function shareInviteLink() {
             @click="earlyAssassinTargetId = player.id"
           >
             <span class="avatar number-avatar">{{ player.seat + 1 }}</span>
-            <strong>{{ player.name }}</strong>
+            <strong>{{ playerDisplayName(player) }}</strong>
             <Swords v-if="earlyAssassinTargetId === player.id" :size="18" />
           </button>
         </div>

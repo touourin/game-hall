@@ -7,6 +7,8 @@ from typing import Any
 import socketio
 from pydantic import BaseModel, ValidationError
 
+from .access import verify_access_token
+from .game.bots import advance_ai_players
 from .game.engine import GameEngine, GameRuleError
 from .game.models import Room
 from .rooms import RoomError, RoomManager
@@ -96,6 +98,7 @@ async def execute_action(
                 action(room, player_id)
             else:
                 action(room, player_id, payload)
+            advance_ai_players(room, engine)
         await broadcast_room(room)
         return {"ok": True}
     except (ValidationError, RoomError, GameRuleError, KeyError) as error:
@@ -115,12 +118,16 @@ async def execute_lobby_action(
 
 
 @sio.event
-async def connect(sid: str, environ: dict, auth: Any) -> None:
+async def connect(sid: str, environ: dict, auth: Any) -> bool | None:
+    token = auth.get("token") if isinstance(auth, dict) else None
+    if not verify_access_token(token):
+        return False
     await sio.emit(
         "lobby:rooms",
         build_lobby_view(rooms.rooms.values()),
         to=sid,
     )
+    return None
 
 
 @sio.event
@@ -218,6 +225,15 @@ async def set_lady(sid: str, raw_data: Any) -> dict[str, Any]:
         lambda room, player_id, payload: rooms.set_lady_enabled(
             room, player_id, payload.enabled
         ),
+    )
+
+
+@sio.on("room:add-ai-player")
+async def add_ai_player(
+    sid: str, raw_data: Any = None
+) -> dict[str, Any]:
+    return await execute_lobby_action(
+        sid, raw_data, None, rooms.add_ai_player
     )
 
 

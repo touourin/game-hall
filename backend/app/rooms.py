@@ -72,6 +72,30 @@ class RoomManager:
         room.revision += 1
         return room, player, token
 
+    def add_ai_player(self, room: Room, actor_id: str) -> Player:
+        if room.phase != Phase.LOBBY:
+            raise RoomError("只能在等待房间添加 AI 玩家")
+        if room.host_id != actor_id:
+            raise RoomError("只有房主可以添加 AI 玩家")
+        if len(room.players) >= 10:
+            raise RoomError("房间已经满员")
+
+        existing_names = {player.name.casefold() for player in room.players}
+        ai_number = 1
+        while f"AI玩家 {ai_number}".casefold() in existing_names:
+            ai_number += 1
+        token = secrets.token_urlsafe(32)
+        player = Player(
+            id=f"bot-{secrets.token_urlsafe(8)}",
+            name=f"AI玩家 {ai_number}",
+            token_hash=hash_token(token),
+            seat=len(room.players),
+            is_bot=True,
+        )
+        room.players.append(player)
+        room.revision += 1
+        return player
+
     def resume(self, code: str, token: str) -> tuple[Room, Player]:
         room = self.get_room(code)
         token_digest = hash_token(token)

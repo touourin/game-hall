@@ -35,6 +35,38 @@ def test_host_can_remove_player_from_lobby():
     assert [current.id for current in room.players] == [host.id]
 
 
+def test_host_can_add_and_remove_ai_players_from_lobby():
+    manager = RoomManager()
+    room, host, _ = manager.create_room("亚瑟")
+
+    first_ai = manager.add_ai_player(room, host.id)
+    second_ai = manager.add_ai_player(room, host.id)
+
+    assert first_ai.is_bot is True
+    assert first_ai.connected is True
+    assert first_ai.seat == 1
+    assert first_ai.name == "AI玩家 1"
+    assert second_ai.seat == 2
+    assert second_ai.name == "AI玩家 2"
+
+    manager.kick_player(room, host.id, first_ai.id)
+    assert [player.seat for player in room.players] == [0, 1]
+    assert second_ai in room.players
+
+
+def test_only_host_can_add_ai_players_and_only_in_lobby():
+    manager = RoomManager()
+    room, host, _ = manager.create_room("亚瑟")
+    _, guest, _ = manager.join_room(room.code, "兰斯洛特")
+
+    with pytest.raises(RoomError, match="只有房主"):
+        manager.add_ai_player(room, guest.id)
+
+    room.phase = Phase.ROLE_REVEAL
+    with pytest.raises(RoomError, match="等待房间"):
+        manager.add_ai_player(room, host.id)
+
+
 def test_chat_message_is_normalized_and_history_is_bounded():
     manager = RoomManager()
     room, host, _ = manager.create_room("亚瑟")

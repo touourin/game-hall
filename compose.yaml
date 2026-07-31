@@ -3,5 +3,7 @@ services:
     build: .
     container_name: avalon-lan
     restart: unless-stopped
+    environment:
+      AVALON_ACCESS_PASSWORD: ${AVALON_ACCESS_PASSWORD:?Set AVALON_ACCESS_PASSWORD in .env}
     ports:
       - "8800:8000"

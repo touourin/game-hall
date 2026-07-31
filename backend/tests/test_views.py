@@ -78,6 +78,21 @@ def test_only_host_can_see_player_rename_action():
     assert guest_view["actions"]["canRenamePlayers"] is False
 
 
+def test_ai_player_marker_and_add_action_are_in_player_view():
+    manager = RoomManager()
+    room, host, _ = manager.create_room("亚瑟")
+    ai_player = manager.add_ai_player(room, host.id)
+
+    view = build_player_view(room, host, GameEngine())
+    ai_view = next(
+        player for player in view["players"] if player["id"] == ai_player.id
+    )
+
+    assert ai_view["isBot"] is True
+    assert ai_view["seat"] == 1
+    assert view["actions"]["canAddAiPlayer"] is True
+
+
 def test_lobby_view_only_lists_public_joinable_rooms():
     manager = RoomManager()
     visible, _, _ = manager.create_room("亚瑟")

@@ -29,6 +29,7 @@ function roleRevealSnapshot(revision: number): RoomSnapshot {
         name: '测试玩家',
         seat: 0,
         connected: true,
+        isBot: false,
         isHost: true,
         isLeader: true,
         isSelected: false,
@@ -95,6 +96,7 @@ function roleRevealSnapshot(revision: number): RoomSnapshot {
       canAssassinate: false,
       canEarlyAssassinate: false,
       canRenamePlayers: false,
+      canAddAiPlayer: false,
       canRestart: false,
     },
   }
@@ -108,6 +110,7 @@ describe('GameRoom role reveal', () => {
       name: '第二位玩家',
       seat: 1,
       connected: true,
+      isBot: false,
       isHost: false,
       isLeader: false,
       isSelected: false,
@@ -123,6 +126,37 @@ describe('GameRoom role reveal', () => {
     expect(roster).toContain('测试玩家')
     expect(roster).toContain('2号')
     expect(roster).toContain('第二位玩家')
+  })
+
+  it('shows numbered AI players and lets the host add another one', async () => {
+    const snapshot = roleRevealSnapshot(1)
+    snapshot.phase = 'lobby'
+    snapshot.self.role = null
+    snapshot.actions.canConfirmRole = false
+    snapshot.actions.canAddAiPlayer = true
+    snapshot.players.push({
+      id: 'bot-1',
+      name: 'AI玩家 1',
+      seat: 1,
+      connected: true,
+      isBot: true,
+      isHost: false,
+      isLeader: false,
+      isSelected: false,
+    })
+    const pinia = createPinia()
+    const room = useRoomStore(pinia)
+    const perform = vi.spyOn(room, 'perform').mockResolvedValue({ ok: true })
+    const wrapper = mount(GameRoom, {
+      props: { snapshot },
+      global: { plugins: [pinia] },
+    })
+
+    expect(wrapper.get('.player-list').text()).toContain('2 号玩家')
+    expect(wrapper.get('.ai-player-badge').text()).toBe('AI')
+    await wrapper.get('.add-ai-button').trigger('click')
+
+    expect(perform).toHaveBeenCalledWith('room:add-ai-player')
   })
 
   it('keeps confirmation enabled when another player updates the room', async () => {
@@ -179,6 +213,7 @@ describe('GameRoom role reveal', () => {
       name: '被查验者',
       seat: 1,
       connected: true,
+      isBot: false,
       isHost: false,
       isLeader: false,
       isSelected: false,
@@ -287,6 +322,7 @@ describe('GameRoom role reveal', () => {
       name: '梅林候选人',
       seat: 1,
       connected: true,
+      isBot: false,
       isHost: false,
       isLeader: false,
       isSelected: false,
@@ -331,6 +367,7 @@ describe('GameRoom role reveal', () => {
       name: '真正的梅林',
       seat: 1,
       connected: true,
+      isBot: false,
       isHost: false,
       isLeader: false,
       isSelected: false,
@@ -362,6 +399,7 @@ describe('GameRoom role reveal', () => {
       name: '旧名字',
       seat: 1,
       connected: true,
+      isBot: false,
       isHost: false,
       isLeader: false,
       isSelected: false,

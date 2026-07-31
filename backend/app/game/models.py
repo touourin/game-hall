@@ -53,6 +53,7 @@ class Player:
     token_hash: str
     seat: int
     connected: bool = True
+    is_bot: bool = False
     role: Role | None = None
 
     @property

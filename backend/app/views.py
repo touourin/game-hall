@@ -79,6 +79,7 @@ def build_player_view(
             "name": player.name,
             "seat": player.seat,
             "connected": player.connected,
+            "isBot": player.is_bot,
             "isHost": player.id == room.host_id,
             "isLeader": room.phase != Phase.LOBBY
             and player.id == room.leader.id,
@@ -167,6 +168,9 @@ def build_player_view(
         and room.phase in EARLY_ASSASSINATION_PHASES
         and viewer.role == Role.ASSASSIN,
         "canRenamePlayers": viewer.id == room.host_id and player_count > 1,
+        "canAddAiPlayer": room.phase == Phase.LOBBY
+        and viewer.id == room.host_id
+        and player_count < 10,
         "canRestart": room.phase == Phase.GAME_OVER
         and viewer.id == room.host_id,
     }

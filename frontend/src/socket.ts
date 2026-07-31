@@ -8,6 +8,10 @@ export const socket = io({
   reconnectionDelayMax: 3000,
 })
 
+export function setSocketAccessToken(token: string): void {
+  socket.auth = { token }
+}
+
 export interface AckResponse {
   ok: boolean
   error?: string
@@ -34,4 +38,3 @@ export function emitWithAck(
     )
   })
 }
-

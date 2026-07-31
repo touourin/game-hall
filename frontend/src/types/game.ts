@@ -32,6 +32,7 @@ export interface PlayerView {
   name: string
   seat: number
   connected: boolean
+  isBot: boolean
   isHost: boolean
   isLeader: boolean
   isSelected: boolean
@@ -87,6 +88,7 @@ export interface RoomActions {
   canAssassinate: boolean
   canEarlyAssassinate: boolean
   canRenamePlayers: boolean
+  canAddAiPlayer: boolean
   canRestart: boolean
 }
 
