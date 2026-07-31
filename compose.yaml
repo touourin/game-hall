@@ -1,6 +1,9 @@
 services:
   avalon:
-    build: .
+    build:
+      context: .
+      args:
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
     container_name: avalon-lan
     restart: unless-stopped
     environment:
