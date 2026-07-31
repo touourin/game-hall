@@ -120,8 +120,9 @@ describe('GameRoom role reveal', () => {
       global: { plugins: [createPinia()] },
     })
 
-    expect(wrapper.get('.self-number-trigger').text()).toContain('号码表')
-    expect(wrapper.get('.self-number-trigger').text()).toContain('我1号')
+    expect(wrapper.get('.self-number-trigger').text()).toContain('我的号码')
+    expect(wrapper.get('.self-number-trigger').text()).toContain('1号')
+    expect(wrapper.get('.self-number-trigger').text()).toContain('查看号码表')
     await wrapper.get('.self-number-trigger').trigger('click')
 
     const numberList = wrapper.get('.player-number-list').text()
@@ -153,6 +154,36 @@ describe('GameRoom role reveal', () => {
     expect(roster).toContain('测试玩家')
     expect(roster).toContain('2号')
     expect(roster).toContain('第二位玩家')
+  })
+
+  it('announces the first leader before team building starts', () => {
+    const snapshot = roleRevealSnapshot(1)
+    snapshot.players.push({
+      id: 'p2',
+      name: '首任队长',
+      seat: 1,
+      connected: true,
+      isBot: false,
+      isHost: false,
+      isLeader: true,
+      isSelected: false,
+    })
+    snapshot.players[0]!.isLeader = false
+    snapshot.game.leaderId = 'p2'
+
+    const wrapper = mount(GameRoom, {
+      props: { snapshot },
+      global: { plugins: [createPinia()] },
+    })
+
+    const leaderCard = wrapper.get('.first-leader-card')
+    expect(leaderCard.text()).toContain('本局首任队长')
+    expect(leaderCard.text()).toContain('2号 首任队长')
+    expect(leaderCard.text()).toContain('首先组建任务队伍')
+
+    const leaderRosterItem = wrapper.get('.player-number-roster .leader')
+    expect(leaderRosterItem.text()).toContain('2号')
+    expect(leaderRosterItem.text()).toContain('队长')
   })
 
   it('shows numbered AI players and lets the host add another one', async () => {

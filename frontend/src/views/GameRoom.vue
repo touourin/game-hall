@@ -571,9 +571,14 @@ async function shareInviteLink() {
               :aria-label="`我的号码是 ${playerNumber(snapshot.self.id)} 号，查看玩家号码表`"
               @click="showPlayerNumbers = true"
             >
-              <UsersRound :size="14" />
-              <span>号码表</span>
-              <small>我{{ playerNumber(snapshot.self.id) }}号</small>
+              <span class="self-number-value">
+                {{ playerNumber(snapshot.self.id) }}号
+              </span>
+              <span class="self-number-copy">
+                <small>我的号码</small>
+                <span>查看号码表</span>
+              </span>
+              <ChevronRight :size="14" aria-hidden="true" />
             </button>
           </strong>
         </div>
@@ -856,6 +861,20 @@ async function shareInviteLink() {
         </div>
       </div>
 
+      <div
+        v-if="snapshot.game.leaderId"
+        class="surface first-leader-card"
+        role="status"
+      >
+        <span class="first-leader-icon"><Crown :size="24" /></span>
+        <div>
+          <small>本局首任队长</small>
+          <strong>{{ playerLabel(snapshot.game.leaderId) }}</strong>
+          <p>身份确认结束后，由这位玩家首先组建任务队伍</p>
+        </div>
+        <em>首先带队</em>
+      </div>
+
       <div class="surface player-number-roster">
         <header>
           <UsersRound :size="19" />
@@ -868,11 +887,22 @@ async function shareInviteLink() {
           <span
             v-for="player in snapshot.players"
             :key="player.id"
-            :class="{ self: player.id === snapshot.self.id }"
+            :class="{
+              self: player.id === snapshot.self.id,
+              leader: player.id === snapshot.game.leaderId,
+            }"
           >
             <b>{{ player.seat + 1 }}号</b>
             <strong>{{ playerDisplayName(player) }}</strong>
-            <em v-if="player.id === snapshot.self.id">你</em>
+            <span class="player-number-badges">
+              <em v-if="player.id === snapshot.self.id">你</em>
+              <em
+                v-if="player.id === snapshot.game.leaderId"
+                class="leader-badge"
+              >
+                <Crown :size="10" /> 队长
+              </em>
+            </span>
           </span>
         </div>
       </div>

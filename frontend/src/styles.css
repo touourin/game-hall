@@ -543,32 +543,63 @@ button:disabled {
 .room-brand strong {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
 .self-number-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  min-height: 31px;
+  gap: 7px;
+  min-height: 44px;
   border: 1px solid rgba(225, 188, 104, 0.48);
-  border-radius: 999px;
-  padding: 0 9px;
+  border-radius: 13px;
+  padding: 5px 7px;
   color: #ffdf87;
-  background: rgba(154, 121, 55, 0.28);
+  background:
+    linear-gradient(135deg, rgba(154, 121, 55, 0.34), rgba(87, 68, 31, 0.2));
   box-shadow: 0 5px 16px rgba(0, 0, 0, 0.18);
-  font-size: 10px;
   font-weight: 900;
   white-space: nowrap;
   cursor: pointer;
 }
 
-.self-number-trigger small {
-  border-left: 1px solid rgba(225, 188, 104, 0.32);
-  padding-left: 5px;
+.room-brand .self-number-value {
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  height: 32px;
+  border: 1px solid rgba(225, 188, 104, 0.32);
+  border-radius: 9px;
+  color: #2b240f;
+  background: var(--gold);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.room-brand .self-number-copy {
+  display: grid;
+  gap: 1px;
+  text-align: left;
+}
+
+.self-number-copy small {
   color: #fff0c0;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
+  line-height: 1.2;
+}
+
+.room-brand .self-number-copy > span {
+  color: #b9c9c2;
+  font-size: 7px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.self-number-trigger > svg {
+  color: rgba(255, 240, 192, 0.7);
 }
 
 .room-brand span {
@@ -1236,6 +1267,72 @@ button:disabled {
   line-height: 1.55;
 }
 
+.first-leader-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-color: rgba(225, 188, 104, 0.35);
+  padding: 14px;
+  background:
+    radial-gradient(circle at 12% 50%, rgba(225, 188, 104, 0.16), transparent 32%),
+    linear-gradient(135deg, rgba(79, 62, 29, 0.36), rgba(11, 45, 43, 0.76));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
+}
+
+.first-leader-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(225, 188, 104, 0.3);
+  border-radius: 15px;
+  color: var(--gold);
+  background: rgba(225, 188, 104, 0.09);
+}
+
+.first-leader-card > div {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+
+.first-leader-card small {
+  color: var(--gold);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.first-leader-card strong {
+  overflow: hidden;
+  color: #fff3d2;
+  font-family: "Songti SC", serif;
+  font-size: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.first-leader-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.first-leader-card > em {
+  flex: 0 0 auto;
+  border: 1px solid rgba(225, 188, 104, 0.24);
+  border-radius: 999px;
+  padding: 6px 8px;
+  color: #f7e5b5;
+  background: rgba(225, 188, 104, 0.11);
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 900;
+}
+
 .player-number-roster {
   display: grid;
   gap: 12px;
@@ -1287,6 +1384,11 @@ button:disabled {
   background: rgba(112, 82, 35, 0.15);
 }
 
+.player-number-roster > div > span.leader {
+  border-color: rgba(225, 188, 104, 0.42);
+  box-shadow: inset 3px 0 rgba(225, 188, 104, 0.72);
+}
+
 .player-number-roster b {
   color: var(--gold);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -1300,7 +1402,17 @@ button:disabled {
   white-space: nowrap;
 }
 
+.player-number-badges {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
 .player-number-roster em {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   border-radius: 999px;
   padding: 3px 5px;
   color: #f7e5b5;
@@ -1308,6 +1420,21 @@ button:disabled {
   font-size: 7px;
   font-style: normal;
   font-weight: 900;
+}
+
+.player-number-roster em.leader-badge {
+  color: #2c240f;
+  background: var(--gold);
+}
+
+@media (max-width: 420px) {
+  .first-leader-card > em {
+    display: none;
+  }
+
+  .first-leader-card strong {
+    font-size: 16px;
+  }
 }
 
 .lady-intro .phase-icon {
