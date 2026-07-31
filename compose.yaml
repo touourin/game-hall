@@ -6,4 +6,4 @@ services:
     environment:
       AVALON_ACCESS_PASSWORD: ${AVALON_ACCESS_PASSWORD:?Set AVALON_ACCESS_PASSWORD in .env}
     ports:
-      - "8800:8000"
+      - "${AVALON_PORT:-8800}:8000"
