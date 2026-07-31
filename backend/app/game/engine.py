@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 import secrets
 from collections.abc import Sequence
+from datetime import datetime, timezone
 
 from .models import (
     Alignment,
@@ -51,6 +52,10 @@ class GameEngine:
         for player, role in zip(room.players, roles, strict=True):
             player.role = role
 
+        room.game_id = secrets.token_urlsafe(12)
+        room.game_started_at = datetime.now(timezone.utc).isoformat(
+            timespec="seconds"
+        )
         room.leader_index = self.rng.randrange(player_count)
         room.mission_index = 0
         room.proposal_attempt = 1
@@ -274,6 +279,8 @@ class GameEngine:
         for player in room.players:
             player.role = None
         room.phase = Phase.LOBBY
+        room.game_id = None
+        room.game_started_at = None
         room.mission_index = 0
         room.proposal_attempt = 1
         room.selected_team_ids.clear()

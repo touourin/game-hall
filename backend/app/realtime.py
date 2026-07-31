@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections import defaultdict
 from collections.abc import Callable
 from typing import Any
@@ -9,9 +10,10 @@ import socketio
 from pydantic import BaseModel, ValidationError
 
 from .access import verify_access_token
+from .accounts import account_store
 from .game.bots import advance_ai_players
 from .game.engine import GameEngine, GameRuleError
-from .game.models import Room
+from .game.models import Phase, Room
 from .rooms import RoomError, RoomManager
 from .schemas import (
     ChatPayload,
@@ -38,6 +40,7 @@ sio = socketio.AsyncServer(
 rooms = RoomManager()
 engine = GameEngine()
 active_sids: dict[tuple[str, str], set[str]] = defaultdict(set)
+logger = logging.getLogger(__name__)
 
 
 def player_channel(room_code: str, player_id: str) -> str:
@@ -67,9 +70,12 @@ async def cleanup_abandoned_rooms() -> None:
 async def bind_session(
     sid: str, room: Room, player_id: str
 ) -> None:
-    await sio.save_session(
-        sid, {"room_code": room.code, "player_id": player_id}
-    )
+    try:
+        session = await sio.get_session(sid)
+    except KeyError:
+        session = {}
+    session.update({"room_code": room.code, "player_id": player_id})
+    await sio.save_session(sid, session)
     await sio.enter_room(sid, player_channel(room.code, player_id))
     active_sids[(room.code, player_id)].add(sid)
     room.player(player_id).connected = True
@@ -85,6 +91,14 @@ async def context_for_sid(sid: str) -> tuple[Room, str]:
     player_id = session["player_id"]
     room.player(player_id)
     return room, player_id
+
+
+async def account_id_for_sid(sid: str) -> str:
+    try:
+        session = await sio.get_session(sid)
+        return session["account_id"]
+    except (KeyError, TypeError) as exc:
+        raise RoomError("登录状态无效，请重新登录") from exc
 
 
 def error_response(error: Exception) -> dict[str, Any]:
@@ -108,6 +122,15 @@ async def execute_action(
             else:
                 action(room, player_id, payload)
             advance_ai_players(room, engine)
+            if room.phase == Phase.GAME_OVER:
+                try:
+                    account_store().record_match(room)
+                except Exception:
+                    # A storage failure must not prevent the completed game
+                    # state from reaching connected players.
+                    logger.exception(
+                        "Failed to persist completed match %s", room.game_id
+                    )
         await broadcast_room(room)
         return {"ok": True}
     except (ValidationError, RoomError, GameRuleError, KeyError) as error:
@@ -131,6 +154,13 @@ async def connect(sid: str, environ: dict, auth: Any) -> bool | None:
     token = auth.get("token") if isinstance(auth, dict) else None
     if not verify_access_token(token):
         return False
+    account_token = (
+        auth.get("accountToken") if isinstance(auth, dict) else None
+    )
+    account = account_store().account_for_token(account_token)
+    if account is None:
+        return False
+    await sio.save_session(sid, {"account_id": account.id})
     await sio.emit(
         "lobby:rooms",
         build_lobby_view(rooms.rooms.values()),
@@ -159,7 +189,8 @@ async def disconnect(sid: str, reason: str) -> None:
 async def create_room(sid: str, raw_data: Any) -> dict[str, Any]:
     try:
         payload = NamePayload.model_validate(raw_data or {})
-        room, player, token = rooms.create_room(payload.name)
+        account_id = await account_id_for_sid(sid)
+        room, player, token = rooms.create_room(payload.name, account_id)
         await bind_session(sid, room, player.id)
         await broadcast_room(room)
         await broadcast_lobby()
@@ -177,8 +208,9 @@ async def create_room(sid: str, raw_data: Any) -> dict[str, Any]:
 async def join_room(sid: str, raw_data: Any) -> dict[str, Any]:
     try:
         payload = JoinPayload.model_validate(raw_data or {})
+        account_id = await account_id_for_sid(sid)
         room, player, token = rooms.join_room(
-            payload.room_code, payload.name
+            payload.room_code, payload.name, account_id
         )
         await bind_session(sid, room, player.id)
         await broadcast_room(room)
@@ -197,7 +229,10 @@ async def join_room(sid: str, raw_data: Any) -> dict[str, Any]:
 async def resume_room(sid: str, raw_data: Any) -> dict[str, Any]:
     try:
         payload = ResumePayload.model_validate(raw_data or {})
-        room, player = rooms.resume(payload.room_code, payload.token)
+        account_id = await account_id_for_sid(sid)
+        room, player = rooms.resume(
+            payload.room_code, payload.token, account_id
+        )
         await bind_session(sid, room, player.id)
         await broadcast_room(room)
         return {

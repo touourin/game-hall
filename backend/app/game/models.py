@@ -53,6 +53,7 @@ class Player:
     name: str
     token_hash: str
     seat: int
+    account_id: str | None = None
     connected: bool = True
     is_bot: bool = False
     role: Role | None = None
@@ -111,6 +112,8 @@ class Room:
     players: list[Player]
     settings: GameSettings = field(default_factory=GameSettings)
     phase: Phase = Phase.LOBBY
+    game_id: str | None = None
+    game_started_at: str | None = None
     revision: int = 0
     leader_index: int = 0
     mission_index: int = 0

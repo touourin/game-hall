@@ -3,22 +3,38 @@ import { computed, nextTick, ref } from 'vue'
 import {
   ChevronRight,
   Crown,
+  History,
   LogIn,
+  LogOut,
+  Palette,
   Plus,
   RotateCcw,
   ShieldCheck,
   Sparkles,
+  Trophy,
   UsersRound,
 } from '@lucide/vue'
 import { useRoomStore } from '../stores/room'
+import type { AccountProfile } from '../account'
+import LeaderboardModal from '../components/LeaderboardModal.vue'
+import StatsModal from '../components/StatsModal.vue'
+import ThemeModal from '../components/ThemeModal.vue'
+
+const props = defineProps<{ account: AccountProfile }>()
+defineEmits<{ logout: [] }>()
 
 const room = useRoomStore()
 const params = new URLSearchParams(window.location.search)
 const initialRoomCode = params.get('room')?.toUpperCase() ?? ''
 const mode = ref<'create' | 'join'>(initialRoomCode ? 'join' : 'create')
-const name = ref(localStorage.getItem('avalon:last-name') ?? '')
+const name = ref(
+  localStorage.getItem('avalon:last-name') ?? props.account.displayName,
+)
 const roomCode = ref(initialRoomCode)
 const joinCard = ref<HTMLElement | null>(null)
+const showStats = ref(false)
+const showLeaderboard = ref(false)
+const showTheme = ref(false)
 
 const canSubmit = computed(
   () =>
@@ -46,6 +62,30 @@ async function chooseRoom(code: string) {
 
 <template>
   <main class="home-page page-container">
+    <section class="account-bar" aria-label="当前登录账号">
+      <div>
+        <span class="avatar">{{ account.displayName.slice(0, 1) }}</span>
+        <span>
+          <small>已登录</small>
+          <strong>{{ account.displayName }}</strong>
+        </span>
+      </div>
+      <div class="account-bar-actions">
+        <button type="button" aria-label="查看战绩" @click="showStats = true">
+          <History :size="16" /><span>战绩</span>
+        </button>
+        <button type="button" aria-label="查看排行榜" @click="showLeaderboard = true">
+          <Trophy :size="16" /><span>排行榜</span>
+        </button>
+        <button type="button" aria-label="选择界面皮肤" @click="showTheme = true">
+          <Palette :size="16" /><span>皮肤</span>
+        </button>
+        <button type="button" aria-label="退出账号" @click="$emit('logout')">
+          <LogOut :size="16" /><span>退出</span>
+        </button>
+      </div>
+    </section>
+
     <section class="brand-hero">
       <div class="brand-mark" aria-hidden="true">
         <Crown :size="34" />
@@ -167,6 +207,14 @@ async function chooseRoom(code: string) {
       </form>
     </section>
 
-    <p class="home-note">无需注册 · 适合 5–10 人 · 请连接同一个 Wi‑Fi</p>
+    <p class="home-note">战绩绑定账号 · 适合 5–10 人 · 请连接同一个 Wi‑Fi</p>
+
+    <StatsModal v-if="showStats" @close="showStats = false" />
+    <LeaderboardModal
+      v-if="showLeaderboard"
+      :account-id="account.id"
+      @close="showLeaderboard = false"
+    />
+    <ThemeModal v-if="showTheme" @close="showTheme = false" />
   </main>
 </template>

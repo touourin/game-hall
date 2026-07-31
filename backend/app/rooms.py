@@ -30,7 +30,9 @@ class RoomManager:
     def __init__(self) -> None:
         self.rooms: dict[str, Room] = {}
 
-    def create_room(self, player_name: str) -> tuple[Room, Player, str]:
+    def create_room(
+        self, player_name: str, account_id: str | None = None
+    ) -> tuple[Room, Player, str]:
         name = self._normalize_name(player_name)
         code = self._new_code()
         token = secrets.token_urlsafe(32)
@@ -39,6 +41,7 @@ class RoomManager:
             name=name,
             token_hash=hash_token(token),
             seat=0,
+            account_id=account_id,
         )
         room = Room(
             code=code,
@@ -50,13 +53,21 @@ class RoomManager:
         return room, player, token
 
     def join_room(
-        self, code: str, player_name: str
+        self,
+        code: str,
+        player_name: str,
+        account_id: str | None = None,
     ) -> tuple[Room, Player, str]:
         room = self.get_room(code)
         if room.phase != Phase.LOBBY:
             raise RoomError("游戏已经开始，不能加入新玩家")
         if len(room.players) >= 10:
             raise RoomError("房间已经满员")
+
+        if account_id is not None and any(
+            player.account_id == account_id for player in room.players
+        ):
+            raise RoomError("你的账号已经在这个房间中")
 
         name = self._normalize_name(player_name)
         if any(player.name.casefold() == name.casefold() for player in room.players):
@@ -68,6 +79,7 @@ class RoomManager:
             name=name,
             token_hash=hash_token(token),
             seat=len(room.players),
+            account_id=account_id,
         )
         room.players.append(player)
         room.revision += 1
@@ -97,11 +109,15 @@ class RoomManager:
         room.revision += 1
         return player
 
-    def resume(self, code: str, token: str) -> tuple[Room, Player]:
+    def resume(
+        self, code: str, token: str, account_id: str | None = None
+    ) -> tuple[Room, Player]:
         room = self.get_room(code)
         token_digest = hash_token(token)
         for player in room.players:
             if secrets.compare_digest(player.token_hash, token_digest):
+                if account_id is not None and player.account_id != account_id:
+                    raise RoomError("这个座位属于其他账号")
                 player.connected = True
                 room.revision += 1
                 return room, player

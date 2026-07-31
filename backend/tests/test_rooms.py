@@ -19,6 +19,17 @@ def test_create_join_and_resume_room():
     assert room.host_id == host.id
 
 
+def test_resume_token_cannot_be_used_by_another_account():
+    manager = RoomManager()
+    room, _, token = manager.create_room("亚瑟", account_id="account-a")
+
+    with pytest.raises(RoomError, match="其他账号"):
+        manager.resume(room.code, token, account_id="account-b")
+
+    _, player = manager.resume(room.code, token, account_id="account-a")
+    assert player.account_id == "account-a"
+
+
 def test_duplicate_name_is_rejected():
     manager = RoomManager()
     room, _, _ = manager.create_room("梅林")

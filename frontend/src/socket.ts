@@ -8,8 +8,21 @@ export const socket = io({
   reconnectionDelayMax: 3000,
 })
 
+let accessToken = ''
+let accountToken = ''
+
+function syncSocketAuth(): void {
+  socket.auth = { token: accessToken, accountToken }
+}
+
 export function setSocketAccessToken(token: string): void {
-  socket.auth = { token }
+  accessToken = token
+  syncSocketAuth()
+}
+
+export function setSocketAccountToken(token: string): void {
+  accountToken = token
+  syncSocketAuth()
 }
 
 export interface AckResponse {

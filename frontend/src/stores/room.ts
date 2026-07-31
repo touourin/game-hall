@@ -162,6 +162,15 @@ export const useRoomStore = defineStore('room', () => {
     error.value = null
   }
 
+  function resetForLogout() {
+    snapshot.value = null
+    connected.value = false
+    restoring.value = false
+    busy.value = false
+    error.value = null
+    clearSession()
+  }
+
   return {
     snapshot,
     availableRooms,
@@ -178,5 +187,6 @@ export const useRoomStore = defineStore('room', () => {
     leaveRoom,
     returnToRoom,
     clearError,
+    resetForLogout,
   }
 })

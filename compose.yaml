@@ -8,5 +8,11 @@ services:
     restart: unless-stopped
     environment:
       AVALON_ACCESS_PASSWORD: ${AVALON_ACCESS_PASSWORD:?Set AVALON_ACCESS_PASSWORD in .env}
+      AVALON_DB_PATH: /data/avalon.sqlite3
     ports:
       - "${AVALON_PORT:-8800}:8000"
+    volumes:
+      - avalon-data:/data
+
+volumes:
+  avalon-data:
