@@ -59,6 +59,7 @@ function initialSelectedGame(): GameCatalogItem | null {
     junqi: { key: 'junqi', name: '军旗', players: '2 人', description: '暗军旗布阵与翻棋对战' },
     reaction: { key: 'reaction', name: '反应挑战', players: '1 人', description: '三轮高精度反应测试' },
     schulte: { key: 'schulte', name: '舒尔特方格', players: '1 人', description: '按顺序寻找 1–25，训练专注与视觉搜索' },
+    minesweeper: { key: 'minesweeper', name: '扫雷', players: '1 人', description: '三种经典难度，首次点击安全' },
     hanoi: { key: 'hanoi', name: '汉诺塔', players: '1 人', description: '3–8 层经典益智挑战' },
   }
   if (gameKey && catalog[gameKey]) return catalog[gameKey]

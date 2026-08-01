@@ -51,6 +51,8 @@ describe('ArcadeRoom', () => {
     expect(wrapper.get('.arcade-room').classes()).toContain('arcade-room--wide')
     await wrapper.setProps({ snapshot: snapshot('gomoku') })
     expect(wrapper.get('.arcade-room').classes()).not.toContain('arcade-room--wide')
+    await wrapper.setProps({ snapshot: snapshot('minesweeper') })
+    expect(wrapper.get('.arcade-room').classes()).toContain('arcade-room--wide')
   })
 
   it('copies the shared invitation link and confirms success', async () => {

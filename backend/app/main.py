@@ -208,19 +208,25 @@ def logout_account(
 @api.get("/api/stats/me")
 def personal_stats(
     game: str | None = None,
+    mode: str | None = None,
     authorization: str | None = Header(default=None),
     x_avalon_access: str | None = Header(default=None),
 ) -> dict:
     account = require_account_session(authorization, x_avalon_access)
     if game is not None and game not in GAME_NAMES:
         raise HTTPException(status_code=404, detail="没有找到这个游戏")
+    if mode is not None and (
+        game != "minesweeper"
+        or mode not in {"beginner", "intermediate", "expert"}
+    ):
+        raise HTTPException(status_code=400, detail="游戏难度不正确")
     return {
         "ok": True,
         "summary": account_store().summary_for_account(
-            account.id, game_key=game
+            account.id, game_key=game, game_mode=mode
         ),
         "history": account_store().history_for_account(
-            account.id, game_key=game
+            account.id, game_key=game, game_mode=mode
         ),
     }
 
@@ -228,15 +234,23 @@ def personal_stats(
 @api.get("/api/leaderboard")
 def leaderboard(
     game: str,
+    mode: str | None = None,
     authorization: str | None = Header(default=None),
     x_avalon_access: str | None = Header(default=None),
 ) -> dict:
     require_account_session(authorization, x_avalon_access)
     if game not in GAME_NAMES:
         raise HTTPException(status_code=404, detail="没有找到这个游戏")
+    if mode is not None and (
+        game != "minesweeper"
+        or mode not in {"beginner", "intermediate", "expert"}
+    ):
+        raise HTTPException(status_code=400, detail="游戏难度不正确")
     return {
         "ok": True,
-        "players": account_store().leaderboard(game_key=game),
+        "players": account_store().leaderboard(
+            game_key=game, game_mode=mode
+        ),
     }
 
 

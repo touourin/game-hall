@@ -22,7 +22,7 @@ const showStats = ref(false)
 const showLeaderboard = ref(false)
 const gameKey = computed(() => props.game.key as ArcadeGameKey)
 const rules = ref<Record<string, unknown>>(defaultGameRules(gameKey.value))
-const isSolo = computed(() => ['reaction', 'schulte', 'hanoi'].includes(props.game.key))
+const isSolo = computed(() => ['reaction', 'schulte', 'minesweeper', 'hanoi'].includes(props.game.key))
 const soloIntro = computed(() => {
   if (props.game.key === 'hanoi') {
     return {
@@ -38,6 +38,14 @@ const soloIntro = computed(() => {
       title: '按顺序找到 1–25',
       description: '5×5 标准挑战，服务端计时并验证每一次点击',
       button: '开始舒尔特挑战',
+    }
+  }
+  if (props.game.key === 'minesweeper') {
+    return {
+      mark: '雷',
+      title: '清除所有安全方格',
+      description: '首次点击安全；电脑右键、手机长按或插旗模式均可标记地雷',
+      button: '开始扫雷挑战',
     }
   }
   return {
@@ -149,6 +157,7 @@ async function chooseRoom(code: string) {
       v-if="showStats"
       :game-key="game.key"
       :game-name="game.name"
+      :game-mode="game.key === 'minesweeper' ? String(rules.difficulty) : undefined"
       @close="showStats = false"
     />
     <LeaderboardModal
@@ -156,6 +165,7 @@ async function chooseRoom(code: string) {
       :account-id="account.id"
       :game-key="game.key"
       :game-name="game.name"
+      :game-mode="game.key === 'minesweeper' ? String(rules.difficulty) : undefined"
       @close="showLeaderboard = false"
     />
   </main>

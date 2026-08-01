@@ -34,6 +34,7 @@ export interface MatchHistoryItem {
   won: boolean
   outcome: MatchOutcome
   scoreMs: number | null
+  gameMode?: string | null
 }
 
 export interface MatchDetail {
@@ -86,6 +87,13 @@ export interface MatchDetail {
       moves?: number
       elapsed_ms?: number
       mistakes?: number
+      difficulty?: string
+      rows?: number
+      columns?: number
+      mine_count?: number
+      revealed_count?: number
+      flagged_count?: number
+      result?: string
     }
   }
 }
@@ -133,7 +141,7 @@ async function statsRequest<T>(path: string): Promise<T> {
   return (await response.json()) as T
 }
 
-export async function loadPersonalStats(gameKey?: string): Promise<{
+export async function loadPersonalStats(gameKey?: string, gameMode?: string): Promise<{
   summary: StatsSummary
   history: MatchHistoryItem[]
 }> {
@@ -141,7 +149,10 @@ export async function loadPersonalStats(gameKey?: string): Promise<{
     ok: boolean
     summary: StatsSummary
     history: MatchHistoryItem[]
-  }>(`/api/stats/me${gameKey ? `?game=${encodeURIComponent(gameKey)}` : ''}`)
+  }>(`/api/stats/me${gameKey ? `?${new URLSearchParams({
+    game: gameKey,
+    ...(gameMode ? { mode: gameMode } : {}),
+  }).toString()}` : ''}`)
   return { summary: response.summary, history: response.history }
 }
 
@@ -152,10 +163,13 @@ export async function loadMatchDetail(matchId: string): Promise<MatchDetail> {
   return response.match
 }
 
-export async function loadLeaderboard(gameKey: string): Promise<LeaderboardEntry[]> {
+export async function loadLeaderboard(gameKey: string, gameMode?: string): Promise<LeaderboardEntry[]> {
   const response = await statsRequest<{
     ok: boolean
     players: LeaderboardEntry[]
-  }>(`/api/leaderboard?game=${encodeURIComponent(gameKey)}`)
+  }>(`/api/leaderboard?${new URLSearchParams({
+    game: gameKey,
+    ...(gameMode ? { mode: gameMode } : {}),
+  }).toString()}`)
   return response.players
 }

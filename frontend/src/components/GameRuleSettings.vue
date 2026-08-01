@@ -21,6 +21,21 @@ function setOption(key: string, value: unknown) {
 
 <template>
   <div class="game-rule-settings">
+    <section v-if="gameKey === 'minesweeper'" class="rule-setting-group">
+      <header><strong>挑战难度</strong><small>三种经典规格分别记录成绩和排行榜</small></header>
+      <div class="rule-option-grid three">
+        <button type="button" :class="{ active: option('difficulty') === 'beginner' }" @click="setOption('difficulty', 'beginner')">
+          <strong>初级</strong><small>9×9 · 10 雷</small>
+        </button>
+        <button type="button" :class="{ active: option('difficulty') === 'intermediate' }" @click="setOption('difficulty', 'intermediate')">
+          <strong>中级</strong><small>16×16 · 40 雷</small>
+        </button>
+        <button type="button" :class="{ active: option('difficulty') === 'expert' }" @click="setOption('difficulty', 'expert')">
+          <strong>高级</strong><small>16×30 · 99 雷</small>
+        </button>
+      </div>
+    </section>
+
     <section v-if="gameKey === 'hanoi'" class="rule-setting-group">
       <header><strong>挑战层数</strong><small>层数越高，理论最少步数呈指数增长</small></header>
       <div class="rule-segmented six">
@@ -104,7 +119,7 @@ function setOption(key: string, value: unknown) {
       </div>
     </section>
 
-    <section v-if="!['reaction', 'hanoi'].includes(gameKey)" class="rule-setting-group">
+    <section v-if="!['reaction', 'schulte', 'minesweeper', 'hanoi'].includes(gameKey)" class="rule-setting-group">
       <header><strong>{{ gameKey === 'doudizhu' ? '首叫玩家' : gameKey === 'gomoku' && option('openingRule') === 'swap2' ? '首局摆子者' : '首局先手' }}</strong><small>再来一局时仍会自动轮换</small></header>
       <div class="rule-option-grid">
         <button type="button" :class="{ active: option('firstPlayer') === 'random' }" @click="setOption('firstPlayer', 'random')">

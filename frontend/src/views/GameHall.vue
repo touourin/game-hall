@@ -30,6 +30,7 @@ const games: Array<GameCatalogItem & { symbol: string; tone: string }> = [
   { key: 'junqi', name: '军旗', players: '2 人', description: '暗军旗布阵，或翻棋决定阵营', symbol: '旗', tone: 'army' },
   { key: 'reaction', name: '反应挑战', players: '1 人', description: '等待信号变色，测出三轮真实反应', symbol: '⚡', tone: 'pulse' },
   { key: 'schulte', name: '舒尔特方格', players: '1 人', description: '按顺序寻找 1–25，训练专注与视觉搜索', symbol: '格', tone: 'focus' },
+  { key: 'minesweeper', name: '扫雷', players: '1 人', description: '初、中、高三种经典难度，首次点击安全', symbol: '雷', tone: 'mine' },
   { key: 'hanoi', name: '汉诺塔', players: '1 人', description: '3–8 层经典益智挑战，争取最少步数', symbol: '塔', tone: 'tower' },
 ]
 </script>
@@ -116,6 +117,7 @@ const games: Array<GameCatalogItem & { symbol: string; tone: string }> = [
 .tone-army .game-symbol { color: #d8b66b; }
 .tone-pulse .game-symbol { color: #8fe0bd; }
 .tone-focus .game-symbol { color: #7ecdb5; }
+.tone-mine .game-symbol { color: #ef9d93; }
 .tone-tower .game-symbol { color: #d9a86c; }
 @media (max-width: 680px) {
   .game-grid { grid-template-columns: 1fr; }

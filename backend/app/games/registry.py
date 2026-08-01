@@ -6,6 +6,7 @@ from backend.app.games.go import GoEngine
 from backend.app.games.gomoku import GomokuEngine
 from backend.app.games.hanoi import HanoiEngine
 from backend.app.games.junqi import JunqiEngine
+from backend.app.games.minesweeper import MinesweeperEngine
 from backend.app.games.reaction import ReactionEngine
 from backend.app.games.schulte import SchulteEngine
 from backend.app.games.xiangqi import XiangqiEngine
@@ -20,6 +21,7 @@ def build_engine_registry() -> dict[str, GameEngine]:
         JunqiEngine(),
         ReactionEngine(),
         SchulteEngine(),
+        MinesweeperEngine(),
         HanoiEngine(),
     ]
     return {engine.key: engine for engine in engines}
@@ -73,6 +75,12 @@ GAME_CATALOG = [
         "name": "舒尔特方格",
         "players": "1 人",
         "description": "按顺序寻找 1–25，训练专注与视觉搜索",
+    },
+    {
+        "key": "minesweeper",
+        "name": "扫雷",
+        "players": "1 人",
+        "description": "三种经典难度，首次点击安全",
     },
     {
         "key": "hanoi",

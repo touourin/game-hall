@@ -10,6 +10,7 @@ export function defaultGameRules(
   gameKey: ArcadeGameKey,
 ): Record<string, unknown> {
   if (gameKey === 'reaction' || gameKey === 'schulte') return {}
+  if (gameKey === 'minesweeper') return { difficulty: 'beginner' }
   if (gameKey === 'hanoi') return { discCount: 5 }
   const options: Record<string, unknown> = { firstPlayer: 'random' }
   if (NEGOTIATION_GAMES.has(gameKey)) {
@@ -44,6 +45,12 @@ export function gameRuleLabels(
   const options = withDefaultGameRules(gameKey, rawOptions)
   if (gameKey === 'reaction') return ['三轮测试']
   if (gameKey === 'schulte') return ['5×5 标准挑战', '服务端计时']
+  if (gameKey === 'minesweeper') {
+    const difficulty = String(options.difficulty)
+    if (difficulty === 'expert') return ['高级', '16×30', '99 雷']
+    if (difficulty === 'intermediate') return ['中级', '16×16', '40 雷']
+    return ['初级', '9×9', '10 雷']
+  }
   if (gameKey === 'hanoi') {
     const discCount = Number(options.discCount)
     return [`${discCount} 层圆盘`, `理论最少 ${2 ** discCount - 1} 步`]

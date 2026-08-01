@@ -109,4 +109,27 @@ describe('GameRuleSettings', () => {
     ])
     expect(wrapper.text()).not.toContain('首局先手')
   })
+
+  it('offers all three classic Minesweeper difficulties', async () => {
+    const wrapper = mount(GameRuleSettings, {
+      props: {
+        gameKey: 'minesweeper',
+        modelValue: defaultGameRules('minesweeper'),
+      },
+    })
+    const expert = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('16×30'))
+
+    await expert?.trigger('click')
+
+    expect(defaultGameRules('minesweeper')).toEqual({ difficulty: 'beginner' })
+    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toEqual({ difficulty: 'expert' })
+    expect(gameRuleLabels('minesweeper', { difficulty: 'expert' })).toEqual([
+      '高级',
+      '16×30',
+      '99 雷',
+    ])
+    expect(wrapper.text()).not.toContain('首局先手')
+  })
 })

@@ -9,7 +9,7 @@ import {
   type StatsSummary,
 } from '../stats'
 
-const props = defineProps<{ gameKey?: string; gameName?: string }>()
+const props = defineProps<{ gameKey?: string; gameName?: string; gameMode?: string }>()
 defineEmits<{ close: [] }>()
 
 const summary = ref<StatsSummary | null>(null)
@@ -40,6 +40,7 @@ const roleLabels: Record<string, string> = {
   'flip-blue': '翻棋军旗·蓝方',
   tester: '测试者',
   challenger: '挑战者',
+  sweeper: '排雷员',
   solver: '解谜者',
 }
 
@@ -50,6 +51,7 @@ function roleLabel(role: string): string {
 function winnerLabel(match: MatchDetail): string {
   if (match.gameKey === 'reaction') return '三轮测试完成'
   if (match.gameKey === 'schulte') return '舒尔特挑战完成'
+  if (match.gameKey === 'minesweeper') return match.winner === 'completed' ? '扫雷挑战完成' : '踩中地雷'
   if (match.gameKey === 'hanoi') return '汉诺塔挑战完成'
   if (match.winner === 'draw') return '双方和棋'
   if (match.gameKey === 'avalon') return match.winner === 'good' ? '好人获胜' : '坏人获胜'
@@ -59,6 +61,7 @@ function winnerLabel(match: MatchDetail): string {
 function outcomeLabel(match: MatchHistoryItem): string {
   if (match.gameKey === 'hanoi') return '成'
   if (match.gameKey === 'schulte') return '格'
+  if (match.gameKey === 'minesweeper') return match.outcome === 'completed' ? '通' : '雷'
   if (match.outcome === 'draw') return '和'
   if (match.outcome === 'completed') return match.gameKey === 'hanoi' ? '成' : '测'
   return match.outcome === 'win' ? '胜' : '负'
@@ -79,6 +82,13 @@ function formatDate(value: string): string {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(value))
+}
+
+function difficultyLabel(value: string | null | undefined): string {
+  if (value === 'expert') return '高级'
+  if (value === 'intermediate') return '中级'
+  if (value === 'beginner') return '初级'
+  return ''
 }
 
 function playerFor(match: MatchDetail, playerId: string) {
@@ -112,7 +122,7 @@ async function openMatch(matchId: string) {
 
 onMounted(async () => {
   try {
-    const data = await loadPersonalStats(props.gameKey)
+    const data = await loadPersonalStats(props.gameKey, props.gameMode)
     summary.value = data.summary
     history.value = data.history
   } catch (caught) {
@@ -269,7 +279,23 @@ onMounted(async () => {
           </div>
         </div>
 
-        <div v-if="!['avalon', 'reaction', 'schulte', 'hanoi'].includes(selectedMatch.gameKey)" class="match-detail-section">
+        <div v-if="selectedMatch.gameKey === 'minesweeper'" class="match-detail-section">
+          <span>扫雷挑战成绩</span>
+          <div class="match-mission-list">
+            <div :class="selectedMatch.winner === 'completed' ? 'success' : 'failed'">
+              <strong>{{ difficultyLabel(selectedMatch.details.state?.difficulty) }} · {{ selectedMatch.details.state?.rows }}×{{ selectedMatch.details.state?.columns }}</strong>
+              <span>{{ selectedMatch.winner === 'completed' ? formatDuration(selectedMatch.details.state?.elapsed_ms) : '踩中地雷' }}</span>
+              <small>{{ selectedMatch.details.state?.mine_count }} 雷 · 已翻开 {{ selectedMatch.details.state?.revealed_count }} 个安全格</small>
+            </div>
+            <div class="success">
+              <strong>本轮标记</strong>
+              <span>{{ selectedMatch.details.state?.flagged_count ?? 0 }} 面旗帜</span>
+              <small>首次翻开区域由服务端保证安全</small>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="!['avalon', 'reaction', 'schulte', 'minesweeper', 'hanoi'].includes(selectedMatch.gameKey)" class="match-detail-section">
           <span>参赛玩家</span>
           <div class="match-player-list">
             <div v-for="player in selectedMatch.details.players" :key="player.id">
@@ -287,6 +313,8 @@ onMounted(async () => {
             ? selectedMatch.ranked ? '本次成绩计入反应时间排行榜' : '本次成绩不计排行榜'
             : selectedMatch.gameKey === 'schulte'
               ? selectedMatch.ranked ? '本次成绩计入舒尔特方格排行榜' : '本次成绩不计排行榜'
+            : selectedMatch.gameKey === 'minesweeper'
+              ? selectedMatch.winner === 'completed' && selectedMatch.ranked ? `本次成绩计入${difficultyLabel(selectedMatch.details.state?.difficulty)}扫雷排行榜` : '未通关，不计入排行榜'
             : selectedMatch.gameKey === 'hanoi'
               ? selectedMatch.ranked ? '本次通关计入汉诺塔累计通关榜' : '本次通关不计排行榜'
             : selectedMatch.ranked ? '本局计入排行榜' : '本局含 AI，不计排行榜' }}
@@ -295,8 +323,8 @@ onMounted(async () => {
 
       <template v-else>
         <span class="modal-icon"><History :size="24" /></span>
-        <h2>{{ props.gameName ? `${props.gameName}战绩` : '我的全部战绩' }}</h2>
-        <p>{{ props.gameKey === 'reaction' ? '记录每次三轮测试的平均值与单轮明细。' : props.gameKey === 'schulte' ? '记录每次 5×5 标准挑战的完成用时与点击准确率。' : props.gameKey === 'hanoi' ? '记录每次通关的层数、步数与完成用时。' : '每款游戏独立记录胜负，对局详情绑定当前账号。' }}</p>
+        <h2>{{ props.gameName ? `${props.gameName}${difficultyLabel(props.gameMode)}战绩` : '我的全部战绩' }}</h2>
+        <p>{{ props.gameKey === 'reaction' ? '记录每次三轮测试的平均值与单轮明细。' : props.gameKey === 'schulte' ? '记录每次 5×5 标准挑战的完成用时与点击准确率。' : props.gameKey === 'minesweeper' ? '不同难度分别统计通关时间，失败记录也会保留在战绩中。' : props.gameKey === 'hanoi' ? '记录每次通关的层数、步数与完成用时。' : '每款游戏独立记录胜负，对局详情绑定当前账号。' }}</p>
 
         <div v-if="loading" class="stats-loading">
           <LoaderCircle :size="24" /> 正在读取战绩…
@@ -311,6 +339,11 @@ onMounted(async () => {
             <template v-else-if="props.gameKey === 'schulte'">
               <div><strong>{{ summary.games }}</strong><span>挑战次数</span></div>
               <div><strong>{{ summary.bestMs === null ? '—' : formatDuration(summary.bestMs) }}</strong><span>历史最佳</span></div>
+              <div><strong>{{ summary.averageMs === null ? '—' : formatDuration(summary.averageMs) }}</strong><span>平均用时</span></div>
+            </template>
+            <template v-else-if="props.gameKey === 'minesweeper'">
+              <div><strong>{{ summary.games }}</strong><span>通关次数</span></div>
+              <div><strong>{{ summary.bestMs === null ? '—' : formatDuration(summary.bestMs) }}</strong><span>最快通关</span></div>
               <div><strong>{{ summary.averageMs === null ? '—' : formatDuration(summary.averageMs) }}</strong><span>平均用时</span></div>
             </template>
             <template v-else-if="props.gameKey === 'hanoi'">
@@ -343,10 +376,12 @@ onMounted(async () => {
                 <strong v-if="match.gameKey === 'avalon'">{{ roleLabel(match.role) }} · {{ match.alignment === 'good' ? '好人' : '坏人' }}</strong>
                 <strong v-else-if="match.gameKey === 'reaction'">三轮平均 · {{ match.scoreMs }} ms</strong>
                 <strong v-else-if="match.gameKey === 'schulte'">5×5 方格 · {{ formatDuration(match.scoreMs) }}</strong>
+                <strong v-else-if="match.gameKey === 'minesweeper'">{{ difficultyLabel(match.gameMode) }}扫雷 · {{ match.scoreMs === null ? '踩中地雷' : formatDuration(match.scoreMs) }}</strong>
                 <strong v-else-if="match.gameKey === 'hanoi'">{{ match.reason }}</strong>
                 <strong v-else>{{ match.gameName }} · {{ roleLabel(match.role) }}</strong>
                 <small v-if="match.gameKey === 'reaction'">{{ formatDate(match.endedAt) }} · 三轮测试</small>
                 <small v-else-if="match.gameKey === 'schulte'">{{ formatDate(match.endedAt) }} · 标准挑战</small>
+                <small v-else-if="match.gameKey === 'minesweeper'">{{ formatDate(match.endedAt) }} · {{ match.reason }}</small>
                 <small v-else-if="match.gameKey === 'hanoi'">{{ formatDate(match.endedAt) }} · 单人益智挑战</small>
                 <small v-else>{{ formatDate(match.endedAt) }} · {{ match.playerCount }} 人 · 房间 {{ match.roomCode }}</small>
               </span>

@@ -85,6 +85,42 @@ describe('ArcadeHome', () => {
     expect(wrapper.text()).toContain('把整座圆盘移到最右侧')
   })
 
+  it('starts an expert Minesweeper challenge with classic rules', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const createRoom = vi.spyOn(arcade, 'createRoom').mockResolvedValue(true)
+    const startGame = vi.spyOn(arcade, 'startGame').mockResolvedValue()
+    const wrapper = mount(ArcadeHome, {
+      props: {
+        game: {
+          key: 'minesweeper',
+          name: '扫雷',
+          players: '1 人',
+          description: '测试',
+        },
+        account: {
+          id: 'account-1',
+          username: 'tester',
+          playerName: '测试玩家',
+          nextRenameAt: null,
+          createdAt: '2026-08-01T00:00:00Z',
+        },
+      },
+      global: { plugins: [pinia] },
+    })
+    const expert = wrapper
+      .findAll('.game-rule-settings button')
+      .find((button) => button.text().includes('16×30'))
+
+    await expert?.trigger('click')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(createRoom).toHaveBeenCalledWith('minesweeper', { difficulty: 'expert' })
+    expect(startGame).toHaveBeenCalledOnce()
+    expect(wrapper.text()).toContain('清除所有安全方格')
+  })
+
   it('shows and cleans an abandoned room without joining it', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)

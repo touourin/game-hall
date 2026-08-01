@@ -26,6 +26,7 @@ import XiangqiBoard from '../games/xiangqi/XiangqiBoard.vue'
 import JunqiBoard from '../games/junqi/JunqiBoard.vue'
 import ReactionTest from '../games/reaction/ReactionTest.vue'
 import SchulteGrid from '../games/schulte/SchulteGrid.vue'
+import MinesweeperBoard from '../games/minesweeper/MinesweeperBoard.vue'
 import HanoiGame from '../games/hanoi/HanoiGame.vue'
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
@@ -47,7 +48,7 @@ const inviteUrl = computed(() => {
 const selfRematchReady = computed(() =>
   props.snapshot.rematchReadyPlayerIds.includes(props.snapshot.self.id),
 )
-const isSolo = computed(() => ['reaction', 'schulte', 'hanoi'].includes(props.snapshot.gameKey))
+const isSolo = computed(() => ['reaction', 'schulte', 'minesweeper', 'hanoi'].includes(props.snapshot.gameKey))
 
 async function confirmRoomAction() {
   if (!confirmation.value) return
@@ -74,12 +75,12 @@ async function saveRules() {
 <template>
   <main
     class="arcade-room page-container"
-    :class="{ 'arcade-room--wide': ['doudizhu', 'junqi'].includes(snapshot.gameKey) }"
+    :class="{ 'arcade-room--wide': ['doudizhu', 'junqi', 'minesweeper'].includes(snapshot.gameKey) }"
   >
     <header class="arcade-room-header">
       <div>
-        <small>{{ snapshot.gameName }}<template v-if="snapshot.gameKey === 'junqi'"> · {{ snapshot.options.mode === 'flip' ? '翻棋军旗' : '暗军旗' }}</template><template v-else-if="snapshot.gameKey === 'reaction'"> · 单人测试</template><template v-else-if="snapshot.gameKey === 'schulte'"> · 单人专注</template><template v-else-if="snapshot.gameKey === 'hanoi'"> · 单人益智</template></small>
-        <h1>{{ snapshot.gameKey === 'reaction' ? '反应挑战' : snapshot.gameKey === 'schulte' ? '舒尔特挑战' : snapshot.gameKey === 'hanoi' ? '汉诺塔挑战' : `房间 ${snapshot.roomCode}` }}</h1>
+        <small>{{ snapshot.gameName }}<template v-if="snapshot.gameKey === 'junqi'"> · {{ snapshot.options.mode === 'flip' ? '翻棋军旗' : '暗军旗' }}</template><template v-else-if="snapshot.gameKey === 'reaction'"> · 单人测试</template><template v-else-if="snapshot.gameKey === 'schulte'"> · 单人专注</template><template v-else-if="snapshot.gameKey === 'minesweeper'"> · {{ snapshot.game.difficultyLabel }}</template><template v-else-if="snapshot.gameKey === 'hanoi'"> · 单人益智</template></small>
+        <h1>{{ snapshot.gameKey === 'reaction' ? '反应挑战' : snapshot.gameKey === 'schulte' ? '舒尔特挑战' : snapshot.gameKey === 'minesweeper' ? '扫雷挑战' : snapshot.gameKey === 'hanoi' ? '汉诺塔挑战' : `房间 ${snapshot.roomCode}` }}</h1>
       </div>
       <div class="arcade-room-actions">
         <button
@@ -225,6 +226,7 @@ async function saveRules() {
       <JunqiBoard v-else-if="snapshot.gameKey === 'junqi'" :snapshot="snapshot" />
       <ReactionTest v-else-if="snapshot.gameKey === 'reaction'" :snapshot="snapshot" />
       <SchulteGrid v-else-if="snapshot.gameKey === 'schulte'" :snapshot="snapshot" />
+      <MinesweeperBoard v-else-if="snapshot.gameKey === 'minesweeper'" :snapshot="snapshot" />
       <HanoiGame v-else-if="snapshot.gameKey === 'hanoi'" :snapshot="snapshot" />
     </section>
 

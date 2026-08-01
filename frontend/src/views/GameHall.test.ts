@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import GameHall from './GameHall.vue'
 
 describe('GameHall', () => {
-  it('shows nine games and selects the requested game', async () => {
+  it('shows ten games and selects the requested game', async () => {
     const wrapper = mount(GameHall, {
       props: {
         account: {
@@ -19,10 +19,11 @@ describe('GameHall', () => {
       global: { plugins: [createPinia()] },
     })
 
-    expect(wrapper.findAll('.game-card')).toHaveLength(9)
+    expect(wrapper.findAll('.game-card')).toHaveLength(10)
     expect(wrapper.text()).toContain('军旗')
     expect(wrapper.text()).toContain('反应挑战')
     expect(wrapper.text()).toContain('舒尔特方格')
+    expect(wrapper.text()).toContain('扫雷')
     expect(wrapper.text()).toContain('汉诺塔')
     const gomoku = wrapper.findAll('.game-card').find((card) => card.text().includes('五子棋'))
     expect(gomoku).toBeDefined()

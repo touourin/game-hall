@@ -40,9 +40,10 @@ GAME_NAMES = {
     "junqi": "军旗",
     "reaction": "反应挑战",
     "schulte": "舒尔特方格",
+    "minesweeper": "扫雷",
     "hanoi": "汉诺塔",
 }
-TIME_TRIAL_GAMES = {"reaction", "schulte"}
+TIME_TRIAL_GAMES = {"reaction", "schulte", "minesweeper"}
 
 
 class AccountError(ValueError):
@@ -472,6 +473,7 @@ class AccountStore:
         account_id: str,
         *,
         game_key: str | None = None,
+        game_mode: str | None = None,
         limit: int = 50,
     ) -> list[dict]:
         self.initialize()
@@ -493,6 +495,7 @@ class AccountStore:
                 match_players.c.won,
                 match_players.c.outcome,
                 match_players.c.score_ms,
+                matches.c.details_json,
             )
             .select_from(
                 match_players.join(
@@ -505,12 +508,21 @@ class AccountStore:
         )
         if game_key is not None:
             statement = statement.where(matches.c.game_key == game_key)
+        if game_mode is not None:
+            statement = statement.where(
+                matches.c.details_json["state"]["difficulty"].as_string()
+                == game_mode
+            )
         with self.engine.connect() as connection:
             rows = connection.execute(statement).mappings().all()
         return [self._history_row(row) for row in rows]
 
     def summary_for_account(
-        self, account_id: str, *, game_key: str | None = None
+        self,
+        account_id: str,
+        *,
+        game_key: str | None = None,
+        game_mode: str | None = None,
     ) -> dict[str, int | float | None]:
         self.initialize()
         if game_key in TIME_TRIAL_GAMES:
@@ -531,6 +543,11 @@ class AccountStore:
                     match_players.c.score_ms.is_not(None),
                 )
             )
+            if game_mode is not None:
+                statement = statement.where(
+                    matches.c.details_json["state"]["difficulty"].as_string()
+                    == game_mode
+                )
             with self.engine.connect() as connection:
                 row = connection.execute(statement).mappings().one()
             return {
@@ -635,7 +652,13 @@ class AccountStore:
             "evilWins": int(row["evil_wins"]),
         }
 
-    def leaderboard(self, *, game_key: str, limit: int = 50) -> list[dict]:
+    def leaderboard(
+        self,
+        *,
+        game_key: str,
+        game_mode: str | None = None,
+        limit: int = 50,
+    ) -> list[dict]:
         self.initialize()
         if game_key in TIME_TRIAL_GAMES:
             attempt_count = func.count().label("games")
@@ -668,6 +691,11 @@ class AccountStore:
                 )
                 .limit(min(max(limit, 1), 100))
             )
+            if game_mode is not None:
+                statement = statement.where(
+                    matches.c.details_json["state"]["difficulty"].as_string()
+                    == game_mode
+                )
             with self.engine.connect() as connection:
                 rows = connection.execute(statement).mappings().all()
             return [
@@ -802,6 +830,10 @@ class AccountStore:
 
     @classmethod
     def _history_row(cls, row: Mapping[str, Any]) -> dict:
+        details = row.get("details_json")
+        if isinstance(details, str):
+            details = json.loads(details)
+        state = details.get("state", {}) if isinstance(details, dict) else {}
         return {
             "id": row["id"],
             "gameKey": row["game_key"],
@@ -827,11 +859,12 @@ class AccountStore:
                 if row["score_ms"] is not None
                 else None
             ),
+            "gameMode": state.get("difficulty"),
         }
 
     @staticmethod
     def _game_outcome(*, game_key: str, winner: str, won: bool) -> str:
-        if game_key in TIME_TRIAL_GAMES:
+        if game_key in TIME_TRIAL_GAMES and won:
             return "completed"
         if winner == "draw":
             return "draw"

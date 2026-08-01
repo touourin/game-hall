@@ -204,6 +204,81 @@ def test_schulte_scores_use_server_time_trial_ranking(tmp_path):
     assert leaderboard[0]["bestMs"] == 12_800
 
 
+def test_minesweeper_scores_are_ranked_separately_by_difficulty(tmp_path):
+    store = AccountStore(tmp_path / "minesweeper.sqlite3")
+    first = account_for_player(store, 1, "mines")
+    second = account_for_player(store, 2, "mines")
+
+    def record(
+        match_id: str,
+        account,
+        difficulty: str,
+        score_ms: int | None,
+    ) -> None:
+        assert store.record_game_match(
+            game_key="minesweeper",
+            match_id=match_id,
+            room_code="MINE",
+            winner="completed" if score_ms is not None else "mine",
+            reason="扫雷挑战结束",
+            started_at="2026-08-01T00:00:00+00:00",
+            ended_at="2026-08-01T00:01:00+00:00",
+            details={
+                "players": [],
+                "state": {
+                    "difficulty": difficulty,
+                    "elapsed_ms": score_ms or 4_000,
+                },
+            },
+            players=[
+                {
+                    "accountId": account.id,
+                    "playerName": account.player_name,
+                    "seat": 0,
+                    "role": "sweeper",
+                    "alignment": "solo",
+                    "won": score_ms is not None,
+                    "isHost": True,
+                    "scoreMs": score_ms,
+                }
+            ],
+        )
+
+    record("mine-beginner-1", first, "beginner", 12_000)
+    record("mine-expert-1", first, "expert", 68_000)
+    record("mine-beginner-2", second, "beginner", 13_000)
+    record("mine-beginner-loss", first, "beginner", None)
+
+    beginner = store.summary_for_account(
+        first.id,
+        game_key="minesweeper",
+        game_mode="beginner",
+    )
+    expert = store.summary_for_account(
+        first.id,
+        game_key="minesweeper",
+        game_mode="expert",
+    )
+    history = store.history_for_account(
+        first.id,
+        game_key="minesweeper",
+        game_mode="beginner",
+    )
+    leaderboard = store.leaderboard(
+        game_key="minesweeper",
+        game_mode="beginner",
+    )
+
+    assert beginner["games"] == 1
+    assert beginner["bestMs"] == 12_000
+    assert expert["games"] == 1
+    assert expert["bestMs"] == 68_000
+    assert len(history) == 2
+    assert {item["gameMode"] for item in history} == {"beginner"}
+    assert {item["outcome"] for item in history} == {"completed", "loss"}
+    assert leaderboard[0]["accountId"] == first.id
+
+
 def test_gomoku_draw_is_not_recorded_as_two_losses(tmp_path):
     store = AccountStore(tmp_path / "gomoku-draw.sqlite3")
     first = account_for_player(store, 1, "draw")
