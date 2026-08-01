@@ -53,6 +53,25 @@ export type RoleSkinId =
 
 export type RoleSkinTier = '基础' | '升级' | '终极'
 
+export type AvalonRoleCode =
+  | 'merlin'
+  | 'percival'
+  | 'loyal_servant'
+  | 'assassin'
+  | 'morgana'
+  | 'mordred'
+  | 'oberon'
+  | 'minion'
+
+export type AvalonRoleAlignment = 'good' | 'evil'
+
+export interface RoleSkinPreviewRole {
+  code: AvalonRoleCode
+  name: string
+  alignment: AvalonRoleAlignment
+  artwork: string
+}
+
 export const ROLE_SKIN_STORAGE_KEY = 'avalon:role-skin'
 const ROLE_SKIN_LOCK_STORAGE_PREFIX = 'avalon:role-skin-lock:'
 
@@ -100,7 +119,7 @@ export const ROLE_SKINS: Array<{
   },
 ]
 
-const ROLE_ART: Record<RoleSkinId, Record<string, string>> = {
+const ROLE_ART: Record<RoleSkinId, Record<AvalonRoleCode, string>> = {
   'classic-tabletop': {
     merlin: classicMerlin,
     percival: classicPercival,
@@ -153,6 +172,19 @@ const ROLE_ART: Record<RoleSkinId, Record<string, string>> = {
   },
 }
 
+const ROLE_PREVIEW_DEFINITIONS: Array<
+  Omit<RoleSkinPreviewRole, 'artwork'>
+> = [
+  { code: 'merlin', name: '梅林', alignment: 'good' },
+  { code: 'percival', name: '派西维尔', alignment: 'good' },
+  { code: 'loyal_servant', name: '亚瑟的忠臣', alignment: 'good' },
+  { code: 'assassin', name: '刺客', alignment: 'evil' },
+  { code: 'morgana', name: '莫甘娜', alignment: 'evil' },
+  { code: 'mordred', name: '莫德雷德', alignment: 'evil' },
+  { code: 'oberon', name: '奥伯伦', alignment: 'evil' },
+  { code: 'minion', name: '莫德雷德的爪牙', alignment: 'evil' },
+]
+
 function isRoleSkinId(value: string | null): value is RoleSkinId {
   return ROLE_SKINS.some((skin) => skin.id === value)
 }
@@ -191,9 +223,21 @@ export function roleSkinName(skin: RoleSkinId): string {
   return ROLE_SKINS.find((choice) => choice.id === skin)?.name ?? '身份卡'
 }
 
+export function roleSkinPreviewRoles(
+  skin: RoleSkinId,
+): RoleSkinPreviewRole[] {
+  return ROLE_PREVIEW_DEFINITIONS.map((role) => ({
+    ...role,
+    artwork: ROLE_ART[skin][role.code],
+  }))
+}
+
 export function roleArtwork(
   roleCode: string,
   skin: RoleSkinId,
 ): string | null {
-  return ROLE_ART[skin][roleCode] ?? null
+  if (!Object.prototype.hasOwnProperty.call(ROLE_ART[skin], roleCode)) {
+    return null
+  }
+  return ROLE_ART[skin][roleCode as AvalonRoleCode]
 }

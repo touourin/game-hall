@@ -2,9 +2,10 @@ import { mount } from '@vue/test-utils'
 import RoleSkinPicker from './RoleSkinPicker.vue'
 
 describe('RoleSkinPicker', () => {
-  it('previews all five skins by tier and emits the selected one', async () => {
+  it('opens a labeled eight-role preview before selecting a skin', async () => {
     const wrapper = mount(RoleSkinPicker, {
       props: { modelValue: 'classic-tabletop' },
+      global: { stubs: { Teleport: true } },
     })
 
     expect(wrapper.text()).toContain('仅影响你看到的身份卡 · 开局后锁定')
@@ -20,6 +21,24 @@ describe('RoleSkinPicker', () => {
       .get('button[data-role-skin="grail-myth"]')
       .trigger('click')
 
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+    const modal = wrapper.get('.role-skin-modal')
+    expect(modal.attributes('data-tier')).toBe('终极')
+    expect(modal.text()).toContain('圣杯神话')
+    expect(modal.findAll('.role-skin-portrait')).toHaveLength(8)
+    expect(modal.findAll('.role-skin-portrait img')).toHaveLength(8)
+    expect(modal.text()).toContain('梅林')
+    expect(modal.text()).toContain('派西维尔')
+    expect(modal.text()).toContain('亚瑟的忠臣')
+    expect(modal.text()).toContain('刺客')
+    expect(modal.text()).toContain('莫甘娜')
+    expect(modal.text()).toContain('莫德雷德')
+    expect(modal.text()).toContain('奥伯伦')
+    expect(modal.text()).toContain('莫德雷德的爪牙')
+
+    await modal.get('.role-skin-use-button').trigger('click')
+
     expect(wrapper.emitted('update:modelValue')).toEqual([['grail-myth']])
+    expect(wrapper.find('.role-skin-modal').exists()).toBe(false)
   })
 })

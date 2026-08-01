@@ -353,7 +353,10 @@ describe('GameRoom role reveal', () => {
 
     const wrapper = mount(GameRoom, {
       props: { snapshot: lobby },
-      global: { plugins: [createPinia()] },
+      global: {
+        plugins: [createPinia()],
+        stubs: { Teleport: true },
+      },
     })
 
     expect(wrapper.get('.role-skin-lobby-card').text()).toContain(
@@ -362,6 +365,9 @@ describe('GameRoom role reveal', () => {
     await wrapper
       .get('button[data-role-skin="royal-codex"]')
       .trigger('click')
+    expect(storedRoleSkin()).not.toBe('royal-codex')
+
+    await wrapper.get('.role-skin-use-button').trigger('click')
 
     expect(storedRoleSkin()).toBe('royal-codex')
     expect(storedRoleSkinLock('TEST')).toBeNull()
