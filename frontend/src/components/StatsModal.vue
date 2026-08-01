@@ -39,6 +39,7 @@ const roleLabels: Record<string, string> = {
   'flip-red': '翻棋军旗·红方',
   'flip-blue': '翻棋军旗·蓝方',
   tester: '测试者',
+  solver: '解谜者',
 }
 
 function roleLabel(role: string): string {
@@ -47,15 +48,25 @@ function roleLabel(role: string): string {
 
 function winnerLabel(match: MatchDetail): string {
   if (match.gameKey === 'reaction') return '三轮测试完成'
+  if (match.gameKey === 'hanoi') return '汉诺塔挑战完成'
   if (match.winner === 'draw') return '双方和棋'
   if (match.gameKey === 'avalon') return match.winner === 'good' ? '好人获胜' : '坏人获胜'
   return `${roleLabel(match.winner)}获胜`
 }
 
 function outcomeLabel(match: MatchHistoryItem): string {
+  if (match.gameKey === 'hanoi') return '成'
   if (match.outcome === 'draw') return '和'
-  if (match.outcome === 'completed') return '测'
+  if (match.outcome === 'completed') return match.gameKey === 'hanoi' ? '成' : '测'
   return match.outcome === 'win' ? '胜' : '负'
+}
+
+function formatDuration(milliseconds: number | null | undefined): string {
+  if (milliseconds === null || milliseconds === undefined) return '—'
+  const totalSeconds = Math.floor(milliseconds / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return minutes ? `${minutes} 分 ${seconds} 秒` : `${seconds}.${Math.floor(milliseconds % 1000 / 100)} 秒`
 }
 
 function formatDate(value: string): string {
@@ -224,7 +235,22 @@ onMounted(async () => {
           </div>
         </div>
 
-        <div v-if="selectedMatch.gameKey !== 'avalon' && selectedMatch.gameKey !== 'reaction'" class="match-detail-section">
+        <div v-if="selectedMatch.gameKey === 'hanoi'" class="match-detail-section">
+          <span>汉诺塔挑战成绩</span>
+          <div class="match-mission-list">
+            <div class="success">
+              <strong>{{ selectedMatch.details.state?.disc_count }} 层圆盘</strong>
+              <span>{{ selectedMatch.details.state?.moves }} 步完成</span>
+              <small>理论最少 {{ 2 ** Number(selectedMatch.details.state?.disc_count ?? 0) - 1 }} 步</small>
+            </div>
+            <div class="success">
+              <strong>完成用时</strong>
+              <span>{{ formatDuration(selectedMatch.details.state?.elapsed_ms) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="!['avalon', 'reaction', 'hanoi'].includes(selectedMatch.gameKey)" class="match-detail-section">
           <span>参赛玩家</span>
           <div class="match-player-list">
             <div v-for="player in selectedMatch.details.players" :key="player.id">
@@ -240,6 +266,8 @@ onMounted(async () => {
         <p class="match-detail-note">
           {{ selectedMatch.gameKey === 'reaction'
             ? selectedMatch.ranked ? '本次成绩计入反应时间排行榜' : '本次成绩不计排行榜'
+            : selectedMatch.gameKey === 'hanoi'
+              ? selectedMatch.ranked ? '本次通关计入汉诺塔累计通关榜' : '本次通关不计排行榜'
             : selectedMatch.ranked ? '本局计入排行榜' : '本局含 AI，不计排行榜' }}
         </p>
       </template>
@@ -247,7 +275,7 @@ onMounted(async () => {
       <template v-else>
         <span class="modal-icon"><History :size="24" /></span>
         <h2>{{ props.gameName ? `${props.gameName}战绩` : '我的全部战绩' }}</h2>
-        <p>{{ props.gameKey === 'reaction' ? '记录每次三轮测试的平均值与单轮明细。' : '每款游戏独立记录胜负，对局详情绑定当前账号。' }}</p>
+        <p>{{ props.gameKey === 'reaction' ? '记录每次三轮测试的平均值与单轮明细。' : props.gameKey === 'hanoi' ? '记录每次通关的层数、步数与完成用时。' : '每款游戏独立记录胜负，对局详情绑定当前账号。' }}</p>
 
         <div v-if="loading" class="stats-loading">
           <LoaderCircle :size="24" /> 正在读取战绩…
@@ -258,6 +286,11 @@ onMounted(async () => {
               <div><strong>{{ summary.games }}</strong><span>测试次数</span></div>
               <div><strong>{{ summary.bestMs === null ? '—' : `${summary.bestMs} ms` }}</strong><span>历史最佳</span></div>
               <div><strong>{{ summary.averageMs === null ? '—' : `${summary.averageMs} ms` }}</strong><span>总平均</span></div>
+            </template>
+            <template v-else-if="props.gameKey === 'hanoi'">
+              <div><strong>{{ summary.games }}</strong><span>挑战次数</span></div>
+              <div><strong>{{ summary.wins }}</strong><span>完成次数</span></div>
+              <div><strong>{{ summary.winRate }}%</strong><span>完成率</span></div>
             </template>
             <template v-else>
               <div><strong>{{ summary.games }}</strong><span>总场次</span></div>
@@ -283,8 +316,10 @@ onMounted(async () => {
               <span class="match-history-copy">
                 <strong v-if="match.gameKey === 'avalon'">{{ roleLabel(match.role) }} · {{ match.alignment === 'good' ? '好人' : '坏人' }}</strong>
                 <strong v-else-if="match.gameKey === 'reaction'">三轮平均 · {{ match.scoreMs }} ms</strong>
+                <strong v-else-if="match.gameKey === 'hanoi'">{{ match.reason }}</strong>
                 <strong v-else>{{ match.gameName }} · {{ roleLabel(match.role) }}</strong>
                 <small v-if="match.gameKey === 'reaction'">{{ formatDate(match.endedAt) }} · 三轮测试</small>
+                <small v-else-if="match.gameKey === 'hanoi'">{{ formatDate(match.endedAt) }} · 单人益智挑战</small>
                 <small v-else>{{ formatDate(match.endedAt) }} · {{ match.playerCount }} 人 · 房间 {{ match.roomCode }}</small>
               </span>
               <em :class="{ unranked: !match.ranked }">{{ match.ranked ? '计榜' : '测试局' }}</em>

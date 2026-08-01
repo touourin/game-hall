@@ -4,6 +4,7 @@ from backend.app.games.base import GameEngine
 from backend.app.games.doudizhu import DoudizhuEngine
 from backend.app.games.go import GoEngine
 from backend.app.games.gomoku import GomokuEngine
+from backend.app.games.hanoi import HanoiEngine
 from backend.app.games.junqi import JunqiEngine
 from backend.app.games.reaction import ReactionEngine
 from backend.app.games.xiangqi import XiangqiEngine
@@ -17,6 +18,7 @@ def build_engine_registry() -> dict[str, GameEngine]:
         DoudizhuEngine(),
         JunqiEngine(),
         ReactionEngine(),
+        HanoiEngine(),
     ]
     return {engine.key: engine for engine in engines}
 
@@ -63,5 +65,11 @@ GAME_CATALOG = [
         "name": "反应时间",
         "players": "1 人",
         "description": "三轮高精度反应测试",
+    },
+    {
+        "key": "hanoi",
+        "name": "汉诺塔",
+        "players": "1 人",
+        "description": "3–8 层经典益智挑战，争取最少步数",
     },
 ]

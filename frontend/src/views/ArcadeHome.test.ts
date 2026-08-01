@@ -47,4 +47,40 @@ describe('ArcadeHome', () => {
     )
     expect(createRoom.mock.calls[0]?.[1]).not.toHaveProperty('boardSize')
   })
+
+  it('starts a solo Hanoi challenge with the selected difficulty', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const createRoom = vi.spyOn(arcade, 'createRoom').mockResolvedValue(true)
+    const startGame = vi.spyOn(arcade, 'startGame').mockResolvedValue()
+    const wrapper = mount(ArcadeHome, {
+      props: {
+        game: {
+          key: 'hanoi',
+          name: '汉诺塔',
+          players: '1 人',
+          description: '测试',
+        },
+        account: {
+          id: 'account-1',
+          username: 'tester',
+          playerName: '测试玩家',
+          nextRenameAt: null,
+          createdAt: '2026-08-01T00:00:00Z',
+        },
+      },
+      global: { plugins: [pinia] },
+    })
+    const sixDiscs = wrapper
+      .findAll('.game-rule-settings button')
+      .find((button) => button.text().includes('6 层'))
+
+    await sixDiscs?.trigger('click')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(createRoom).toHaveBeenCalledWith('hanoi', { discCount: 6 })
+    expect(startGame).toHaveBeenCalledOnce()
+    expect(wrapper.text()).toContain('把整座圆盘移到最右侧')
+  })
 })

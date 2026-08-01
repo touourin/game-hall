@@ -21,6 +21,21 @@ function setOption(key: string, value: unknown) {
 
 <template>
   <div class="game-rule-settings">
+    <section v-if="gameKey === 'hanoi'" class="rule-setting-group">
+      <header><strong>挑战层数</strong><small>层数越高，理论最少步数呈指数增长</small></header>
+      <div class="rule-segmented six">
+        <button
+          v-for="count in [3, 4, 5, 6, 7, 8]"
+          :key="count"
+          type="button"
+          :class="{ active: option('discCount') === count }"
+          @click="setOption('discCount', count)"
+        >
+          {{ count }} 层<br><small>{{ 2 ** count - 1 }} 步</small>
+        </button>
+      </div>
+    </section>
+
     <section v-if="gameKey === 'junqi'" class="rule-setting-group">
       <header><strong>军旗玩法</strong><small>选择完整暗棋或轻量翻棋</small></header>
       <div class="rule-option-grid">
@@ -89,7 +104,7 @@ function setOption(key: string, value: unknown) {
       </div>
     </section>
 
-    <section v-if="gameKey !== 'reaction'" class="rule-setting-group">
+    <section v-if="!['reaction', 'hanoi'].includes(gameKey)" class="rule-setting-group">
       <header><strong>{{ gameKey === 'doudizhu' ? '首叫玩家' : gameKey === 'gomoku' && option('openingRule') === 'swap2' ? '首局摆子者' : '首局先手' }}</strong><small>再来一局时仍会自动轮换</small></header>
       <div class="rule-option-grid">
         <button type="button" :class="{ active: option('firstPlayer') === 'random' }" @click="setOption('firstPlayer', 'random')">
@@ -138,6 +153,7 @@ function setOption(key: string, value: unknown) {
 .rule-segmented { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .rule-segmented.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .rule-segmented.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.rule-segmented.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .rule-segmented button { min-height: 42px; border: 0; border-right: 1px solid var(--line); color: var(--muted); background: rgba(0, 0, 0, .12); font-weight: 850; }
 .rule-segmented button:last-child { border-right: 0; }
 .rule-segmented button.active { color: var(--gold); }
@@ -150,6 +166,9 @@ function setOption(key: string, value: unknown) {
 @media (max-width: 520px) {
   .rule-option-grid, .rule-option-grid.three { grid-template-columns: 1fr; }
   .rule-segmented.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rule-segmented.six { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .rule-segmented.six button:nth-child(3n) { border-right: 0; }
+  .rule-segmented.six button:nth-child(-n + 3) { border-bottom: 1px solid var(--line); }
   .rule-segmented.four button:nth-child(2) { border-right: 0; }
   .rule-segmented.four button:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
 }

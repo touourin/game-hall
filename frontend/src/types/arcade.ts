@@ -5,6 +5,7 @@ export type ArcadeGameKey =
   | 'doudizhu'
   | 'junqi'
   | 'reaction'
+  | 'hanoi'
 
 export interface GameCatalogItem {
   key: 'avalon' | ArcadeGameKey

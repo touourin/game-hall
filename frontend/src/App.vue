@@ -58,6 +58,7 @@ function initialSelectedGame(): GameCatalogItem | null {
     doudizhu: { key: 'doudizhu', name: '斗地主', players: '3 人', description: '叫抢地主、三种玩法与倍数结算' },
     junqi: { key: 'junqi', name: '军旗', players: '2 人', description: '暗军旗布阵与翻棋对战' },
     reaction: { key: 'reaction', name: '反应时间', players: '1 人', description: '三轮高精度反应测试' },
+    hanoi: { key: 'hanoi', name: '汉诺塔', players: '1 人', description: '3–8 层经典益智挑战' },
   }
   if (gameKey && catalog[gameKey]) return catalog[gameKey]
   if (params.get('room')) return catalog.avalon

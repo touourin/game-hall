@@ -18,6 +18,7 @@ from backend.app.games.doudizhu.engine import (
 )
 from backend.app.games.go import GoEngine
 from backend.app.games.gomoku import GomokuEngine
+from backend.app.games.hanoi import HanoiEngine
 from backend.app.games.junqi.engine import JunqiEngine, JunqiPiece, JunqiState
 from backend.app.games.reaction import ReactionEngine
 from backend.app.games.registry import build_engine_registry
@@ -1299,3 +1300,93 @@ def test_reaction_false_start_resets_all_completed_rounds() -> None:
         "bestMs": None,
         "averageMs": None,
     }
+
+
+def test_hanoi_solves_three_discs_in_the_optimal_number_of_moves() -> None:
+    now = [100.0]
+    engine = HanoiEngine(clock=lambda: now[0])
+    room = make_room(engine, 1, {"discCount": 3})
+
+    for source, target in [
+        (0, 2),
+        (0, 1),
+        (2, 1),
+        (0, 2),
+        (1, 0),
+        (1, 2),
+        (0, 2),
+    ]:
+        now[0] += 0.1
+        engine.act(
+            room,
+            room.players[0],
+            "move",
+            {"fromTower": source, "toTower": target},
+        )
+
+    assert room.phase == "finished"
+    assert room.winner == "completed"
+    assert room.state.towers == [[], [], [3, 2, 1]]
+    assert room.state.moves == 7
+    assert room.state.elapsed_ms == 700
+    assert engine.player_score(room, room.players[0]) == 700
+    view = engine.view(room, room.players[0])
+    assert view["optimalMoves"] == 7
+    assert view["isOptimal"] is True
+    assert view["lastMove"] == {"fromTower": 0, "toTower": 2, "disc": 1}
+
+
+def test_hanoi_rejects_illegal_moves_without_changing_the_towers() -> None:
+    engine = HanoiEngine()
+    room = make_room(engine, 1, {"discCount": 3})
+    player = room.players[0]
+
+    engine.act(room, player, "move", {"fromTower": 0, "toTower": 1})
+    before = [list(tower) for tower in room.state.towers]
+    with pytest.raises(GameRuleError, match="大圆盘"):
+        engine.act(room, player, "move", {"fromTower": 0, "toTower": 1})
+    with pytest.raises(GameRuleError, match="没有可以移动"):
+        engine.act(room, player, "move", {"fromTower": 2, "toTower": 0})
+
+    assert room.state.towers == before
+    assert room.state.moves == 1
+
+
+def test_hanoi_validates_difficulty_and_resets_the_active_challenge() -> None:
+    now = [10.0]
+    engine = HanoiEngine(clock=lambda: now[0])
+    assert engine.room_options({}) == {"discCount": 5}
+    assert engine.room_options({"discCount": 8}) == {"discCount": 8}
+    with pytest.raises(GameRuleError, match="3 到 8"):
+        engine.room_options({"discCount": 2})
+    with pytest.raises(GameRuleError, match="3 到 8"):
+        engine.room_options({"discCount": True})
+
+    room = make_room(engine, 1, {"discCount": 4})
+    engine.act(
+        room,
+        room.players[0],
+        "move",
+        {"fromTower": 0, "toTower": 1},
+    )
+    now[0] += 1
+    engine.act(room, room.players[0], "reset", {})
+
+    assert room.phase == "playing"
+    assert room.state.disc_count == 4
+    assert room.state.towers == [[4, 3, 2, 1], [], []]
+    assert room.state.moves == 0
+    assert room.state.elapsed_ms == 0
+
+
+def test_hanoi_room_is_private_single_player_room() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, host, _ = manager.create_room(
+        "hanoi", "解谜者", "account-1", {"discCount": 6}
+    )
+
+    assert room.listed is False
+    assert room.options == {"discCount": 6}
+    manager.start(room, host.id)
+    assert room.phase == "playing"
+    assert room.state.disc_count == 6

@@ -29,6 +29,7 @@ const games: Array<GameCatalogItem & { symbol: string; tone: string }> = [
   { key: 'doudizhu', name: '斗地主', players: '3 人', description: '叫抢地主、三种玩法与倍数结算', symbol: '♠', tone: 'blue' },
   { key: 'junqi', name: '军旗', players: '2 人', description: '暗军旗布阵，或翻棋决定阵营', symbol: '旗', tone: 'army' },
   { key: 'reaction', name: '反应时间', players: '1 人', description: '等待信号变色，测出三轮真实反应', symbol: '⚡', tone: 'pulse' },
+  { key: 'hanoi', name: '汉诺塔', players: '1 人', description: '3–8 层经典益智挑战，争取最少步数', symbol: '塔', tone: 'tower' },
 ]
 </script>
 
@@ -113,6 +114,7 @@ const games: Array<GameCatalogItem & { symbol: string; tone: string }> = [
 .tone-red .game-symbol { color: #e88a82; }.tone-jade .game-symbol { color: #72d0ad; }.tone-blue .game-symbol { color: #86bde4; }.tone-ink .game-symbol { color: #d7d8d1; }
 .tone-army .game-symbol { color: #d8b66b; }
 .tone-pulse .game-symbol { color: #8fe0bd; }
+.tone-tower .game-symbol { color: #d9a86c; }
 @media (max-width: 680px) {
   .game-grid { grid-template-columns: 1fr; }
   .game-card:first-child { grid-column: auto; }

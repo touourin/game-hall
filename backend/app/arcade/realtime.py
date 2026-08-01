@@ -120,7 +120,7 @@ class ArcadeRealtime:
             await self.broadcast_room(room)
             await self.broadcast_lobby()
             return self._join_response(room.code, player.id, token)
-        except (ValidationError, ArcadeRoomError, KeyError) as error:
+        except (ValidationError, *ACTION_ERRORS) as error:
             return error_response(error)
 
     async def join_room(self, sid: str, raw_data: Any) -> dict[str, Any]:

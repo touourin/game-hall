@@ -87,4 +87,26 @@ describe('GameRuleSettings', () => {
     expect(gameRuleLabels('doudizhu', { firstPlayer: 'host' })).toContain('房主首叫')
     expect(wrapper.text()).toContain('随机指定首叫玩家')
   })
+
+  it('offers Hanoi difficulties without multiplayer settings', async () => {
+    const wrapper = mount(GameRuleSettings, {
+      props: {
+        gameKey: 'hanoi',
+        modelValue: defaultGameRules('hanoi'),
+      },
+    })
+    const eightDiscs = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('8 层'))
+
+    await eightDiscs?.trigger('click')
+
+    expect(defaultGameRules('hanoi')).toEqual({ discCount: 5 })
+    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toEqual({ discCount: 8 })
+    expect(gameRuleLabels('hanoi', { discCount: 8 })).toEqual([
+      '8 层圆盘',
+      '理论最少 255 步',
+    ])
+    expect(wrapper.text()).not.toContain('首局先手')
+  })
 })

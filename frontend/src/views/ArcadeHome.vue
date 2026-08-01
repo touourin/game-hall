@@ -21,7 +21,20 @@ const showStats = ref(false)
 const showLeaderboard = ref(false)
 const gameKey = computed(() => props.game.key as ArcadeGameKey)
 const rules = ref<Record<string, unknown>>(defaultGameRules(gameKey.value))
-const isSolo = computed(() => props.game.key === 'reaction')
+const isSolo = computed(() => ['reaction', 'hanoi'].includes(props.game.key))
+const soloIntro = computed(() => props.game.key === 'hanoi'
+  ? {
+      mark: '塔',
+      title: '把整座圆盘移到最右侧',
+      description: '每次只能移动最上方一块，大圆盘不能压在小圆盘上',
+      button: '开始汉诺塔挑战',
+    }
+  : {
+      mark: '⚡',
+      title: '准备测试你的反应速度',
+      description: '共三轮；看到按钮变绿后，按空格键或直接点击',
+      button: '开始反应挑战',
+    })
 const rooms = computed(() =>
   arcade.availableRooms.filter((room) => room.gameKey === props.game.key),
 )
@@ -83,15 +96,15 @@ async function chooseRoom(code: string) {
         <button type="button" :class="{ active: mode === 'join' }" @click="mode = 'join'">加入房间</button>
       </div>
       <div v-else class="solo-game-intro">
-        <span class="solo-game-mark">⚡</span>
+        <span class="solo-game-mark">{{ soloIntro.mark }}</span>
         <div>
-          <strong>准备测试你的反应速度</strong>
-          <small>共三轮；看到按钮变绿后，按空格键或直接点击</small>
+          <strong>{{ soloIntro.title }}</strong>
+          <small>{{ soloIntro.description }}</small>
         </div>
       </div>
       <form @submit.prevent="submit">
         <GameRuleSettings
-          v-if="!isSolo && mode === 'create'"
+          v-if="mode === 'create' && gameKey !== 'reaction'"
           v-model="rules"
           :game-key="gameKey"
           class="create-rule-settings"
@@ -99,7 +112,7 @@ async function chooseRoom(code: string) {
         <label v-if="!isSolo && mode === 'join'" class="field"><span>房间代码</span><input v-model="roomCode" maxlength="8" class="room-code-input" @input="roomCode = roomCode.toUpperCase()" /></label>
         <button type="submit" class="primary-button wide-button" :disabled="!canSubmit">
           <Plus v-if="isSolo || mode === 'create'" :size="19" /><LogIn v-else :size="19" />
-          {{ isSolo ? '开始反应挑战' : mode === 'create' ? `创建${game.name}房间` : '进入房间' }}
+          {{ isSolo ? soloIntro.button : mode === 'create' ? `创建${game.name}房间` : '进入房间' }}
         </button>
       </form>
     </section>

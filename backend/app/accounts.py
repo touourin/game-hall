@@ -39,6 +39,7 @@ GAME_NAMES = {
     "doudizhu": "斗地主",
     "junqi": "军旗",
     "reaction": "反应时间",
+    "hanoi": "汉诺塔",
 }
 
 

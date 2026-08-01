@@ -80,7 +80,12 @@ export interface MatchDetail {
     }>
     assassinTargetId?: string | null
     assassinationWasEarly?: boolean
-    state?: Record<string, unknown> & { results_ms?: number[] }
+    state?: Record<string, unknown> & {
+      results_ms?: number[]
+      disc_count?: number
+      moves?: number
+      elapsed_ms?: number
+    }
   }
 }
 

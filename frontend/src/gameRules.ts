@@ -10,6 +10,7 @@ export function defaultGameRules(
   gameKey: ArcadeGameKey,
 ): Record<string, unknown> {
   if (gameKey === 'reaction') return {}
+  if (gameKey === 'hanoi') return { discCount: 5 }
   const options: Record<string, unknown> = { firstPlayer: 'random' }
   if (NEGOTIATION_GAMES.has(gameKey)) {
     options.allowUndo = true
@@ -42,6 +43,10 @@ export function gameRuleLabels(
 ): string[] {
   const options = withDefaultGameRules(gameKey, rawOptions)
   if (gameKey === 'reaction') return ['三轮测试']
+  if (gameKey === 'hanoi') {
+    const discCount = Number(options.discCount)
+    return [`${discCount} 层圆盘`, `理论最少 ${2 ** discCount - 1} 步`]
+  }
   const swap2 = gameKey === 'gomoku' && options.openingRule === 'swap2'
   const labels = [
     options.firstPlayer === 'host'

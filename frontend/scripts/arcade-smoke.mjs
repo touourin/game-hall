@@ -110,6 +110,25 @@ async function playReaction(client) {
   return created.roomCode
 }
 
+async function playHanoi(client) {
+  const created = await emitAck(client, 'arcade:create', {
+    game_key: 'hanoi',
+    options: { discCount: 3 },
+  })
+  await emitAck(client, 'arcade:start')
+  for (const [fromTower, toTower] of [
+    [0, 2], [0, 1], [2, 1], [0, 2], [1, 0], [1, 2], [0, 2],
+  ]) {
+    await emitAck(client, 'arcade:action', {
+      action: 'move',
+      payload: { fromTower, toTower },
+    })
+  }
+  const left = await emitAck(client, 'arcade:leave')
+  if (left.seatPreserved) throw new Error('汉诺塔结束后仍然要求续局')
+  return created.roomCode
+}
+
 const sockets = []
 try {
   const access = await jsonRequest('/api/access/unlock', {
@@ -134,13 +153,14 @@ try {
     'junqi', sockets.slice(0, 2), { mode: 'flip' },
   )
   rooms.reaction = await playReaction(sockets[0])
+  rooms.hanoi = await playHanoi(sockets[0])
 
   const headers = {
     Authorization: `Bearer ${accounts[0].token}`,
     'X-Avalon-Access': access.token,
   }
   const catalog = await jsonRequest('/api/games', { headers })
-  if (catalog.games.length !== 7) throw new Error('游戏目录数量不是 7')
+  if (catalog.games.length !== 8) throw new Error('游戏目录数量不是 8')
   for (const gameKey of ['gomoku', 'xiangqi', 'go', 'doudizhu']) {
     const stats = await jsonRequest(`/api/stats/me?game=${gameKey}`, { headers })
     if (stats.summary.games !== 1 || stats.history[0]?.gameKey !== gameKey) {
@@ -154,6 +174,10 @@ try {
   const reactionStats = await jsonRequest('/api/stats/me?game=reaction', { headers })
   if (reactionStats.summary.bestMs !== 210 || reactionStats.history[0]?.scoreMs !== 210) {
     throw new Error('反应时间成绩没有正确保存')
+  }
+  const hanoiStats = await jsonRequest('/api/stats/me?game=hanoi', { headers })
+  if (hanoiStats.summary.games !== 1 || hanoiStats.history[0]?.gameKey !== 'hanoi') {
+    throw new Error('汉诺塔成绩没有正确保存')
   }
 
   process.stdout.write(`${JSON.stringify({ ok: true, prefix, rooms })}\n`)
