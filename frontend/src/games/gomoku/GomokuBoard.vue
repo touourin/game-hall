@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Flag } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
 
@@ -62,10 +63,10 @@ function place(row: number, column: number) {
     <button
       v-if="snapshot.phase === 'playing'"
       type="button"
-      class="gomoku-resign"
+      class="arcade-danger-button"
       @click="arcade.action('resign')"
     >
-      认输
+      <Flag :size="17" />认输
     </button>
   </section>
 </template>
@@ -85,7 +86,7 @@ function place(row: number, column: number) {
   border: 2px solid #8a5a2d;
   border-radius: 12px;
   background: #d3a35f;
-  box-shadow: 0 20px 50px #0006;
+  box-shadow: 0 20px 50px #0006, 0 0 0 1px color-mix(in srgb, var(--gold) 24%, transparent);
 }
 .board-point {
   position: relative;
@@ -111,7 +112,6 @@ function place(row: number, column: number) {
   position: absolute;
   inset: 35%;
   border-radius: 50%;
-  background: #e65b52;
+  background: var(--gold);
 }
-.gomoku-resign { padding: 10px 22px; border: 1px solid #9b4c4c; border-radius: 12px; color: #ffaaa8; background: var(--surface); }
 </style>

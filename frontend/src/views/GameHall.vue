@@ -96,7 +96,7 @@ const games: Array<GameCatalogItem & { symbol: string; tone: string }> = [
 .game-card { position: relative; min-height: 210px; padding: 24px; display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: start; text-align: left; color: var(--text); overflow: hidden; }
 .game-card:first-child { grid-column: 1 / -1; min-height: 230px; }
 .game-card::after { content: ''; position: absolute; width: 180px; aspect-ratio: 1; right: -70px; bottom: -90px; border-radius: 50%; background: currentColor; opacity: .055; }
-.game-symbol { width: 64px; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid currentColor; border-radius: 18px; color: var(--gold); font-family: serif; font-size: 32px; background: #d6ae5110; }
+.game-symbol { width: 64px; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid currentColor; border-radius: 18px; color: var(--gold); font-family: serif; font-size: 32px; background: color-mix(in srgb, var(--gold) 7%, transparent); }
 .game-copy { display: grid; gap: 7px; }
 .game-copy small { color: var(--gold); font-weight: 800; }
 .game-copy strong { font-family: serif; font-size: 28px; }

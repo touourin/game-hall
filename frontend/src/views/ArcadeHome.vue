@@ -99,7 +99,7 @@ async function chooseRoom(code: string) {
         <label v-if="!isSolo && mode === 'join'" class="field"><span>房间代码</span><input v-model="roomCode" maxlength="8" class="room-code-input" @input="roomCode = roomCode.toUpperCase()" /></label>
         <button type="submit" class="primary-button wide-button" :disabled="!canSubmit">
           <Plus v-if="isSolo || mode === 'create'" :size="19" /><LogIn v-else :size="19" />
-          {{ isSolo ? '开始三轮反应测试' : mode === 'create' ? `创建${game.name}房间` : '进入房间' }}
+          {{ isSolo ? '开始反应挑战' : mode === 'create' ? `创建${game.name}房间` : '进入房间' }}
         </button>
       </form>
     </section>
@@ -130,7 +130,7 @@ async function chooseRoom(code: string) {
 .junqi-mode-picker { width: 100%; min-width: 0; margin: 0 0 16px; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; border: 0; }
 .junqi-mode-picker legend { margin-bottom: 8px; color: var(--muted); font-size: 13px; font-weight: 800; }
 .junqi-mode-picker button { min-height: 78px; padding: 14px; display: grid; align-content: center; gap: 4px; text-align: left; border: 1px solid var(--line); border-radius: 13px; color: var(--text); background: var(--surface); }
-.junqi-mode-picker button.active { border-color: var(--gold); background: #d6ae5114; box-shadow: inset 0 0 0 1px #d6ae5138; }
+.junqi-mode-picker button.active { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 22%, transparent); }
 .junqi-mode-picker small { color: var(--muted); line-height: 1.4; }
 .solo-game-intro { margin: 4px 0 20px; padding: 14px 4px 4px; display: flex; align-items: center; gap: 12px; }
 .solo-game-mark { width: 46px; aspect-ratio: 1; display: grid; flex: 0 0 auto; place-items: center; border: 1px solid #78d2aa55; border-radius: 14px; color: #8fe0bd; background: #62c69b16; font-size: 22px; }

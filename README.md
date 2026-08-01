@@ -170,7 +170,7 @@ frontend/src/games/doudizhu/
                             斗地主界面
 frontend/src/games/junqi/   军旗双模式界面
 frontend/src/games/reaction/
-                            三轮反应时间测试
+                            反应挑战（连续三轮）
 backend/app/arcade/         通用房间、实时协议与玩家视图
 backend/app/games/          各游戏独立规则引擎与注册表
 backend/app/accounts.py     共用账号、战绩和排行榜

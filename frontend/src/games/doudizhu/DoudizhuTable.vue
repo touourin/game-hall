@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { Flag } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
 
@@ -163,7 +164,7 @@ function isRed(card: PlayingCard): boolean {
         >
           出牌
         </button>
-        <button type="button" class="danger" @click="arcade.action('resign')">认输</button>
+        <button type="button" class="arcade-danger-button" @click="arcade.action('resign')"><Flag :size="17" />认输</button>
       </div>
     </template>
   </section>
@@ -173,7 +174,7 @@ function isRed(card: PlayingCard): boolean {
 .landlord-table { width: min(100%, 1000px); margin: 0 auto; display: grid; gap: 18px; justify-items: center; }
 .opponent-row { width: 100%; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .opponent { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 10px; align-items: center; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
-.player-avatar { grid-row: span 3; width: 38px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 50%; color: var(--gold); background: #d6ae5130; }
+.player-avatar { grid-row: span 3; width: 38px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 50%; color: var(--gold); background: color-mix(in srgb, var(--gold) 19%, transparent); }
 .opponent small, .opponent em { color: var(--muted); font-style: normal; }
 .opponent b { grid-column: 3; grid-row: 1 / 3; color: var(--gold); }
 .opponent em { grid-column: 2 / 4; color: #6ee0b5; }
@@ -185,7 +186,7 @@ function isRed(card: PlayingCard): boolean {
 .played-cards span { min-width: 44px; padding: 8px 5px; margin-left: -5px; border: 1px solid #c8baa3; border-radius: 6px; color: #20231f; background: #f7f1e5; box-shadow: 0 3px 8px #0005; }
 .bid-panel { display: grid; justify-items: center; gap: 12px; }
 .bid-panel div, .play-actions { display: flex; gap: 8px; }
-.bid-panel button, .play-actions button { padding: 10px 17px; border: 1px solid var(--line); border-radius: 11px; color: var(--text); background: var(--surface); }
+.bid-panel button, .play-actions button:not(.arcade-danger-button) { padding: 10px 17px; border: 1px solid var(--line); border-radius: 11px; color: var(--text); background: var(--surface); }
 .bid-panel button:disabled, .play-actions button:disabled { opacity: .35; }
 .hand { width: 100%; min-height: 128px; display: flex; align-items: end; justify-content: center; overflow-x: auto; padding: 24px 16px 5px; }
 .playing-card { flex: 0 0 clamp(42px, 6vw, 62px); height: clamp(84px, 12vw, 116px); margin-left: clamp(-18px, -2vw, -10px); padding: 8px 4px; display: flex; flex-direction: column; align-items: flex-start; border: 1px solid #c8baa3; border-radius: 8px; color: #20231f; background: #f7f1e5; box-shadow: 0 4px 10px #0006; transition: transform .15s; }
@@ -193,8 +194,7 @@ function isRed(card: PlayingCard): boolean {
 .playing-card.selected { transform: translateY(-20px); border-color: var(--gold); }
 .playing-card b { font-size: 18px; }
 .playing-card span { font-size: 20px; }
-.play-actions .primary { color: #06231c; background: #7bd7b3; }
-.play-actions .danger { color: #ffaaa8; }
+.play-actions .primary { color: #06231c; background: var(--green); }
 @media (max-width: 600px) { .opponent-row { grid-template-columns: 1fr 1fr; } .opponent { grid-template-columns: auto 1fr; } .opponent b { grid-column: 2; grid-row: 2; } }
 @media (max-width: 600px) {
   .hand { justify-content: flex-start; padding-right: 4px; padding-left: 4px; }

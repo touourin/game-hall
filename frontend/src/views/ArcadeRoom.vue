@@ -33,11 +33,14 @@ async function copyInvite() {
 </script>
 
 <template>
-  <main class="arcade-room page-container">
+  <main
+    class="arcade-room page-container"
+    :class="{ 'arcade-room--wide': ['doudizhu', 'junqi'].includes(snapshot.gameKey) }"
+  >
     <header class="arcade-room-header">
       <div>
         <small>{{ snapshot.gameName }}<template v-if="snapshot.gameKey === 'junqi'"> · {{ snapshot.options.mode === 'flip' ? '翻棋军旗' : '暗军旗' }}</template><template v-else-if="snapshot.gameKey === 'reaction'"> · 单人测试</template></small>
-        <h1>{{ snapshot.gameKey === 'reaction' ? '三轮反应挑战' : `房间 ${snapshot.roomCode}` }}</h1>
+        <h1>{{ snapshot.gameKey === 'reaction' ? '反应挑战' : `房间 ${snapshot.roomCode}` }}</h1>
       </div>
       <button type="button" class="icon-button" aria-label="离开房间" @click="arcade.leaveRoom">
         <ArrowLeft :size="21" />
@@ -116,8 +119,8 @@ async function copyInvite() {
 .arcade-room-header h1 { margin: 4px 0 0; font-size: clamp(24px, 4vw, 38px); }
 .arcade-player-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px; margin-bottom: 24px; padding: 14px; }
 .arcade-player-strip article { display: flex; gap: 10px; align-items: center; padding: 10px; border: 1px solid transparent; border-radius: 12px; }
-.arcade-player-strip article.self { border-color: #d6ae5166; background: #d6ae5112; }
-.arcade-player-strip article > span { width: 34px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 10px; color: var(--gold); background: #d6ae5120; font-weight: 900; }
+.arcade-player-strip article.self { border-color: color-mix(in srgb, var(--gold) 40%, transparent); background: color-mix(in srgb, var(--gold) 7%, transparent); }
+.arcade-player-strip article > span { width: 34px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 10px; color: var(--gold); background: color-mix(in srgb, var(--gold) 13%, transparent); font-weight: 900; }
 .arcade-player-strip strong, .arcade-player-strip small { display: block; }
 .arcade-player-strip small { margin-top: 2px; color: var(--muted); }
 .arcade-player-strip small svg { vertical-align: -2px; color: var(--gold); }
@@ -134,4 +137,7 @@ async function copyInvite() {
 .result-banner h2 { margin: 5px 0; }
 .result-banner p { color: var(--muted); }
 .result-banner .primary-button { margin: 12px auto 0; }
+@media (min-width: 860px) {
+  .arcade-room.arcade-room--wide { width: min(100%, 1080px); }
+}
 </style>

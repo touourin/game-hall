@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { Flag } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
 
@@ -79,6 +80,8 @@ function choose(row: number, column: number) {
           :key="`${row}-${column}`"
           type="button"
           class="xiangqi-cell"
+          :disabled="snapshot.phase !== 'playing' || !isMyTurn"
+          :aria-label="`第 ${row + 1} 行第 ${column + 1} 列`"
           :class="{
             selected: selected?.row === row && selected?.column === column,
             latest:
@@ -101,10 +104,10 @@ function choose(row: number, column: number) {
     <button
       v-if="snapshot.phase === 'playing'"
       type="button"
-      class="resign-button"
+      class="arcade-danger-button"
       @click="arcade.action('resign')"
     >
-      认输
+      <Flag :size="17" />认输
     </button>
   </section>
 </template>
@@ -125,7 +128,7 @@ function choose(row: number, column: number) {
   background: #d7a763;
   border: 4px double #75471f;
   border-radius: 8px;
-  box-shadow: 0 20px 50px #0006;
+  box-shadow: 0 20px 50px #0006, 0 0 0 1px color-mix(in srgb, var(--gold) 24%, transparent);
 }
 .xiangqi-cell {
   position: relative;
@@ -136,15 +139,16 @@ function choose(row: number, column: number) {
     linear-gradient(#704a29, #704a29) center / 100% 1px no-repeat,
     linear-gradient(90deg, #704a29, #704a29) center / 1px 100% no-repeat;
 }
+.xiangqi-cell:disabled { opacity: 1; }
 .xiangqi-cell.selected::after,
 .xiangqi-cell.latest::after {
   content: '';
   position: absolute;
   inset: 8%;
-  border: 3px solid #e8c25a;
+  border: 3px solid var(--gold);
   border-radius: 50%;
 }
-.xiangqi-cell.latest::after { border-color: #4c947b; }
+.xiangqi-cell.latest::after { border-color: var(--green); }
 .xiangqi-piece {
   position: absolute;
   inset: 5%;
@@ -175,5 +179,4 @@ function choose(row: number, column: number) {
   font-weight: 900;
   transform: translateY(-50%);
 }
-.resign-button { padding: 10px 22px; border: 1px solid #9b4c4c; border-radius: 12px; color: #ffaaa8; background: var(--surface); }
 </style>

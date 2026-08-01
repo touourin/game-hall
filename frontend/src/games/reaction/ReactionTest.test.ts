@@ -79,7 +79,8 @@ describe('ReactionTest', () => {
     await wrapper.get('.reaction-trigger').trigger('click')
 
     expect(wrapper.text()).toContain('抢跑了')
-    expect(action).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('三轮已重新开始')
+    expect(action).toHaveBeenCalledWith('false_start')
     wrapper.unmount()
   })
 

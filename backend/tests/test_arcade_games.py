@@ -341,3 +341,22 @@ def test_reaction_room_is_private_single_player_room() -> None:
     assert room.listed is False
     manager.start(room, host.id)
     assert room.phase == "playing"
+
+
+def test_reaction_false_start_resets_all_completed_rounds() -> None:
+    engine = ReactionEngine()
+    room = make_room(engine, 1)
+
+    engine.act(room, room.players[0], "record", {"elapsedMs": 180})
+    engine.act(room, room.players[0], "record", {"elapsedMs": 220})
+    engine.act(room, room.players[0], "false_start", {})
+
+    assert room.phase == "playing"
+    assert room.state.results_ms == []
+    assert engine.view(room, room.players[0]) == {
+        "roundsRequired": 3,
+        "resultsMs": [],
+        "roundNumber": 1,
+        "bestMs": None,
+        "averageMs": None,
+    }

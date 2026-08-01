@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Check, Dices, Flag, Info, RotateCcw } from '@lucide/vue'
+import { Check, Dices, Flag, Info } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
 
@@ -143,6 +143,7 @@ function choose(row: number, column: number) {
             :key="key(row, column)"
             type="button"
             class="junqi-cell"
+            :disabled="snapshot.phase === 'finished' || (isSetup ? isReady : !isMyTurn)"
             :class="{
               camp: campKeys.has(key(row, column)),
               headquarters: headquartersKeys.has(key(row, column)),
@@ -189,7 +190,7 @@ function choose(row: number, column: number) {
       <button type="button" class="primary" :disabled="isReady" @click="arcade.action('ready')"><Check :size="18" />确认布阵</button>
     </div>
     <div v-else-if="snapshot.phase === 'playing'" class="junqi-actions">
-      <button type="button" class="danger" @click="arcade.action('resign')"><RotateCcw :size="17" />认输</button>
+      <button type="button" class="arcade-danger-button" @click="arcade.action('resign')"><Flag :size="17" />认输</button>
     </div>
   </section>
 </template>
@@ -197,19 +198,20 @@ function choose(row: number, column: number) {
 <style scoped>
 .junqi-game { width: min(100%, 980px); margin: 0 auto; display: grid; gap: 16px; }
 .junqi-status { padding: 14px 16px; display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
-.junqi-status > span { width: 42px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 12px; color: var(--gold); background: #d6ae5118; }
+.junqi-status > span { width: 42px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 12px; color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); }
 .junqi-status strong, .junqi-status small { display: block; }.junqi-status small { margin-top: 3px; color: var(--muted); }.junqi-status em { color: var(--gold); font-style: normal; font-weight: 800; }
-.junqi-status.active { border-color: #d6ae5155; }
+.junqi-status.active { border-color: color-mix(in srgb, var(--gold) 34%, transparent); }
 .junqi-layout { display: grid; grid-template-columns: minmax(320px, 520px) minmax(200px, 1fr); gap: 18px; align-items: start; justify-content: center; }
-.junqi-board { position: relative; width: 100%; aspect-ratio: 5 / 9.2; padding: 14px; display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(12, 1fr); gap: 5px; border: 2px solid #8d6836; border-radius: 18px; background: linear-gradient(155deg, #c7a96d, #a68148); box-shadow: 0 22px 48px #0007; overflow: hidden; }
+.junqi-board { position: relative; width: 100%; aspect-ratio: 5 / 9.2; padding: 14px; display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(12, 1fr); gap: 5px; border: 2px solid #8d6836; border-radius: 18px; background: linear-gradient(155deg, #c7a96d, #a68148); box-shadow: 0 22px 48px #0007, 0 0 0 1px color-mix(in srgb, var(--gold) 24%, transparent); overflow: hidden; }
 .junqi-board::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 7.5%; transform: translateY(-50%); pointer-events: none; background: #5e795d66; border-top: 1px solid #394f38aa; border-bottom: 1px solid #394f38aa; }
 .river-label { position: absolute; z-index: 1; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #253b2b99; font-family: serif; font-weight: 900; letter-spacing: .8em; white-space: nowrap; pointer-events: none; }
 .junqi-cell { position: relative; z-index: 2; min-width: 0; padding: 2px; display: grid; place-items: center; border: 1px solid #76572e80; border-radius: 7px; color: #47351e; background: #ead29b9c; }
+.junqi-cell:disabled { opacity: 1; }
 .junqi-cell.rail { border-width: 2px; border-color: #59401fc0; }
 .junqi-cell.camp { border-radius: 50%; background: #d9c58f; }
 .junqi-cell.headquarters { border-style: double; border-width: 3px; }
-.junqi-cell.selected { outline: 3px solid #fff0a5; outline-offset: 1px; transform: translateY(-1px); }
-.junqi-cell.latest { box-shadow: inset 0 0 0 3px #ffd76588; }
+.junqi-cell.selected { outline: 3px solid var(--gold); outline-offset: 1px; transform: translateY(-1px); }
+.junqi-cell.latest { box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--gold) 54%, transparent); }
 .terrain-label { font-size: clamp(8px, 1.7vw, 11px); font-weight: 900; opacity: .65; }
 .junqi-piece { width: 90%; height: 88%; display: grid; place-items: center; align-content: center; border: 2px solid currentColor; border-radius: 7px; font-family: serif; font-weight: 900; background: #f3dfae; box-shadow: 0 3px 5px #33230b66; }
 .junqi-piece b { font-size: clamp(10px, 2vw, 17px); line-height: 1; white-space: nowrap; }.junqi-piece small { margin-top: 2px; font-size: 8px; }
@@ -218,7 +220,7 @@ function choose(row: number, column: number) {
 .junqi-side-panel { padding: 18px; display: grid; gap: 15px; }
 .junqi-side-panel > div { padding-bottom: 12px; border-bottom: 1px solid var(--line); }.junqi-side-panel small, .junqi-side-panel strong { display: block; }.junqi-side-panel small { margin-bottom: 4px; color: var(--muted); }.junqi-side-panel strong { font-size: 18px; }.junqi-side-panel strong.red { color: #ec8a83; }.junqi-side-panel strong.blue { color: #82bee9; }
 .junqi-side-panel summary { display: flex; align-items: center; gap: 6px; color: var(--gold); cursor: pointer; font-weight: 800; }.junqi-side-panel p { color: var(--muted); font-size: 13px; line-height: 1.6; }
-.junqi-actions { display: flex; justify-content: center; gap: 10px; }.junqi-actions button { padding: 11px 18px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); background: var(--surface); }.junqi-actions button.primary { color: #08271f; background: #79d6b1; }.junqi-actions button.danger { color: #ffaaa8; }.junqi-actions button:disabled { opacity: .4; }
+.junqi-actions { display: flex; justify-content: center; gap: 10px; }.junqi-actions button:not(.arcade-danger-button) { padding: 11px 18px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); background: var(--surface); }.junqi-actions button.primary { color: #08271f; background: var(--green); }.junqi-actions button:disabled { opacity: .4; }
 @media (max-width: 720px) {
   .junqi-layout { grid-template-columns: 1fr; }
   .junqi-board { width: min(100%, 470px); margin: 0 auto; padding: 8px; gap: 3px; border-radius: 13px; }

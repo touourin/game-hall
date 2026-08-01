@@ -6,7 +6,7 @@
     "dev:server": ".venv/bin/uvicorn backend.app.main:app --env-file .env --reload --host 0.0.0.0 --port 8800",
     "dev:web": "npm --prefix frontend run dev -- --host 0.0.0.0",
     "build": "npm --prefix frontend run build",
-    "test": ".venv/bin/pytest backend/tests && npm --prefix frontend run test:run",
+    "test": "(cd backend && ../.venv/bin/pytest) && npm --prefix frontend run test:run",
     "smoke": "node frontend/scripts/smoke.mjs"
   },
   "devDependencies": {

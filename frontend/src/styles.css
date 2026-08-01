@@ -706,6 +706,42 @@ button:disabled {
   box-shadow: 0 12px 27px rgba(130, 36, 44, 0.28);
 }
 
+.arcade-danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 9px 18px;
+  border: 1px solid rgba(225, 114, 114, 0.46);
+  border-radius: 12px;
+  color: #ffd0ce;
+  background:
+    linear-gradient(135deg, rgba(225, 114, 114, 0.14), rgba(164, 56, 66, 0.09)),
+    var(--surface);
+  box-shadow: 0 9px 22px rgba(88, 25, 31, 0.14);
+  font-weight: 800;
+  cursor: pointer;
+  transition: border-color 0.16s, background 0.16s, transform 0.16s;
+}
+
+.arcade-danger-button svg {
+  flex: 0 0 auto;
+}
+
+.arcade-danger-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+@media (hover: hover) {
+  .arcade-danger-button:hover:not(:disabled) {
+    border-color: rgba(225, 114, 114, 0.72);
+    background:
+      linear-gradient(135deg, rgba(225, 114, 114, 0.22), rgba(164, 56, 66, 0.14)),
+      var(--surface);
+  }
+}
+
 .wide-button {
   width: 100%;
 }

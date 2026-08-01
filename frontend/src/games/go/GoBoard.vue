@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Flag } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
 
@@ -67,8 +68,8 @@ function place(row: number, column: number) {
       <button type="button" :disabled="!isMyTurn" @click="arcade.action('pass')">
         停一手
       </button>
-      <button type="button" class="danger" @click="arcade.action('resign')">
-        认输
+      <button type="button" class="arcade-danger-button" @click="arcade.action('resign')">
+        <Flag :size="17" />认输
       </button>
     </div>
     <p v-if="game.score" class="score-line">
@@ -91,7 +92,7 @@ function place(row: number, column: number) {
   border: 2px solid #7c4e25;
   border-radius: 8px;
   background: #d5a45d;
-  box-shadow: 0 20px 50px #0006;
+  box-shadow: 0 20px 50px #0006, 0 0 0 1px color-mix(in srgb, var(--gold) 24%, transparent);
 }
 .go-point {
   position: relative;
@@ -106,9 +107,8 @@ function place(row: number, column: number) {
 .go-stone { position: absolute; inset: 3%; z-index: 2; border-radius: 50%; box-shadow: inset -2px -3px 4px #0005, 0 1px 3px #0008; }
 .go-stone.black { background: radial-gradient(circle at 35% 30%, #555, #050505 68%); }
 .go-stone.white { background: radial-gradient(circle at 35% 30%, white, #d7d2c8 72%); }
-.go-stone.latest::after { content: ''; position: absolute; inset: 37%; border-radius: 50%; background: #e85b52; }
+.go-stone.latest::after { content: ''; position: absolute; inset: 37%; border-radius: 50%; background: var(--gold); }
 .inline-actions { display: flex; gap: 10px; }
-.inline-actions button { border: 1px solid var(--line); border-radius: 12px; padding: 10px 18px; color: var(--text); background: var(--surface); }
-.inline-actions .danger { color: #ffaaa8; }
+.inline-actions button:not(.arcade-danger-button) { border: 1px solid var(--line); border-radius: 12px; padding: 10px 18px; color: var(--text); background: var(--surface); }
 .score-line { color: var(--gold); }
 </style>

@@ -204,7 +204,7 @@ onMounted(async () => {
         </div>
 
         <div v-if="selectedMatch.gameKey === 'reaction'" class="match-detail-section">
-          <span>三轮反应时间</span>
+          <span>反应挑战成绩</span>
           <div class="match-mission-list">
             <div
               v-for="(result, index) in selectedMatch.details.state?.results_ms ?? []"

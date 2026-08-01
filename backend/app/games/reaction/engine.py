@@ -38,12 +38,16 @@ class ReactionEngine:
         action: str,
         payload: dict[str, Any],
     ) -> None:
-        if action != "record":
-            raise GameRuleError("不支持这个反应测试操作")
         if player.id != room.host_id:
             raise GameRuleError("只有测试者本人可以记录成绩")
 
         state: ReactionState = room.state
+        if action == "false_start":
+            state.results_ms.clear()
+            return
+        if action != "record":
+            raise GameRuleError("不支持这个反应测试操作")
+
         elapsed_ms = payload.get("elapsedMs")
         if (
             not isinstance(elapsed_ms, int)
