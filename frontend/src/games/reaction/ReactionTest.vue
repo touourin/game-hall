@@ -20,6 +20,7 @@ const localResult = ref<number | null>(null)
 const signalStartedAt = ref(0)
 let signalTimer: ReturnType<typeof setTimeout> | null = null
 let advanceTimer: ReturnType<typeof setTimeout> | null = null
+let signalFrame: number | null = null
 
 const game = computed(() => props.snapshot.game as {
   roundsRequired: number
@@ -56,8 +57,10 @@ const instruction = computed(() => {
 function clearTimers() {
   if (signalTimer !== null) window.clearTimeout(signalTimer)
   if (advanceTimer !== null) window.clearTimeout(advanceTimer)
+  if (signalFrame !== null) window.cancelAnimationFrame(signalFrame)
   signalTimer = null
   advanceTimer = null
+  signalFrame = null
 }
 
 function randomDelay(): number {
@@ -73,8 +76,11 @@ function beginRound() {
   stage.value = 'waiting'
   signalTimer = window.setTimeout(() => {
     signalTimer = null
-    signalStartedAt.value = performance.now()
-    stage.value = 'ready'
+    signalFrame = window.requestAnimationFrame((frameTimestamp) => {
+      signalFrame = null
+      signalStartedAt.value = frameTimestamp
+      stage.value = 'ready'
+    })
   }, randomDelay())
 }
 
@@ -89,8 +95,15 @@ async function falseStart() {
   advanceTimer = window.setTimeout(beginRound, 1_050)
 }
 
-async function recordReaction() {
-  const elapsedMs = Math.max(1, Math.round(performance.now() - signalStartedAt.value))
+function normalizedInputTimestamp(timestamp: number): number {
+  const now = performance.now()
+  return Number.isFinite(timestamp) && timestamp > 0 && Math.abs(timestamp - now) < 1_000
+    ? timestamp
+    : now
+}
+
+async function recordReaction(inputTimestamp: number) {
+  const elapsedMs = Math.max(1, Math.round(inputTimestamp - signalStartedAt.value))
   localResult.value = elapsedMs
   stage.value = 'saving'
   const previousCount = completedRounds.value
@@ -107,7 +120,7 @@ async function recordReaction() {
   advanceTimer = window.setTimeout(beginRound, 1_050)
 }
 
-function activate() {
+function activate(inputTimestamp = performance.now()) {
   if (stage.value === 'intro') {
     beginRound()
     return
@@ -116,7 +129,17 @@ function activate() {
     void falseStart()
     return
   }
-  if (stage.value === 'ready') void recordReaction()
+  if (stage.value === 'ready') void recordReaction(inputTimestamp)
+}
+
+function onPointerDown(event: PointerEvent) {
+  if (event.isPrimary === false || (event.button ?? 0) !== 0) return
+  activate(normalizedInputTimestamp(event.timeStamp))
+}
+
+function onAccessibleClick(event: MouseEvent) {
+  if (event.detail !== 0) return
+  activate(normalizedInputTimestamp(event.timeStamp))
 }
 
 async function restartTest() {
@@ -128,7 +151,7 @@ function onKeydown(event: KeyboardEvent) {
   if (event.code !== 'Space' || event.repeat) return
   if (!['intro', 'waiting', 'ready'].includes(stage.value)) return
   event.preventDefault()
-  activate()
+  activate(normalizedInputTimestamp(event.timeStamp))
 }
 
 watch(
@@ -182,7 +205,8 @@ onBeforeUnmount(() => {
         :class="[stage, { inactive: ['saving', 'result', 'false-start', 'finished'].includes(stage) }]"
         :aria-disabled="['saving', 'result', 'false-start', 'finished'].includes(stage)"
         :aria-label="buttonLabel"
-        @click="activate"
+        @pointerdown="onPointerDown"
+        @click="onAccessibleClick"
       >
         <Zap v-if="stage === 'ready'" :size="34" />
         <Gauge v-else :size="34" />
@@ -236,7 +260,7 @@ onBeforeUnmount(() => {
 .reaction-status small, .reaction-status strong { display: block; }.reaction-status small { color: var(--gold); font-size: 9px; font-weight: 850; letter-spacing: .15em; }.reaction-status strong { margin-top: 3px; }
 .round-dots { display: flex; gap: 7px; }.round-dots i { width: 9px; aspect-ratio: 1; border: 1px solid var(--line); border-radius: 50%; background: var(--bg); }.round-dots i.current { border-color: var(--gold); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 9%, transparent); }.round-dots i.complete { border-color: var(--green); background: var(--green); }
 .reaction-panel { min-height: 430px; padding: clamp(22px, 5vw, 38px); display: grid; place-items: center; align-content: center; gap: 28px; overflow: hidden; text-align: center; transition: border-color .18s, background .18s; }
-.reaction-panel.stage-ready { border-color: #76d9ae78; background: radial-gradient(circle at 50% 55%, #62c69b24, transparent 46%), var(--surface); }
+.reaction-panel.stage-ready { border-color: #76d9ae78; background: radial-gradient(circle at 50% 55%, #62c69b24, transparent 46%), var(--surface); transition: none; }
 .reaction-panel.stage-false-start { border-color: #e1727266; background: radial-gradient(circle at 50% 55%, #e1727218, transparent 46%), var(--surface); }
 .reaction-copy { min-height: 58px; display: flex; align-items: center; justify-content: center; gap: 11px; }.reaction-copy-icon { width: 46px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 14px; color: #8fe0bd; background: #62c69b16; }.reaction-copy-icon.warning { color: #f0a3a3; background: #e1727216; }.reaction-copy strong, .reaction-copy small { display: block; text-align: left; }.reaction-copy strong { font-family: "Songti SC", "STSong", serif; font-size: 22px; }.reaction-copy small { margin-top: 4px; color: var(--muted); }
 .reaction-trigger { position: relative; width: min(72vw, 300px); aspect-ratio: 1; display: grid; place-items: center; align-content: center; gap: 10px; border: 1px solid color-mix(in srgb, var(--gold) 32%, transparent); border-radius: 48px; color: var(--gold); background: linear-gradient(145deg, color-mix(in srgb, var(--gold) 11%, transparent), color-mix(in srgb, var(--bg) 34%, transparent)), var(--surface-strong); box-shadow: inset 0 1px 0 #ffffff14, 0 24px 55px #0007; cursor: pointer; overflow: hidden; transition: transform .14s; touch-action: manipulation; user-select: none; }

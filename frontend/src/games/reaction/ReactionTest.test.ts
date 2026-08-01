@@ -1,4 +1,5 @@
 import { createPinia } from 'pinia'
+import { nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import { vi } from 'vitest'
 import { useArcadeStore } from '../../stores/arcade'
@@ -35,6 +36,12 @@ function snapshot(phase: 'playing' | 'finished' = 'playing'): ArcadeSnapshot {
 describe('ReactionTest', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) =>
+      window.setTimeout(() => callback(performance.now()), 16),
+    )
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((frameId) =>
+      window.clearTimeout(frameId),
+    )
     vi.spyOn(window.crypto, 'getRandomValues').mockImplementation((array) => {
       if (array instanceof Uint32Array) array[0] = 0
       return array
@@ -55,12 +62,22 @@ describe('ReactionTest', () => {
       global: { plugins: [pinia] },
     })
 
-    await wrapper.get('.reaction-trigger').trigger('click')
+    wrapper.get('.reaction-trigger').element.dispatchEvent(
+      new MouseEvent('pointerdown', { bubbles: true, button: 0 }),
+    )
+    await nextTick()
+    wrapper.get('.reaction-trigger').element.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, detail: 1 }),
+    )
+    await nextTick()
     expect(wrapper.get('.reaction-trigger').classes()).toContain('waiting')
-    await vi.advanceTimersByTimeAsync(1_500)
+    await vi.advanceTimersByTimeAsync(1_516)
     expect(wrapper.get('.reaction-trigger').classes()).toContain('ready')
     await vi.advanceTimersByTimeAsync(236)
-    await wrapper.get('.reaction-trigger').trigger('click')
+    wrapper.get('.reaction-trigger').element.dispatchEvent(
+      new MouseEvent('pointerdown', { bubbles: true, button: 0 }),
+    )
+    await nextTick()
 
     expect(action).toHaveBeenCalledWith('record', { elapsedMs: 236 })
     wrapper.unmount()
@@ -75,8 +92,14 @@ describe('ReactionTest', () => {
       global: { plugins: [pinia] },
     })
 
-    await wrapper.get('.reaction-trigger').trigger('click')
-    await wrapper.get('.reaction-trigger').trigger('click')
+    wrapper.get('.reaction-trigger').element.dispatchEvent(
+      new MouseEvent('pointerdown', { bubbles: true, button: 0 }),
+    )
+    await nextTick()
+    wrapper.get('.reaction-trigger').element.dispatchEvent(
+      new MouseEvent('pointerdown', { bubbles: true, button: 0 }),
+    )
+    await nextTick()
 
     expect(wrapper.text()).toContain('抢跑了')
     expect(wrapper.text()).toContain('三轮已重新开始')
