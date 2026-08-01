@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import logging
 import random
 import secrets
 import string
@@ -19,12 +20,16 @@ from .models import (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
 ROOM_ALPHABET = "".join(
     character
     for character in string.ascii_uppercase + string.digits
     if character not in "0O1I"
 )
 ROOM_CLEANUP_GRACE = timedelta(minutes=10)
+DISCONNECT_FORFEIT_GRACE = timedelta(minutes=10)
 HOST_TRANSFER_GRACE = timedelta(seconds=20)
 MAX_CHAT_LENGTH = 300
 MAX_CHAT_MESSAGES = 100
@@ -37,6 +42,7 @@ UNDOABLE_ACTIONS = {
     "go": {"place", "pass"},
 }
 MAX_UNDO_HISTORY = 100
+ACTIVE_GAME_PHASES = {"setup", "playing", "bidding", "scoring"}
 
 
 class ArcadeRoomError(ValueError):
@@ -319,13 +325,6 @@ class ArcadeRoomManager:
             if not room.undo_history:
                 raise ArcadeRoomError("当前没有可以撤回的操作")
             room.state = room.undo_history.pop()
-            resume_clock = getattr(
-                self.engine(room.game_key),
-                "resume_clock",
-                None,
-            )
-            if resume_clock is not None:
-                resume_clock(room)
         room.revision += 1
 
     def get_room(self, code: str) -> ArcadeRoom:
@@ -345,10 +344,27 @@ class ArcadeRoomManager:
         self, room: ArcadeRoom, *, now: datetime | None = None
     ) -> None:
         current = now or datetime.now(timezone.utc)
+        was_all_offline = room.all_humans_offline_since is not None
+        for player in room.players:
+            if not hasattr(player, "disconnected_at"):
+                player.disconnected_at = None
+            if not hasattr(player, "disconnect_forfeited"):
+                player.disconnect_forfeited = False
+            if not hasattr(player, "disconnect_timeout_handled"):
+                player.disconnect_timeout_handled = False
         connected_players = [player for player in room.players if player.connected]
         if connected_players:
             room.all_humans_offline_since = None
             room.cleanup_ready = False
+            for player in room.players:
+                if player.connected:
+                    player.disconnected_at = None
+                elif not player.disconnect_timeout_handled and (
+                    was_all_offline or player.disconnected_at is None
+                ):
+                    # When someone returns to a fully offline room, every
+                    # player still away receives a fresh reconnect window.
+                    player.disconnected_at = current
             host = room.player(room.host_id)
             if (
                 room.phase in {"lobby", "finished"}
@@ -361,6 +377,10 @@ class ArcadeRoomManager:
                 room.host_offline_since = None
             return
         room.host_offline_since = None
+        for player in room.players:
+            if not player.disconnect_timeout_handled:
+                # Individual forfeits are suspended while nobody is online.
+                player.disconnected_at = None
         if room.all_humans_offline_since is None:
             room.all_humans_offline_since = current
 
@@ -369,6 +389,7 @@ class ArcadeRoomManager:
         *,
         now: datetime | None = None,
         cleanup_grace: timedelta = ROOM_CLEANUP_GRACE,
+        disconnect_grace: timedelta = DISCONNECT_FORFEIT_GRACE,
         host_grace: timedelta = HOST_TRANSFER_GRACE,
     ) -> list[ArcadeRoom]:
         current = now or datetime.now(timezone.utc)
@@ -384,6 +405,37 @@ class ArcadeRoomManager:
                 room.cleanup_ready = True
                 room.revision += 1
                 changed.append(room)
+                logger.info(
+                    "Room became eligible for offline cleanup",
+                    extra={
+                        "event": "room.cleanup_ready",
+                        "game_key": room.game_key,
+                        "room_code": room.code,
+                    },
+                )
+
+            if (
+                offline_since is None
+                and room.phase in ACTIVE_GAME_PHASES
+                and len(room.players) > 1
+            ):
+                expired_players = sorted(
+                    (
+                        player
+                        for player in room.players
+                        if not player.connected
+                        and not player.disconnect_timeout_handled
+                        and player.disconnected_at is not None
+                        and current - player.disconnected_at >= disconnect_grace
+                    ),
+                    key=lambda player: (player.disconnected_at, player.seat),
+                )
+                for player in expired_players:
+                    if room.phase not in ACTIVE_GAME_PHASES:
+                        break
+                    self._forfeit_disconnected_player(room, player)
+                    if room not in changed:
+                        changed.append(room)
 
             host_offline_since = room.host_offline_since
             if (
@@ -454,6 +506,10 @@ class ArcadeRoomManager:
         room.rematch_ready_ids.clear()
         room.pending_request = None
         room.undo_history.clear()
+        for player in room.players:
+            player.disconnected_at = None
+            player.disconnect_timeout_handled = False
+            player.disconnect_forfeited = False
         engine.start(room)
 
     def _prepare_lobby(self, room: ArcadeRoom) -> None:
@@ -470,7 +526,56 @@ class ArcadeRoomManager:
         room.rematch_ready_ids.clear()
         room.pending_request = None
         room.undo_history.clear()
+        for player in room.players:
+            player.disconnected_at = None
+            player.disconnect_timeout_handled = False
+            player.disconnect_forfeited = False
         room.revision += 1
+
+    def _forfeit_disconnected_player(
+        self,
+        room: ArcadeRoom,
+        player: ArcadePlayer,
+    ) -> None:
+        engine = self.engine(room.game_key)
+        handler = getattr(engine, "disconnect_timeout", None)
+        if handler is None:
+            engine.act(room, player, "resign", {})
+            forfeited = True
+        else:
+            forfeited = handler(room, player) is not False
+        player.disconnect_timeout_handled = True
+        player.disconnect_forfeited = forfeited
+        player.disconnected_at = None
+        room.pending_request = None
+        if forfeited and room.phase == "finished":
+            if room.winner == "draw":
+                room.win_reason = (
+                    f"{player.name} 掉线超过 10 分钟，当前阶段本局取消"
+                )
+            else:
+                room.win_reason = (
+                    f"{player.name} 掉线超过 10 分钟，视为弃权"
+                )
+        room.revision += 1
+        logger.info(
+            (
+                "Player forfeited after disconnect grace expired"
+                if forfeited
+                else "Disconnect grace expired with no pending player action"
+            ),
+            extra={
+                "action": "disconnect_timeout",
+                "event": (
+                    "room.disconnect_forfeit"
+                    if forfeited
+                    else "room.disconnect_timeout_resolved"
+                ),
+                "game_key": room.game_key,
+                "player_id": player.id,
+                "room_code": room.code,
+            },
+        )
 
     @staticmethod
     def _remove_player(room: ArcadeRoom, player_id: str) -> None:

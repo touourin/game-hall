@@ -19,6 +19,12 @@
 - `socket_event`、`action`：实时事件和具体游戏动作；普通高频动作只在 `DEBUG` 级别记录。
 - `exception`：错误堆栈，仅在发生异常时出现。
 
+房间生命周期还会记录以下自动事件：
+
+- `room.disconnect_forfeit`：仍有真人在线时，某位玩家掉线超过 10 分钟并被判定弃权。
+- `room.disconnect_timeout_resolved`：德州扑克玩家已经弃牌或全押，掉线保护到期但不需要额外动作。
+- `room.cleanup_ready`：所有真人离线满 10 分钟，房间进入可清理状态；该事件不代表产生胜负。
+
 日志不会写入访问密码、账号密码、登录 Token、请求正文或聊天内容。
 
 ## 常用命令

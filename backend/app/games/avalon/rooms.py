@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import secrets
 import string
 from datetime import datetime, timedelta, timezone
 
-from .models import ChatMessage, GameSettings, Phase, Player, Room
+from .models import Alignment, ChatMessage, GameSettings, Phase, Player, Room
+
+
+logger = logging.getLogger(__name__)
 
 
 class RoomError(ValueError):
@@ -20,6 +24,7 @@ ROOM_ALPHABET = "".join(
 MAX_CHAT_MESSAGES = 100
 MAX_CHAT_LENGTH = 300
 ROOM_CLEANUP_GRACE = timedelta(minutes=10)
+DISCONNECT_FORFEIT_GRACE = timedelta(minutes=10)
 HOST_TRANSFER_GRACE = timedelta(seconds=20)
 
 
@@ -145,6 +150,12 @@ class RoomManager:
         self, room: Room, *, now: datetime | None = None
     ) -> None:
         current = now or datetime.now(timezone.utc)
+        was_all_offline = room.all_humans_offline_since is not None
+        for player in room.players:
+            if not hasattr(player, "disconnected_at"):
+                player.disconnected_at = None
+            if not hasattr(player, "disconnect_forfeited"):
+                player.disconnect_forfeited = False
         connected_humans = [
             player
             for player in room.players
@@ -153,6 +164,15 @@ class RoomManager:
         if connected_humans:
             room.all_humans_offline_since = None
             room.cleanup_ready = False
+            for player in room.players:
+                if player.is_bot:
+                    continue
+                if player.connected:
+                    player.disconnected_at = None
+                elif not player.disconnect_forfeited and (
+                    was_all_offline or player.disconnected_at is None
+                ):
+                    player.disconnected_at = current
             host = room.player(room.host_id)
             transferable_phase = room.phase in {Phase.LOBBY, Phase.GAME_OVER}
             if (
@@ -167,6 +187,9 @@ class RoomManager:
                 room.host_offline_since = None
             return
         room.host_offline_since = None
+        for player in room.players:
+            if not player.is_bot and not player.disconnect_forfeited:
+                player.disconnected_at = None
         if room.all_humans_offline_since is None:
             room.all_humans_offline_since = current
 
@@ -175,6 +198,7 @@ class RoomManager:
         *,
         now: datetime | None = None,
         cleanup_grace: timedelta = ROOM_CLEANUP_GRACE,
+        disconnect_grace: timedelta = DISCONNECT_FORFEIT_GRACE,
         host_grace: timedelta = HOST_TRANSFER_GRACE,
     ) -> list[Room]:
         current = now or datetime.now(timezone.utc)
@@ -190,6 +214,37 @@ class RoomManager:
                 room.cleanup_ready = True
                 room.revision += 1
                 changed.append(room)
+                logger.info(
+                    "Avalon room became eligible for offline cleanup",
+                    extra={
+                        "event": "room.cleanup_ready",
+                        "game_key": "avalon",
+                        "room_code": room.code,
+                    },
+                )
+
+            if (
+                offline_since is None
+                and room.phase not in {Phase.LOBBY, Phase.GAME_OVER}
+            ):
+                expired_players = sorted(
+                    (
+                        player
+                        for player in room.players
+                        if not player.is_bot
+                        and not player.connected
+                        and not player.disconnect_forfeited
+                        and player.disconnected_at is not None
+                        and current - player.disconnected_at >= disconnect_grace
+                    ),
+                    key=lambda player: (player.disconnected_at, player.seat),
+                )
+                if expired_players:
+                    self._forfeit_disconnected_player(
+                        room, expired_players[0]
+                    )
+                    if room not in changed:
+                        changed.append(room)
 
             host_offline_since = room.host_offline_since
             if (
@@ -321,6 +376,34 @@ class RoomManager:
         if room is None:
             raise RoomError("没有找到这个房间")
         return room
+
+    @staticmethod
+    def _forfeit_disconnected_player(room: Room, player: Player) -> None:
+        if player.alignment is None:
+            return
+        winner = (
+            Alignment.EVIL
+            if player.alignment == Alignment.GOOD
+            else Alignment.GOOD
+        )
+        player.disconnect_forfeited = True
+        player.disconnected_at = None
+        room.winner = winner
+        room.win_reason = (
+            f"{player.name} 掉线超过 10 分钟，所属阵营视为弃权"
+        )
+        room.phase = Phase.GAME_OVER
+        room.revision += 1
+        logger.info(
+            "Avalon player forfeited after disconnect grace expired",
+            extra={
+                "action": "disconnect_timeout",
+                "event": "room.disconnect_forfeit",
+                "game_key": "avalon",
+                "player_id": player.id,
+                "room_code": room.code,
+            },
+        )
 
     def _new_code(self) -> str:
         for _ in range(100):

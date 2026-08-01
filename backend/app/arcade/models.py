@@ -18,6 +18,9 @@ class ArcadePlayer:
     token_hash: str
     seat: int
     connected: bool = True
+    disconnected_at: datetime | None = None
+    disconnect_timeout_handled: bool = False
+    disconnect_forfeited: bool = False
 
 
 @dataclass

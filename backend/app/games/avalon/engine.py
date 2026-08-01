@@ -51,6 +51,8 @@ class GameEngine:
         self.rng.shuffle(roles)
         for player, role in zip(room.players, roles, strict=True):
             player.role = role
+            player.disconnected_at = None
+            player.disconnect_forfeited = False
 
         room.game_id = secrets.token_urlsafe(12)
         room.game_started_at = datetime.now(timezone.utc).isoformat(
@@ -275,6 +277,8 @@ class GameEngine:
         self._require_host(room, actor_id)
         for player in room.players:
             player.role = None
+            player.disconnected_at = None
+            player.disconnect_forfeited = False
         room.phase = Phase.LOBBY
         room.game_id = None
         room.game_started_at = None

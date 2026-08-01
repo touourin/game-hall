@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Clock3, Flag, Pause } from '@lucide/vue'
+import { computed, ref, watch } from 'vue'
+import { Flag, Pause } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
 
@@ -8,9 +8,6 @@ const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
 const ruleNotice = ref('')
 const pendingMove = ref<{ row: number; column: number } | null>(null)
-const clockNow = ref(Date.now())
-const clockReceivedAt = ref(Date.now())
-let clockTimer: ReturnType<typeof setInterval> | null = null
 
 const game = computed(() => props.snapshot.game as {
   board: number[][]
@@ -40,12 +37,6 @@ const game = computed(() => props.snapshot.game as {
     expectedColor: 'black' | 'white' | null
     resolved: boolean
   }
-  clock: {
-    limitMs: number
-    remainingMs: Record<string, number>
-    activePlayerId: string | null
-    serverNowMs: number
-  } | null
 })
 const isMyTurn = computed(
   () => game.value.turnPlayerId === props.snapshot.self.id,
@@ -94,14 +85,6 @@ const turnPrompt = computed(() => {
 })
 
 watch(
-  () => game.value.clock?.serverNowMs,
-  () => {
-    clockReceivedAt.value = Date.now()
-    clockNow.value = Date.now()
-  },
-)
-
-watch(
   () => [
     props.snapshot.phase,
     game.value.turnPlayerId,
@@ -113,18 +96,6 @@ watch(
     pendingMove.value = null
   },
 )
-
-onMounted(() => {
-  if (game.value.clock) {
-    clockTimer = setInterval(() => {
-      clockNow.value = Date.now()
-    }, 250)
-  }
-})
-
-onBeforeUnmount(() => {
-  if (clockTimer) clearInterval(clockTimer)
-})
 
 function forbiddenReason(row: number, column: number) {
   return forbiddenReasons.value.get(`${row}:${column}`) ?? ''
@@ -190,22 +161,6 @@ function pass() {
   void arcade.action('pass')
 }
 
-function clockRemaining(playerId: string) {
-  const clock = game.value.clock
-  if (!clock) return 0
-  const base = clock.remainingMs[playerId] ?? 0
-  if (
-    props.snapshot.phase !== 'playing' ||
-    clock.activePlayerId !== playerId
-  ) return base
-  return Math.max(0, base - (clockNow.value - clockReceivedAt.value))
-}
-
-function formatClock(milliseconds: number) {
-  const seconds = Math.ceil(milliseconds / 1000)
-  const minutes = Math.floor(seconds / 60)
-  return `${minutes}:${String(seconds % 60).padStart(2, '0')}`
-}
 </script>
 
 <template>
@@ -216,17 +171,6 @@ function formatClock(milliseconds: number) {
       <small v-else>Swap2 开局中，双方颜色尚未最终确定</small>
       <small v-if="game.swap2.expectedColor">本次请摆放{{ game.swap2.expectedColor === 'black' ? '黑子' : '白子' }}</small>
       <small v-if="isRenju">有禁手连珠 · 黑方禁三三、四四和长连</small>
-    </div>
-    <div v-if="game.clock" class="gomoku-clocks" aria-label="双方棋钟">
-      <article
-        v-for="player in snapshot.players"
-        :key="player.id"
-        :class="{ active: game.clock.activePlayerId === player.id && snapshot.phase === 'playing' }"
-      >
-        <span class="clock-stone" :class="game.colors[player.id]" />
-        <div><small>{{ player.name }}</small><strong>{{ formatClock(clockRemaining(player.id)) }}</strong></div>
-        <Clock3 :size="18" />
-      </article>
     </div>
     <section v-if="isSwapChoice" class="swap2-choice-panel">
       <template v-if="isMyTurn">
@@ -332,15 +276,6 @@ function formatClock(milliseconds: number) {
 .turn-banner { color: var(--muted); text-align: center; font-weight: 700; }
 .turn-banner.active { color: var(--gold); }
 .turn-banner small { display: block; margin-top: 3px; font-weight: 500; }
-.gomoku-clocks { width: min(92vw, 650px); display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
-.gomoku-clocks article { display: flex; align-items: center; gap: 9px; border: 1px solid var(--line); border-radius: 12px; padding: 9px 11px; color: var(--muted); background: rgba(0, 0, 0, .14); }
-.gomoku-clocks article.active { border-color: color-mix(in srgb, var(--gold) 58%, var(--line)); color: var(--gold); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 12%, transparent); }
-.gomoku-clocks article > div { display: grid; flex: 1; }
-.gomoku-clocks small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gomoku-clocks strong { color: var(--text); font-variant-numeric: tabular-nums; font-size: 20px; }
-.clock-stone { width: 18px; aspect-ratio: 1; flex: 0 0 auto; border-radius: 50%; box-shadow: 0 1px 3px #0008; }
-.clock-stone.black { background: #111; }
-.clock-stone.white { border: 1px solid #aaa; background: #f3f0e9; }
 .swap2-choice-panel { width: min(92vw, 650px); display: grid; gap: 10px; border: 1px solid color-mix(in srgb, var(--gold) 42%, var(--line)); border-radius: 13px; padding: 13px; text-align: center; background: color-mix(in srgb, var(--gold) 7%, rgba(0, 0, 0, .14)); }
 .swap2-choice-panel > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .swap2-choice-panel button { min-height: 42px; border: 1px solid color-mix(in srgb, var(--gold) 35%, var(--line)); border-radius: 10px; color: var(--gold); background: rgba(0, 0, 0, .16); font-weight: 850; }
@@ -426,7 +361,7 @@ function formatClock(milliseconds: number) {
 .gomoku-pass-button:disabled { opacity: .45; }
 @media (max-width: 600px) {
   .gomoku-board { width: min(96vw, 650px); padding: 8px; border-width: 4px; }
-  .gomoku-rule-notice, .renju-legend, .gomoku-clocks, .swap2-choice-panel, .gomoku-pass-notice { width: 100%; }
+  .gomoku-rule-notice, .renju-legend, .swap2-choice-panel, .gomoku-pass-notice { width: 100%; }
   .swap2-choice-panel > div { grid-template-columns: 1fr; }
 }
 @media (hover: none) {

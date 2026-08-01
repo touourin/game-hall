@@ -145,16 +145,6 @@ function setOption(key: string, value: unknown) {
       </div>
     </section>
 
-    <section v-if="gameKey === 'gomoku'" class="rule-setting-group">
-      <header><strong>棋钟</strong><small>每位玩家独立计时，用时耗尽自动判负</small></header>
-      <div class="rule-segmented four">
-        <button type="button" :class="{ active: option('timeLimitSeconds') === 0 }" @click="setOption('timeLimitSeconds', 0)">不计时</button>
-        <button type="button" :class="{ active: option('timeLimitSeconds') === 180 }" @click="setOption('timeLimitSeconds', 180)">3 分钟</button>
-        <button type="button" :class="{ active: option('timeLimitSeconds') === 300 }" @click="setOption('timeLimitSeconds', 300)">5 分钟</button>
-        <button type="button" :class="{ active: option('timeLimitSeconds') === 600 }" @click="setOption('timeLimitSeconds', 600)">10 分钟</button>
-      </div>
-    </section>
-
     <section v-if="['gomoku', 'xiangqi', 'go'].includes(gameKey)" class="rule-setting-group">
       <header><strong>对局协商</strong><small>申请仍需对手确认</small></header>
       <div class="rule-toggle-list">
@@ -181,7 +171,6 @@ function setOption(key: string, value: unknown) {
 .rule-option-grid button.active, .rule-segmented button.active { border-color: color-mix(in srgb, var(--gold) 65%, var(--line)); background: color-mix(in srgb, var(--gold) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 18%, transparent); }
 .rule-segmented { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .rule-segmented.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.rule-segmented.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .rule-segmented.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .rule-segmented button { min-height: 42px; border: 0; border-right: 1px solid var(--line); color: var(--muted); background: rgba(0, 0, 0, .12); font-weight: 850; }
 .rule-segmented button:last-child { border-right: 0; }
@@ -194,11 +183,8 @@ function setOption(key: string, value: unknown) {
 .rule-toggle-list button.active b { color: #15211c; background: var(--gold); }
 @media (max-width: 520px) {
   .rule-option-grid, .rule-option-grid.three { grid-template-columns: 1fr; }
-  .rule-segmented.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .rule-segmented.six { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .rule-segmented.six button:nth-child(3n) { border-right: 0; }
   .rule-segmented.six button:nth-child(-n + 3) { border-bottom: 1px solid var(--line); }
-  .rule-segmented.four button:nth-child(2) { border-right: 0; }
-  .rule-segmented.four button:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
 }
 </style>

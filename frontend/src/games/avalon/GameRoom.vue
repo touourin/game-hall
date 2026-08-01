@@ -729,7 +729,13 @@ async function sendChat() {
           </div>
           <div class="player-row-actions">
             <span v-if="player.isHost" class="status-badge gold">房主</span>
-            <span v-if="!player.connected" class="status-badge">离线</span>
+            <span v-if="!player.connected" class="status-badge">
+              {{ player.disconnectForfeited
+                ? '掉线弃权'
+                : player.disconnectForfeitAt
+                  ? '离线 · 10 分钟后弃权'
+                  : '离线' }}
+            </span>
             <RoomKickButton
               v-if="snapshot.self.isHost && !player.isHost"
               :player-name="player.name"
@@ -1929,6 +1935,7 @@ async function sendChat() {
           <li>好人只能提交任务成功，坏人可选择成功或失败。</li>
           <li>队伍表决需要过半赞成，平票视为否决。</li>
           <li>连续五次组队被否决，坏人直接获胜。</li>
+          <li>部分玩家掉线超过 10 分钟，其所属阵营弃权；全员离线只进入房间清理流程。</li>
           <li v-if="snapshot.players.length >= 7">第四次任务需要两张失败票才会失败。</li>
           <li v-if="snapshot.settings.ladyEnabled">仙女只查阵营，持有者可以谎报查验结果。</li>
         </ul>

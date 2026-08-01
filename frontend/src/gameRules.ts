@@ -24,7 +24,6 @@ export function defaultGameRules(
   if (gameKey === 'gomoku') {
     options.winRule = 'freestyle'
     options.openingRule = 'swap2'
-    options.timeLimitSeconds = 0
   }
   if (gameKey === 'doudizhu') options.variant = 'classic'
   if (gameKey === 'go') {
@@ -86,11 +85,6 @@ export function gameRuleLabels(
         : options.winRule === 'exact_five'
           ? '正好五子'
           : '自由五子',
-    )
-    labels.push(
-      options.timeLimitSeconds
-        ? `每方 ${Number(options.timeLimitSeconds) / 60} 分钟`
-        : '不计时',
     )
   }
   if (gameKey === 'go') {

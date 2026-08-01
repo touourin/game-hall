@@ -11,7 +11,7 @@ from .rules import (
     mission_team_size,
     roles_for_player_count,
 )
-from .rooms import HOST_TRANSFER_GRACE
+from .rooms import DISCONNECT_FORFEIT_GRACE, HOST_TRANSFER_GRACE
 
 
 ROLE_LABELS = {
@@ -90,6 +90,19 @@ def build_player_view(
             "name": player.name,
             "seat": player.seat,
             "connected": player.connected,
+            "disconnectForfeitAt": (
+                (
+                    player.disconnected_at + DISCONNECT_FORFEIT_GRACE
+                ).isoformat()
+                if room.phase not in {Phase.LOBBY, Phase.GAME_OVER}
+                and room.all_humans_offline_since is None
+                and not player.is_bot
+                and not player.connected
+                and not player.disconnect_forfeited
+                and player.disconnected_at is not None
+                else None
+            ),
+            "disconnectForfeited": player.disconnect_forfeited,
             "isBot": player.is_bot,
             "isHost": player.id == room.host_id,
             "isLeader": room.phase != Phase.LOBBY

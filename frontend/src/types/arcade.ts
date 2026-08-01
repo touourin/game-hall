@@ -35,6 +35,8 @@ export interface ArcadePlayer {
   name: string
   seat: number
   connected: boolean
+  disconnectForfeitAt?: string | null
+  disconnectForfeited?: boolean
   isHost: boolean
 }
 

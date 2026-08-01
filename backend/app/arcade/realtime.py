@@ -457,34 +457,10 @@ class ArcadeRealtime:
         changed_rooms = self.rooms.maintain()
         if changed_rooms:
             for room in changed_rooms:
+                if room.phase == "finished":
+                    self._record_room(room)
                 await self.broadcast_room(room)
             await self.broadcast_lobby()
-
-    async def tick(self) -> None:
-        for room in list(self.rooms.rooms.values()):
-            if room.phase != "playing":
-                continue
-            try:
-                expire_timeout = getattr(
-                    self.engines[room.game_key],
-                    "expire_timeout",
-                    None,
-                )
-                if expire_timeout is None:
-                    continue
-                async with room.lock:
-                    expired = expire_timeout(room)
-                    if expired:
-                        self._record_room(room)
-                if expired:
-                    await self.broadcast_room(room)
-            except Exception:
-                # A broken room must not stop clock handling for every other
-                # active game or terminate the shared maintenance task.
-                self.logger.exception(
-                    "Failed to process clock tick for room %s",
-                    room.code,
-                )
 
     def lobby_view(self) -> list[dict[str, Any]]:
         return build_lobby_view(list(self.rooms.rooms.values()), self.engines)

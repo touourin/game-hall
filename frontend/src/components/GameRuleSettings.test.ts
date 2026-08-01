@@ -19,14 +19,9 @@ describe('GameRuleSettings', () => {
     const standardOpening = wrapper
       .findAll('button')
       .find((button) => button.text().includes('标准开局'))
-    const fiveMinutes = wrapper
-      .findAll('button')
-      .find((button) => button.text().trim() === '5 分钟')
-
     await exactFive?.trigger('click')
     await renju?.trigger('click')
     await standardOpening?.trigger('click')
-    await fiveMinutes?.trigger('click')
 
     expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toMatchObject({
       winRule: 'exact_five',
@@ -37,9 +32,6 @@ describe('GameRuleSettings', () => {
     expect(wrapper.emitted('update:modelValue')?.[2]?.[0]).toMatchObject({
       openingRule: 'standard',
     })
-    expect(wrapper.emitted('update:modelValue')?.[3]?.[0]).toMatchObject({
-      timeLimitSeconds: 300,
-    })
     expect(wrapper.text()).not.toContain('19 路')
     expect(wrapper.text()).toContain('正好五子')
     expect(wrapper.text()).toContain('有禁手连珠')
@@ -49,9 +41,6 @@ describe('GameRuleSettings', () => {
 
   it('builds readable labels with defaults and selected Go rules', () => {
     expect(gameRuleLabels('gomoku', {})).toContain('Swap2 开局')
-    expect(gameRuleLabels('gomoku', { timeLimitSeconds: 300 })).toContain(
-      '每方 5 分钟',
-    )
     expect(gameRuleLabels('xiangqi', {})).toEqual([
       '随机先手',
       '允许悔棋',

@@ -107,6 +107,13 @@ async def restore_room_state() -> None:
         for player in room.players:
             if not player.is_bot:
                 player.connected = False
+                player.disconnected_at = None
+                player.disconnect_timeout_handled = getattr(
+                    player, "disconnect_timeout_handled", False
+                )
+                player.disconnect_forfeited = getattr(
+                    player, "disconnect_forfeited", False
+                )
         if had_connected_human:
             room.all_humans_offline_since = restored_at
             room.cleanup_ready = False
@@ -119,6 +126,13 @@ async def restore_room_state() -> None:
         room.host_offline_since = None
         for player in room.players:
             player.connected = False
+            player.disconnected_at = None
+            player.disconnect_timeout_handled = getattr(
+                player, "disconnect_timeout_handled", False
+            )
+            player.disconnect_forfeited = getattr(
+                player, "disconnect_forfeited", False
+            )
         if had_connected_player:
             room.all_humans_offline_since = restored_at
             room.cleanup_ready = False
@@ -157,14 +171,34 @@ async def broadcast_avalon_lobby() -> None:
     )
 
 
+def record_avalon_match(room: Room) -> None:
+    try:
+        recorded = account_store().record_match(room)
+        if recorded:
+            logger.info(
+                "Avalon match persisted",
+                extra={
+                    "event": "match.persisted",
+                    "game_id": room.game_id,
+                    "game_key": "avalon",
+                    "room_code": room.code,
+                },
+            )
+    except Exception:
+        # A storage failure must not prevent the completed game state from
+        # reaching connected players.
+        logger.exception("Failed to persist completed match %s", room.game_id)
+
+
 async def maintain_game_rooms() -> None:
     while True:
         await asyncio.sleep(1)
         try:
-            await arcade_realtime.tick()
             changed_rooms = avalon_rooms.maintain()
             if changed_rooms:
                 for room in changed_rooms:
+                    if room.phase == Phase.GAME_OVER:
+                        record_avalon_match(room)
                     await broadcast_avalon_room(room)
                 await broadcast_avalon_lobby()
             await arcade_realtime.maintain()
@@ -354,24 +388,7 @@ async def execute_action(
                 action(room, player_id, payload)
             advance_ai_players(room, avalon_engine)
             if room.phase == Phase.GAME_OVER:
-                try:
-                    recorded = account_store().record_match(room)
-                    if recorded:
-                        logger.info(
-                            "Avalon match persisted",
-                            extra={
-                                "event": "match.persisted",
-                                "game_id": room.game_id,
-                                "game_key": "avalon",
-                                "room_code": room.code,
-                            },
-                        )
-                except Exception:
-                    # A storage failure must not prevent the completed game
-                    # state from reaching connected players.
-                    logger.exception(
-                        "Failed to persist completed match %s", room.game_id
-                    )
+                record_avalon_match(room)
         await broadcast_avalon_room(room)
         return {"ok": True}
     except (ValidationError, RoomError, GameRuleError, KeyError) as error:

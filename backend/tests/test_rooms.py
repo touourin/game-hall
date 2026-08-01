@@ -2,7 +2,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from backend.app.games.avalon.models import Phase
+from backend.app.games.avalon.engine import GameEngine
+from backend.app.games.avalon.models import Alignment, Phase
 from backend.app.games.avalon.rooms import RoomError, RoomManager
 
 
@@ -120,6 +121,56 @@ def test_all_offline_humans_become_manually_cleanable_after_ten_minutes():
 
     assert removed is room
     assert room.code not in manager.rooms
+
+
+def test_avalon_partial_disconnect_forfeits_players_alignment_after_ten_minutes():
+    manager = RoomManager()
+    engine = GameEngine()
+    room, host, _ = manager.create_room("玩家1")
+    for index in range(2, 6):
+        manager.join_room(room.code, f"玩家{index}")
+    engine.start_game(room, host.id)
+    disconnected = room.players[1]
+    disconnected_alignment = disconnected.alignment
+    disconnected_at = datetime(2026, 8, 1, tzinfo=timezone.utc)
+    disconnected.connected = False
+    manager.update_human_presence(room, now=disconnected_at)
+
+    assert manager.maintain(
+        now=disconnected_at + timedelta(minutes=9, seconds=59)
+    ) == []
+    assert manager.maintain(
+        now=disconnected_at + timedelta(minutes=10)
+    ) == [room]
+
+    assert room.phase == Phase.GAME_OVER
+    assert room.winner == (
+        Alignment.EVIL
+        if disconnected_alignment == Alignment.GOOD
+        else Alignment.GOOD
+    )
+    assert disconnected.disconnect_forfeited is True
+    assert "掉线超过 10 分钟" in (room.win_reason or "")
+
+
+def test_avalon_all_offline_never_creates_a_winner_before_cleanup():
+    manager = RoomManager()
+    engine = GameEngine()
+    room, host, _ = manager.create_room("玩家1")
+    for index in range(2, 6):
+        manager.join_room(room.code, f"玩家{index}")
+    engine.start_game(room, host.id)
+    disconnected_at = datetime(2026, 8, 1, tzinfo=timezone.utc)
+    for player in room.players:
+        player.connected = False
+    manager.update_human_presence(room, now=disconnected_at)
+
+    assert manager.maintain(
+        now=disconnected_at + timedelta(minutes=10)
+    ) == [room]
+    assert room.phase == Phase.ROLE_REVEAL
+    assert room.winner is None
+    assert room.cleanup_ready is True
 
 
 def test_human_reconnect_cancels_abandoned_room_cleanup():

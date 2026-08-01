@@ -6,6 +6,8 @@ from backend.app.games.base import GameEngine
 
 from .models import ArcadePlayer, ArcadeRoom
 from .rooms import (
+    ACTIVE_GAME_PHASES,
+    DISCONNECT_FORFEIT_GRACE,
     DRAW_GAMES,
     HOST_TRANSFER_GRACE,
     MAX_CHAT_LENGTH,
@@ -69,6 +71,18 @@ def build_room_view(
                 "name": player.name,
                 "seat": player.seat,
                 "connected": player.connected,
+                "disconnectForfeitAt": (
+                    (
+                        player.disconnected_at + DISCONNECT_FORFEIT_GRACE
+                    ).isoformat()
+                    if room.phase in ACTIVE_GAME_PHASES
+                    and room.all_humans_offline_since is None
+                    and not player.connected
+                    and not player.disconnect_forfeited
+                    and player.disconnected_at is not None
+                    else None
+                ),
+                "disconnectForfeited": player.disconnect_forfeited,
                 "isHost": player.id == room.host_id,
             }
             for player in room.players

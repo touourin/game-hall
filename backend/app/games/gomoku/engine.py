@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import time
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -12,7 +10,6 @@ from backend.app.games.base import GameRuleError
 BOARD_SIZE = 15
 WIN_RULES = {"freestyle", "exact_five", "renju"}
 OPENING_RULES = {"standard", "swap2"}
-TIME_LIMIT_SECONDS = {0, 180, 300, 600}
 RENJU_RULE = "renju"
 SWAP2_RULE = "swap2"
 SWAP2_PLACE_THREE = "place_three"
@@ -40,8 +37,6 @@ class GomokuState:
     seat_stones: list[int] = field(default_factory=lambda: [BLACK, WHITE])
     swap2_stage: str | None = None
     swap2_initial_seat: int = 0
-    clock_remaining_ms: list[int] | None = None
-    turn_started_at_ms: int | None = None
 
 
 class GomokuEngine:
@@ -50,9 +45,6 @@ class GomokuEngine:
     min_players = 2
     max_players = 2
 
-    def __init__(self, clock: Callable[[], float] | None = None) -> None:
-        self.clock = clock or time.time
-
     def room_options(self, options: dict[str, Any]) -> dict[str, Any]:
         win_rule = options.get("winRule", "freestyle")
         if win_rule not in WIN_RULES:
@@ -60,37 +52,20 @@ class GomokuEngine:
         opening_rule = options.get("openingRule", "standard")
         if opening_rule not in OPENING_RULES:
             raise GameRuleError("请选择标准开局或 Swap2 开局")
-        time_limit = options.get("timeLimitSeconds", 0)
-        if (
-            not isinstance(time_limit, int)
-            or isinstance(time_limit, bool)
-            or time_limit not in TIME_LIMIT_SECONDS
-        ):
-            raise GameRuleError("请选择不计时、3 分钟、5 分钟或 10 分钟")
         return {
             "winRule": win_rule,
             "openingRule": opening_rule,
-            "timeLimitSeconds": time_limit,
         }
 
     def initial_state(self) -> GomokuState:
         return GomokuState()
 
     def start(self, room: ArcadeRoom) -> None:
-        time_limit_ms = room.options.get("timeLimitSeconds", 0) * 1000
         room.state = GomokuState(
             swap2_stage=(
                 SWAP2_PLACE_THREE
                 if room.options.get("openingRule") == SWAP2_RULE
                 else None
-            ),
-            clock_remaining_ms=(
-                [time_limit_ms, time_limit_ms]
-                if time_limit_ms > 0
-                else None
-            ),
-            turn_started_at_ms=(
-                self._now_ms() if time_limit_ms > 0 else None
             ),
         )
         room.phase = "playing"
@@ -103,9 +78,6 @@ class GomokuEngine:
         payload: dict[str, Any],
     ) -> None:
         state: GomokuState = room.state
-        now_ms = self._now_ms()
-        if self._expire_timeout_at(room, state, now_ms):
-            return
         if action == "resign":
             opponent = room.players[1 - player.seat]
             self._finish(
@@ -124,11 +96,10 @@ class GomokuEngine:
                 state,
                 player,
                 payload,
-                now_ms,
             )
             return
         if action == "pass":
-            self._pass(room, state, player, now_ms)
+            self._pass(room, state, player)
             return
         if action != "place":
             raise GameRuleError("不支持这个五子棋操作")
@@ -149,7 +120,6 @@ class GomokuEngine:
                 player,
                 row,
                 column,
-                now_ms,
             )
             return
 
@@ -167,7 +137,6 @@ class GomokuEngine:
             )
             if renju_analysis[1] is not None:
                 raise GameRuleError(f"黑方禁手：{renju_analysis[1]}")
-        self._charge_clock(state, now_ms)
         state.board[row][column] = stone
         move = {"row": row, "column": column, "stone": stone}
         state.moves.append(move)
@@ -207,12 +176,10 @@ class GomokuEngine:
             self._finish(room, state, "draw", [], "棋盘已满，双方和棋")
             return
         state.turn_seat = 1 - state.turn_seat
-        state.turn_started_at_ms = now_ms
 
     def view(self, room: ArcadeRoom, viewer: ArcadePlayer) -> dict[str, Any]:
         state: GomokuState = room.state
         win_rule = room.options.get("winRule", "freestyle")
-        now_ms = self._now_ms()
         opening_move: dict[str, int] | None = None
         expected_swap2_stone = self._swap2_expected_stone(state)
         turn_stone = (
@@ -271,7 +238,6 @@ class GomokuEngine:
                 ),
                 "resolved": state.swap2_stage is None,
             },
-            "clock": self._clock_view(room, state, now_ms),
             "colors": {
                 player.id: self._stone_name(state.seat_stones[player.seat])
                 for player in room.players
@@ -287,17 +253,6 @@ class GomokuEngine:
         color = self._stone_name(state.seat_stones[player.seat])
         return color, color, player.id in room.winner_player_ids
 
-    def expire_timeout(self, room: ArcadeRoom) -> bool:
-        if room.phase != "playing":
-            return False
-        state: GomokuState = room.state
-        return self._expire_timeout_at(room, state, self._now_ms())
-
-    def resume_clock(self, room: ArcadeRoom) -> None:
-        state: GomokuState = room.state
-        if state.clock_remaining_ms is not None and room.phase == "playing":
-            state.turn_started_at_ms = self._now_ms()
-
     @staticmethod
     def should_track_undo(room: ArcadeRoom, action: str) -> bool:
         state: GomokuState = room.state
@@ -310,7 +265,6 @@ class GomokuEngine:
         player: ArcadePlayer,
         row: int,
         column: int,
-        now_ms: int,
     ) -> None:
         stone = self._swap2_expected_stone(state)
         if stone is None:
@@ -324,7 +278,6 @@ class GomokuEngine:
             if (row, column) != (center, center):
                 raise GameRuleError("有禁手连珠的黑方首手必须落在天元")
 
-        self._charge_clock(state, now_ms)
         state.board[row][column] = stone
         move = {"row": row, "column": column, "stone": stone}
         state.moves.append(move)
@@ -338,7 +291,6 @@ class GomokuEngine:
         elif state.swap2_stage == SWAP2_PLACE_TWO and len(state.moves) == 5:
             state.swap2_stage = SWAP2_FIRST_CHOICE
             state.turn_seat = state.swap2_initial_seat
-        state.turn_started_at_ms = now_ms
 
     def _choose_swap2_color(
         self,
@@ -346,13 +298,11 @@ class GomokuEngine:
         state: GomokuState,
         player: ArcadePlayer,
         payload: dict[str, Any],
-        now_ms: int,
     ) -> None:
         choice = payload.get("choice")
         if state.swap2_stage == SWAP2_SECOND_CHOICE:
             if choice not in {"white", "black", "add"}:
                 raise GameRuleError("请选择执白、交换执黑或再摆两子")
-            self._charge_clock(state, now_ms)
             if choice == "add":
                 state.swap2_stage = SWAP2_PLACE_TWO
             else:
@@ -364,7 +314,6 @@ class GomokuEngine:
         elif state.swap2_stage == SWAP2_FIRST_CHOICE:
             if choice not in {"white", "black"}:
                 raise GameRuleError("请选择执黑或执白")
-            self._charge_clock(state, now_ms)
             self._resolve_swap2_color(
                 state,
                 player.seat,
@@ -372,7 +321,6 @@ class GomokuEngine:
             )
         else:
             raise GameRuleError("当前不是 Swap2 选色阶段")
-        state.turn_started_at_ms = now_ms
 
     @staticmethod
     def _resolve_swap2_color(
@@ -393,13 +341,11 @@ class GomokuEngine:
         room: ArcadeRoom,
         state: GomokuState,
         player: ArcadePlayer,
-        now_ms: int,
     ) -> None:
         if state.swap2_stage is not None:
             raise GameRuleError("Swap2 开局完成前不能停一手")
         if room.options.get("winRule") == RENJU_RULE and len(state.moves) < 3:
             raise GameRuleError("有禁手连珠的前三手不能停一手")
-        self._charge_clock(state, now_ms)
         state.last_action = {"pass": True, "seat": player.seat}
         state.consecutive_passes += 1
         state.forbidden_points = None
@@ -407,7 +353,6 @@ class GomokuEngine:
             self._finish(room, state, "draw", [], "双方连续停一手，本局和棋")
             return
         state.turn_seat = 1 - state.turn_seat
-        state.turn_started_at_ms = now_ms
 
     @staticmethod
     def _swap2_expected_stone(state: GomokuState) -> int | None:
@@ -421,77 +366,6 @@ class GomokuEngine:
             return sequence[index] if 0 <= index < len(sequence) else None
         return None
 
-    def _clock_view(
-        self,
-        room: ArcadeRoom,
-        state: GomokuState,
-        now_ms: int,
-    ) -> dict[str, Any] | None:
-        if state.clock_remaining_ms is None:
-            return None
-        remaining = state.clock_remaining_ms[:]
-        if room.phase == "playing" and state.turn_started_at_ms is not None:
-            elapsed = max(0, now_ms - state.turn_started_at_ms)
-            remaining[state.turn_seat] = max(
-                0,
-                remaining[state.turn_seat] - elapsed,
-            )
-        return {
-            "limitMs": room.options.get("timeLimitSeconds", 0) * 1000,
-            "remainingMs": {
-                player.id: remaining[player.seat]
-                for player in room.players
-            },
-            "activePlayerId": (
-                room.players[state.turn_seat].id
-                if room.phase == "playing"
-                else None
-            ),
-            "serverNowMs": now_ms,
-        }
-
-    def _expire_timeout_at(
-        self,
-        room: ArcadeRoom,
-        state: GomokuState,
-        now_ms: int,
-    ) -> bool:
-        if (
-            room.phase != "playing"
-            or state.clock_remaining_ms is None
-            or state.turn_started_at_ms is None
-        ):
-            return False
-        active_seat = state.turn_seat
-        elapsed = max(0, now_ms - state.turn_started_at_ms)
-        if elapsed < state.clock_remaining_ms[active_seat]:
-            return False
-        state.clock_remaining_ms[active_seat] = 0
-        loser = room.players[active_seat]
-        winner = room.players[1 - active_seat]
-        self._finish(
-            room,
-            state,
-            self._stone_name(state.seat_stones[winner.seat]),
-            [winner.id],
-            f"{loser.name} 用时耗尽，{winner.name} 获胜",
-        )
-        return True
-
-    @staticmethod
-    def _charge_clock(state: GomokuState, now_ms: int) -> None:
-        if (
-            state.clock_remaining_ms is None
-            or state.turn_started_at_ms is None
-        ):
-            return
-        elapsed = max(0, now_ms - state.turn_started_at_ms)
-        state.clock_remaining_ms[state.turn_seat] = max(
-            0,
-            state.clock_remaining_ms[state.turn_seat] - elapsed,
-        )
-        state.turn_started_at_ms = now_ms
-
     @staticmethod
     def _finish(
         room: ArcadeRoom,
@@ -500,11 +374,7 @@ class GomokuEngine:
         winner_player_ids: list[str],
         reason: str,
     ) -> None:
-        state.turn_started_at_ms = None
         room.finish(winner, winner_player_ids, reason)
-
-    def _now_ms(self) -> int:
-        return int(self.clock() * 1000)
 
     @staticmethod
     def _stone_name(stone: int) -> str:

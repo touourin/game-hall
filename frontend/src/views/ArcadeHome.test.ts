@@ -43,7 +43,6 @@ describe('ArcadeHome', () => {
         winRule: 'renju',
         firstPlayer: 'random',
         openingRule: 'swap2',
-        timeLimitSeconds: 0,
       }),
     )
     expect(createRoom.mock.calls[0]?.[1]).not.toHaveProperty('boardSize')

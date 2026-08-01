@@ -32,6 +32,8 @@ export interface PlayerView {
   name: string
   seat: number
   connected: boolean
+  disconnectForfeitAt?: string | null
+  disconnectForfeited?: boolean
   isBot: boolean
   isHost: boolean
   isLeader: boolean

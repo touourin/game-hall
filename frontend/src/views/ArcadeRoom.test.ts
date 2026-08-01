@@ -57,6 +57,27 @@ describe('ArcadeRoom', () => {
     expect(wrapper.get('.arcade-room').classes()).toContain('arcade-room--wide')
   })
 
+  it('shows the shared ten-minute disconnect rule and pending forfeit', () => {
+    const playingRoom = snapshot('gomoku')
+    playingRoom.phase = 'playing'
+    playingRoom.players.push({
+      id: 'p2',
+      name: '玩家二',
+      seat: 1,
+      connected: false,
+      disconnectForfeitAt: '2026-08-01T00:10:00+00:00',
+      disconnectForfeited: false,
+      isHost: false,
+    })
+    const wrapper = shallowMount(ArcadeRoom, {
+      props: { snapshot: playingRoom },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.text()).toContain('掉线保护 10 分钟')
+    expect(wrapper.text()).toContain('离线，10 分钟后弃权')
+  })
+
   it('copies the shared invitation link and confirms success', async () => {
     const copyText = vi.spyOn(clipboard, 'copyText').mockResolvedValue(true)
     const wrapper = mount(ArcadeRoom, {

@@ -423,6 +423,19 @@ class PokerEngine:
         )
         self._progress_after_action(room, state, player.seat)
 
+    def disconnect_timeout(
+        self,
+        room: ArcadeRoom,
+        player: ArcadePlayer,
+    ) -> bool:
+        state: PokerState = room.state
+        if player.id in state.folded_ids or player.id in state.all_in_ids:
+            return False
+        self._resign(room, state, player)
+        if state.history and state.history[-1].get("playerId") == player.id:
+            state.history[-1]["action"] = "disconnect_timeout"
+        return True
+
     def view(self, room: ArcadeRoom, viewer: ArcadePlayer) -> dict[str, Any]:
         state: PokerState = room.state
         players = self._players(room)

@@ -153,7 +153,13 @@ async function saveRules() {
           <small>
             <Crown v-if="player.isHost" :size="13" />
             {{ player.isHost ? '房主' : '玩家' }}
-            {{ player.connected ? '· 在线' : '· 离线' }}
+            {{ player.connected
+              ? '· 在线'
+              : player.disconnectForfeited
+                ? '· 掉线弃权'
+                : player.disconnectForfeitAt
+                  ? '· 离线，10 分钟后弃权'
+                  : '· 离线' }}
           </small>
         </div>
         <RoomKickButton
@@ -169,6 +175,7 @@ async function saveRules() {
       <div>
         <Settings2 :size="18" />
         <span v-for="label in gameRuleLabels(snapshot.gameKey, snapshot.options)" :key="label">{{ label }}</span>
+        <span>掉线保护 10 分钟</span>
       </div>
       <button v-if="snapshot.actions.canEditRules" type="button" @click="openRuleEditor">{{ snapshot.phase === 'finished' ? '修改下局规则' : '修改规则' }}</button>
     </section>

@@ -8,7 +8,10 @@ import pytest
 from backend.app.accounts import AccountStore
 from backend.app.arcade.models import ArcadePlayer, ArcadeRoom
 from backend.app.arcade.rooms import ArcadeRoomError, ArcadeRoomManager
-from backend.app.arcade.views import build_lobby_view as build_arcade_lobby_view
+from backend.app.arcade.views import (
+    build_lobby_view as build_arcade_lobby_view,
+    build_room_view as build_arcade_room_view,
+)
 from backend.app.games.base import GameRuleError
 from backend.app.games.doudizhu.engine import (
     Card,
@@ -284,7 +287,6 @@ def test_gomoku_swap2_can_keep_or_exchange_the_initial_colors() -> None:
         {
             "winRule": "freestyle",
             "openingRule": "swap2",
-            "timeLimitSeconds": 0,
         },
     )
     first, second = room.players
@@ -319,7 +321,6 @@ def test_gomoku_swap2_can_add_two_stones_before_first_player_chooses() -> None:
         {
             "winRule": "freestyle",
             "openingRule": "swap2",
-            "timeLimitSeconds": 0,
         },
     )
     first, second = room.players
@@ -352,7 +353,6 @@ def test_swap2_and_renju_still_require_the_first_black_stone_at_center() -> None
         {
             "winRule": "renju",
             "openingRule": "swap2",
-            "timeLimitSeconds": 0,
         },
     )
 
@@ -398,47 +398,9 @@ def test_renju_cannot_pass_during_the_first_three_stones() -> None:
         engine.act(room, room.players[0], "pass", {})
 
 
-def test_gomoku_clock_charges_each_player_and_expires_on_the_server() -> None:
-    now = [1_000.0]
-    engine = GomokuEngine(clock=lambda: now[0])
-    room = make_room(
-        engine,
-        2,
-        {
-            "winRule": "freestyle",
-            "openingRule": "standard",
-            "timeLimitSeconds": 180,
-        },
-    )
-    black, white = room.players
-
-    now[0] += 30
-    engine.act(room, black, "place", {"row": 7, "column": 7})
-    clock = engine.view(room, white)["clock"]
-    assert clock["remainingMs"] == {black.id: 150_000, white.id: 180_000}
-    assert clock["activePlayerId"] == white.id
-
-    now[0] += 181
-    assert engine.expire_timeout(room) is True
-    assert room.phase == "finished"
-    assert room.winner == "black"
-    assert room.winner_player_ids == [black.id]
-    assert "用时耗尽" in room.win_reason
-
-
-@pytest.mark.parametrize(
-    "options",
-    [
-        {"openingRule": "unknown"},
-        {"timeLimitSeconds": 60},
-        {"timeLimitSeconds": True},
-    ],
-)
-def test_gomoku_rejects_unsupported_opening_and_clock_options(
-    options: dict,
-) -> None:
+def test_gomoku_rejects_unsupported_opening_options() -> None:
     with pytest.raises(GameRuleError):
-        GomokuEngine().room_options(options)
+        GomokuEngine().room_options({"openingRule": "unknown"})
 
 
 def test_go_captures_stones_and_rejects_suicide() -> None:
@@ -1144,6 +1106,155 @@ def test_arcade_room_requires_manual_cleanup_after_ten_offline_minutes() -> None
         now=disconnected_at + timedelta(minutes=10),
     ) is room
     assert room.code not in manager.rooms
+
+
+@pytest.mark.parametrize(
+    ("game_key", "options"),
+    [
+        ("gomoku", {}),
+        ("xiangqi", {}),
+        ("go", {}),
+        ("junqi", {"mode": "dark"}),
+    ],
+)
+def test_two_player_games_forfeit_after_ten_partially_offline_minutes(
+    game_key: str,
+    options: dict,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    manager = ArcadeRoomManager(
+        build_engine_registry(), rng=random.Random(7)
+    )
+    room, host, _ = manager.create_room(
+        game_key, "甲", "account-1", options
+    )
+    _, guest, _ = manager.join_room(
+        room.code, game_key, "乙", "account-2"
+    )
+    manager.start(room, host.id)
+    disconnected_at = datetime(2026, 8, 1, tzinfo=timezone.utc)
+    guest.connected = False
+    manager.update_presence(room, now=disconnected_at)
+    view = build_arcade_room_view(room, host, manager.engine(game_key))
+    guest_view = next(
+        player for player in view["players"] if player["id"] == guest.id
+    )
+    assert guest_view["disconnectForfeitAt"] == (
+        disconnected_at + timedelta(minutes=10)
+    ).isoformat()
+
+    assert manager.maintain(
+        now=disconnected_at + timedelta(minutes=9, seconds=59)
+    ) == []
+    with caplog.at_level("INFO"):
+        assert manager.maintain(
+            now=disconnected_at + timedelta(minutes=10)
+        ) == [room]
+
+    assert room.phase == "finished"
+    assert room.winner_player_ids == [host.id]
+    assert "掉线超过 10 分钟" in (room.win_reason or "")
+    assert guest.disconnect_forfeited is True
+    assert any(
+        getattr(record, "event", None) == "room.disconnect_forfeit"
+        for record in caplog.records
+    )
+
+
+def test_all_offline_active_room_is_cleaned_without_a_match_result() -> None:
+    manager = ArcadeRoomManager(
+        build_engine_registry(), rng=random.Random(7)
+    )
+    room, host, _ = manager.create_room("gomoku", "甲", "account-1")
+    _, guest, _ = manager.join_room(
+        room.code, "gomoku", "乙", "account-2"
+    )
+    manager.start(room, host.id)
+    disconnected_at = datetime(2026, 8, 1, tzinfo=timezone.utc)
+    host.connected = guest.connected = False
+    manager.update_presence(room, now=disconnected_at)
+
+    assert manager.maintain(
+        now=disconnected_at + timedelta(minutes=10)
+    ) == [room]
+    assert room.phase == "playing"
+    assert room.winner is None
+    assert room.ended_at is None
+    assert room.cleanup_ready is True
+
+
+def test_return_to_all_offline_room_restarts_other_players_grace() -> None:
+    manager = ArcadeRoomManager(
+        build_engine_registry(), rng=random.Random(7)
+    )
+    room, host, _ = manager.create_room("gomoku", "甲", "account-1")
+    _, guest, _ = manager.join_room(
+        room.code, "gomoku", "乙", "account-2"
+    )
+    manager.start(room, host.id)
+    disconnected_at = datetime(2026, 8, 1, tzinfo=timezone.utc)
+    host.connected = guest.connected = False
+    manager.update_presence(room, now=disconnected_at)
+
+    returned_at = disconnected_at + timedelta(minutes=9)
+    host.connected = True
+    manager.update_presence(room, now=returned_at)
+
+    assert guest.disconnected_at == returned_at
+    assert manager.maintain(
+        now=disconnected_at + timedelta(minutes=10)
+    ) == []
+    assert room.phase == "playing"
+    assert manager.maintain(
+        now=returned_at + timedelta(minutes=10)
+    ) == [room]
+    assert room.winner_player_ids == [host.id]
+
+
+def test_poker_disconnect_timeout_folds_the_player() -> None:
+    manager = ArcadeRoomManager(
+        build_engine_registry(), rng=random.Random(7)
+    )
+    room, host, _ = manager.create_room("poker", "甲", "account-1")
+    _, guest, _ = manager.join_room(
+        room.code, "poker", "乙", "account-2"
+    )
+    manager.start(room, host.id)
+    disconnected_at = datetime(2026, 8, 1, tzinfo=timezone.utc)
+    guest.connected = False
+    manager.update_presence(room, now=disconnected_at)
+
+    manager.maintain(now=disconnected_at + timedelta(minutes=10))
+
+    assert guest.id in room.state.folded_ids
+    assert room.phase == "finished"
+    assert room.winner_player_ids == [host.id]
+
+
+def test_doudizhu_disconnect_timeout_forfeits_the_players_team() -> None:
+    manager = ArcadeRoomManager(
+        build_engine_registry(), rng=random.Random(7)
+    )
+    room, host, _ = manager.create_room("doudizhu", "甲", "account-1")
+    _, first_guest, _ = manager.join_room(
+        room.code, "doudizhu", "乙", "account-2"
+    )
+    manager.join_room(room.code, "doudizhu", "丙", "account-3")
+    manager.start(room, host.id)
+    room.state.landlord_seat = host.seat
+    room.state.current_seat = host.seat
+    room.phase = "playing"
+    assert first_guest.seat != room.state.landlord_seat
+    disconnected_at = datetime(2026, 8, 1, tzinfo=timezone.utc)
+    first_guest.connected = False
+    manager.update_presence(room, now=disconnected_at)
+
+    manager.maintain(now=disconnected_at + timedelta(minutes=10))
+
+    assert room.phase == "finished"
+    assert room.winner == "landlord"
+    assert room.winner_player_ids == [host.id]
+    assert "掉线超过 10 分钟" in (room.win_reason or "")
 
 
 def test_arcade_room_cleanup_rechecks_presence_and_offline_lobby_joining():

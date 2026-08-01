@@ -22,12 +22,6 @@ function snapshot(
       expectedColor: 'black' | 'white' | null
       resolved: boolean
     }
-    clock: {
-      limitMs: number
-      remainingMs: Record<string, number>
-      activePlayerId: string | null
-      serverNowMs: number
-    } | null
   }> = {},
 ): ArcadeSnapshot {
   return {
@@ -79,7 +73,6 @@ function snapshot(
         expectedColor: null,
         resolved: true,
       },
-      clock: null,
       ...game,
     },
   }
@@ -199,7 +192,7 @@ describe('GomokuBoard', () => {
     expect(action).toHaveBeenCalledWith('swap2_choose', { choice: 'add' })
   })
 
-  it('shows clocks and allows a normal turn to pass', async () => {
+  it('allows a normal turn to pass', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)
     const action = vi.spyOn(arcade, 'action').mockResolvedValue()
@@ -208,18 +201,11 @@ describe('GomokuBoard', () => {
         snapshot: snapshot({
           lastMove: { pass: true, seat: 1 },
           consecutivePasses: 1,
-          clock: {
-            limitMs: 180_000,
-            remainingMs: { p1: 90_000, p2: 120_000 },
-            activePlayerId: 'p1',
-            serverNowMs: Date.now(),
-          },
         }),
       },
       global: { plugins: [pinia] },
     })
 
-    expect(wrapper.text()).toContain('1:30')
     expect(wrapper.text()).toContain('你若也停一手则本局和棋')
     await wrapper.get('.gomoku-pass-button').trigger('click')
     expect(action).toHaveBeenCalledWith('pass')
