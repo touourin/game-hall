@@ -43,7 +43,9 @@ def roles_for_player_count(player_count: int) -> list[Role]:
         evil_roles = [Role.ASSASSIN, Role.MORGANA]
     elif player_count == 7:
         evil_roles = [Role.ASSASSIN, Role.MORGANA, Role.OBERON]
-    elif player_count in (8, 9):
+    elif player_count == 8:
+        evil_roles = [Role.ASSASSIN, Role.MORGANA, Role.MINION]
+    elif player_count == 9:
         evil_roles = [Role.ASSASSIN, Role.MORGANA, Role.MORDRED]
     else:
         evil_roles = [Role.ASSASSIN, Role.MORGANA, Role.MORDRED, Role.OBERON]

@@ -69,7 +69,7 @@ def test_game_over_reveals_oberon_alignment_and_role():
 
 
 def test_merlin_sees_evil_except_mordred():
-    engine, room = start_room(8)
+    engine, room = start_room(9)
     merlin = next(player for player in room.players if player.role == Role.MERLIN)
     mordred = next(player for player in room.players if player.role == Role.MORDRED)
     visible_evil_ids = {

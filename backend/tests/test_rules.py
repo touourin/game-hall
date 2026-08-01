@@ -18,6 +18,25 @@ def test_role_presets_match_required_alignment_counts():
         assert roles.count(Role.ASSASSIN) == 1
 
 
+def test_role_presets_match_the_standard_special_role_lineup():
+    expected_evil_roles = {
+        5: [Role.ASSASSIN, Role.MORGANA],
+        6: [Role.ASSASSIN, Role.MORGANA],
+        7: [Role.ASSASSIN, Role.MORGANA, Role.OBERON],
+        8: [Role.ASSASSIN, Role.MORGANA, Role.MINION],
+        9: [Role.ASSASSIN, Role.MORGANA, Role.MORDRED],
+        10: [Role.ASSASSIN, Role.MORGANA, Role.MORDRED, Role.OBERON],
+    }
+    expected_loyal_servants = {5: 1, 6: 2, 7: 2, 8: 3, 9: 4, 10: 4}
+
+    for player_count in range(5, 11):
+        roles = roles_for_player_count(player_count)
+        assert roles.count(Role.LOYAL_SERVANT) == expected_loyal_servants[player_count]
+        assert roles[-len(expected_evil_roles[player_count]) :] == expected_evil_roles[
+            player_count
+        ]
+
+
 def test_mission_team_size_table_matches_standard_game():
     assert MISSION_TEAM_SIZES[5] == (2, 3, 2, 3, 3)
     assert MISSION_TEAM_SIZES[7] == (2, 3, 3, 4, 4)
