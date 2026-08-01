@@ -1295,19 +1295,28 @@ async function sendChat() {
         <header>
           <Eye :size="19" />
           <div>
-            <strong>最终阵营公开</strong>
-            <small>奥伯伦已与坏人会合；具体角色在刺杀后揭晓</small>
+            <strong>邪恶阵营公开</strong>
+            <small
+              v-if="snapshot.settings.rolePreset.some(
+                (role) => role.code === 'oberon',
+              )"
+            >
+              奥伯伦不会现身，仍与好人一起留在刺杀候选中
+            </small>
+            <small v-else>邪恶阵营已经现身，具体角色在刺杀后揭晓</small>
           </div>
         </header>
         <div>
           <span
-            v-for="player in snapshot.players"
+            v-for="player in snapshot.players.filter(
+              (item) => item.alignment === 'evil',
+            )"
             :key="player.id"
             :class="player.alignment"
           >
             <b>{{ player.seat + 1 }}号</b>
             <strong>{{ playerDisplayName(player) }}</strong>
-            <em>{{ player.alignment === 'evil' ? '坏人' : '好人' }}</em>
+            <em>坏人</em>
           </span>
         </div>
       </div>
@@ -1320,7 +1329,7 @@ async function sendChat() {
         <div class="player-grid">
           <button
             v-for="player in snapshot.players.filter(
-              (item) => item.alignment === 'good',
+              (item) => item.alignment !== 'evil',
             )"
             :key="player.id"
             type="button"

@@ -18,17 +18,54 @@ def test_player_view_never_exposes_other_roles_during_game():
     assert all("role" not in player for player in view["players"])
 
 
-def test_final_assassination_reveals_alignments_but_not_roles():
+def test_final_assassination_keeps_oberon_alignment_and_all_roles_private():
     engine, room = start_room(7)
     room.phase = Phase.ASSASSINATION
 
     view = build_player_view(room, room.players[0], engine)
 
-    assert all(player["alignment"] in ("good", "evil") for player in view["players"])
+    oberon = next(
+        player for player in room.players if player.role == Role.OBERON
+    )
+    public_alignment_ids = {
+        player["id"]
+        for player in view["players"]
+        if "alignment" in player
+    }
+    expected_public_ids = {
+        player.id
+        for player in room.players
+        if player.alignment == Alignment.EVIL
+        and player.role != Role.OBERON
+    }
+    assert public_alignment_ids == expected_public_ids
+    assert all(
+        player["alignment"] == "evil"
+        for player in view["players"]
+        if "alignment" in player
+    )
     assert all("role" not in player for player in view["players"])
-    oberon = next(player for player in room.players if player.role == Role.OBERON)
-    oberon_view = next(player for player in view["players"] if player["id"] == oberon.id)
+    oberon_view = next(
+        player for player in view["players"] if player["id"] == oberon.id
+    )
+    assert "alignment" not in oberon_view
+
+
+def test_game_over_reveals_oberon_alignment_and_role():
+    engine, room = start_room(7)
+    room.phase = Phase.GAME_OVER
+    oberon = next(
+        player for player in room.players if player.role == Role.OBERON
+    )
+
+    view = build_player_view(room, room.players[0], engine)
+    oberon_view = next(
+        player for player in view["players"] if player["id"] == oberon.id
+    )
+
     assert oberon_view["alignment"] == "evil"
+    assert oberon_view["role"] == "oberon"
+    assert oberon_view["roleLabel"] == "奥伯伦"
 
 
 def test_merlin_sees_evil_except_mordred():

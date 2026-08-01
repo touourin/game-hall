@@ -688,7 +688,7 @@ describe('GameRoom role reveal', () => {
     expect(modal.get('.danger-button').text()).toContain('2号 梅林候选人')
   })
 
-  it('reveals every alignment and only offers good targets in final assassination', () => {
+  it('reveals known evil while keeping Oberon among assassination candidates', () => {
     const snapshot = roleRevealSnapshot(1)
     snapshot.phase = 'assassination'
     snapshot.actions.canConfirmRole = false
@@ -700,6 +700,7 @@ describe('GameRoom role reveal', () => {
       description: '找出梅林。',
       knowledge: [],
     }
+    snapshot.settings.rolePreset = [{ code: 'oberon', label: '奥伯伦' }]
     snapshot.players[0]!.alignment = 'evil'
     snapshot.players.push(
       {
@@ -711,7 +712,6 @@ describe('GameRoom role reveal', () => {
         isHost: false,
         isLeader: false,
         isSelected: false,
-        alignment: 'evil',
       },
       {
         id: 'p3',
@@ -722,7 +722,6 @@ describe('GameRoom role reveal', () => {
         isHost: false,
         isLeader: false,
         isSelected: false,
-        alignment: 'good',
       },
     )
 
@@ -732,12 +731,20 @@ describe('GameRoom role reveal', () => {
     })
 
     const alignments = wrapper.get('.assassination-alignments').text()
-    expect(alignments).toContain('奥伯伦')
+    expect(alignments).toContain('奥伯伦不会现身')
     expect(alignments).toContain('坏人')
-    expect(alignments).toContain('梅林候选')
-    expect(alignments).toContain('好人')
-    expect(wrapper.get('.player-grid').text()).toContain('梅林候选')
-    expect(wrapper.get('.player-grid').text()).not.toContain('奥伯伦')
+    const publicAlignmentPlayers = wrapper
+      .findAll('.assassination-alignments > div > span')
+      .map((player) => player.text())
+    expect(
+      publicAlignmentPlayers.some((player) => player.includes('奥伯伦')),
+    ).toBe(false)
+    expect(
+      publicAlignmentPlayers.some((player) => player.includes('梅林候选')),
+    ).toBe(false)
+    const assassinationCandidates = wrapper.get('.player-grid').text()
+    expect(assassinationCandidates).toContain('梅林候选')
+    expect(assassinationCandidates).toContain('奥伯伦')
   })
 
   it('asks for confirmation before exiting an active game', async () => {

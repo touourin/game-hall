@@ -183,18 +183,22 @@ def test_assassin_only_wins_when_target_is_merlin():
     assert room.assassination_was_early is False
 
 
-def test_final_assassination_rejects_evil_target():
+def test_final_assassination_can_miss_by_targeting_hidden_oberon():
     engine, room = start_room(7)
-    assassin = next(player for player in room.players if player.role == Role.ASSASSIN)
-    evil_target = next(
-        player
-        for player in room.players
-        if player.alignment == Alignment.EVIL and player.id != assassin.id
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    oberon = next(
+        player for player in room.players if player.role == Role.OBERON
     )
     room.phase = Phase.ASSASSINATION
 
-    with pytest.raises(GameRuleError, match="只能选择好人阵营"):
-        engine.assassinate(room, assassin.id, evil_target.id)
+    engine.assassinate(room, assassin.id, oberon.id)
+
+    assert room.phase == Phase.GAME_OVER
+    assert room.winner == Alignment.GOOD
+    assert room.assassin_target_id == oberon.id
+    assert room.assassination_was_early is False
 
 
 def test_assassin_can_win_with_enabled_early_assassination():

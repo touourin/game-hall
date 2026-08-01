@@ -96,7 +96,11 @@ def build_player_view(
             and player.id == room.leader.id,
             "isSelected": player.id in room.selected_team_ids,
         }
-        if room.phase in (Phase.ASSASSINATION, Phase.GAME_OVER):
+        if room.phase == Phase.GAME_OVER or (
+            room.phase == Phase.ASSASSINATION
+            and player.alignment == Alignment.EVIL
+            and player.role != Role.OBERON
+        ):
             item["alignment"] = player.alignment.value
         if room.phase == Phase.GAME_OVER and player.role is not None:
             item["role"] = player.role.value
