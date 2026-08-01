@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import socketio
-from fastapi import FastAPI, Header, HTTPException, Request, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -24,8 +24,8 @@ from .logging_config import (
     reset_request_context,
 )
 from .realtime import (
-    cleanup_abandoned_rooms,
     close_room_state_store,
+    maintain_game_rooms,
     persist_room_state,
     restore_room_state,
     sio,
@@ -50,7 +50,7 @@ async def lifespan(_: FastAPI):
         access_password()
         account_store().initialize()
         await restore_room_state()
-        cleanup_task = asyncio.create_task(cleanup_abandoned_rooms())
+        cleanup_task = asyncio.create_task(maintain_game_rooms())
         logger.info(
             "Game hall is ready",
             extra={"event": "application.ready"},
@@ -75,7 +75,7 @@ async def lifespan(_: FastAPI):
         )
 
 
-api = FastAPI(title="Private Game Hall", version="0.2.0", lifespan=lifespan)
+api = FastAPI(title="Game Hall", version="0.2.0", lifespan=lifespan)
 
 
 @api.middleware("http")
@@ -166,6 +166,18 @@ def require_front_door(access_header: str | None) -> None:
         )
 
 
+def game_hall_access_header(
+    x_game_hall_access: str | None = Header(
+        default=None, alias="X-Game-Hall-Access"
+    ),
+    x_avalon_access: str | None = Header(
+        default=None, alias="X-Avalon-Access"
+    ),
+) -> str | None:
+    """Prefer the game-hall header while accepting old deployed clients."""
+    return x_game_hall_access or x_avalon_access
+
+
 def require_account_session(
     authorization: str | None, access_header: str | None
 ):
@@ -225,9 +237,9 @@ async def access_status(
 @api.post("/api/auth/register")
 def register_account(
     payload: RegisterRequest,
-    x_avalon_access: str | None = Header(default=None),
+    game_hall_access: str | None = Depends(game_hall_access_header),
 ) -> dict:
-    require_front_door(x_avalon_access)
+    require_front_door(game_hall_access)
     try:
         account, token = account_store().register(
             payload.username, payload.password, payload.player_name
@@ -243,9 +255,9 @@ def register_account(
 @api.post("/api/auth/login")
 def login_account(
     payload: LoginRequest,
-    x_avalon_access: str | None = Header(default=None),
+    game_hall_access: str | None = Depends(game_hall_access_header),
 ) -> dict:
-    require_front_door(x_avalon_access)
+    require_front_door(game_hall_access)
     try:
         account, token = account_store().login(
             payload.username, payload.password
@@ -261,9 +273,9 @@ def login_account(
 @api.get("/api/auth/me")
 def current_account(
     authorization: str | None = Header(default=None),
-    x_avalon_access: str | None = Header(default=None),
+    game_hall_access: str | None = Depends(game_hall_access_header),
 ) -> dict:
-    account = require_account_session(authorization, x_avalon_access)
+    account = require_account_session(authorization, game_hall_access)
     return {"ok": True, "account": account.as_dict()}
 
 
@@ -271,9 +283,9 @@ def current_account(
 def rename_current_account(
     payload: RenamePlayerRequest,
     authorization: str | None = Header(default=None),
-    x_avalon_access: str | None = Header(default=None),
+    game_hall_access: str | None = Depends(game_hall_access_header),
 ) -> dict:
-    account = require_account_session(authorization, x_avalon_access)
+    account = require_account_session(authorization, game_hall_access)
     try:
         renamed = account_store().rename_player(
             account.id, payload.player_name
@@ -289,9 +301,9 @@ def rename_current_account(
 @api.post("/api/auth/logout")
 def logout_account(
     authorization: str | None = Header(default=None),
-    x_avalon_access: str | None = Header(default=None),
+    game_hall_access: str | None = Depends(game_hall_access_header),
 ) -> dict[str, bool]:
-    require_front_door(x_avalon_access)
+    require_front_door(game_hall_access)
     account_store().logout(bearer_token(authorization))
     return {"ok": True}
 
@@ -301,9 +313,9 @@ def personal_stats(
     game: str | None = None,
     mode: str | None = None,
     authorization: str | None = Header(default=None),
-    x_avalon_access: str | None = Header(default=None),
+    game_hall_access: str | None = Depends(game_hall_access_header),
 ) -> dict:
-    account = require_account_session(authorization, x_avalon_access)
+    account = require_account_session(authorization, game_hall_access)
     if game is not None and game not in GAME_NAMES:
         raise HTTPException(status_code=404, detail="没有找到这个游戏")
     if mode is not None and (
@@ -327,9 +339,9 @@ def leaderboard(
     game: str,
     mode: str | None = None,
     authorization: str | None = Header(default=None),
-    x_avalon_access: str | None = Header(default=None),
+    game_hall_access: str | None = Depends(game_hall_access_header),
 ) -> dict:
-    require_account_session(authorization, x_avalon_access)
+    require_account_session(authorization, game_hall_access)
     if game not in GAME_NAMES:
         raise HTTPException(status_code=404, detail="没有找到这个游戏")
     if mode is not None and (
@@ -348,9 +360,9 @@ def leaderboard(
 @api.get("/api/games")
 def game_catalog(
     authorization: str | None = Header(default=None),
-    x_avalon_access: str | None = Header(default=None),
+    game_hall_access: str | None = Depends(game_hall_access_header),
 ) -> dict:
-    require_account_session(authorization, x_avalon_access)
+    require_account_session(authorization, game_hall_access)
     return {"ok": True, "games": GAME_CATALOG}
 
 
@@ -358,9 +370,9 @@ def game_catalog(
 def match_detail(
     match_id: str,
     authorization: str | None = Header(default=None),
-    x_avalon_access: str | None = Header(default=None),
+    game_hall_access: str | None = Depends(game_hall_access_header),
 ) -> dict:
-    account = require_account_session(authorization, x_avalon_access)
+    account = require_account_session(authorization, game_hall_access)
     match = account_store().match_for_account(match_id, account.id)
     if match is None:
         raise HTTPException(

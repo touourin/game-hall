@@ -51,7 +51,7 @@ const games: Array<GameCatalogItem & { symbol: string; tone: string }> = [
     </section>
 
     <section class="hall-hero">
-      <p class="eyebrow">PRIVATE GAME HALL</p>
+      <p class="eyebrow">GAME HALL</p>
       <h1>今晚玩什么？</h1>
       <p>同一个账号、同一个大厅，每款游戏都有独立战绩。</p>
     </section>

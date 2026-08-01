@@ -7,7 +7,7 @@ from backend.app import realtime
 from backend.app.access import access_token, verify_access_token, verify_password
 from backend.app.accounts import account_store
 from backend.app.games.avalon.rooms import RoomManager
-from backend.app.main import api
+from backend.app.main import api, game_hall_access_header
 from backend.app.realtime import connect, sio
 
 
@@ -26,6 +26,11 @@ def test_legacy_avalon_access_password_is_still_accepted(monkeypatch) -> None:
     monkeypatch.setenv("AVALON_ACCESS_PASSWORD", "legacy-secret")
 
     assert verify_password("legacy-secret") is True
+
+
+def test_legacy_avalon_access_header_is_still_accepted() -> None:
+    assert game_hall_access_header(None, "legacy-token") == "legacy-token"
+    assert game_hall_access_header("new-token", "legacy-token") == "new-token"
 
 
 def test_access_endpoints_reject_wrong_password(monkeypatch, tmp_path) -> None:
@@ -64,7 +69,7 @@ def test_access_endpoints_reject_wrong_password(monkeypatch, tmp_path) -> None:
 def test_account_registration_login_and_session(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GAME_HALL_ACCESS_PASSWORD", "test-secret")
     monkeypatch.setenv("GAME_HALL_DB_PATH", str(tmp_path / "accounts.sqlite3"))
-    access_header = {"X-Avalon-Access": access_token()}
+    access_header = {"X-Game-Hall-Access": access_token()}
 
     with TestClient(api) as client:
         registered = client.post(
@@ -170,16 +175,18 @@ async def test_leaving_avalon_preserves_socket_account_identity(
     save_session = AsyncMock()
     leave_socket_room = AsyncMock()
     broadcast_lobby = AsyncMock()
-    monkeypatch.setattr(realtime, "rooms", manager)
+    monkeypatch.setattr(realtime, "avalon_rooms", manager)
     monkeypatch.setattr(
         realtime,
-        "active_sids",
+        "avalon_active_sids",
         defaultdict(set, {(room.code, player.id): {"socket-1"}}),
     )
     monkeypatch.setattr(sio, "get_session", get_session)
     monkeypatch.setattr(sio, "save_session", save_session)
     monkeypatch.setattr(sio, "leave_room", leave_socket_room)
-    monkeypatch.setattr(realtime, "broadcast_lobby", broadcast_lobby)
+    monkeypatch.setattr(
+        realtime, "broadcast_avalon_lobby", broadcast_lobby
+    )
 
     response = await realtime.leave_room("socket-1")
 
@@ -203,7 +210,9 @@ async def test_leaving_avalon_without_room_session_is_idempotent(
     broadcast_lobby = AsyncMock()
     monkeypatch.setattr(sio, "get_session", get_session)
     monkeypatch.setattr(sio, "save_session", save_session)
-    monkeypatch.setattr(realtime, "broadcast_lobby", broadcast_lobby)
+    monkeypatch.setattr(
+        realtime, "broadcast_avalon_lobby", broadcast_lobby
+    )
 
     response = await realtime.leave_room("socket-without-room")
 

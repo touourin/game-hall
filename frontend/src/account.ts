@@ -1,4 +1,5 @@
-const ACCOUNT_TOKEN_KEY = 'avalon:account-token'
+const ACCOUNT_TOKEN_KEY = 'game-hall:account-token'
+const LEGACY_ACCOUNT_TOKEN_KEY = 'avalon:account-token'
 
 export interface AccountProfile {
   id: string
@@ -15,15 +16,25 @@ interface AuthResponse {
 }
 
 export function storedAccountToken(): string | null {
-  return localStorage.getItem(ACCOUNT_TOKEN_KEY)
+  const token = localStorage.getItem(ACCOUNT_TOKEN_KEY)
+  if (token) return token
+
+  const legacyToken = localStorage.getItem(LEGACY_ACCOUNT_TOKEN_KEY)
+  if (!legacyToken) return null
+
+  localStorage.setItem(ACCOUNT_TOKEN_KEY, legacyToken)
+  localStorage.removeItem(LEGACY_ACCOUNT_TOKEN_KEY)
+  return legacyToken
 }
 
 export function rememberAccountToken(token: string): void {
   localStorage.setItem(ACCOUNT_TOKEN_KEY, token)
+  localStorage.removeItem(LEGACY_ACCOUNT_TOKEN_KEY)
 }
 
 export function clearAccountToken(): void {
   localStorage.removeItem(ACCOUNT_TOKEN_KEY)
+  localStorage.removeItem(LEGACY_ACCOUNT_TOKEN_KEY)
 }
 
 async function authFetch(
@@ -35,7 +46,7 @@ async function authFetch(
     return await fetch(path, {
       ...options,
       headers: {
-        'X-Avalon-Access': accessToken,
+        'X-Game-Hall-Access': accessToken,
         ...(options.headers ?? {}),
       },
     })

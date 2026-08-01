@@ -14,12 +14,21 @@ interface StoredArcadeSession {
   resumeToken: string
 }
 
-const SESSION_KEY = 'gamehall:arcade-session'
+const SESSION_KEY = 'game-hall:arcade-session'
+const LEGACY_SESSION_KEY = 'gamehall:arcade-session'
 
 function readSession(): StoredArcadeSession | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY)
-    return raw ? (JSON.parse(raw) as StoredArcadeSession) : null
+    if (raw) return JSON.parse(raw) as StoredArcadeSession
+
+    const legacyRaw = localStorage.getItem(LEGACY_SESSION_KEY)
+    if (!legacyRaw) return null
+
+    const session = JSON.parse(legacyRaw) as StoredArcadeSession
+    localStorage.setItem(SESSION_KEY, legacyRaw)
+    localStorage.removeItem(LEGACY_SESSION_KEY)
+    return session
   } catch {
     return null
   }
@@ -224,11 +233,13 @@ export const useArcadeStore = defineStore('arcade', () => {
   function saveSession(next: StoredArcadeSession) {
     session.value = next
     localStorage.setItem(SESSION_KEY, JSON.stringify(next))
+    localStorage.removeItem(LEGACY_SESSION_KEY)
   }
 
   function clearSession() {
     session.value = null
     localStorage.removeItem(SESSION_KEY)
+    localStorage.removeItem(LEGACY_SESSION_KEY)
   }
 
   function clearError() {

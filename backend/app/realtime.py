@@ -53,9 +53,9 @@ sio = socketio.AsyncServer(
     engineio_logger=engineio_logger,
 )
 arcade_realtime.bind(sio)
-rooms = RoomManager()
-engine = GameEngine()
-active_sids: dict[tuple[str, str], set[str]] = defaultdict(set)
+avalon_rooms = RoomManager()
+avalon_engine = GameEngine()
+avalon_active_sids: dict[tuple[str, str], set[str]] = defaultdict(set)
 room_state_store = RedisRoomStateStore(redis_connection_url)
 INFO_SOCKET_EVENTS = {
     "game:restart",
@@ -80,12 +80,12 @@ async def restore_room_state() -> None:
     state = await room_state_store.load()
     if state is None:
         return
-    avalon_rooms = state.get("avalon")
+    saved_avalon_rooms = state.get("avalon")
     arcade_rooms = state.get("arcade")
-    if isinstance(avalon_rooms, dict):
-        rooms.rooms = {
+    if isinstance(saved_avalon_rooms, dict):
+        avalon_rooms.rooms = {
             code: room
-            for code, room in avalon_rooms.items()
+            for code, room in saved_avalon_rooms.items()
             if isinstance(code, str) and isinstance(room, Room)
         }
     if isinstance(arcade_rooms, dict):
@@ -96,7 +96,7 @@ async def restore_room_state() -> None:
         }
 
     restored_at = datetime.now(timezone.utc)
-    for room in rooms.rooms.values():
+    for room in avalon_rooms.rooms.values():
         had_connected_human = any(
             not player.is_bot and player.connected for player in room.players
         )
@@ -109,7 +109,7 @@ async def restore_room_state() -> None:
         if had_connected_human:
             room.all_humans_offline_since = restored_at
             room.cleanup_ready = False
-        rooms.update_human_presence(room, now=restored_at)
+        avalon_rooms.update_human_presence(room, now=restored_at)
 
     for room in arcade_realtime.rooms.rooms.values():
         had_connected_player = any(player.connected for player in room.players)
@@ -127,7 +127,7 @@ async def restore_room_state() -> None:
 async def persist_room_state() -> None:
     await room_state_store.save(
         {
-            "avalon": rooms.rooms,
+            "avalon": avalon_rooms.rooms,
             "arcade": arcade_realtime.rooms.rooms,
         }
     )
@@ -141,29 +141,31 @@ def player_channel(room_code: str, player_id: str) -> str:
     return f"player:{room_code}:{player_id}"
 
 
-async def broadcast_room(room: Room) -> None:
+async def broadcast_avalon_room(room: Room) -> None:
     for player in room.players:
         await sio.emit(
             "room:snapshot",
-            build_player_view(room, player, engine),
+            build_player_view(room, player, avalon_engine),
             room=player_channel(room.code, player.id),
         )
 
 
-async def broadcast_lobby() -> None:
-    await sio.emit("lobby:rooms", build_lobby_view(rooms.rooms.values()))
+async def broadcast_avalon_lobby() -> None:
+    await sio.emit(
+        "lobby:rooms", build_lobby_view(avalon_rooms.rooms.values())
+    )
 
 
-async def cleanup_abandoned_rooms() -> None:
+async def maintain_game_rooms() -> None:
     while True:
         await asyncio.sleep(1)
         try:
             await arcade_realtime.tick()
-            changed_rooms = rooms.maintain()
+            changed_rooms = avalon_rooms.maintain()
             if changed_rooms:
                 for room in changed_rooms:
-                    await broadcast_room(room)
-                await broadcast_lobby()
+                    await broadcast_avalon_room(room)
+                await broadcast_avalon_lobby()
             await arcade_realtime.maintain()
             await persist_room_state()
         except Exception:
@@ -185,9 +187,9 @@ async def bind_session(
     session.update({"room_code": room.code, "player_id": player_id})
     await sio.save_session(sid, session)
     await sio.enter_room(sid, player_channel(room.code, player_id))
-    active_sids[(room.code, player_id)].add(sid)
+    avalon_active_sids[(room.code, player_id)].add(sid)
     room.player(player_id).connected = True
-    rooms.update_human_presence(room)
+    avalon_rooms.update_human_presence(room)
 
 
 async def clear_room_session(sid: str) -> None:
@@ -203,7 +205,7 @@ async def clear_room_session(sid: str) -> None:
 async def context_for_sid(sid: str) -> tuple[Room, str]:
     try:
         session = await sio.get_session(sid)
-        room = rooms.get_room(session["room_code"])
+        room = avalon_rooms.get_room(session["room_code"])
         player_id = session["player_id"]
         room.player(player_id)
     except (KeyError, TypeError) as exc:
@@ -255,7 +257,7 @@ async def avalon_event_log_context(
     normalized_code = (
         str(room_code).strip().upper() if room_code else None
     )
-    room = rooms.rooms.get(normalized_code or "")
+    room = avalon_rooms.rooms.get(normalized_code or "")
     if room is not None:
         normalized_code = room.code
     return {
@@ -326,7 +328,7 @@ async def execute_action(
                 action(room, player_id)
             else:
                 action(room, player_id, payload)
-            advance_ai_players(room, engine)
+            advance_ai_players(room, avalon_engine)
             if room.phase == Phase.GAME_OVER:
                 try:
                     recorded = account_store().record_match(room)
@@ -346,7 +348,7 @@ async def execute_action(
                     logger.exception(
                         "Failed to persist completed match %s", room.game_id
                     )
-        await broadcast_room(room)
+        await broadcast_avalon_room(room)
         return {"ok": True}
     except (ValidationError, RoomError, GameRuleError, KeyError) as error:
         return error_response(error)
@@ -360,7 +362,7 @@ async def execute_lobby_action(
 ) -> dict[str, Any]:
     response = await execute_action(sid, raw_data, schema, action)
     if response.get("ok"):
-        await broadcast_lobby()
+        await broadcast_avalon_lobby()
     return response
 
 
@@ -390,7 +392,7 @@ async def connect(sid: str, environ: dict, auth: Any) -> bool | None:
     )
     await sio.emit(
         "lobby:rooms",
-        build_lobby_view(rooms.rooms.values()),
+        build_lobby_view(avalon_rooms.rooms.values()),
         to=sid,
     )
     await arcade_realtime.on_connect(sid)
@@ -405,13 +407,13 @@ async def disconnect(sid: str, reason: str) -> None:
     except (RoomError, KeyError):
         return
     key = (room.code, player_id)
-    active_sids[key].discard(sid)
-    if not active_sids[key]:
+    avalon_active_sids[key].discard(sid)
+    if not avalon_active_sids[key]:
         room.player(player_id).connected = False
         room.revision += 1
-        active_sids.pop(key, None)
-        rooms.update_human_presence(room)
-        await broadcast_room(room)
+        avalon_active_sids.pop(key, None)
+        avalon_rooms.update_human_presence(room)
+        await broadcast_avalon_room(room)
 
 
 @logged_socket_event("room:create")
@@ -421,12 +423,12 @@ async def create_room(sid: str, raw_data: Any) -> dict[str, Any]:
         account = account_store().account_for_id(account_id)
         if account is None:
             raise RoomError("登录状态无效，请重新登录")
-        room, player, token = rooms.create_room(
+        room, player, token = avalon_rooms.create_room(
             account.player_name, account_id
         )
         await bind_session(sid, room, player.id)
-        await broadcast_room(room)
-        await broadcast_lobby()
+        await broadcast_avalon_room(room)
+        await broadcast_avalon_lobby()
         return {
             "ok": True,
             "roomCode": room.code,
@@ -445,12 +447,12 @@ async def join_room(sid: str, raw_data: Any) -> dict[str, Any]:
         account = account_store().account_for_id(account_id)
         if account is None:
             raise RoomError("登录状态无效，请重新登录")
-        room, player, token = rooms.join_room(
+        room, player, token = avalon_rooms.join_room(
             payload.room_code, account.player_name, account_id
         )
         await bind_session(sid, room, player.id)
-        await broadcast_room(room)
-        await broadcast_lobby()
+        await broadcast_avalon_room(room)
+        await broadcast_avalon_lobby()
         return {
             "ok": True,
             "roomCode": room.code,
@@ -466,13 +468,13 @@ async def resume_room(sid: str, raw_data: Any) -> dict[str, Any]:
     try:
         payload = ResumePayload.model_validate(raw_data or {})
         account_id = await account_id_for_sid(sid)
-        room = rooms.get_room(payload.room_code)
+        room = avalon_rooms.get_room(payload.room_code)
         async with room.lock:
-            room, player = rooms.resume(
+            room, player = avalon_rooms.resume(
                 payload.room_code, payload.token, account_id
             )
         await bind_session(sid, room, player.id)
-        await broadcast_room(room)
+        await broadcast_avalon_room(room)
         return {
             "ok": True,
             "roomCode": room.code,
@@ -487,10 +489,10 @@ async def cleanup_room(sid: str, raw_data: Any) -> dict[str, Any]:
     try:
         payload = RoomCodePayload.model_validate(raw_data or {})
         await account_id_for_sid(sid)
-        room = rooms.get_room(payload.room_code)
+        room = avalon_rooms.get_room(payload.room_code)
         async with room.lock:
-            rooms.cleanup_room(room.code)
-        await broadcast_lobby()
+            avalon_rooms.cleanup_room(room.code)
+        await broadcast_avalon_lobby()
         await persist_room_state()
         return {"ok": True}
     except (ValidationError, RoomError, KeyError) as error:
@@ -512,20 +514,20 @@ async def leave_room(sid: str, raw_data: Any = None) -> dict[str, Any]:
         seat_preserved = room.phase != Phase.LOBBY
         async with room.lock:
             if not seat_preserved:
-                rooms.leave_lobby(room, player_id)
+                avalon_rooms.leave_lobby(room, player_id)
         await sio.leave_room(sid, player_channel(room.code, player_id))
         active_key = (room.code, player_id)
-        active_sids[active_key].discard(sid)
-        if not active_sids[active_key]:
-            active_sids.pop(active_key, None)
+        avalon_active_sids[active_key].discard(sid)
+        if not avalon_active_sids[active_key]:
+            avalon_active_sids.pop(active_key, None)
             if seat_preserved:
                 room.player(player_id).connected = False
                 room.revision += 1
-                rooms.update_human_presence(room)
+                avalon_rooms.update_human_presence(room)
         await clear_room_session(sid)
-        if room.code in rooms.rooms:
-            await broadcast_room(room)
-        await broadcast_lobby()
+        if room.code in avalon_rooms.rooms:
+            await broadcast_avalon_room(room)
+        await broadcast_avalon_lobby()
         return {"ok": True, "seatPreserved": seat_preserved}
     except (RoomError, GameRuleError, KeyError) as error:
         return error_response(error)
@@ -537,7 +539,7 @@ async def set_lady(sid: str, raw_data: Any) -> dict[str, Any]:
         sid,
         raw_data,
         LadySettingPayload,
-        lambda room, player_id, payload: rooms.set_lady_enabled(
+        lambda room, player_id, payload: avalon_rooms.set_lady_enabled(
             room, player_id, payload.enabled
         ),
     )
@@ -548,7 +550,7 @@ async def add_ai_player(
     sid: str, raw_data: Any = None
 ) -> dict[str, Any]:
     return await execute_lobby_action(
-        sid, raw_data, None, rooms.add_ai_player
+        sid, raw_data, None, avalon_rooms.add_ai_player
     )
 
 
@@ -558,7 +560,7 @@ async def set_listed(sid: str, raw_data: Any) -> dict[str, Any]:
         sid,
         raw_data,
         ListedSettingPayload,
-        lambda room, player_id, payload: rooms.set_listed(
+        lambda room, player_id, payload: avalon_rooms.set_listed(
             room, player_id, payload.listed
         ),
     )
@@ -573,7 +575,7 @@ async def set_early_assassination(
         raw_data,
         EarlyAssassinationSettingPayload,
         lambda room, player_id, payload: (
-            rooms.set_early_assassination_enabled(
+            avalon_rooms.set_early_assassination_enabled(
                 room, player_id, payload.enabled
             )
         ),
@@ -587,18 +589,18 @@ async def kick_player(sid: str, raw_data: Any) -> dict[str, Any]:
         room, player_id = await context_for_sid(sid)
         target_channel = player_channel(room.code, payload.target_id)
         async with room.lock:
-            rooms.kick_player(room, player_id, payload.target_id)
+            avalon_rooms.kick_player(room, player_id, payload.target_id)
         await sio.emit(
             "room:kicked",
             {"message": "你已被房主移出房间"},
             room=target_channel,
         )
         target_key = (room.code, payload.target_id)
-        target_sids = list(active_sids.pop(target_key, set()))
+        target_sids = list(avalon_active_sids.pop(target_key, set()))
         for target_sid in target_sids:
             await sio.disconnect(target_sid)
-        await broadcast_room(room)
-        await broadcast_lobby()
+        await broadcast_avalon_room(room)
+        await broadcast_avalon_lobby()
         return {"ok": True}
     except (ValidationError, RoomError, GameRuleError, KeyError) as error:
         return error_response(error)
@@ -607,13 +609,15 @@ async def kick_player(sid: str, raw_data: Any) -> dict[str, Any]:
 @logged_socket_event("game:start")
 async def start_game(sid: str, raw_data: Any = None) -> dict[str, Any]:
     return await execute_lobby_action(
-        sid, raw_data, None, engine.start_game
+        sid, raw_data, None, avalon_engine.start_game
     )
 
 
 @logged_socket_event("game:confirm-role")
 async def confirm_role(sid: str, raw_data: Any = None) -> dict[str, Any]:
-    return await execute_action(sid, raw_data, None, engine.confirm_role)
+    return await execute_action(
+        sid, raw_data, None, avalon_engine.confirm_role
+    )
 
 
 @logged_socket_event("game:propose-team")
@@ -622,7 +626,7 @@ async def propose_team(sid: str, raw_data: Any) -> dict[str, Any]:
         sid,
         raw_data,
         TeamPayload,
-        lambda room, player_id, payload: engine.propose_team(
+        lambda room, player_id, payload: avalon_engine.propose_team(
             room, player_id, payload.team_ids
         ),
     )
@@ -634,7 +638,7 @@ async def vote_team(sid: str, raw_data: Any) -> dict[str, Any]:
         sid,
         raw_data,
         TeamVotePayload,
-        lambda room, player_id, payload: engine.vote_team(
+        lambda room, player_id, payload: avalon_engine.vote_team(
             room, player_id, payload.approve
         ),
     )
@@ -646,7 +650,7 @@ async def vote_mission(sid: str, raw_data: Any) -> dict[str, Any]:
         sid,
         raw_data,
         MissionVotePayload,
-        lambda room, player_id, payload: engine.vote_mission(
+        lambda room, player_id, payload: avalon_engine.vote_mission(
             room, player_id, payload.success
         ),
     )
@@ -655,7 +659,7 @@ async def vote_mission(sid: str, raw_data: Any) -> dict[str, Any]:
 @logged_socket_event("game:continue")
 async def continue_game(sid: str, raw_data: Any = None) -> dict[str, Any]:
     return await execute_action(
-        sid, raw_data, None, engine.continue_after_mission
+        sid, raw_data, None, avalon_engine.continue_after_mission
     )
 
 
@@ -665,7 +669,7 @@ async def lady_inspect(sid: str, raw_data: Any) -> dict[str, Any]:
         sid,
         raw_data,
         TargetPayload,
-        lambda room, player_id, payload: engine.inspect_with_lady(
+        lambda room, player_id, payload: avalon_engine.inspect_with_lady(
             room, player_id, payload.target_id
         ),
     )
@@ -675,7 +679,9 @@ async def lady_inspect(sid: str, raw_data: Any) -> dict[str, Any]:
 async def lady_acknowledge(
     sid: str, raw_data: Any = None
 ) -> dict[str, Any]:
-    return await execute_action(sid, raw_data, None, engine.acknowledge_lady)
+    return await execute_action(
+        sid, raw_data, None, avalon_engine.acknowledge_lady
+    )
 
 
 @logged_socket_event("game:assassinate")
@@ -684,7 +690,7 @@ async def assassinate(sid: str, raw_data: Any) -> dict[str, Any]:
         sid,
         raw_data,
         TargetPayload,
-        lambda room, player_id, payload: engine.assassinate(
+        lambda room, player_id, payload: avalon_engine.assassinate(
             room, player_id, payload.target_id
         ),
     )
@@ -696,7 +702,7 @@ async def early_assassinate(sid: str, raw_data: Any) -> dict[str, Any]:
         sid,
         raw_data,
         TargetPayload,
-        lambda room, player_id, payload: engine.early_assassinate(
+        lambda room, player_id, payload: avalon_engine.early_assassinate(
             room, player_id, payload.target_id
         ),
     )
@@ -704,7 +710,9 @@ async def early_assassinate(sid: str, raw_data: Any) -> dict[str, Any]:
 
 @logged_socket_event("game:restart")
 async def restart(sid: str, raw_data: Any = None) -> dict[str, Any]:
-    return await execute_lobby_action(sid, raw_data, None, engine.restart)
+    return await execute_lobby_action(
+        sid, raw_data, None, avalon_engine.restart
+    )
 
 
 @logged_socket_event("chat:send")
@@ -713,7 +721,7 @@ async def send_chat(sid: str, raw_data: Any) -> dict[str, Any]:
         sid,
         raw_data,
         ChatPayload,
-        lambda room, player_id, payload: rooms.send_chat(
+        lambda room, player_id, payload: avalon_rooms.send_chat(
             room, player_id, payload.content
         ),
     )
@@ -725,5 +733,5 @@ async def list_lobby_rooms(
 ) -> dict[str, Any]:
     return {
         "ok": True,
-        "rooms": build_lobby_view(rooms.rooms.values()),
+        "rooms": build_lobby_view(avalon_rooms.rooms.values()),
     }

@@ -8,10 +8,10 @@ describe('theme preferences', () => {
   })
 
   it('uses the default theme when no valid preference exists', () => {
-    expect(storedTheme()).toBe('avalon')
+    expect(storedTheme()).toBe('emerald')
 
-    localStorage.setItem('avalon:theme', 'unknown')
-    expect(storedTheme()).toBe('avalon')
+    localStorage.setItem('game-hall:theme', 'unknown')
+    expect(storedTheme()).toBe('emerald')
   })
 
   it('persists and applies the selected theme', () => {
@@ -22,9 +22,17 @@ describe('theme preferences', () => {
   })
 
   it('restores the saved theme during startup', () => {
-    localStorage.setItem('avalon:theme', 'royal')
+    localStorage.setItem('game-hall:theme', 'royal')
     initializeTheme()
 
     expect(document.documentElement.dataset.theme).toBe('royal')
+  })
+
+  it('migrates the legacy Avalon theme preference', () => {
+    localStorage.setItem('avalon:theme', 'avalon')
+
+    expect(storedTheme()).toBe('emerald')
+    expect(localStorage.getItem('game-hall:theme')).toBe('emerald')
+    expect(localStorage.getItem('avalon:theme')).toBeNull()
   })
 })

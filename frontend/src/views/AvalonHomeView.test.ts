@@ -2,9 +2,9 @@ import { createPinia } from 'pinia'
 import { mount } from '@vue/test-utils'
 import CleanupRoomButton from '../components/CleanupRoomButton.vue'
 import { useRoomStore } from '../games/avalon/store'
-import HomeView from './HomeView.vue'
+import AvalonHomeView from './AvalonHomeView.vue'
 
-describe('Avalon HomeView', () => {
+describe('Avalon home view', () => {
   it('shows cleanup-ready rooms and lets any logged-in user clean them', async () => {
     const pinia = createPinia()
     const room = useRoomStore(pinia)
@@ -21,7 +21,7 @@ describe('Avalon HomeView', () => {
       },
     ]
     const cleanupRoom = vi.spyOn(room, 'cleanupRoom').mockResolvedValue(true)
-    const wrapper = mount(HomeView, {
+    const wrapper = mount(AvalonHomeView, {
       props: {
         account: {
           id: 'account-1',

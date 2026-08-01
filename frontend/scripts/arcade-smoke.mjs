@@ -20,7 +20,7 @@ async function register(accessToken, index) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Avalon-Access': accessToken,
+      'X-Game-Hall-Access': accessToken,
     },
     body: JSON.stringify({
       username,
@@ -161,7 +161,7 @@ try {
 
   const headers = {
     Authorization: `Bearer ${accounts[0].token}`,
-    'X-Avalon-Access': access.token,
+    'X-Game-Hall-Access': access.token,
   }
   const catalog = await jsonRequest('/api/games', { headers })
   if (catalog.games.length !== 11) throw new Error('游戏目录数量不是 11')

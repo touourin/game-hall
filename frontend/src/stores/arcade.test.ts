@@ -13,7 +13,8 @@ vi.mock('../socket', () => socketMocks)
 
 import { useArcadeStore } from './arcade'
 
-const SESSION_KEY = 'gamehall:arcade-session'
+const SESSION_KEY = 'game-hall:arcade-session'
+const LEGACY_SESSION_KEY = 'gamehall:arcade-session'
 const storedSession = {
   gameKey: 'xiangqi',
   roomCode: 'TEST',
@@ -32,6 +33,16 @@ describe('arcade room store', () => {
     setActivePinia(createPinia())
     localStorage.clear()
     vi.clearAllMocks()
+  })
+
+  it('migrates the old game-hall room session key', () => {
+    localStorage.setItem(LEGACY_SESSION_KEY, JSON.stringify(storedSession))
+
+    const arcade = useArcadeStore()
+
+    expect(arcade.resumableRoomCode).toBe('TEST')
+    expect(localStorage.getItem(SESSION_KEY)).toBe(JSON.stringify(storedSession))
+    expect(localStorage.getItem(LEGACY_SESSION_KEY)).toBeNull()
   })
 
   it('resumes the room after reconnecting even while an old snapshot is visible', async () => {

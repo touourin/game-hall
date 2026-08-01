@@ -20,6 +20,14 @@ describe('account service', () => {
     expect(storedAccountToken()).toBeNull()
   })
 
+  it('migrates a legacy Avalon account session', () => {
+    localStorage.setItem('avalon:account-token', 'legacy-account-token')
+
+    expect(storedAccountToken()).toBe('legacy-account-token')
+    expect(localStorage.getItem('game-hall:account-token')).toBe('legacy-account-token')
+    expect(localStorage.getItem('avalon:account-token')).toBeNull()
+  })
+
   it('sends both the front-door token and login credentials', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
@@ -49,7 +57,7 @@ describe('account service', () => {
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
-          'X-Avalon-Access': 'access-token',
+          'X-Game-Hall-Access': 'access-token',
         }),
       }),
     )

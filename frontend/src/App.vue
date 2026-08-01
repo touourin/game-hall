@@ -29,7 +29,7 @@ import { useArcadeStore } from './stores/arcade'
 import type { GameCatalogItem } from './types/arcade'
 import AccessGate from './views/AccessGate.vue'
 import AccountGate from './views/AccountGate.vue'
-import HomeView from './views/HomeView.vue'
+import AvalonHomeView from './views/AvalonHomeView.vue'
 import GameRoom from './games/avalon/GameRoom.vue'
 import GameHall from './views/GameHall.vue'
 import ArcadeHome from './views/ArcadeHome.vue'
@@ -73,7 +73,7 @@ function enterGame(profile: AccountProfile, token: string) {
   accountState.value = 'authenticated'
   rememberAccountToken(token)
   setSocketAccountToken(token)
-  document.title = '私人游戏大厅'
+  document.title = '游戏大厅'
   room.init()
   arcade.init()
   if (!socket.connected) socket.connect()
@@ -239,7 +239,7 @@ onMounted(async () => {
       @rename="changePlayerName"
       @select="selectedGame = $event"
     />
-    <HomeView
+    <AvalonHomeView
       v-else-if="selectedGame.key === 'avalon'"
       :account="account"
       @logout="logout"

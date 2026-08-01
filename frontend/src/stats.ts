@@ -120,7 +120,7 @@ async function statsRequest<T>(path: string): Promise<T> {
   try {
     response = await fetch(path, {
       headers: {
-        'X-Avalon-Access': accessToken,
+        'X-Game-Hall-Access': accessToken,
         Authorization: `Bearer ${accountToken}`,
       },
     })

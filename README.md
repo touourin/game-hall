@@ -1,4 +1,4 @@
-# 私人游戏大厅
+# 游戏大厅
 
 一个为手机和局域网设计的多人游戏大厅。账号、战绩、排行榜和实时房间能力由平台层统一提供，每款游戏的规则与界面独立维护。
 
@@ -135,7 +135,7 @@ npm --prefix frontend run smoke:arcade
 生产构建后，也可以在已经准备好 MySQL 和 Redis、且 `.env` 包含 `DATABASE_URL` 与 `REDIS_URL` 时直接运行：
 
 ```bash
-.venv/bin/uvicorn backend.app.main:app --env-file .env --host 0.0.0.0 --port 10618 --workers 1
+.venv/bin/python -m uvicorn backend.app.main:app --env-file .env --host 0.0.0.0 --port 10618 --workers 1
 ```
 
 然后访问 `http://服务器内网IP:10618`。
@@ -176,6 +176,8 @@ docker exec game-hall-mysql sh -c 'exec mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASS
 ```
 
 ## 项目结构
+
+推荐仓库目录名为 `game-hall`。目录名不参与程序运行，已有部署仍放在旧目录时也能正常启动。
 
 ```text
 frontend/src/views/         游戏大厅、通用房间与账号界面

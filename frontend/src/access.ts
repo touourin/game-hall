@@ -1,4 +1,5 @@
-const ACCESS_TOKEN_KEY = 'internal:access-token'
+const ACCESS_TOKEN_KEY = 'game-hall:access-token'
+const LEGACY_ACCESS_TOKEN_KEY = 'internal:access-token'
 
 interface UnlockResponse {
   ok: boolean
@@ -6,15 +7,25 @@ interface UnlockResponse {
 }
 
 export function storedAccessToken(): string | null {
-  return sessionStorage.getItem(ACCESS_TOKEN_KEY)
+  const token = sessionStorage.getItem(ACCESS_TOKEN_KEY)
+  if (token) return token
+
+  const legacyToken = sessionStorage.getItem(LEGACY_ACCESS_TOKEN_KEY)
+  if (!legacyToken) return null
+
+  sessionStorage.setItem(ACCESS_TOKEN_KEY, legacyToken)
+  sessionStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY)
+  return legacyToken
 }
 
 export function rememberAccessToken(token: string): void {
   sessionStorage.setItem(ACCESS_TOKEN_KEY, token)
+  sessionStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY)
 }
 
 export function clearAccessToken(): void {
   sessionStorage.removeItem(ACCESS_TOKEN_KEY)
+  sessionStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY)
 }
 
 export async function validateAccessToken(token: string): Promise<boolean> {

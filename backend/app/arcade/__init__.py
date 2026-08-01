@@ -1,1 +1,1 @@
-"""Shared real-time room platform for non-Avalon games."""
+"""Shared real-time room platform for game-hall engines."""

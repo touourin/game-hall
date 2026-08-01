@@ -24,7 +24,7 @@ const themes: Array<{
   name: string
   colors: string[]
 }> = [
-  { id: 'avalon', name: '翡翠圆桌', colors: ['#061719', '#123b3a', '#e1bc68'] },
+  { id: 'emerald', name: '翡翠圆桌', colors: ['#061719', '#123b3a', '#e1bc68'] },
   { id: 'midnight', name: '午夜圣殿', colors: ['#07131f', '#102e42', '#82b9e8'] },
   { id: 'royal', name: '王室秘仪', colors: ['#160f1e', '#35233e', '#d5a8e8'] },
 ]

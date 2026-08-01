@@ -16,10 +16,18 @@ describe('access service', () => {
   it('stores the access token only for the current browser session', () => {
     rememberAccessToken('session-token')
     expect(storedAccessToken()).toBe('session-token')
-    expect(localStorage.getItem('internal:access-token')).toBeNull()
+    expect(localStorage.getItem('game-hall:access-token')).toBeNull()
 
     clearAccessToken()
     expect(storedAccessToken()).toBeNull()
+  })
+
+  it('migrates the old session-only access key', () => {
+    sessionStorage.setItem('internal:access-token', 'legacy-token')
+
+    expect(storedAccessToken()).toBe('legacy-token')
+    expect(sessionStorage.getItem('game-hall:access-token')).toBe('legacy-token')
+    expect(sessionStorage.getItem('internal:access-token')).toBeNull()
   })
 
   it('returns the server token after a successful password check', async () => {

@@ -66,7 +66,7 @@ async function registerAccounts() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Avalon-Access': access.token,
+          'X-Game-Hall-Access': access.token,
         },
         body: JSON.stringify({
           username: `${accountPrefix}_${index + 1}`,

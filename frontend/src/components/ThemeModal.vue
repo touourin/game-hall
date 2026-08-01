@@ -13,7 +13,7 @@ const themes: Array<{
   colors: string[]
 }> = [
   {
-    id: 'avalon',
+    id: 'emerald',
     name: '翡翠圆桌',
     description: '当前经典深绿与鎏金主题',
     colors: ['#061719', '#123b3a', '#e1bc68'],
