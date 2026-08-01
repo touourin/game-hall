@@ -92,6 +92,16 @@ async def bind_session(
     rooms.update_human_presence(room)
 
 
+async def clear_room_session(sid: str) -> None:
+    try:
+        session = await sio.get_session(sid)
+    except KeyError:
+        return
+    session.pop("room_code", None)
+    session.pop("player_id", None)
+    await sio.save_session(sid, session)
+
+
 async def context_for_sid(sid: str) -> tuple[Room, str]:
     try:
         session = await sio.get_session(sid)
@@ -273,7 +283,7 @@ async def leave_room(sid: str, raw_data: Any = None) -> dict[str, Any]:
                 room.player(player_id).connected = False
                 room.revision += 1
                 rooms.update_human_presence(room)
-        await sio.save_session(sid, {})
+        await clear_room_session(sid)
         if room.code in rooms.rooms:
             await broadcast_room(room)
         await broadcast_lobby()

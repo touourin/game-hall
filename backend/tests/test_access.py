@@ -1,9 +1,12 @@
+from collections import defaultdict
 from unittest.mock import AsyncMock
 
 from fastapi.testclient import TestClient
 
+from backend.app import realtime
 from backend.app.access import access_token, verify_access_token, verify_password
 from backend.app.accounts import account_store
+from backend.app.games.avalon.rooms import RoomManager
 from backend.app.main import api
 from backend.app.realtime import connect, sio
 
@@ -121,3 +124,43 @@ async def test_socket_connection_requires_both_tokens(
         "lobby:rooms",
         "arcade:lobby",
     }
+
+
+async def test_leaving_avalon_preserves_socket_account_identity(
+    monkeypatch,
+) -> None:
+    manager = RoomManager()
+    room, player, _ = manager.create_room("亚瑟", account_id="account-1")
+    session = {
+        "account_id": "account-1",
+        "room_code": room.code,
+        "player_id": player.id,
+        "arcade_room_code": "GMKU",
+        "arcade_player_id": "arcade-player",
+    }
+    get_session = AsyncMock(return_value=session)
+    save_session = AsyncMock()
+    leave_socket_room = AsyncMock()
+    broadcast_lobby = AsyncMock()
+    monkeypatch.setattr(realtime, "rooms", manager)
+    monkeypatch.setattr(
+        realtime,
+        "active_sids",
+        defaultdict(set, {(room.code, player.id): {"socket-1"}}),
+    )
+    monkeypatch.setattr(sio, "get_session", get_session)
+    monkeypatch.setattr(sio, "save_session", save_session)
+    monkeypatch.setattr(sio, "leave_room", leave_socket_room)
+    monkeypatch.setattr(realtime, "broadcast_lobby", broadcast_lobby)
+
+    response = await realtime.leave_room("socket-1")
+
+    assert response == {"ok": True, "seatPreserved": False}
+    save_session.assert_awaited_once_with(
+        "socket-1",
+        {
+            "account_id": "account-1",
+            "arcade_room_code": "GMKU",
+            "arcade_player_id": "arcade-player",
+        },
+    )
