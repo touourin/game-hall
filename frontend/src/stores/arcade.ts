@@ -77,10 +77,15 @@ export const useArcadeStore = defineStore('arcade', () => {
     }
   }
 
-  async function createRoom(gameKey: ArcadeGameKey, name: string) {
+  async function createRoom(
+    gameKey: ArcadeGameKey,
+    name: string,
+    options: Record<string, unknown> = {},
+  ) {
     const response = await perform('arcade:create', {
       game_key: gameKey,
       name,
+      options,
     })
     if (response?.roomCode && response.playerId && response.resumeToken) {
       saveSession({

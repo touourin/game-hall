@@ -55,10 +55,11 @@ function emitAck(socket, event, payload = {}) {
   })
 }
 
-async function playToResignation(gameKey, clients, names) {
+async function playToResignation(gameKey, clients, names, options = {}) {
   const created = await emitAck(clients[0], 'arcade:create', {
     game_key: gameKey,
     name: names[0],
+    options,
   })
   for (let index = 1; index < clients.length; index += 1) {
     await emitAck(clients[index], 'arcade:join', {
@@ -105,18 +106,28 @@ try {
     rooms[gameKey] = await playToResignation(gameKey, sockets.slice(0, 2), names.slice(0, 2))
   }
   rooms.doudizhu = await playToResignation('doudizhu', sockets, names)
+  rooms.junqiDark = await playToResignation(
+    'junqi', sockets.slice(0, 2), names.slice(0, 2), { mode: 'dark' },
+  )
+  rooms.junqiFlip = await playToResignation(
+    'junqi', sockets.slice(0, 2), names.slice(0, 2), { mode: 'flip' },
+  )
 
   const headers = {
     Authorization: `Bearer ${accounts[0].token}`,
     'X-Avalon-Access': access.token,
   }
   const catalog = await jsonRequest('/api/games', { headers })
-  if (catalog.games.length !== 5) throw new Error('游戏目录数量不是 5')
+  if (catalog.games.length !== 6) throw new Error('游戏目录数量不是 6')
   for (const gameKey of ['gomoku', 'xiangqi', 'go', 'doudizhu']) {
     const stats = await jsonRequest(`/api/stats/me?game=${gameKey}`, { headers })
     if (stats.summary.games !== 1 || stats.history[0]?.gameKey !== gameKey) {
       throw new Error(`${gameKey} 战绩没有正确保存`)
     }
+  }
+  const junqiStats = await jsonRequest('/api/stats/me?game=junqi', { headers })
+  if (junqiStats.summary.games !== 2 || junqiStats.history.some((item) => item.gameKey !== 'junqi')) {
+    throw new Error('军旗双模式战绩没有正确保存')
   }
 
   process.stdout.write(`${JSON.stringify({ ok: true, prefix, rooms })}\n`)

@@ -27,6 +27,7 @@ class ArcadeRoom:
     host_id: str
     players: list[ArcadePlayer]
     state: Any
+    options: dict[str, Any] = field(default_factory=dict)
     listed: bool = True
     phase: str = "lobby"
     revision: int = 0

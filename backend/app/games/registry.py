@@ -4,6 +4,7 @@ from backend.app.games.base import GameEngine
 from backend.app.games.doudizhu import DoudizhuEngine
 from backend.app.games.go import GoEngine
 from backend.app.games.gomoku import GomokuEngine
+from backend.app.games.junqi import JunqiEngine
 from backend.app.games.xiangqi import XiangqiEngine
 
 
@@ -13,6 +14,7 @@ def build_engine_registry() -> dict[str, GameEngine]:
         XiangqiEngine(),
         GoEngine(),
         DoudizhuEngine(),
+        JunqiEngine(),
     ]
     return {engine.key: engine for engine in engines}
 
@@ -47,5 +49,11 @@ GAME_CATALOG = [
         "name": "斗地主",
         "players": "3 人",
         "description": "叫地主、完整牌型与联网对战",
+    },
+    {
+        "key": "junqi",
+        "name": "军旗",
+        "players": "2 人",
+        "description": "暗军旗布阵与翻棋对战",
     },
 ]

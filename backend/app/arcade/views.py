@@ -18,6 +18,7 @@ def build_lobby_view(
             "hostName": room.host.name,
             "playerCount": len(room.players),
             "maxPlayers": engines[room.game_key].max_players,
+            "options": room.options,
         }
         for room in rooms
         if room.listed and room.phase == "lobby"
@@ -34,6 +35,7 @@ def build_room_view(
         "roomCode": room.code,
         "gameKey": room.game_key,
         "gameName": engine.name,
+        "options": room.options,
         "phase": room.phase,
         "hostId": room.host_id,
         "self": {
@@ -62,7 +64,7 @@ def build_room_view(
                 and engine.min_players <= len(room.players) <= engine.max_players
             ),
             "canRestart": room.phase == "finished" and viewer.id == room.host_id,
-            "canAct": room.phase in {"playing", "bidding"},
+            "canAct": room.phase in {"setup", "playing", "bidding"},
         },
         "game": engine.view(room, viewer),
     }

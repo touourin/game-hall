@@ -33,6 +33,11 @@ const roleLabels: Record<string, string> = {
   red: '红方',
   landlord: '地主',
   farmer: '农民',
+  blue: '蓝方',
+  'dark-red': '暗军旗·红方',
+  'dark-blue': '暗军旗·蓝方',
+  'flip-red': '翻棋军旗·红方',
+  'flip-blue': '翻棋军旗·蓝方',
 }
 
 function roleLabel(role: string): string {
@@ -109,6 +114,9 @@ onMounted(async () => {
         <span class="modal-icon"><History :size="24" /></span>
         <h2>{{ selectedMatch.gameName }} · 房间 {{ selectedMatch.roomCode }}</h2>
         <p>{{ formatDate(selectedMatch.endedAt) }} · {{ selectedMatch.playerCount }} 人局</p>
+        <p v-if="selectedMatch.gameKey === 'junqi'" class="match-mode-label">
+          {{ selectedMatch.details.options?.mode === 'flip' ? '翻棋军旗' : '暗军旗' }}
+        </p>
 
         <div class="match-detail-result" :class="selectedMatch.winner">
           <strong>{{ winnerLabel(selectedMatch) }}</strong>
@@ -199,6 +207,9 @@ onMounted(async () => {
             <div v-for="player in selectedMatch.details.players" :key="player.id">
               <b>{{ player.seat + 1 }}号</b>
               <strong>{{ player.name }}</strong>
+              <em v-if="selectedMatch.gameKey === 'junqi'" :class="player.alignment">
+                {{ roleLabel(player.role ?? '') }}
+              </em>
             </div>
           </div>
         </div>

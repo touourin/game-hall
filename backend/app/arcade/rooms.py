@@ -37,8 +37,10 @@ class ArcadeRoomManager:
         game_key: str,
         player_name: str,
         account_id: str,
+        options: dict[str, Any] | None = None,
     ) -> tuple[ArcadeRoom, ArcadePlayer, str]:
         engine = self.engine(game_key)
+        normalized_options = self._room_options(engine, options or {})
         name = self._normalize_name(player_name)
         code = self._new_code()
         token = secrets.token_urlsafe(32)
@@ -55,6 +57,7 @@ class ArcadeRoomManager:
             host_id=player.id,
             players=[player],
             state=engine.initial_state(),
+            options=normalized_options,
         )
         self.rooms[code] = room
         return room, player, token
@@ -110,7 +113,7 @@ class ArcadeRoomManager:
         raise ArcadeRoomError("恢复凭证无效，请重新加入房间")
 
     def leave(self, room: ArcadeRoom, player_id: str) -> bool:
-        if room.phase in {"playing", "bidding"}:
+        if room.phase in {"setup", "playing", "bidding"}:
             room.player(player_id).connected = False
             room.revision += 1
             self.update_presence(room)
@@ -161,7 +164,7 @@ class ArcadeRoomManager:
         action: str,
         payload: dict[str, Any],
     ) -> None:
-        if room.phase not in {"playing", "bidding"}:
+        if room.phase not in {"setup", "playing", "bidding"}:
             raise ArcadeRoomError("当前不能进行这个操作")
         player = room.player(player_id)
         self.engine(room.game_key).act(room, player, action, payload)
@@ -235,6 +238,15 @@ class ArcadeRoomManager:
         if len(normalized) > 12:
             raise ArcadeRoomError("玩家名称最多 12 个字符")
         return normalized
+
+    @staticmethod
+    def _room_options(
+        engine: GameEngine, options: dict[str, Any]
+    ) -> dict[str, Any]:
+        normalizer = getattr(engine, "room_options", None)
+        if normalizer is None:
+            return {}
+        return normalizer(options)
 
 
 ACTION_ERRORS = (ArcadeRoomError, GameRuleError, KeyError)

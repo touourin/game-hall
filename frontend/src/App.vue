@@ -55,6 +55,7 @@ function initialSelectedGame(): GameCatalogItem | null {
     xiangqi: { key: 'xiangqi', name: '中国象棋', players: '2 人', description: '楚河汉界，完整走子规则' },
     go: { key: 'go', name: '围棋', players: '2 人', description: '19 路中国规则' },
     doudizhu: { key: 'doudizhu', name: '斗地主', players: '3 人', description: '叫地主与完整牌型对战' },
+    junqi: { key: 'junqi', name: '军旗', players: '2 人', description: '暗军旗布阵与翻棋对战' },
   }
   if (gameKey && catalog[gameKey]) return catalog[gameKey]
   if (params.get('room')) return catalog.avalon

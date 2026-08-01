@@ -19,6 +19,7 @@ from .views import build_lobby_view, build_room_view
 class CreatePayload(BaseModel):
     game_key: str = Field(min_length=1, max_length=32)
     name: str = Field(min_length=1, max_length=12)
+    options: dict[str, Any] = Field(default_factory=dict)
 
 
 class JoinPayload(CreatePayload):
@@ -82,7 +83,7 @@ class ArcadeRealtime:
             payload = CreatePayload.model_validate(raw_data or {})
             account_id = await self._account_id(sid)
             room, player, token = self.rooms.create_room(
-                payload.game_key, payload.name, account_id
+                payload.game_key, payload.name, account_id, payload.options
             )
             await self._bind_session(sid, room, player.id)
             await self.broadcast_room(room)
@@ -289,13 +290,16 @@ class ArcadeRealtime:
                 started_at=room.started_at,
                 ended_at=room.ended_at,
                 details={
+                    "options": room.options,
                     "players": [
                         {
                             "id": player.id,
                             "name": player.name,
                             "seat": player.seat,
+                            "role": players[index]["role"],
+                            "alignment": players[index]["alignment"],
                         }
-                        for player in room.players
+                        for index, player in enumerate(room.players)
                     ],
                     "state": state,
                 },

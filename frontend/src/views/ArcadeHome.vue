@@ -18,6 +18,7 @@ const name = ref(localStorage.getItem('gamehall:last-name') ?? props.account.dis
 const joinCard = ref<HTMLElement | null>(null)
 const showStats = ref(false)
 const showLeaderboard = ref(false)
+const junqiMode = ref<'dark' | 'flip'>('dark')
 const rooms = computed(() =>
   arcade.availableRooms.filter((room) => room.gameKey === props.game.key),
 )
@@ -29,7 +30,10 @@ async function submit() {
   if (!canSubmit.value) return
   localStorage.setItem('gamehall:last-name', name.value.trim())
   const key = props.game.key as ArcadeGameKey
-  if (mode.value === 'create') await arcade.createRoom(key, name.value.trim())
+  if (mode.value === 'create') {
+    const options = key === 'junqi' ? { mode: junqiMode.value } : {}
+    await arcade.createRoom(key, name.value.trim(), options)
+  }
   else await arcade.joinRoom(key, roomCode.value, name.value.trim())
 }
 
@@ -60,7 +64,7 @@ async function chooseRoom(code: string) {
       <div v-if="rooms.length" class="available-room-list">
         <button v-for="room in rooms" :key="room.roomCode" type="button" class="available-room" @click="chooseRoom(room.roomCode)">
           <span class="avatar">{{ room.hostName.slice(0, 1) }}</span>
-          <span class="available-room-copy"><strong>{{ room.hostName }} 的房间</strong><small>房间 {{ room.roomCode }} · {{ room.playerCount }}/{{ room.maxPlayers }} 人</small></span>
+          <span class="available-room-copy"><strong>{{ room.hostName }} 的房间</strong><small>房间 {{ room.roomCode }} · {{ room.playerCount }}/{{ room.maxPlayers }} 人<span v-if="game.key === 'junqi'"> · {{ room.options.mode === 'flip' ? '翻棋军旗' : '暗军旗' }}</span></small></span>
           <ChevronRight :size="18" />
         </button>
       </div>
@@ -74,6 +78,15 @@ async function chooseRoom(code: string) {
       </div>
       <form @submit.prevent="submit">
         <label class="field"><span>你的称呼</span><input v-model="name" maxlength="12" autocomplete="nickname" /></label>
+        <fieldset v-if="game.key === 'junqi' && mode === 'create'" class="junqi-mode-picker">
+          <legend>选择军旗玩法</legend>
+          <button type="button" :class="{ active: junqiMode === 'dark' }" @click="junqiMode = 'dark'">
+            <strong>暗军旗</strong><small>各自秘密布阵，再轮流行棋</small>
+          </button>
+          <button type="button" :class="{ active: junqiMode === 'flip' }" @click="junqiMode = 'flip'">
+            <strong>翻棋军旗</strong><small>随机扣棋，首翻决定阵营</small>
+          </button>
+        </fieldset>
         <label v-if="mode === 'join'" class="field"><span>房间代码</span><input v-model="roomCode" maxlength="8" class="room-code-input" @input="roomCode = roomCode.toUpperCase()" /></label>
         <button type="submit" class="primary-button wide-button" :disabled="!canSubmit">
           <Plus v-if="mode === 'create'" :size="19" /><LogIn v-else :size="19" />
@@ -105,8 +118,14 @@ async function chooseRoom(code: string) {
 .game-home-actions { display: flex; gap: 7px; }
 .game-home-actions button { display: inline-flex; align-items: center; gap: 6px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 11px; color: var(--muted); background: var(--surface); font-weight: 800; }
 .arcade-home .room-browser { margin-bottom: 22px; }
+.junqi-mode-picker { margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; border: 0; }
+.junqi-mode-picker legend { margin-bottom: 8px; color: var(--muted); font-size: 13px; font-weight: 800; }
+.junqi-mode-picker button { padding: 14px; display: grid; gap: 4px; text-align: left; border: 1px solid var(--line); border-radius: 13px; color: var(--text); background: var(--surface); }
+.junqi-mode-picker button.active { border-color: var(--gold); background: #d6ae5114; box-shadow: inset 0 0 0 1px #d6ae5138; }
+.junqi-mode-picker small { color: var(--muted); line-height: 1.4; }
 @media (max-width: 600px) {
   .game-home-header { grid-template-columns: auto 1fr; }
   .game-home-actions { grid-column: 1 / -1; justify-content: flex-end; }
+  .junqi-mode-picker { grid-template-columns: 1fr; }
 }
 </style>

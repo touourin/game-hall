@@ -1,4 +1,4 @@
-export type ArcadeGameKey = 'gomoku' | 'xiangqi' | 'go' | 'doudizhu'
+export type ArcadeGameKey = 'gomoku' | 'xiangqi' | 'go' | 'doudizhu' | 'junqi'
 
 export interface GameCatalogItem {
   key: 'avalon' | ArcadeGameKey
@@ -14,6 +14,7 @@ export interface ArcadeLobbyRoom {
   hostName: string
   playerCount: number
   maxPlayers: number
+  options: Record<string, unknown>
 }
 
 export interface ArcadePlayer {
@@ -29,7 +30,8 @@ export interface ArcadeSnapshot {
   roomCode: string
   gameKey: ArcadeGameKey
   gameName: string
-  phase: 'lobby' | 'bidding' | 'playing' | 'finished'
+  phase: 'lobby' | 'setup' | 'bidding' | 'playing' | 'finished'
+  options: Record<string, unknown>
   hostId: string
   self: { id: string; name: string; seat: number }
   players: ArcadePlayer[]

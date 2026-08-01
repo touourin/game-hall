@@ -41,6 +41,7 @@ export interface MatchDetail {
   startedAt: string
   endedAt: string
   details: {
+    options?: Record<string, unknown>
     players: Array<{
       id: string
       name: string

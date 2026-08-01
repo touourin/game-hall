@@ -11,6 +11,7 @@ function playingSnapshot(): ArcadeSnapshot {
     roomCode: 'TEST',
     gameKey: 'doudizhu',
     gameName: '斗地主',
+    options: {},
     phase: 'playing',
     hostId: 'p1',
     self: { id: 'p1', name: '玩家一', seat: 0 },

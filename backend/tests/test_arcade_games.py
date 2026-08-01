@@ -14,11 +14,14 @@ from backend.app.games.doudizhu.engine import (
 )
 from backend.app.games.go import GoEngine
 from backend.app.games.gomoku import GomokuEngine
+from backend.app.games.junqi.engine import JunqiEngine, JunqiPiece, JunqiState
 from backend.app.games.registry import build_engine_registry
 from backend.app.games.xiangqi import XiangqiEngine
 
 
-def make_room(engine, player_count: int) -> ArcadeRoom:
+def make_room(
+    engine, player_count: int, options: dict | None = None
+) -> ArcadeRoom:
     players = [
         ArcadePlayer(
             id=f"p{seat}",
@@ -37,6 +40,7 @@ def make_room(engine, player_count: int) -> ArcadeRoom:
         state=engine.initial_state(),
         game_id="game-test",
         started_at="2026-08-01T00:00:00+00:00",
+        options=options or {},
     )
     engine.start(room)
     return room
@@ -158,6 +162,95 @@ def test_doudizhu_bidding_assigns_landlord_and_records_winner() -> None:
     assert room.phase == "finished"
     assert room.winner == "landlord"
     assert room.winner_player_ids == [room.players[2].id]
+
+
+def test_junqi_dark_setup_keeps_opponent_pieces_private() -> None:
+    engine = JunqiEngine()
+    room = make_room(engine, 2, {"mode": "dark"})
+
+    assert room.phase == "setup"
+    first_view = engine.view(room, room.players[0])
+    own_pieces = []
+    enemy_pieces = []
+    for row in first_view["board"]:
+        for piece in row:
+            if piece is None:
+                continue
+            if piece["side"] == "red":
+                own_pieces.append(piece)
+            else:
+                enemy_pieces.append(piece)
+    assert len(own_pieces) == len(enemy_pieces) == 25
+    assert all(piece["kind"] for piece in own_pieces)
+    assert all(piece["kind"] is None for piece in enemy_pieces)
+
+    engine.act(room, room.players[0], "ready", {})
+    engine.act(room, room.players[1], "ready", {})
+    assert room.phase == "playing"
+    assert room.state.turn_seat == 0
+
+
+def test_junqi_flip_first_piece_assigns_sides() -> None:
+    engine = JunqiEngine()
+    room = make_room(engine, 2, {"mode": "flip"})
+    state: JunqiState = room.state
+    position = next(
+        (row, column)
+        for row in range(12)
+        for column in range(5)
+        if state.board[row][column] is not None
+    )
+    piece = state.board[position[0]][position[1]]
+    assert piece is not None
+
+    engine.act(
+        room,
+        room.players[0],
+        "flip",
+        {"row": position[0], "column": position[1]},
+    )
+
+    assert state.seat_sides == [piece.side, 1 - piece.side]
+    assert piece.revealed is True
+    assert state.turn_seat == 1
+    second_view = engine.view(room, room.players[1])
+    assert second_view["board"][position[0]][position[1]]["kind"] == piece.kind
+
+
+def test_junqi_engineer_turns_on_rail_and_captures_mine() -> None:
+    engine = JunqiEngine()
+    board = [[None] * 5 for _ in range(12)]
+    engineer = JunqiPiece("engineer", 0, "engineer", True)
+    mine = JunqiPiece("mine", 1, "mine", True)
+    board[5][1] = engineer
+    board[10][4] = mine
+
+    assert engine._can_move(board, engineer, (5, 1), (10, 4)) is True
+    assert engine._combat(engineer, mine) == "attacker"
+    regular = JunqiPiece("company", 0, "company", True)
+    board[5][1] = regular
+    assert engine._can_move(board, regular, (5, 1), (10, 4)) is False
+
+
+def test_junqi_capture_flag_finishes_match() -> None:
+    engine = JunqiEngine()
+    room = make_room(engine, 2, {"mode": "dark"})
+    state = JunqiState(mode="dark")
+    state.board[6][2] = JunqiPiece("red-company", 0, "company")
+    state.board[5][2] = JunqiPiece("blue-flag", 1, "flag")
+    room.state = state
+    room.phase = "playing"
+
+    engine.act(
+        room,
+        room.players[0],
+        "move",
+        {"fromRow": 6, "fromColumn": 2, "toRow": 5, "toColumn": 2},
+    )
+
+    assert room.phase == "finished"
+    assert room.winner == "red"
+    assert room.winner_player_ids == [room.players[0].id]
 
 
 def test_generic_game_match_is_filterable_by_game(tmp_path) -> None:

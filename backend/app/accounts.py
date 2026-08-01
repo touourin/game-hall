@@ -35,6 +35,7 @@ GAME_NAMES = {
     "xiangqi": "中国象棋",
     "go": "围棋",
     "doudizhu": "斗地主",
+    "junqi": "军旗",
 }
 
 
