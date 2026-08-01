@@ -9,9 +9,12 @@ describe('GameHall', () => {
         account: {
           id: 'account-1',
           username: 'tester',
-          displayName: '测试玩家',
+          playerName: '测试玩家',
+          nextRenameAt: null,
           createdAt: '2026-08-01T00:00:00Z',
         },
+        busy: false,
+        error: null,
       },
       global: { plugins: [createPinia()] },
     })

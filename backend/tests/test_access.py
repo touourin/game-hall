@@ -64,7 +64,7 @@ def test_account_registration_login_and_session(monkeypatch, tmp_path) -> None:
             json={
                 "username": "round_player",
                 "password": "secret123",
-                "display_name": "圆桌玩家",
+                "player_name": "圆桌玩家",
             },
         )
         duplicate = client.post(
@@ -73,7 +73,7 @@ def test_account_registration_login_and_session(monkeypatch, tmp_path) -> None:
             json={
                 "username": "ROUND_PLAYER",
                 "password": "secret123",
-                "display_name": "另一玩家",
+                "player_name": "另一玩家",
             },
         )
         token = registered.json()["token"]
@@ -83,6 +83,14 @@ def test_account_registration_login_and_session(monkeypatch, tmp_path) -> None:
                 **access_header,
                 "Authorization": f"Bearer {token}",
             },
+        )
+        renamed = client.patch(
+            "/api/auth/me",
+            headers={
+                **access_header,
+                "Authorization": f"Bearer {token}",
+            },
+            json={"player_name": "新游戏昵称"},
         )
         bad_login = client.post(
             "/api/auth/login",
@@ -96,9 +104,13 @@ def test_account_registration_login_and_session(monkeypatch, tmp_path) -> None:
         )
 
     assert registered.status_code == 200
-    assert registered.json()["account"]["displayName"] == "圆桌玩家"
+    assert registered.json()["account"]["username"] == "round_player"
+    assert registered.json()["account"]["playerName"] == "圆桌玩家"
     assert duplicate.status_code == 400
     assert profile.status_code == 200
+    assert renamed.status_code == 200
+    assert renamed.json()["account"]["username"] == "round_player"
+    assert renamed.json()["account"]["playerName"] == "新游戏昵称"
     assert bad_login.status_code == 401
     assert login.status_code == 200
 

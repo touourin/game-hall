@@ -95,8 +95,8 @@ export const useRoomStore = defineStore('room', () => {
     }
   }
 
-  async function createRoom(name: string) {
-    const response = await perform('room:create', { name })
+  async function createRoom() {
+    const response = await perform('room:create')
     if (response?.roomCode && response.playerId && response.resumeToken) {
       saveSession({
         roomCode: response.roomCode,
@@ -106,10 +106,9 @@ export const useRoomStore = defineStore('room', () => {
     }
   }
 
-  async function joinRoom(roomCode: string, name: string) {
+  async function joinRoom(roomCode: string) {
     const response = await perform('room:join', {
       room_code: roomCode.trim().toUpperCase(),
-      name,
     })
     if (response?.roomCode && response.playerId && response.resumeToken) {
       saveSession({

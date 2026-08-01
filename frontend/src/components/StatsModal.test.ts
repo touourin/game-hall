@@ -39,7 +39,7 @@ describe('StatsModal', () => {
           ranked: true,
           assassinationHit: null,
           endedAt: '2026-08-01T00:10:00+00:00',
-          displayName: '棋手一',
+          playerName: '棋手一',
           role: 'black',
           alignment: 'black',
           won: false,

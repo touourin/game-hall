@@ -40,13 +40,17 @@ class AccessRequest(BaseModel):
 
 class RegisterRequest(BaseModel):
     username: str = Field(min_length=2, max_length=20)
+    player_name: str = Field(min_length=2, max_length=12)
     password: str = Field(min_length=6, max_length=128)
-    display_name: str = Field(min_length=1, max_length=12)
 
 
 class LoginRequest(BaseModel):
     username: str = Field(min_length=2, max_length=20)
     password: str = Field(min_length=6, max_length=128)
+
+
+class RenamePlayerRequest(BaseModel):
+    player_name: str = Field(min_length=2, max_length=12)
 
 
 def bearer_token(authorization: str | None) -> str | None:
@@ -126,7 +130,7 @@ def register_account(
     require_front_door(x_avalon_access)
     try:
         account, token = account_store().register(
-            payload.username, payload.password, payload.display_name
+            payload.username, payload.password, payload.player_name
         )
     except AccountError as error:
         raise HTTPException(
@@ -143,7 +147,9 @@ def login_account(
 ) -> dict:
     require_front_door(x_avalon_access)
     try:
-        account, token = account_store().login(payload.username, payload.password)
+        account, token = account_store().login(
+            payload.username, payload.password
+        )
     except AccountError as error:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -159,6 +165,25 @@ def current_account(
 ) -> dict:
     account = require_account_session(authorization, x_avalon_access)
     return {"ok": True, "account": account.as_dict()}
+
+
+@api.patch("/api/auth/me")
+def rename_current_account(
+    payload: RenamePlayerRequest,
+    authorization: str | None = Header(default=None),
+    x_avalon_access: str | None = Header(default=None),
+) -> dict:
+    account = require_account_session(authorization, x_avalon_access)
+    try:
+        renamed = account_store().rename_player(
+            account.id, payload.player_name
+        )
+    except AccountError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+    return {"ok": True, "account": renamed.as_dict()}
 
 
 @api.post("/api/auth/logout")

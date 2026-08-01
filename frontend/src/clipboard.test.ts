@@ -12,7 +12,7 @@ describe('copyText', () => {
       value: execCommand,
     })
 
-    await expect(copyText('http://192.168.0.104:8800/?room=TEST')).resolves.toBe(true)
+    await expect(copyText('http://192.168.0.104:10618/?room=TEST')).resolves.toBe(true)
     expect(execCommand).toHaveBeenCalledWith('copy')
     expect(document.querySelector('textarea')).toBeNull()
   })

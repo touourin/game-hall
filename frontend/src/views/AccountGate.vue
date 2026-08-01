@@ -9,12 +9,12 @@ defineProps<{
 
 const emit = defineEmits<{
   login: [payload: { username: string; password: string }]
-  register: [payload: { username: string; password: string; displayName: string }]
+  register: [payload: { username: string; playerName: string; password: string }]
 }>()
 
 const mode = ref<'login' | 'register'>('login')
 const username = ref('')
-const displayName = ref('')
+const playerName = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const localError = ref<string | null>(null)
@@ -25,8 +25,8 @@ const canSubmit = computed(() => {
   }
   if (mode.value === 'register') {
     return (
-      displayName.value.trim().length > 0 &&
-      password.value === confirmPassword.value
+      playerName.value.trim().length >= 2
+      && password.value === confirmPassword.value
     )
   }
   return true
@@ -48,8 +48,8 @@ function submit() {
     }
     emit('register', {
       username: username.value.trim(),
+      playerName: playerName.value.trim(),
       password: password.value,
-      displayName: displayName.value.trim(),
     })
     return
   }
@@ -69,8 +69,8 @@ function submit() {
       <p class="account-copy">
         {{
           mode === 'login'
-            ? '登录后，战绩与排行榜会稳定记录到你的账号。'
-            : '账号只用于保存战绩；每局仍可使用不同的桌上称呼。'
+            ? '使用账号名登录，继续你的战绩与对局。'
+            : '账号名用于登录；游戏昵称显示在大厅、对局、聊天和排行榜。'
         }}
       </p>
 
@@ -99,17 +99,18 @@ function submit() {
             minlength="2"
             maxlength="20"
             autocomplete="username"
-            placeholder="2–20 个字符"
+            placeholder="2–20 个字符，用于登录"
           />
         </label>
 
         <label v-if="mode === 'register'" class="field">
-          <span>默认显示名称</span>
+          <span>游戏昵称</span>
           <input
-            v-model="displayName"
+            v-model="playerName"
+            minlength="2"
             maxlength="12"
             autocomplete="nickname"
-            placeholder="进入房间时默认使用"
+            placeholder="2–12 个字符，对局中显示"
           />
         </label>
 

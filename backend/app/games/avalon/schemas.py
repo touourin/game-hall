@@ -1,11 +1,7 @@
 from pydantic import BaseModel, Field
 
 
-class NamePayload(BaseModel):
-    name: str = Field(min_length=1, max_length=32)
-
-
-class JoinPayload(NamePayload):
+class JoinPayload(BaseModel):
     room_code: str = Field(min_length=4, max_length=8)
 
 

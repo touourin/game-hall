@@ -21,16 +21,13 @@ import LeaderboardModal from '../components/LeaderboardModal.vue'
 import StatsModal from '../components/StatsModal.vue'
 import ThemeModal from '../components/ThemeModal.vue'
 
-const props = defineProps<{ account: AccountProfile }>()
+defineProps<{ account: AccountProfile }>()
 defineEmits<{ logout: []; back: [] }>()
 
 const room = useRoomStore()
 const params = new URLSearchParams(window.location.search)
 const initialRoomCode = params.get('room')?.toUpperCase() ?? ''
 const mode = ref<'create' | 'join'>(initialRoomCode ? 'join' : 'create')
-const name = ref(
-  localStorage.getItem('avalon:last-name') ?? props.account.displayName,
-)
 const roomCode = ref(initialRoomCode)
 const joinCard = ref<HTMLElement | null>(null)
 const showStats = ref(false)
@@ -38,18 +35,15 @@ const showLeaderboard = ref(false)
 const showTheme = ref(false)
 
 const canSubmit = computed(
-  () =>
-    name.value.trim().length > 0 &&
-    (mode.value === 'create' || roomCode.value.trim().length >= 4),
+  () => mode.value === 'create' || roomCode.value.trim().length >= 4,
 )
 
 async function submit() {
   if (!canSubmit.value) return
-  localStorage.setItem('avalon:last-name', name.value.trim())
   if (mode.value === 'create') {
-    await room.createRoom(name.value.trim())
+    await room.createRoom()
   } else {
-    await room.joinRoom(roomCode.value, name.value.trim())
+    await room.joinRoom(roomCode.value)
   }
 }
 
@@ -65,10 +59,10 @@ async function chooseRoom(code: string) {
   <main class="home-page page-container">
     <section class="account-bar" aria-label="当前登录账号">
       <div>
-        <span class="avatar">{{ account.displayName.slice(0, 1) }}</span>
+        <span class="avatar">{{ account.playerName.slice(0, 1) }}</span>
         <span>
           <small>已登录</small>
-          <strong>{{ account.displayName }}</strong>
+          <strong>{{ account.playerName }}</strong>
         </span>
       </div>
       <div class="account-bar-actions">
@@ -180,16 +174,6 @@ async function chooseRoom(code: string) {
       </div>
 
       <form @submit.prevent="submit">
-        <label class="field">
-          <span>你的称呼</span>
-          <input
-            v-model="name"
-            maxlength="12"
-            autocomplete="nickname"
-            placeholder="例如：兰斯洛特"
-          />
-        </label>
-
         <label v-if="mode === 'join'" class="field">
           <span>房间代码</span>
           <input

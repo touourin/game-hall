@@ -1060,7 +1060,7 @@ def test_generic_game_match_is_filterable_by_game(tmp_path) -> None:
         players=[
             {
                 "accountId": first.id,
-                "displayName": first.display_name,
+                "playerName": first.player_name,
                 "seat": 0,
                 "role": "black",
                 "alignment": "black",
@@ -1069,7 +1069,7 @@ def test_generic_game_match_is_filterable_by_game(tmp_path) -> None:
             },
             {
                 "accountId": second.id,
-                "displayName": second.display_name,
+                "playerName": second.player_name,
                 "seat": 1,
                 "role": "white",
                 "alignment": "white",

@@ -28,7 +28,7 @@ export interface MatchHistoryItem {
   ranked: boolean
   assassinationHit: boolean | null
   endedAt: string
-  displayName: string
+  playerName: string
   role: string
   alignment: string
   won: boolean
@@ -87,7 +87,7 @@ export interface MatchDetail {
 export interface LeaderboardEntry {
   rank: number
   accountId: string
-  displayName: string
+  playerName: string
   games: number
   wins: number
   draws: number

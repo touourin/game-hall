@@ -5,6 +5,7 @@ import {
   clearAccountToken,
   loginAccount,
   logoutAccount,
+  renamePlayer,
   registerAccount,
   rememberAccountToken,
   storedAccountToken,
@@ -115,7 +116,10 @@ async function login(payload: { username: string; password: string }) {
   accountBusy.value = true
   accountError.value = null
   try {
-    const response = await loginAccount(activeAccessToken.value, payload)
+    const response = await loginAccount(activeAccessToken.value, {
+      username: payload.username,
+      password: payload.password,
+    })
     enterGame(response.account, response.token)
   } catch (caught) {
     accountError.value =
@@ -127,21 +131,40 @@ async function login(payload: { username: string; password: string }) {
 
 async function register(payload: {
   username: string
+  playerName: string
   password: string
-  displayName: string
 }) {
   accountBusy.value = true
   accountError.value = null
   try {
     const response = await registerAccount(activeAccessToken.value, {
       username: payload.username,
+      player_name: payload.playerName,
       password: payload.password,
-      display_name: payload.displayName,
     })
     enterGame(response.account, response.token)
   } catch (caught) {
     accountError.value =
       caught instanceof Error ? caught.message : '注册失败，请稍后重试'
+  } finally {
+    accountBusy.value = false
+  }
+}
+
+async function changePlayerName(playerName: string) {
+  const token = storedAccountToken()
+  if (!token) return
+  accountBusy.value = true
+  accountError.value = null
+  try {
+    account.value = await renamePlayer(
+      activeAccessToken.value,
+      token,
+      playerName,
+    )
+  } catch (caught) {
+    accountError.value =
+      caught instanceof Error ? caught.message : '修改游戏昵称失败'
   } finally {
     accountBusy.value = false
   }
@@ -206,7 +229,10 @@ onMounted(async () => {
     <GameHall
       v-else-if="!selectedGame"
       :account="account"
+      :busy="accountBusy"
+      :error="accountError"
       @logout="logout"
+      @rename="changePlayerName"
       @select="selectedGame = $event"
     />
     <HomeView

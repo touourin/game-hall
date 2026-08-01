@@ -42,7 +42,7 @@ onMounted(async () => {
         >
           <b :class="`rank-${player.rank}`">{{ player.rank }}</b>
           <span>
-            <strong>{{ player.displayName }}</strong>
+            <strong>{{ player.playerName }}</strong>
             <small v-if="props.gameKey === 'reaction'">{{ player.games }} 次测试 · 总平均 {{ player.averageMs }} ms</small>
             <small v-else>
               {{ player.wins }} 胜<span v-if="player.draws"> · {{ player.draws }} 和</span> / {{ player.games }} 场

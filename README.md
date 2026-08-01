@@ -8,6 +8,7 @@
 
 - 阿瓦隆、五子棋、中国象棋、围棋、斗地主、军旗和反应时间统一入口
 - 七款游戏共用访问密码、个人账号、登录会话与界面主题
+- 账号名固定用于登录；游戏昵称统一用于大厅、对局、聊天与排行榜，设置中可每 30 天修改一次，旧昵称仍归原账号保留
 - 每款游戏均可查看独立战绩和排行榜，也可在大厅查看全部战绩
 - 通用公开房间列表、邀请码、掉线重连、认输、再来一局和结算落库
 - 五子棋：15 路棋盘、回合校验、五连胜负与和棋
@@ -62,13 +63,13 @@ docker compose up -d --build
 启动后，在服务器或同一局域网的设备访问：
 
 ```text
-http://服务器内网IP:8800
+http://服务器内网IP:10618
 ```
 
 例如：
 
 ```text
-http://192.168.1.20:8800
+http://192.168.1.20:10618
 ```
 
 房主应当使用内网 IP 打开页面，而不是 `localhost`，这样大厅生成的二维码才会包含其他手机能够访问的地址。
@@ -119,15 +120,15 @@ npm --prefix frontend run smoke:arcade
 
 `npm run smoke` 需要开发服务正在运行，它会注册五个测试账号，通过真实 Socket.IO 连接模拟五名玩家发送聊天消息并完成第一轮任务。可用 `AVALON_SMOKE_ACCESS_PASSWORD` 和 `AVALON_SMOKE_PREFIX` 指定测试访问密码与账号前缀。
 
-`npm --prefix frontend run smoke:arcade` 需要本地 Docker 服务运行在 `http://127.0.0.1:8800`。它会注册三个测试账号，通过真实 Socket.IO 依次完成五子棋、象棋、围棋、斗地主以及两种军旗模式的创建、加入、开局、结算及 MySQL 战绩检查。可通过 `ARCADE_SMOKE_URL`、`ARCADE_SMOKE_ACCESS_PASSWORD` 和 `ARCADE_SMOKE_PREFIX` 指定地址、访问密码与账号前缀。两种冒烟脚本都会输出测试账号前缀，验证后可按该前缀从测试数据库清理账号。
+`npm --prefix frontend run smoke:arcade` 需要本地 Docker 服务运行在 `http://127.0.0.1:10618`。它会注册三个测试账号，通过真实 Socket.IO 依次完成五子棋、象棋、围棋、斗地主以及两种军旗模式的创建、加入、开局、结算及 MySQL 战绩检查。可通过 `ARCADE_SMOKE_URL`、`ARCADE_SMOKE_ACCESS_PASSWORD` 和 `ARCADE_SMOKE_PREFIX` 指定地址、访问密码与账号前缀。两种冒烟脚本都会输出测试账号前缀，验证后可按该前缀从测试数据库清理账号。
 
 生产构建后，也可以在已经准备好 MySQL 和 Redis、且 `.env` 包含 `DATABASE_URL` 与 `REDIS_URL` 时直接运行：
 
 ```bash
-.venv/bin/uvicorn backend.app.main:app --env-file .env --host 0.0.0.0 --port 8800 --workers 1
+.venv/bin/uvicorn backend.app.main:app --env-file .env --host 0.0.0.0 --port 10618 --workers 1
 ```
 
-然后访问 `http://服务器内网IP:8800`。
+然后访问 `http://服务器内网IP:10618`。
 
 ## 内网检查
 
@@ -135,7 +136,7 @@ npm --prefix frontend run smoke:arcade
 
 1. 确认手机与服务器连接同一个 Wi‑Fi。
 2. 确认访问的是服务器内网 IP，不是 `localhost`。
-3. 确认系统防火墙允许 8800 端口。
+3. 确认系统防火墙允许 10618 端口。
 4. 确认路由器没有开启访客网络或客户端隔离。
 
 ## 数据库与实时通信

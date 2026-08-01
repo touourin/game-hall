@@ -1,4 +1,6 @@
-from backend.app.accounts import AccountStore
+import pytest
+
+from backend.app.accounts import AccountError, AccountStore
 from backend.app.games.avalon.models import Alignment, Phase, Role
 
 from .test_engine import start_room
@@ -6,9 +8,43 @@ from .test_engine import start_room
 
 def account_for_player(store: AccountStore, index: int, prefix: str):
     account, _ = store.register(
-        f"{prefix}_{index}", "secret123", f"玩家{index}"
+        f"{prefix}_{index}", "secret123", f"{prefix}{index}"
     )
     return account
+
+
+def test_username_stays_stable_when_game_nickname_changes(tmp_path):
+    store = AccountStore(tmp_path / "rename.sqlite3")
+    account, _ = store.register("zhangsan", "secret123", "张三玩家")
+
+    renamed = store.rename_player(account.id, "王五玩家")
+    logged_in, _ = store.login("zhangsan", "secret123")
+
+    assert renamed.id == account.id
+    assert renamed.username == "zhangsan"
+    assert renamed.player_name == "王五玩家"
+    assert logged_in.player_name == "王五玩家"
+
+
+def test_old_game_nickname_remains_reserved_for_its_account(tmp_path):
+    store = AccountStore(tmp_path / "reserved-name.sqlite3")
+    first, _ = store.register("account_one", "secret123", "张三玩家")
+    second, _ = store.register("account_two", "secret123", "李四玩家")
+
+    store.rename_player(first.id, "王五玩家")
+
+    with pytest.raises(AccountError, match="归其他账号所有"):
+        store.rename_player(second.id, "张三玩家")
+
+
+def test_game_nickname_can_only_change_once_every_thirty_days(tmp_path):
+    store = AccountStore(tmp_path / "rename-limit.sqlite3")
+    account, _ = store.register("rename_user", "secret123", "初始昵称")
+
+    store.rename_player(account.id, "第一次改名")
+
+    with pytest.raises(AccountError, match="每 30 天只能改名一次"):
+        store.rename_player(account.id, "第二次改名")
 
 
 def completed_room_with_accounts(
@@ -94,7 +130,7 @@ def test_reaction_scores_have_lowest_time_leaderboard(tmp_path):
             players=[
                 {
                     "accountId": account.id,
-                    "displayName": account.display_name,
+                    "playerName": account.player_name,
                     "seat": 0,
                     "role": "tester",
                     "alignment": "solo",
@@ -139,7 +175,7 @@ def test_gomoku_draw_is_not_recorded_as_two_losses(tmp_path):
         players=[
             {
                 "accountId": account.id,
-                "displayName": account.display_name,
+                "playerName": account.player_name,
                 "seat": seat,
                 "role": role,
                 "alignment": role,

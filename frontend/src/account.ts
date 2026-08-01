@@ -3,7 +3,8 @@ const ACCOUNT_TOKEN_KEY = 'avalon:account-token'
 export interface AccountProfile {
   id: string
   username: string
-  displayName: string
+  playerName: string
+  nextRenameAt: string | null
   createdAt: string
 }
 
@@ -54,7 +55,7 @@ async function responseError(response: Response): Promise<Error> {
 
 export async function registerAccount(
   accessToken: string,
-  payload: { username: string; password: string; display_name: string },
+  payload: { username: string; player_name: string; password: string },
 ): Promise<AuthResponse> {
   const response = await authFetch('/api/auth/register', accessToken, {
     method: 'POST',
@@ -102,4 +103,25 @@ export async function logoutAccount(
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
   })
+}
+
+export async function renamePlayer(
+  accessToken: string,
+  token: string,
+  playerName: string,
+): Promise<AccountProfile> {
+  const response = await authFetch('/api/auth/me', accessToken, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ player_name: playerName }),
+  })
+  if (!response.ok) throw await responseError(response)
+  const data = (await response.json()) as {
+    ok: boolean
+    account: AccountProfile
+  }
+  return data.account
 }

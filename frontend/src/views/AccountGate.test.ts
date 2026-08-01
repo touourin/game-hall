@@ -17,7 +17,7 @@ describe('AccountGate', () => {
     ])
   })
 
-  it('registers a stable account with a separate display name', async () => {
+  it('registers an account with a separate game nickname', async () => {
     const wrapper = mount(AccountGate, {
       props: { busy: false, error: null },
     })
@@ -25,7 +25,7 @@ describe('AccountGate', () => {
     const inputs = wrapper.findAll('input')
 
     await inputs[0]!.setValue('round_player')
-    await inputs[1]!.setValue('桌上名字')
+    await inputs[1]!.setValue('游戏昵称')
     await inputs[2]!.setValue('secret123')
     await inputs[3]!.setValue('secret123')
     await wrapper.get('form').trigger('submit')
@@ -35,7 +35,7 @@ describe('AccountGate', () => {
         {
           username: 'round_player',
           password: 'secret123',
-          displayName: '桌上名字',
+          playerName: '游戏昵称',
         },
       ],
     ])

@@ -89,12 +89,10 @@ export const useArcadeStore = defineStore('arcade', () => {
 
   async function createRoom(
     gameKey: ArcadeGameKey,
-    name: string,
     options: Record<string, unknown> = {},
   ) {
     const response = await perform('arcade:create', {
       game_key: gameKey,
-      name,
       options,
     })
     if (response?.roomCode && response.playerId && response.resumeToken) {
@@ -112,12 +110,10 @@ export const useArcadeStore = defineStore('arcade', () => {
   async function joinRoom(
     gameKey: ArcadeGameKey,
     roomCode: string,
-    name: string,
   ) {
     const response = await perform('arcade:join', {
       game_key: gameKey,
       room_code: roomCode.trim().toUpperCase(),
-      name,
     })
     if (response?.roomCode && response.playerId && response.resumeToken) {
       saveSession({

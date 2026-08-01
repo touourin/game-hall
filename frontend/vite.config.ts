@@ -12,9 +12,9 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
-      '/api': 'http://127.0.0.1:8800',
+      '/api': 'http://127.0.0.1:10618',
       '/socket.io': {
-        target: 'http://127.0.0.1:8800',
+        target: 'http://127.0.0.1:10618',
         ws: true,
       },
     },

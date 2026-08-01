@@ -21,7 +21,8 @@ describe('ArcadeHome', () => {
         account: {
           id: 'account-1',
           username: 'tester',
-          displayName: '测试玩家',
+          playerName: '测试玩家',
+          nextRenameAt: null,
           createdAt: '2026-08-01T00:00:00Z',
         },
       },
@@ -37,7 +38,6 @@ describe('ArcadeHome', () => {
 
     expect(createRoom).toHaveBeenCalledWith(
       'gomoku',
-      '测试玩家',
       expect.objectContaining({
         winRule: 'renju',
         firstPlayer: 'random',
@@ -45,6 +45,6 @@ describe('ArcadeHome', () => {
         timeLimitSeconds: 0,
       }),
     )
-    expect(createRoom.mock.calls[0]?.[2]).not.toHaveProperty('boardSize')
+    expect(createRoom.mock.calls[0]?.[1]).not.toHaveProperty('boardSize')
   })
 })

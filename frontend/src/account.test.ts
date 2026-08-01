@@ -29,7 +29,8 @@ describe('account service', () => {
           account: {
             id: 'a1',
             username: 'player',
-            displayName: '玩家',
+            playerName: '玩家昵称',
+            nextRenameAt: null,
             createdAt: '2026-08-01T00:00:00+00:00',
           },
         }),
@@ -64,7 +65,8 @@ describe('account service', () => {
             account: {
               id: 'a1',
               username: 'player',
-              displayName: '玩家',
+              playerName: '玩家昵称',
+              nextRenameAt: null,
               createdAt: '2026-08-01T00:00:00+00:00',
             },
           }),
@@ -75,6 +77,6 @@ describe('account service', () => {
 
     await expect(
       validateAccountToken('access-token', 'account-token'),
-    ).resolves.toMatchObject({ username: 'player', displayName: '玩家' })
+    ).resolves.toMatchObject({ username: 'player', playerName: '玩家昵称' })
   })
 })

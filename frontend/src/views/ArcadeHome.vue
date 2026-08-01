@@ -16,7 +16,6 @@ const params = new URLSearchParams(window.location.search)
 const invitedRoom = params.get('game') === props.game.key ? params.get('room') ?? '' : ''
 const mode = ref<'create' | 'join'>(invitedRoom ? 'join' : 'create')
 const roomCode = ref(invitedRoom.toUpperCase())
-const name = ref(localStorage.getItem('gamehall:last-name') ?? props.account.displayName)
 const joinCard = ref<HTMLElement | null>(null)
 const showStats = ref(false)
 const showLeaderboard = ref(false)
@@ -27,7 +26,7 @@ const rooms = computed(() =>
   arcade.availableRooms.filter((room) => room.gameKey === props.game.key),
 )
 const canSubmit = computed(
-  () => name.value.trim() && (isSolo.value || mode.value === 'create' || roomCode.value.trim().length >= 4),
+  () => isSolo.value || mode.value === 'create' || roomCode.value.trim().length >= 4,
 )
 
 watch(gameKey, (key) => {
@@ -36,13 +35,12 @@ watch(gameKey, (key) => {
 
 async function submit() {
   if (!canSubmit.value) return
-  localStorage.setItem('gamehall:last-name', name.value.trim())
   const key = props.game.key as ArcadeGameKey
   if (isSolo.value || mode.value === 'create') {
-    const created = await arcade.createRoom(key, name.value.trim(), rules.value)
+    const created = await arcade.createRoom(key, rules.value)
     if (created && isSolo.value) await arcade.startGame()
   }
-  else await arcade.joinRoom(key, roomCode.value, name.value.trim())
+  else await arcade.joinRoom(key, roomCode.value)
 }
 
 async function chooseRoom(code: string) {
@@ -92,7 +90,6 @@ async function chooseRoom(code: string) {
         </div>
       </div>
       <form @submit.prevent="submit">
-        <label v-if="!isSolo" class="field"><span>你的称呼</span><input v-model="name" maxlength="12" autocomplete="nickname" /></label>
         <GameRuleSettings
           v-if="!isSolo && mode === 'create'"
           v-model="rules"

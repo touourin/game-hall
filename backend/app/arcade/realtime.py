@@ -18,7 +18,6 @@ from .views import build_lobby_view, build_room_view
 
 class CreatePayload(BaseModel):
     game_key: str = Field(min_length=1, max_length=32)
-    name: str = Field(min_length=1, max_length=12)
     options: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -108,8 +107,14 @@ class ArcadeRealtime:
         try:
             payload = CreatePayload.model_validate(raw_data or {})
             account_id = await self._account_id(sid)
+            account = account_store().account_for_id(account_id)
+            if account is None:
+                raise ArcadeRoomError("登录状态无效，请重新登录")
             room, player, token = self.rooms.create_room(
-                payload.game_key, payload.name, account_id, payload.options
+                payload.game_key,
+                account.player_name,
+                account_id,
+                payload.options,
             )
             await self._bind_session(sid, room, player.id)
             await self.broadcast_room(room)
@@ -122,10 +127,13 @@ class ArcadeRealtime:
         try:
             payload = JoinPayload.model_validate(raw_data or {})
             account_id = await self._account_id(sid)
+            account = account_store().account_for_id(account_id)
+            if account is None:
+                raise ArcadeRoomError("登录状态无效，请重新登录")
             room, player, token = self.rooms.join_room(
                 payload.room_code,
                 payload.game_key,
-                payload.name,
+                account.player_name,
                 account_id,
             )
             await self._bind_session(sid, room, player.id)
@@ -442,7 +450,7 @@ class ArcadeRealtime:
             players.append(
                 {
                     "accountId": player.account_id,
-                    "displayName": player.name,
+                    "playerName": player.name,
                     "seat": player.seat,
                     "role": role,
                     "alignment": alignment,

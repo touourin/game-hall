@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import case, delete, func, insert, select
+from sqlalchemy import case, delete, func, insert, select, update
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 
@@ -22,12 +22,14 @@ from .database import (
     matches,
     metadata,
     normalize_database_url,
+    player_name_claims,
     users,
 )
 from .games.avalon.models import Room, Role
 
 
 SESSION_LIFETIME = timedelta(days=30)
+PLAYER_NAME_CHANGE_INTERVAL = timedelta(days=30)
 GAME_KEY = "avalon"
 GAME_NAMES = {
     "avalon": "阿瓦隆",
@@ -48,14 +50,22 @@ class AccountError(ValueError):
 class Account:
     id: str
     username: str
-    display_name: str
+    player_name: str
+    player_name_changed_at: str | None
     created_at: str
 
-    def as_dict(self) -> dict[str, str]:
+    def as_dict(self) -> dict[str, str | None]:
+        next_rename_at = None
+        if self.player_name_changed_at is not None:
+            changed_at = datetime.fromisoformat(self.player_name_changed_at)
+            next_rename_at = AccountStore._iso_datetime(
+                changed_at + PLAYER_NAME_CHANGE_INTERVAL
+            )
         return {
             "id": self.id,
             "username": self.username,
-            "displayName": self.display_name,
+            "playerName": self.player_name,
+            "nextRenameAt": next_rename_at,
             "createdAt": self.created_at,
         }
 
@@ -98,10 +108,10 @@ class AccountStore:
         self.engine.dispose()
 
     def register(
-        self, username: str, password: str, display_name: str
+        self, username: str, password: str, player_name: str
     ) -> tuple[Account, str]:
         normalized_username, username_key = self._normalize_username(username)
-        normalized_display_name = self._normalize_display_name(display_name)
+        normalized_name, name_key = self._normalize_player_name(player_name)
         self._validate_password(password)
         salt = secrets.token_bytes(16)
         password_hash = self._password_hash(password, salt)
@@ -109,7 +119,8 @@ class AccountStore:
         account = Account(
             id=secrets.token_urlsafe(12),
             username=normalized_username,
-            display_name=normalized_display_name,
+            player_name=normalized_name,
+            player_name_changed_at=None,
             created_at=self._iso_datetime(created_at),
         )
         self.initialize()
@@ -120,14 +131,22 @@ class AccountStore:
                         id=account.id,
                         username=account.username,
                         username_key=username_key,
-                        display_name=account.display_name,
+                        player_name=account.player_name,
                         password_salt=salt,
                         password_hash=password_hash,
+                        player_name_changed_at=None,
                         created_at=created_at,
                     )
                 )
+                connection.execute(
+                    insert(player_name_claims).values(
+                        name_key=name_key,
+                        account_id=account.id,
+                        claimed_at=created_at,
+                    )
+                )
         except IntegrityError as exc:
-            raise AccountError("这个账号名已经被注册") from exc
+            raise AccountError("账号名或游戏昵称已经被使用") from exc
         return account, self._create_session(account.id)
 
     def login(self, username: str, password: str) -> tuple[Account, str]:
@@ -140,7 +159,8 @@ class AccountStore:
                     select(
                         users.c.id,
                         users.c.username,
-                        users.c.display_name,
+                        users.c.player_name,
+                        users.c.player_name_changed_at,
                         users.c.password_salt,
                         users.c.password_hash,
                         users.c.created_at,
@@ -150,10 +170,10 @@ class AccountStore:
                 .first()
             )
         if row is None:
-            raise AccountError("账号或密码不正确")
+            raise AccountError("账号名或密码不正确")
         candidate_hash = self._password_hash(password, row["password_salt"])
         if not secrets.compare_digest(candidate_hash, row["password_hash"]):
-            raise AccountError("账号或密码不正确")
+            raise AccountError("账号名或密码不正确")
         account = self._account_from_row(row)
         return account, self._create_session(account.id)
 
@@ -174,7 +194,8 @@ class AccountStore:
                     select(
                         users.c.id,
                         users.c.username,
-                        users.c.display_name,
+                        users.c.player_name,
+                        users.c.player_name_changed_at,
                         users.c.created_at,
                     )
                     .select_from(
@@ -192,6 +213,94 @@ class AccountStore:
                 .first()
             )
         return self._account_from_row(row) if row is not None else None
+
+    def account_for_id(self, account_id: str) -> Account | None:
+        self.initialize()
+        with self.engine.connect() as connection:
+            row = (
+                connection.execute(
+                    select(
+                        users.c.id,
+                        users.c.username,
+                        users.c.player_name,
+                        users.c.player_name_changed_at,
+                        users.c.created_at,
+                    ).where(users.c.id == account_id)
+                )
+                .mappings()
+                .first()
+            )
+        return self._account_from_row(row) if row is not None else None
+
+    def rename_player(self, account_id: str, player_name: str) -> Account:
+        normalized_name, name_key = self._normalize_player_name(player_name)
+        self.initialize()
+        now = self._now()
+        try:
+            with self.engine.begin() as connection:
+                row = (
+                    connection.execute(
+                        select(
+                            users.c.id,
+                            users.c.username,
+                            users.c.player_name,
+                            users.c.player_name_changed_at,
+                            users.c.created_at,
+                        ).where(users.c.id == account_id)
+                    )
+                    .mappings()
+                    .first()
+                )
+                if row is None:
+                    raise AccountError("账号不存在")
+                current_name_key = self._normalize_player_name(
+                    row["player_name"]
+                )[1]
+                if current_name_key == name_key:
+                    return self._account_from_row(row)
+                changed_at = row["player_name_changed_at"]
+                if (
+                    changed_at is not None
+                    and changed_at + PLAYER_NAME_CHANGE_INTERVAL > now
+                ):
+                    available_at = self._iso_datetime(
+                        changed_at + PLAYER_NAME_CHANGE_INTERVAL
+                    )
+                    raise AccountError(
+                        f"每 30 天只能改名一次，下次可改名时间：{available_at}"
+                    )
+                owner_id = connection.execute(
+                    select(player_name_claims.c.account_id).where(
+                        player_name_claims.c.name_key == name_key
+                    )
+                ).scalar_one_or_none()
+                if owner_id is not None and owner_id != account_id:
+                    raise AccountError("这个游戏昵称已归其他账号所有")
+                connection.execute(
+                    update(users)
+                    .where(users.c.id == account_id)
+                    .values(
+                        player_name=normalized_name,
+                        player_name_changed_at=now,
+                    )
+                )
+                if owner_id is None:
+                    connection.execute(
+                        insert(player_name_claims).values(
+                            name_key=name_key,
+                            account_id=account_id,
+                            claimed_at=now,
+                        )
+                    )
+                return Account(
+                    id=account_id,
+                    username=row["username"],
+                    player_name=normalized_name,
+                    player_name_changed_at=self._iso_datetime(now),
+                    created_at=self._iso_datetime(row["created_at"]),
+                )
+        except IntegrityError as exc:
+            raise AccountError("这个游戏昵称已经被使用") from exc
 
     def logout(self, token: str | None) -> None:
         if not token:
@@ -265,7 +374,7 @@ class AccountStore:
                     {
                         "match_id": room.game_id,
                         "account_id": player.account_id,
-                        "display_name": player.name,
+                        "player_name": player.name,
                         "seat": player.seat,
                         "role": player.role.value,
                         "alignment": player.alignment.value,
@@ -329,7 +438,7 @@ class AccountStore:
                         {
                             "match_id": match_id,
                             "account_id": player["accountId"],
-                            "display_name": player["displayName"],
+                            "player_name": player["playerName"],
                             "seat": player["seat"],
                             "role": player["role"],
                             "alignment": player["alignment"],
@@ -369,7 +478,7 @@ class AccountStore:
                 matches.c.ranked,
                 matches.c.assassination_hit,
                 matches.c.ended_at,
-                match_players.c.display_name,
+                match_players.c.player_name,
                 match_players.c.role,
                 match_players.c.alignment,
                 match_players.c.won,
@@ -526,7 +635,7 @@ class AccountStore:
             statement = (
                 select(
                     users.c.id,
-                    users.c.display_name,
+                    users.c.player_name,
                     attempt_count,
                     best_ms,
                     average_ms,
@@ -541,7 +650,7 @@ class AccountStore:
                     matches.c.ranked.is_(True),
                     match_players.c.score_ms.is_not(None),
                 )
-                .group_by(users.c.id, users.c.display_name, users.c.created_at)
+                .group_by(users.c.id, users.c.player_name, users.c.created_at)
                 .order_by(
                     best_ms.asc(),
                     average_ms.asc(),
@@ -556,7 +665,7 @@ class AccountStore:
                 {
                     "rank": index,
                     "accountId": row["id"],
-                    "displayName": row["display_name"],
+                    "playerName": row["player_name"],
                     "games": int(row["games"]),
                     "wins": 0,
                     "draws": 0,
@@ -576,7 +685,7 @@ class AccountStore:
         statement = (
             select(
                 users.c.id,
-                users.c.display_name,
+                users.c.player_name,
                 game_count,
                 win_count,
                 draw_count,
@@ -587,7 +696,7 @@ class AccountStore:
                 ).join(users, users.c.id == match_players.c.account_id)
             )
             .where(matches.c.ranked.is_(True))
-            .group_by(users.c.id, users.c.display_name, users.c.created_at)
+            .group_by(users.c.id, users.c.player_name, users.c.created_at)
             .order_by(
                 win_count.desc(),
                 (win_count * 1.0 / game_count).desc(),
@@ -603,7 +712,7 @@ class AccountStore:
             {
                 "rank": index,
                 "accountId": row["id"],
-                "displayName": row["display_name"],
+                "playerName": row["player_name"],
                 "games": int(row["games"]),
                 "wins": int(row["wins"]),
                 "draws": int(row["draws"]),
@@ -699,7 +808,7 @@ class AccountStore:
                 else None
             ),
             "endedAt": cls._iso_datetime(row["ended_at"]),
-            "displayName": row["display_name"],
+            "playerName": row["player_name"],
             "role": row["role"],
             "alignment": row["alignment"],
             "won": bool(row["won"]),
@@ -771,7 +880,12 @@ class AccountStore:
         return Account(
             id=row["id"],
             username=row["username"],
-            display_name=row["display_name"],
+            player_name=row["player_name"],
+            player_name_changed_at=(
+                cls._iso_datetime(row["player_name_changed_at"])
+                if row["player_name_changed_at"] is not None
+                else None
+            ),
             created_at=cls._iso_datetime(row["created_at"]),
         )
 
@@ -787,13 +901,11 @@ class AccountStore:
         return normalized, normalized.casefold()
 
     @staticmethod
-    def _normalize_display_name(display_name: str) -> str:
-        normalized = " ".join(display_name.strip().split())
-        if not normalized:
-            raise AccountError("请输入显示名称")
-        if len(normalized) > 12:
-            raise AccountError("显示名称最多 12 个字符")
-        return normalized
+    def _normalize_player_name(player_name: str) -> tuple[str, str]:
+        normalized = " ".join(player_name.strip().split())
+        if not 2 <= len(normalized) <= 12:
+            raise AccountError("游戏昵称需要 2–12 个字符")
+        return normalized, normalized.casefold()
 
     @staticmethod
     def _validate_password(password: str) -> None:

@@ -84,7 +84,7 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "${GAME_HALL_PORT:-${AVALON_PORT:-8800}}:8000"
+      - "${GAME_HALL_PORT:-${AVALON_PORT:-10618}}:8000"
 
 volumes:
   mysql-data:

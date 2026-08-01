@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client'
 
-const serverUrl = process.env.AVALON_SERVER_URL ?? 'http://127.0.0.1:8800'
+const serverUrl = process.env.AVALON_SERVER_URL ?? 'http://127.0.0.1:10618'
 const accessPassword = process.env.AVALON_SMOKE_ACCESS_PASSWORD ?? 'avalon'
 const accountPrefix = process.env.AVALON_SMOKE_PREFIX ?? `smk${Date.now().toString(36)}`
 const clients = []
@@ -71,7 +71,7 @@ async function registerAccounts() {
         body: JSON.stringify({
           username: `${accountPrefix}_${index + 1}`,
           password: 'SmokePass123!',
-          display_name: `测试玩家${index + 1}`,
+          player_name: `测试玩家${index + 1}`,
         }),
       }),
     )
@@ -101,7 +101,7 @@ async function newClient(index, accessToken, accountToken) {
 try {
   const { accessToken, accounts } = await registerAccounts()
   const host = await newClient(0, accessToken, accounts[0].token)
-  const created = await emitAck(host, 'room:create', { name: '测试玩家1' })
+  const created = await emitAck(host, 'room:create')
   const lobbyBeforeStart = await emitAck(host, 'lobby:list')
   if (
     !lobbyBeforeStart.rooms?.some(
@@ -115,7 +115,6 @@ try {
     const client = await newClient(index, accessToken, accounts[index].token)
     await emitAck(client, 'room:join', {
       room_code: created.roomCode,
-      name: `测试玩家${index + 1}`,
     })
   }
 

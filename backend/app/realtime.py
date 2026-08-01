@@ -23,7 +23,6 @@ from .games.avalon.schemas import (
     LadySettingPayload,
     ListedSettingPayload,
     MissionVotePayload,
-    NamePayload,
     ResumePayload,
     TargetPayload,
     TeamPayload,
@@ -215,9 +214,13 @@ async def disconnect(sid: str, reason: str) -> None:
 @sio.on("room:create")
 async def create_room(sid: str, raw_data: Any) -> dict[str, Any]:
     try:
-        payload = NamePayload.model_validate(raw_data or {})
         account_id = await account_id_for_sid(sid)
-        room, player, token = rooms.create_room(payload.name, account_id)
+        account = account_store().account_for_id(account_id)
+        if account is None:
+            raise RoomError("登录状态无效，请重新登录")
+        room, player, token = rooms.create_room(
+            account.player_name, account_id
+        )
         await bind_session(sid, room, player.id)
         await broadcast_room(room)
         await broadcast_lobby()
@@ -236,8 +239,11 @@ async def join_room(sid: str, raw_data: Any) -> dict[str, Any]:
     try:
         payload = JoinPayload.model_validate(raw_data or {})
         account_id = await account_id_for_sid(sid)
+        account = account_store().account_for_id(account_id)
+        if account is None:
+            raise RoomError("登录状态无效，请重新登录")
         room, player, token = rooms.join_room(
-            payload.room_code, payload.name, account_id
+            payload.room_code, account.player_name, account_id
         )
         await bind_session(sid, room, player.id)
         await broadcast_room(room)

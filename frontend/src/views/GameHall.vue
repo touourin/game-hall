@@ -1,20 +1,25 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { History, LogOut, Palette, RotateCcw } from '@lucide/vue'
+import { History, LogOut, RotateCcw, Settings } from '@lucide/vue'
 import type { AccountProfile } from '../account'
 import type { GameCatalogItem } from '../types/arcade'
 import { useArcadeStore } from '../stores/arcade'
 import StatsModal from '../components/StatsModal.vue'
-import ThemeModal from '../components/ThemeModal.vue'
+import SettingsModal from '../components/SettingsModal.vue'
 
-defineProps<{ account: AccountProfile }>()
+defineProps<{
+  account: AccountProfile
+  busy: boolean
+  error: string | null
+}>()
 const emit = defineEmits<{
   logout: []
   select: [game: GameCatalogItem]
+  rename: [playerName: string]
 }>()
 const arcade = useArcadeStore()
 const showStats = ref(false)
-const showTheme = ref(false)
+const showSettings = ref(false)
 
 const games: Array<GameCatalogItem & { symbol: string; tone: string }> = [
   { key: 'avalon', name: '阿瓦隆', players: '5–10 人', description: '身份推理、组队投票与湖中仙女', symbol: '♛', tone: 'gold' },
@@ -31,12 +36,12 @@ const games: Array<GameCatalogItem & { symbol: string; tone: string }> = [
   <main class="game-hall page-container">
     <section class="account-bar" aria-label="当前登录账号">
       <div>
-        <span class="avatar">{{ account.displayName.slice(0, 1) }}</span>
-        <span><small>游戏大厅</small><strong>{{ account.displayName }}</strong></span>
+        <span class="avatar">{{ account.playerName.slice(0, 1) }}</span>
+        <span><small>游戏大厅</small><strong>{{ account.playerName }}</strong></span>
       </div>
       <div class="account-bar-actions">
         <button type="button" @click="showStats = true"><History :size="16" /><span>战绩</span></button>
-        <button type="button" @click="showTheme = true"><Palette :size="16" /><span>主题</span></button>
+        <button type="button" @click="showSettings = true"><Settings :size="16" /><span>设置</span></button>
         <button type="button" @click="emit('logout')"><LogOut :size="16" /><span>退出</span></button>
       </div>
     </section>
@@ -75,7 +80,14 @@ const games: Array<GameCatalogItem & { symbol: string; tone: string }> = [
     </section>
 
     <StatsModal v-if="showStats" @close="showStats = false" />
-    <ThemeModal v-if="showTheme" @close="showTheme = false" />
+    <SettingsModal
+      v-if="showSettings"
+      :account="account"
+      :busy="busy"
+      :error="error"
+      @close="showSettings = false"
+      @rename="emit('rename', $event)"
+    />
   </main>
 </template>
 

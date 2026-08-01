@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client'
 
-const baseUrl = process.env.ARCADE_SMOKE_URL ?? 'http://127.0.0.1:8800'
+const baseUrl = process.env.ARCADE_SMOKE_URL ?? 'http://127.0.0.1:10618'
 const prefix = process.env.ARCADE_SMOKE_PREFIX ?? `smoke_${Date.now().toString(36)}`
 const accessPassword = process.env.ARCADE_SMOKE_ACCESS_PASSWORD ?? 'avalon'
 const password = 'SmokePass123!'
@@ -25,7 +25,7 @@ async function register(accessToken, index) {
     body: JSON.stringify({
       username,
       password,
-      display_name: `冒烟玩家${index}`,
+      player_name: `冒烟玩家${index}`,
     }),
   })
   return { ...result, username }
@@ -55,17 +55,15 @@ function emitAck(socket, event, payload = {}) {
   })
 }
 
-async function playToResignation(gameKey, clients, names, options = {}) {
+async function playToResignation(gameKey, clients, options = {}) {
   const created = await emitAck(clients[0], 'arcade:create', {
     game_key: gameKey,
-    name: names[0],
     options: { firstPlayer: 'host', ...options },
   })
   for (let index = 1; index < clients.length; index += 1) {
     await emitAck(clients[index], 'arcade:join', {
       game_key: gameKey,
       room_code: created.roomCode,
-      name: names[index],
     })
   }
   await emitAck(clients[0], 'arcade:start')
@@ -96,10 +94,9 @@ async function playToResignation(gameKey, clients, names, options = {}) {
   return created.roomCode
 }
 
-async function playReaction(client, name) {
+async function playReaction(client) {
   const created = await emitAck(client, 'arcade:create', {
     game_key: 'reaction',
-    name,
   })
   await emitAck(client, 'arcade:start')
   for (const elapsedMs of [180, 240, 210]) {
@@ -125,19 +122,18 @@ try {
     sockets.push(await connectClient(access.token, account.token))
   }
 
-  const names = accounts.map((account) => account.account.displayName)
   const rooms = {}
   for (const gameKey of ['gomoku', 'xiangqi', 'go']) {
-    rooms[gameKey] = await playToResignation(gameKey, sockets.slice(0, 2), names.slice(0, 2))
+    rooms[gameKey] = await playToResignation(gameKey, sockets.slice(0, 2))
   }
-  rooms.doudizhu = await playToResignation('doudizhu', sockets, names)
+  rooms.doudizhu = await playToResignation('doudizhu', sockets)
   rooms.junqiDark = await playToResignation(
-    'junqi', sockets.slice(0, 2), names.slice(0, 2), { mode: 'dark' },
+    'junqi', sockets.slice(0, 2), { mode: 'dark' },
   )
   rooms.junqiFlip = await playToResignation(
-    'junqi', sockets.slice(0, 2), names.slice(0, 2), { mode: 'flip' },
+    'junqi', sockets.slice(0, 2), { mode: 'flip' },
   )
-  rooms.reaction = await playReaction(sockets[0], names[0])
+  rooms.reaction = await playReaction(sockets[0])
 
   const headers = {
     Authorization: `Bearer ${accounts[0].token}`,
