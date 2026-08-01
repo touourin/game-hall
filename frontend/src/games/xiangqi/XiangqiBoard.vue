@@ -189,38 +189,39 @@ function exportMoves() {
     </div>
 
     <div class="xiangqi-board" :class="{ 'has-selection': selected }" aria-label="中国象棋棋盘">
-      <svg class="palace-lines" viewBox="0 0 8 9" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M3 0 L5 2 M5 0 L3 2 M3 7 L5 9 M5 7 L3 9" />
-      </svg>
-      <template v-for="row in displayRows" :key="row">
-        <button
-          v-for="column in displayColumns"
-          :key="`${row}-${column}`"
-          type="button"
-          class="xiangqi-cell"
-          :disabled="snapshot.phase !== 'playing' || !isMyTurn || isReplaying || arcade.busy"
-          :aria-pressed="selected?.row === row && selected?.column === column"
-          :aria-label="`第 ${row + 1} 行第 ${column + 1} 列`"
-          :class="{
-            selected: selected?.row === row && selected?.column === column,
-            legal: !isReplaying && isLegalTarget(row, column),
-            capture: !isReplaying && isLegalTarget(row, column) && game.board[row][column],
-            latest: (isReplaying ? replayMove : game.lastMove)?.toRow === row && (isReplaying ? replayMove : game.lastMove)?.toColumn === column,
-            'last-from': (isReplaying ? replayMove : game.lastMove)?.fromRow === row && (isReplaying ? replayMove : game.lastMove)?.fromColumn === column,
-            'river-bank-top': (game.viewerColor === 'red' && row === 4) || (game.viewerColor === 'black' && row === 5),
-            'river-bank-bottom': (game.viewerColor === 'red' && row === 5) || (game.viewerColor === 'black' && row === 4),
-            'edge-column': column === 0 || column === 8,
-          }"
-          @click="choose(row, column)"
-        >
-          <span
-            v-if="displayBoard[row][column]"
-            class="xiangqi-piece"
-            :class="displayBoard[row][column]?.startsWith('r') ? 'red' : 'black'"
-          >{{ labels[displayBoard[row][column] ?? ''] }}</span>
-        </button>
-      </template>
-      <div class="river-label"><span>楚 河</span><span>汉 界</span></div>
+      <div class="xiangqi-grid">
+        <svg class="xiangqi-lines" viewBox="0 0 8 9" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M0 0H8 M0 1H8 M0 2H8 M0 3H8 M0 4H8 M0 5H8 M0 6H8 M0 7H8 M0 8H8 M0 9H8" />
+          <path d="M0 0V9 M8 0V9 M1 0V4 M1 5V9 M2 0V4 M2 5V9 M3 0V4 M3 5V9 M4 0V4 M4 5V9 M5 0V4 M5 5V9 M6 0V4 M6 5V9 M7 0V4 M7 5V9" />
+          <path class="palace-lines" d="M3 0L5 2 M5 0L3 2 M3 7L5 9 M5 7L3 9" />
+        </svg>
+        <template v-for="row in displayRows" :key="row">
+          <button
+            v-for="column in displayColumns"
+            :key="`${row}-${column}`"
+            type="button"
+            class="xiangqi-cell"
+            :disabled="snapshot.phase !== 'playing' || !isMyTurn || isReplaying || arcade.busy"
+            :aria-pressed="selected?.row === row && selected?.column === column"
+            :aria-label="`第 ${row + 1} 行第 ${column + 1} 列`"
+            :class="{
+              selected: selected?.row === row && selected?.column === column,
+              legal: !isReplaying && isLegalTarget(row, column),
+              capture: !isReplaying && isLegalTarget(row, column) && game.board[row][column],
+              latest: (isReplaying ? replayMove : game.lastMove)?.toRow === row && (isReplaying ? replayMove : game.lastMove)?.toColumn === column,
+              'last-from': (isReplaying ? replayMove : game.lastMove)?.fromRow === row && (isReplaying ? replayMove : game.lastMove)?.fromColumn === column,
+            }"
+            @click="choose(row, column)"
+          >
+            <span
+              v-if="displayBoard[row][column]"
+              class="xiangqi-piece"
+              :class="displayBoard[row][column]?.startsWith('r') ? 'red' : 'black'"
+            >{{ labels[displayBoard[row][column] ?? ''] }}</span>
+          </button>
+        </template>
+        <div class="river-label"><span>楚 河</span><span>汉 界</span></div>
+      </div>
     </div>
 
     <div class="xiangqi-actions">
@@ -250,11 +251,13 @@ function exportMoves() {
 <style scoped>
 .xiangqi-panel { display: grid; gap: 15px; justify-items: center; }.xiangqi-status { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 14px; color: var(--muted); text-align: center; }.xiangqi-status strong { color: var(--gold); }.xiangqi-status .selection { color: color-mix(in srgb, var(--gold) 78%, white); font-weight: 800; }.xiangqi-status .check { color: #ff8d86; font-weight: 800; }
 .captured-pieces { width: min(92vw, 610px); display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }.captured-pieces > span { min-height: 38px; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; color: var(--muted); background: rgba(0,0,0,.1); }.captured-pieces b { margin-right: 5px; color: var(--text); }.captured-pieces i { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; color: #3b2718; background: #d6a05d; font-family: serif; font-style: normal; font-weight: 900; }.captured-pieces em { font-style: normal; }
-.xiangqi-board { --board-padding: 18px; position: relative; width: min(92vw, 610px); aspect-ratio: 9 / 10; padding: var(--board-padding); display: grid; grid-template-columns: repeat(9, 1fr); grid-template-rows: repeat(10, 1fr); border: 7px double #6e3e19; border-radius: 12px; background-color: #d9aa65; background-image: linear-gradient(103deg, transparent 0 21%, rgba(106, 56, 17, .08) 21.4%, transparent 22%), repeating-linear-gradient(2deg, rgba(255, 245, 205, .065) 0 2px, rgba(92, 49, 16, .035) 3px 6px); box-shadow: inset 0 0 0 2px rgba(255, 229, 168, .3), inset 0 0 28px rgba(83, 39, 8, .22), 0 20px 50px #0006, 0 0 0 1px color-mix(in srgb, var(--gold) 24%, transparent); }
-.xiangqi-cell { position: relative; min-width: 0; padding: 0; border: 0; background: linear-gradient(#603b1d, #603b1d) center / 100% 1px no-repeat, linear-gradient(90deg, #603b1d, #603b1d) center / 1px 100% no-repeat; }.xiangqi-cell:disabled { opacity: 1; }.xiangqi-cell:not(:disabled) { cursor: pointer; }.xiangqi-cell.river-bank-top:not(.edge-column) { background: linear-gradient(#603b1d, #603b1d) center / 100% 1px no-repeat, linear-gradient(90deg, #603b1d, #603b1d) center top / 1px 50% no-repeat; }.xiangqi-cell.river-bank-bottom:not(.edge-column) { background: linear-gradient(#603b1d, #603b1d) center / 100% 1px no-repeat, linear-gradient(90deg, #603b1d, #603b1d) center bottom / 1px 50% no-repeat; }.xiangqi-cell.selected::after, .xiangqi-cell.latest::after { content: ''; position: absolute; inset: 0; z-index: 4; border: 3px solid var(--gold); border-radius: 50%; box-shadow: 0 0 0 2px rgba(255, 235, 168, .35), 0 0 18px rgba(246, 196, 89, .62); }.xiangqi-cell.latest::after { inset: 10%; z-index: 1; border-width: 2px; border-color: #b94337; box-shadow: 0 0 0 2px rgba(255, 229, 186, .34); }.xiangqi-cell.last-from::before { content: ''; position: absolute; inset: 30%; z-index: 1; border-radius: 50%; background: rgba(178, 64, 50, .62); box-shadow: 0 0 0 3px rgba(255, 225, 177, .28); }.xiangqi-cell.legal::before { content: ''; position: absolute; z-index: 3; width: 13px; height: 13px; top: 50%; left: 50%; border-radius: 50%; background: #18875edb; box-shadow: 0 0 0 4px rgba(24, 135, 94, .14); transform: translate(-50%, -50%); }.xiangqi-cell.legal.capture::before { width: 72%; height: 72%; border: 3px solid #18875e; background: transparent; box-shadow: 0 0 0 3px rgba(24, 135, 94, .13); }
+.xiangqi-board { --board-padding: clamp(14px, 3vw, 20px); position: relative; width: min(100%, 610px); box-sizing: border-box; overflow: hidden; padding: var(--board-padding); border: 3px solid #74451f; border-radius: 15px; background-color: #d9aa65; background-image: linear-gradient(90deg, rgba(255, 231, 173, .14), transparent 8% 92%, rgba(92, 45, 15, .12)), linear-gradient(103deg, transparent 0 21%, rgba(106, 56, 17, .08) 21.4%, transparent 22%), repeating-linear-gradient(2deg, rgba(255, 245, 205, .075) 0 2px, rgba(92, 49, 16, .04) 3px 7px); box-shadow: inset 0 0 0 3px #e5bd75, inset 0 0 0 6px rgba(91, 47, 17, .45), inset 0 0 30px rgba(83, 39, 8, .2), 0 18px 45px #0006, 0 0 0 1px color-mix(in srgb, var(--gold) 24%, transparent); }
+.xiangqi-grid { position: relative; isolation: isolate; width: 100%; aspect-ratio: 9 / 10; display: grid; grid-template-columns: repeat(9, 1fr); grid-template-rows: repeat(10, 1fr); }
+.xiangqi-lines { pointer-events: none; position: absolute; z-index: 0; inset: 5% 5.5556%; width: auto; height: auto; overflow: hidden; }.xiangqi-lines path { fill: none; stroke: #603b1d; stroke-width: 1.25; vector-effect: non-scaling-stroke; stroke-linecap: square; }
+.xiangqi-cell { position: relative; z-index: 2; min-width: 0; min-height: 0; appearance: none; -webkit-appearance: none; touch-action: manipulation; padding: 0; border: 0; border-radius: 0; background: transparent; }.xiangqi-cell:disabled { opacity: 1; }.xiangqi-cell:not(:disabled) { cursor: pointer; }.xiangqi-cell.selected::after, .xiangqi-cell.latest::after { content: ''; position: absolute; inset: 0; z-index: 4; border: 3px solid var(--gold); border-radius: 50%; box-shadow: 0 0 0 2px rgba(255, 235, 168, .35), 0 0 18px rgba(246, 196, 89, .62); }.xiangqi-cell.latest::after { inset: 10%; z-index: 1; border-width: 2px; border-color: #b94337; box-shadow: 0 0 0 2px rgba(255, 229, 186, .34); }.xiangqi-cell.last-from::before { content: ''; position: absolute; inset: 30%; z-index: 1; border-radius: 50%; background: rgba(178, 64, 50, .62); box-shadow: 0 0 0 3px rgba(255, 225, 177, .28); }.xiangqi-cell.legal::before { content: ''; position: absolute; z-index: 3; width: 13px; height: 13px; top: 50%; left: 50%; border-radius: 50%; background: #18875edb; box-shadow: 0 0 0 4px rgba(24, 135, 94, .14); transform: translate(-50%, -50%); }.xiangqi-cell.legal.capture::before { width: 72%; height: 72%; border: 3px solid #18875e; background: transparent; box-shadow: 0 0 0 3px rgba(24, 135, 94, .13); }
 .xiangqi-cell:focus-visible { border-radius: 50%; outline-offset: -3px; }
-.xiangqi-piece { position: absolute; inset: 5%; z-index: 2; display: grid; place-items: center; border: 2px solid currentColor; border-radius: 50%; background: radial-gradient(circle at 38% 30%, rgba(255, 245, 202, .9), transparent 27%), radial-gradient(circle, #efd398, #bd7d35 76%); box-shadow: 0 3px 7px #0008, inset 0 0 0 2px #edc77d, inset 0 -4px 8px rgba(103, 51, 12, .22); font-family: serif; font-size: clamp(15px, 4.5vw, 28px); font-weight: 900; transition: transform .14s ease, box-shadow .14s ease, filter .14s ease; }.xiangqi-piece.red { color: #a92b25; }.xiangqi-piece.black { color: #242621; }.xiangqi-cell.selected .xiangqi-piece { transform: translateY(-4px) scale(1.08); filter: saturate(1.12) brightness(1.06); box-shadow: 0 7px 13px rgba(48, 24, 8, .62), 0 0 0 3px #f4cd68, 0 0 22px rgba(246, 196, 82, .78), inset 0 0 0 2px #f3d58d; }.palace-lines { pointer-events: none; position: absolute; z-index: 1; left: calc(var(--board-padding) + 5.2%); right: calc(var(--board-padding) + 5.2%); top: calc(var(--board-padding) + 4.75%); bottom: calc(var(--board-padding) + 4.75%); width: auto; height: auto; overflow: visible; }.palace-lines path { fill: none; stroke: #603b1d; stroke-width: .025; }.river-label { pointer-events: none; position: absolute; z-index: 2; top: 50%; left: 8%; right: 8%; display: flex; justify-content: space-around; color: #603b1d; font-family: serif; font-size: clamp(16px, 4vw, 28px); font-weight: 900; text-shadow: 0 1px rgba(255, 229, 164, .46); transform: translateY(-50%); }
+.xiangqi-piece { position: absolute; inset: 7%; z-index: 3; display: grid; place-items: center; border: 2px solid currentColor; border-radius: 50%; background: radial-gradient(circle at 38% 30%, rgba(255, 248, 215, .92), transparent 27%), radial-gradient(circle, #efd398, #bd7d35 76%); box-shadow: 0 3px 7px #0008, inset 0 0 0 2px #edc77d, inset 0 -4px 8px rgba(103, 51, 12, .22); font-family: serif; font-size: clamp(15px, 4.3vw, 27px); line-height: 1; font-weight: 900; transition: transform .14s ease, box-shadow .14s ease, filter .14s ease; }.xiangqi-piece.red { color: #a92b25; }.xiangqi-piece.black { color: #242621; }.xiangqi-cell.selected .xiangqi-piece { transform: translateY(-3px) scale(1.06); filter: saturate(1.12) brightness(1.06); box-shadow: 0 7px 13px rgba(48, 24, 8, .62), 0 0 0 3px #f4cd68, 0 0 22px rgba(246, 196, 82, .78), inset 0 0 0 2px #f3d58d; }.river-label { pointer-events: none; position: absolute; z-index: 1; top: 50%; left: 9%; right: 9%; display: flex; justify-content: space-around; color: #603b1d; font-family: serif; font-size: clamp(16px, 4vw, 27px); line-height: 1; font-weight: 900; text-shadow: 0 1px rgba(255, 229, 164, .46); transform: translateY(-50%); }
 .xiangqi-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }.xiangqi-actions > button:not(.arcade-danger-button) { min-height: 42px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 10px; padding: 0 13px; color: var(--text); background: var(--surface); font-weight: 800; }.xiangqi-actions button:disabled { opacity: .4; }
 .replay-backdrop { position: fixed; z-index: 80; inset: 0; display: grid; place-items: center; padding: 18px; background: #020b0bd4; }.replay-panel { width: min(92vw, 560px); max-height: min(82vh, 720px); display: grid; grid-template-rows: auto 1fr auto; gap: 12px; border: 1px solid var(--line); border-radius: 17px; padding: 17px; background: var(--surface-strong); box-shadow: 0 24px 70px #000a; }.replay-panel header { display: flex; justify-content: space-between; align-items: center; }.replay-panel header > div { display: grid; }.replay-panel header small { color: var(--gold); }.replay-panel header button { border: 0; color: var(--muted); background: transparent; }.move-list { min-height: 0; overflow: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }.move-list button { min-height: 42px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; color: var(--text); background: rgba(0,0,0,.11); text-align: left; }.move-list button.active { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, transparent); }.move-list span { color: var(--muted); }.move-list em { color: #ff8d86; font-style: normal; font-size: 12px; }.replay-panel footer { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }.replay-panel footer button { min-height: 42px; display: flex; justify-content: center; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 9px; color: var(--text); background: rgba(0,0,0,.14); }
-@media (max-width: 600px) { .captured-pieces { width: 100%; grid-template-columns: 1fr; }.xiangqi-board { --board-padding: 10px; width: 100%; border-width: 5px; }.move-list { grid-template-columns: 1fr; }.replay-panel { width: 100%; max-height: 88vh; }.xiangqi-piece { font-size: clamp(14px, 5.5vw, 24px); } }
+@media (max-width: 600px) { .xiangqi-panel { gap: 13px; }.captured-pieces { width: 100%; grid-template-columns: 1fr; }.xiangqi-board { --board-padding: 14px; width: 100%; border-width: 2px; border-radius: 13px; }.move-list { grid-template-columns: 1fr; }.replay-panel { width: 100%; max-height: 88vh; }.xiangqi-piece { inset: 8%; font-size: clamp(14px, 5.1vw, 22px); }.xiangqi-lines path { stroke-width: 1.1; }.river-label { font-size: clamp(16px, 4.8vw, 21px); } }
 </style>

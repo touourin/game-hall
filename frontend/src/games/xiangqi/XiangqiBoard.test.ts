@@ -71,8 +71,9 @@ describe('XiangqiBoard', () => {
     })
     const king = wrapper.findAll('.xiangqi-cell')[9 * 9 + 4]
 
+    expect(wrapper.find('.xiangqi-lines').exists()).toBe(true)
     expect(wrapper.find('.palace-lines').exists()).toBe(true)
-    expect(wrapper.findAll('.river-bank-top')).toHaveLength(9)
+    expect(wrapper.find('.xiangqi-grid').exists()).toBe(true)
     await king?.trigger('click')
 
     expect(king?.classes()).toContain('selected')

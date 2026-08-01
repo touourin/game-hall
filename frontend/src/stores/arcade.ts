@@ -44,7 +44,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     if (initialized) return
     initialized = true
     socket.on('connect', async () => {
-      if (session.value && !snapshot.value) await resume()
+      if (session.value) await resume()
     })
     socket.on('arcade:lobby', (rooms: ArcadeLobbyRoom[]) => {
       availableRooms.value = rooms
@@ -132,6 +132,7 @@ export const useArcadeStore = defineStore('arcade', () => {
       token: session.value.resumeToken,
     })
     if (!response) {
+      snapshot.value = null
       clearSession()
       error.value = null
     }
