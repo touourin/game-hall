@@ -19,7 +19,7 @@ const props = withDefaults(
     subtitle: '',
     hint: '按住查看，松开隐藏',
     roleCode: '',
-    roleSkin: 'dark-chronicle',
+    roleSkin: 'classic-tabletop',
   },
 )
 
