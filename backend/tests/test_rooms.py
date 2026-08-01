@@ -77,7 +77,7 @@ def test_room_with_only_ai_players_is_removed_when_last_human_leaves():
     assert room.code not in manager.rooms
 
 
-def test_all_offline_humans_start_grace_period_before_room_cleanup():
+def test_all_offline_humans_become_manually_cleanable_after_ten_minutes():
     manager = RoomManager()
     room, host, _ = manager.create_room("亚瑟")
     manager.add_ai_player(room, host.id)
@@ -86,12 +86,21 @@ def test_all_offline_humans_start_grace_period_before_room_cleanup():
 
     manager.update_human_presence(room, now=disconnected_at)
 
-    assert manager.cleanup_abandoned(
-        now=disconnected_at + timedelta(minutes=4, seconds=59)
+    assert manager.maintain(
+        now=disconnected_at + timedelta(minutes=9, seconds=59)
     ) == []
-    assert manager.cleanup_abandoned(
-        now=disconnected_at + timedelta(minutes=5)
-    ) == [room.code]
+    assert manager.maintain(
+        now=disconnected_at + timedelta(minutes=10)
+    ) == [room]
+    assert room.cleanup_ready is True
+    assert room.code in manager.rooms
+
+    removed = manager.cleanup_room(
+        room.code,
+        now=disconnected_at + timedelta(minutes=10),
+    )
+
+    assert removed is room
     assert room.code not in manager.rooms
 
 
@@ -108,9 +117,82 @@ def test_human_reconnect_cancels_abandoned_room_cleanup():
     )
 
     assert room.all_humans_offline_since is None
-    assert manager.cleanup_abandoned(
+    assert manager.maintain(
         now=disconnected_at + timedelta(minutes=10)
     ) == []
+
+
+def test_room_cleanup_is_rejected_before_grace_or_after_reconnect():
+    manager = RoomManager()
+    room, host, _ = manager.create_room("亚瑟")
+    disconnected_at = datetime(2026, 8, 1, tzinfo=timezone.utc)
+    host.connected = False
+    manager.update_human_presence(room, now=disconnected_at)
+
+    with pytest.raises(RoomError, match="10 分钟"):
+        manager.cleanup_room(
+            room.code,
+            now=disconnected_at + timedelta(minutes=9),
+        )
+
+    host.connected = True
+    with pytest.raises(RoomError, match="重新连接"):
+        manager.cleanup_room(
+            room.code,
+            now=disconnected_at + timedelta(minutes=11),
+        )
+
+
+def test_offline_lobby_does_not_accept_new_players():
+    manager = RoomManager()
+    room, host, _ = manager.create_room("亚瑟")
+    host.connected = False
+
+    with pytest.raises(RoomError, match="原成员恢复"):
+        manager.join_room(room.code, "兰斯洛特")
+
+
+def test_offline_host_transfers_after_twenty_seconds():
+    manager = RoomManager()
+    room, host, _ = manager.create_room("亚瑟")
+    _, first_guest, _ = manager.join_room(room.code, "兰斯洛特")
+    _, second_guest, _ = manager.join_room(room.code, "梅林")
+    disconnected_at = datetime(2026, 8, 1, tzinfo=timezone.utc)
+    host.connected = False
+    manager.update_human_presence(room, now=disconnected_at)
+
+    assert manager.maintain(
+        now=disconnected_at + timedelta(seconds=19)
+    ) == []
+    assert room.host_id == host.id
+    assert manager.maintain(
+        now=disconnected_at + timedelta(seconds=20)
+    ) == [room]
+    assert room.host_id == first_guest.id
+    assert room.host_id != second_guest.id
+
+
+def test_host_is_not_transferred_during_an_active_game_or_when_all_offline():
+    manager = RoomManager()
+    room, host, _ = manager.create_room("亚瑟")
+    _, guest, _ = manager.join_room(room.code, "兰斯洛特")
+    disconnected_at = datetime(2026, 8, 1, tzinfo=timezone.utc)
+    room.phase = Phase.ROLE_REVEAL
+    host.connected = False
+    manager.update_human_presence(room, now=disconnected_at)
+
+    assert manager.maintain(
+        now=disconnected_at + timedelta(minutes=1)
+    ) == []
+    assert room.host_id == host.id
+
+    room.phase = Phase.LOBBY
+    guest.connected = False
+    manager.update_human_presence(room, now=disconnected_at)
+    assert manager.maintain(
+        now=disconnected_at + timedelta(minutes=1)
+    ) == []
+    assert room.host_id == host.id
 
 
 def test_only_host_can_add_ai_players_and_only_in_lobby():

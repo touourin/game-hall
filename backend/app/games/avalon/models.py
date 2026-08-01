@@ -136,6 +136,8 @@ class Room:
     lady_pending_target_id: str | None = None
     chat_messages: list[ChatMessage] = field(default_factory=list)
     all_humans_offline_since: datetime | None = None
+    cleanup_ready: bool = False
+    host_offline_since: datetime | None = None
     lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
 
     def player(self, player_id: str) -> Player:

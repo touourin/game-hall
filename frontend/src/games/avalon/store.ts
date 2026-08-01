@@ -41,6 +41,7 @@ export const useRoomStore = defineStore('room', () => {
 
     socket.on('connect', async () => {
       connected.value = true
+      error.value = null
       if (session.value) {
         await resume()
       }
@@ -144,6 +145,17 @@ export const useRoomStore = defineStore('room', () => {
     }
   }
 
+  async function cleanupRoom(roomCode: string) {
+    const response = await perform('room:cleanup', {
+      room_code: roomCode,
+    })
+    if (response && session.value?.roomCode === roomCode) {
+      snapshot.value = null
+      clearSession()
+    }
+    return Boolean(response)
+  }
+
   async function returnToRoom() {
     if (!session.value || snapshot.value) return
     await resume()
@@ -186,6 +198,7 @@ export const useRoomStore = defineStore('room', () => {
     createRoom,
     joinRoom,
     leaveRoom,
+    cleanupRoom,
     returnToRoom,
     clearError,
     resetForLogout,

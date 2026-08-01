@@ -20,6 +20,7 @@ import type { AccountProfile } from '../account'
 import LeaderboardModal from '../components/LeaderboardModal.vue'
 import StatsModal from '../components/StatsModal.vue'
 import ThemeModal from '../components/ThemeModal.vue'
+import CleanupRoomButton from '../components/CleanupRoomButton.vue'
 
 defineProps<{ account: AccountProfile }>()
 defineEmits<{ logout: []; back: [] }>()
@@ -33,6 +34,12 @@ const joinCard = ref<HTMLElement | null>(null)
 const showStats = ref(false)
 const showLeaderboard = ref(false)
 const showTheme = ref(false)
+const joinableRooms = computed(() =>
+  room.availableRooms.filter((availableRoom) => !availableRoom.cleanupAvailable),
+)
+const cleanupRooms = computed(() =>
+  room.availableRooms.filter((availableRoom) => availableRoom.cleanupAvailable),
+)
 
 const canSubmit = computed(
   () => mode.value === 'create' || roomCode.value.trim().length >= 4,
@@ -127,12 +134,12 @@ async function chooseRoom(code: string) {
             <small>选择房间即可带入房间号</small>
           </div>
         </div>
-        <span>{{ room.availableRooms.length }} 间</span>
+        <span>{{ joinableRooms.length }} 间</span>
       </header>
 
-      <div v-if="room.availableRooms.length" class="available-room-list">
+      <div v-if="joinableRooms.length" class="available-room-list">
         <button
-          v-for="availableRoom in room.availableRooms"
+          v-for="availableRoom in joinableRooms"
           :key="availableRoom.roomCode"
           type="button"
           class="available-room"
@@ -152,6 +159,30 @@ async function chooseRoom(code: string) {
       </div>
       <div v-else class="empty-room-list">
         暂无公开房间，创建一个新的圆桌吧
+      </div>
+    </section>
+
+    <section v-if="cleanupRooms.length" class="surface cleanup-room-browser">
+      <header>
+        <div>
+          <span class="cleanup-browser-icon"><UsersRound :size="19" /></span>
+          <div><strong>待清理的圆桌</strong><small>所有真人已离线超过 10 分钟</small></div>
+        </div>
+        <span>{{ cleanupRooms.length }} 间</span>
+      </header>
+      <div class="cleanup-room-list">
+        <article v-for="availableRoom in cleanupRooms" :key="availableRoom.roomCode" class="cleanup-room-item">
+          <span class="avatar">{{ availableRoom.hostName.slice(0, 1) }}</span>
+          <span class="available-room-copy">
+            <strong>{{ availableRoom.hostName }} 的圆桌</strong>
+            <small>房间 {{ availableRoom.roomCode }} · {{ availableRoom.phase === 'lobby' ? '等待阶段' : '未完成对局' }}</small>
+          </span>
+          <CleanupRoomButton
+            :room-code="availableRoom.roomCode"
+            :busy="room.busy"
+            @confirm="room.cleanupRoom(availableRoom.roomCode)"
+          />
+        </article>
       </div>
     </section>
 
@@ -210,7 +241,17 @@ async function chooseRoom(code: string) {
 </template>
 
 <style scoped>
+.cleanup-room-browser { margin-bottom: 22px; overflow: hidden; }
+.cleanup-room-browser > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
+.cleanup-room-browser > header > div { display: flex; align-items: center; gap: 10px; }
+.cleanup-room-browser header strong, .cleanup-room-browser header small { display: block; }
+.cleanup-room-browser header small { margin-top: 2px; color: var(--muted); }
+.cleanup-browser-icon { width: 38px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 11px; color: #efaaa7; background: rgba(134, 45, 49, .15); }
+.cleanup-room-list { display: grid; gap: 8px; }
+.cleanup-room-item { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 11px; border: 1px solid rgba(231, 119, 119, .24); border-radius: 13px; padding: 11px 12px; background: rgba(96, 32, 36, .1); }
 @media (max-width: 680px) {
+  .cleanup-room-item { grid-template-columns: auto minmax(0, 1fr); }
+  .cleanup-room-item :deep(.cleanup-room-button) { grid-column: 1 / -1; width: 100%; }
   .home-page {
     align-content: start;
     gap: 20px;

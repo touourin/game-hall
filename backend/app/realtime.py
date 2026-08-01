@@ -4,13 +4,15 @@ import asyncio
 import logging
 from collections import defaultdict
 from collections.abc import Callable
+from datetime import datetime, timezone
 from typing import Any
 
 import socketio
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from .access import verify_access_token
 from .accounts import account_store
+from .arcade.models import ArcadeRoom
 from .arcade.realtime import arcade_realtime
 from .games.avalon.bots import advance_ai_players
 from .games.avalon.engine import GameEngine, GameRuleError
@@ -30,6 +32,7 @@ from .games.avalon.schemas import (
 )
 from .games.avalon.views import build_lobby_view, build_player_view
 from .infrastructure import redis_url
+from .room_state import RedisRoomStateStore
 
 
 redis_connection_url = redis_url()
@@ -49,6 +52,72 @@ rooms = RoomManager()
 engine = GameEngine()
 active_sids: dict[tuple[str, str], set[str]] = defaultdict(set)
 logger = logging.getLogger(__name__)
+room_state_store = RedisRoomStateStore(redis_connection_url)
+
+
+class RoomCodePayload(BaseModel):
+    room_code: str = Field(min_length=4, max_length=8)
+
+
+async def restore_room_state() -> None:
+    state = await room_state_store.load()
+    if state is None:
+        return
+    avalon_rooms = state.get("avalon")
+    arcade_rooms = state.get("arcade")
+    if isinstance(avalon_rooms, dict):
+        rooms.rooms = {
+            code: room
+            for code, room in avalon_rooms.items()
+            if isinstance(code, str) and isinstance(room, Room)
+        }
+    if isinstance(arcade_rooms, dict):
+        arcade_realtime.rooms.rooms = {
+            code: room
+            for code, room in arcade_rooms.items()
+            if isinstance(code, str) and isinstance(room, ArcadeRoom)
+        }
+
+    restored_at = datetime.now(timezone.utc)
+    for room in rooms.rooms.values():
+        had_connected_human = any(
+            not player.is_bot and player.connected for player in room.players
+        )
+        room.lock = asyncio.Lock()
+        room.cleanup_ready = getattr(room, "cleanup_ready", False)
+        room.host_offline_since = None
+        for player in room.players:
+            if not player.is_bot:
+                player.connected = False
+        if had_connected_human:
+            room.all_humans_offline_since = restored_at
+            room.cleanup_ready = False
+        rooms.update_human_presence(room, now=restored_at)
+
+    for room in arcade_realtime.rooms.rooms.values():
+        had_connected_player = any(player.connected for player in room.players)
+        room.lock = asyncio.Lock()
+        room.cleanup_ready = getattr(room, "cleanup_ready", False)
+        room.host_offline_since = None
+        for player in room.players:
+            player.connected = False
+        if had_connected_player:
+            room.all_humans_offline_since = restored_at
+            room.cleanup_ready = False
+        arcade_realtime.rooms.update_presence(room, now=restored_at)
+
+
+async def persist_room_state() -> None:
+    await room_state_store.save(
+        {
+            "avalon": rooms.rooms,
+            "arcade": arcade_realtime.rooms.rooms,
+        }
+    )
+
+
+async def close_room_state_store() -> None:
+    await room_state_store.close()
 
 
 def player_channel(room_code: str, player_id: str) -> str:
@@ -69,16 +138,16 @@ async def broadcast_lobby() -> None:
 
 
 async def cleanup_abandoned_rooms() -> None:
-    cleanup_seconds = 0
     while True:
         await asyncio.sleep(1)
         await arcade_realtime.tick()
-        cleanup_seconds += 1
-        if cleanup_seconds >= 60:
-            cleanup_seconds = 0
-            if rooms.cleanup_abandoned():
-                await broadcast_lobby()
-            await arcade_realtime.cleanup()
+        changed_rooms = rooms.maintain()
+        if changed_rooms:
+            for room in changed_rooms:
+                await broadcast_room(room)
+            await broadcast_lobby()
+        await arcade_realtime.maintain()
+        await persist_room_state()
 
 
 async def bind_session(
@@ -263,9 +332,11 @@ async def resume_room(sid: str, raw_data: Any) -> dict[str, Any]:
     try:
         payload = ResumePayload.model_validate(raw_data or {})
         account_id = await account_id_for_sid(sid)
-        room, player = rooms.resume(
-            payload.room_code, payload.token, account_id
-        )
+        room = rooms.get_room(payload.room_code)
+        async with room.lock:
+            room, player = rooms.resume(
+                payload.room_code, payload.token, account_id
+            )
         await bind_session(sid, room, player.id)
         await broadcast_room(room)
         return {
@@ -274,6 +345,21 @@ async def resume_room(sid: str, raw_data: Any) -> dict[str, Any]:
             "playerId": player.id,
         }
     except (ValidationError, RoomError) as error:
+        return error_response(error)
+
+
+@sio.on("room:cleanup")
+async def cleanup_room(sid: str, raw_data: Any) -> dict[str, Any]:
+    try:
+        payload = RoomCodePayload.model_validate(raw_data or {})
+        await account_id_for_sid(sid)
+        room = rooms.get_room(payload.room_code)
+        async with room.lock:
+            rooms.cleanup_room(room.code)
+        await broadcast_lobby()
+        await persist_room_state()
+        return {"ok": True}
+    except (ValidationError, RoomError, KeyError) as error:
         return error_response(error)
 
 

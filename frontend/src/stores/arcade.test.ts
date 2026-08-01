@@ -73,6 +73,18 @@ describe('arcade room store', () => {
     expect(localStorage.getItem(SESSION_KEY)).toBeNull()
   })
 
+  it('cleans an eligible room and forgets its own stale session', async () => {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(storedSession))
+    socketMocks.emitWithAck.mockResolvedValue({ ok: true })
+    const arcade = useArcadeStore()
+
+    expect(await arcade.cleanupRoom('TEST')).toBe(true)
+    expect(socketMocks.emitWithAck).toHaveBeenCalledWith('arcade:cleanup', {
+      room_code: 'TEST',
+    })
+    expect(arcade.resumableRoomCode).toBeNull()
+  })
+
   it('sends rapid game actions without locking the whole room interface', async () => {
     socketMocks.emitWithAck.mockResolvedValue({ ok: true })
     const arcade = useArcadeStore()

@@ -71,6 +71,9 @@ export interface LobbyRoom {
   playerCount: number
   maxPlayers: number
   ladyEnabled: boolean
+  phase?: Phase
+  cleanupAvailable?: boolean
+  allHumansOffline?: boolean
 }
 
 export interface RoomActions {
@@ -95,6 +98,7 @@ export interface RoomSnapshot {
   roomCode: string
   revision: number
   phase: Phase
+  hostTransferAt?: string | null
   self: {
     id: string
     name: string

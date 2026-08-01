@@ -11,6 +11,7 @@ from .rules import (
     mission_team_size,
     roles_for_player_count,
 )
+from .rooms import HOST_TRANSFER_GRACE
 
 
 ROLE_LABELS = {
@@ -37,15 +38,18 @@ ROLE_DESCRIPTIONS = {
 
 
 def build_lobby_view(all_rooms: Iterable[Room]) -> list[dict[str, Any]]:
-    joinable_rooms = [
+    visible_rooms = [
         room
         for room in all_rooms
-        if room.phase == Phase.LOBBY
-        and room.settings.listed
-        and len(room.players) < 10
-        and any(
-            not player.is_bot and player.connected
-            for player in room.players
+        if room.cleanup_ready
+        or (
+            room.phase == Phase.LOBBY
+            and room.settings.listed
+            and len(room.players) < 10
+            and any(
+                not player.is_bot and player.connected
+                for player in room.players
+            )
         )
     ]
     return [
@@ -55,8 +59,11 @@ def build_lobby_view(all_rooms: Iterable[Room]) -> list[dict[str, Any]]:
             "playerCount": len(room.players),
             "maxPlayers": 10,
             "ladyEnabled": room.settings.lady_enabled,
+            "phase": room.phase.value,
+            "cleanupAvailable": room.cleanup_ready,
+            "allHumansOffline": room.all_humans_offline_since is not None,
         }
-        for room in reversed(joinable_rooms)
+        for room in reversed(visible_rooms)
     ]
 
 
@@ -183,6 +190,11 @@ def build_player_view(
         "roomCode": room.code,
         "revision": room.revision,
         "phase": room.phase.value,
+        "hostTransferAt": (
+            (room.host_offline_since + HOST_TRANSFER_GRACE).isoformat()
+            if room.host_offline_since is not None
+            else None
+        ),
         "self": {
             "id": viewer.id,
             "name": viewer.name,

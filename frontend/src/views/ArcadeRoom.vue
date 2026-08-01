@@ -14,6 +14,7 @@ import {
 } from '@lucide/vue'
 import ArcadeChatPanel from '../components/ArcadeChatPanel.vue'
 import InviteLinkPanel from '../components/InviteLinkPanel.vue'
+import HostTransferNotice from '../components/HostTransferNotice.vue'
 import GameRuleSettings from '../components/GameRuleSettings.vue'
 import { useArcadeStore } from '../stores/arcade'
 import type { ArcadePlayer, ArcadeSnapshot } from '../types/arcade'
@@ -110,6 +111,8 @@ async function saveRules() {
             {{ player.connected ? '· 在线' : '· 离线' }}
           </small>
         </div>
+    <HostTransferNotice :transfer-at="snapshot.hostTransferAt" />
+
         <button
           v-if="snapshot.actions.canKickPlayers && player.id !== snapshot.self.id"
           type="button"

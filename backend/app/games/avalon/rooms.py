@@ -19,7 +19,8 @@ ROOM_ALPHABET = "".join(
 )
 MAX_CHAT_MESSAGES = 100
 MAX_CHAT_LENGTH = 300
-ABANDONED_ROOM_GRACE = timedelta(minutes=5)
+ROOM_CLEANUP_GRACE = timedelta(minutes=10)
+HOST_TRANSFER_GRACE = timedelta(seconds=20)
 
 
 def hash_token(token: str) -> str:
@@ -61,6 +62,11 @@ class RoomManager:
         room = self.get_room(code)
         if room.phase != Phase.LOBBY:
             raise RoomError("游戏已经开始，不能加入新玩家")
+        if not any(
+            not player.is_bot and player.connected
+            for player in room.players
+        ):
+            raise RoomError("房间成员暂时都不在线，请等待原成员恢复房间")
         if len(room.players) >= 10:
             raise RoomError("房间已经满员")
 
@@ -119,6 +125,7 @@ class RoomManager:
                 if account_id is not None and player.account_id != account_id:
                     raise RoomError("这个座位属于其他账号")
                 player.connected = True
+                self.update_human_presence(room)
                 room.revision += 1
                 return room, player
         raise RoomError("恢复凭证无效，请重新加入房间")
@@ -137,33 +144,96 @@ class RoomManager:
     def update_human_presence(
         self, room: Room, *, now: datetime | None = None
     ) -> None:
+        current = now or datetime.now(timezone.utc)
+        connected_humans = [
+            player
+            for player in room.players
+            if not player.is_bot and player.connected
+        ]
+        if connected_humans:
+            room.all_humans_offline_since = None
+            room.cleanup_ready = False
+            host = room.player(room.host_id)
+            transferable_phase = room.phase in {Phase.LOBBY, Phase.GAME_OVER}
+            if (
+                transferable_phase
+                and not host.is_bot
+                and not host.connected
+                and any(player.id != host.id for player in connected_humans)
+            ):
+                if room.host_offline_since is None:
+                    room.host_offline_since = current
+            else:
+                room.host_offline_since = None
+            return
+        room.host_offline_since = None
+        if room.all_humans_offline_since is None:
+            room.all_humans_offline_since = current
+
+    def maintain(
+        self,
+        *,
+        now: datetime | None = None,
+        cleanup_grace: timedelta = ROOM_CLEANUP_GRACE,
+        host_grace: timedelta = HOST_TRANSFER_GRACE,
+    ) -> list[Room]:
+        current = now or datetime.now(timezone.utc)
+        changed: list[Room] = []
+        for room in list(self.rooms.values()):
+            self.update_human_presence(room, now=current)
+            offline_since = room.all_humans_offline_since
+            if (
+                offline_since is not None
+                and current - offline_since >= cleanup_grace
+                and not room.cleanup_ready
+            ):
+                room.cleanup_ready = True
+                room.revision += 1
+                changed.append(room)
+
+            host_offline_since = room.host_offline_since
+            if (
+                host_offline_since is not None
+                and current - host_offline_since >= host_grace
+            ):
+                candidates = sorted(
+                    (
+                        player
+                        for player in room.players
+                        if not player.is_bot
+                        and player.connected
+                        and player.id != room.host_id
+                    ),
+                    key=lambda player: player.seat,
+                )
+                if candidates:
+                    room.host_id = candidates[0].id
+                    room.host_offline_since = None
+                    room.revision += 1
+                    if room not in changed:
+                        changed.append(room)
+        return changed
+
+    def cleanup_room(
+        self,
+        code: str,
+        *,
+        now: datetime | None = None,
+        grace: timedelta = ROOM_CLEANUP_GRACE,
+    ) -> Room:
+        current = now or datetime.now(timezone.utc)
+        room = self.get_room(code)
+        self.update_human_presence(room, now=current)
         if any(
             not player.is_bot and player.connected
             for player in room.players
         ):
-            room.all_humans_offline_since = None
-            return
-        if room.all_humans_offline_since is None:
-            room.all_humans_offline_since = now or datetime.now(timezone.utc)
-
-    def cleanup_abandoned(
-        self,
-        *,
-        now: datetime | None = None,
-        grace: timedelta = ABANDONED_ROOM_GRACE,
-    ) -> list[str]:
-        current_time = now or datetime.now(timezone.utc)
-        removed_codes: list[str] = []
-        for code, room in list(self.rooms.items()):
-            self.update_human_presence(room, now=current_time)
-            abandoned_since = room.all_humans_offline_since
-            if (
-                abandoned_since is not None
-                and current_time - abandoned_since >= grace
-            ):
-                self.rooms.pop(code, None)
-                removed_codes.append(code)
-        return removed_codes
+            raise RoomError("已有玩家重新连接，不能清理这个房间")
+        offline_since = room.all_humans_offline_since
+        if offline_since is None or current - offline_since < grace:
+            raise RoomError("房间全员离线满 10 分钟后才可以清理")
+        self.rooms.pop(room.code, None)
+        return room
 
     def kick_player(
         self, room: Room, actor_id: str, target_id: str

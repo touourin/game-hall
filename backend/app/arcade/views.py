@@ -5,7 +5,12 @@ from typing import Any
 from backend.app.games.base import GameEngine
 
 from .models import ArcadePlayer, ArcadeRoom
-from .rooms import DRAW_GAMES, MAX_CHAT_LENGTH, UNDO_GAMES
+from .rooms import (
+    DRAW_GAMES,
+    HOST_TRANSFER_GRACE,
+    MAX_CHAT_LENGTH,
+    UNDO_GAMES,
+)
 
 
 def build_lobby_view(
@@ -20,9 +25,12 @@ def build_lobby_view(
             "playerCount": len(room.players),
             "maxPlayers": engines[room.game_key].max_players,
             "options": room.options,
+            "phase": room.phase,
+            "cleanupAvailable": room.cleanup_ready,
+            "allHumansOffline": room.all_humans_offline_since is not None,
         }
         for room in rooms
-        if room.listed and room.phase == "lobby"
+        if room.cleanup_ready or (room.listed and room.phase == "lobby")
     ]
 
 
@@ -44,6 +52,11 @@ def build_room_view(
         "gameName": engine.name,
         "options": room.options,
         "phase": room.phase,
+        "hostTransferAt": (
+            (room.host_offline_since + HOST_TRANSFER_GRACE).isoformat()
+            if room.host_offline_since is not None
+            else None
+        ),
         "hostId": room.host_id,
         "self": {
             "id": viewer.id,

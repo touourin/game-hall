@@ -7,6 +7,7 @@ import { useArcadeStore } from '../stores/arcade'
 import LeaderboardModal from '../components/LeaderboardModal.vue'
 import StatsModal from '../components/StatsModal.vue'
 import GameRuleSettings from '../components/GameRuleSettings.vue'
+import CleanupRoomButton from '../components/CleanupRoomButton.vue'
 import { defaultGameRules, gameRuleSummary } from '../gameRules'
 
 const props = defineProps<{ game: GameCatalogItem; account: AccountProfile }>()
@@ -46,9 +47,11 @@ const soloIntro = computed(() => {
       button: '开始反应挑战',
     }
 })
-const rooms = computed(() =>
+const gameRooms = computed(() =>
   arcade.availableRooms.filter((room) => room.gameKey === props.game.key),
 )
+const rooms = computed(() => gameRooms.value.filter((room) => !room.cleanupAvailable))
+const cleanupRooms = computed(() => gameRooms.value.filter((room) => room.cleanupAvailable))
 const canSubmit = computed(
   () => isSolo.value || mode.value === 'create' || roomCode.value.trim().length >= 4,
 )
@@ -101,6 +104,20 @@ async function chooseRoom(code: string) {
       <div v-else class="empty-room-list">暂无公开房间，创建第一局吧</div>
     </section>
 
+    <section v-if="cleanupRooms.length" class="surface cleanup-room-browser">
+      <header>
+        <div><span class="cleanup-browser-icon"><UsersRound :size="19" /></span><div><strong>待清理的房间</strong><small>所有真人已离线超过 10 分钟</small></div></div>
+        <span>{{ cleanupRooms.length }} 间</span>
+      </header>
+      <div class="cleanup-room-list">
+        <article v-for="room in cleanupRooms" :key="room.roomCode" class="cleanup-room-item">
+          <span class="avatar">{{ room.hostName.slice(0, 1) }}</span>
+          <span class="available-room-copy"><strong>{{ room.hostName }} 的房间</strong><small>房间 {{ room.roomCode }} · {{ room.phase === 'lobby' ? '等待阶段' : '未完成对局' }}</small></span>
+          <CleanupRoomButton :room-code="room.roomCode" :busy="arcade.busy" @confirm="arcade.cleanupRoom(room.roomCode)" />
+        </article>
+      </div>
+    </section>
+
     <section ref="joinCard" class="surface join-card">
       <div v-if="!isSolo" class="segmented-control">
         <button type="button" :class="{ active: mode === 'create' }" @click="mode = 'create'">创建房间</button>
@@ -151,11 +168,19 @@ async function chooseRoom(code: string) {
 .game-home-actions { display: flex; gap: 7px; }
 .game-home-actions button { display: inline-flex; align-items: center; gap: 6px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 11px; color: var(--muted); background: var(--surface); font-weight: 800; }
 .arcade-home .room-browser { margin-bottom: 22px; }
+.cleanup-room-browser { margin-bottom: 22px; }
+.cleanup-room-browser > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
+.cleanup-room-browser > header > div { display: flex; align-items: center; gap: 10px; }
+.cleanup-room-browser header strong, .cleanup-room-browser header small { display: block; }.cleanup-room-browser header small { margin-top: 2px; color: var(--muted); }
+.cleanup-browser-icon { width: 38px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 11px; color: #efaaa7; background: rgba(134, 45, 49, .15); }
+.cleanup-room-list { display: grid; gap: 8px; }
+.cleanup-room-item { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 11px; border: 1px solid rgba(231, 119, 119, .24); border-radius: 13px; padding: 11px 12px; background: rgba(96, 32, 36, .1); }
 .create-rule-settings { margin-bottom: 20px; border: 1px solid var(--line); border-radius: 16px; padding: 16px; background: color-mix(in srgb, var(--surface) 72%, transparent); }
 .solo-game-intro { margin: 4px 0 20px; padding: 14px 4px 4px; display: flex; align-items: center; gap: 12px; }
 .solo-game-mark { width: 46px; aspect-ratio: 1; display: grid; flex: 0 0 auto; place-items: center; border: 1px solid #78d2aa55; border-radius: 14px; color: #8fe0bd; background: #62c69b16; font-size: 22px; }
 .solo-game-intro strong, .solo-game-intro small { display: block; }.solo-game-intro small { margin-top: 4px; color: var(--muted); line-height: 1.5; }
 @media (max-width: 600px) {
+  .cleanup-room-item { grid-template-columns: auto minmax(0, 1fr); }.cleanup-room-item :deep(.cleanup-room-button) { grid-column: 1 / -1; width: 100%; }
   .game-home-header { padding: 18px 0 26px; grid-template-columns: auto minmax(0, 1fr); gap: 14px; }
   .game-home-actions { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
   .game-home-actions button { min-height: 42px; justify-content: center; }

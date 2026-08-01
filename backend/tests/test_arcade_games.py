@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import random
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from backend.app.accounts import AccountStore
 from backend.app.arcade.models import ArcadePlayer, ArcadeRoom
 from backend.app.arcade.rooms import ArcadeRoomError, ArcadeRoomManager
+from backend.app.arcade.views import build_lobby_view as build_arcade_lobby_view
 from backend.app.games.base import GameRuleError
 from backend.app.games.doudizhu.engine import (
     Card,
@@ -1114,6 +1116,105 @@ def test_arcade_lobby_host_can_kick_and_dissolve() -> None:
 
     manager.dissolve(room, host.id)
     assert room.code not in manager.rooms
+
+
+def test_arcade_room_requires_manual_cleanup_after_ten_offline_minutes() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, host, _ = manager.create_room("gomoku", "甲", "account-1")
+    disconnected_at = datetime(2026, 8, 1, tzinfo=timezone.utc)
+    host.connected = False
+    manager.update_presence(room, now=disconnected_at)
+
+    assert manager.maintain(
+        now=disconnected_at + timedelta(minutes=9, seconds=59)
+    ) == []
+    assert manager.maintain(
+        now=disconnected_at + timedelta(minutes=10)
+    ) == [room]
+    assert room.cleanup_ready is True
+    assert room.code in manager.rooms
+    cleanup_items = build_arcade_lobby_view(
+        list(manager.rooms.values()), manager.engines
+    )
+    assert cleanup_items[0]["cleanupAvailable"] is True
+    assert cleanup_items[0]["allHumansOffline"] is True
+
+    assert manager.cleanup_room(
+        room.code,
+        now=disconnected_at + timedelta(minutes=10),
+    ) is room
+    assert room.code not in manager.rooms
+
+
+def test_arcade_room_cleanup_rechecks_presence_and_offline_lobby_joining():
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, host, _ = manager.create_room("gomoku", "甲", "account-1")
+    disconnected_at = datetime(2026, 8, 1, tzinfo=timezone.utc)
+    host.connected = False
+    manager.update_presence(room, now=disconnected_at)
+
+    with pytest.raises(ArcadeRoomError, match="原成员恢复"):
+        manager.join_room(room.code, "gomoku", "乙", "account-2")
+    with pytest.raises(ArcadeRoomError, match="10 分钟"):
+        manager.cleanup_room(
+            room.code,
+            now=disconnected_at + timedelta(minutes=9),
+        )
+
+    host.connected = True
+    with pytest.raises(ArcadeRoomError, match="重新连接"):
+        manager.cleanup_room(
+            room.code,
+            now=disconnected_at + timedelta(minutes=11),
+        )
+
+
+def test_arcade_lobby_host_transfers_to_first_online_player_after_twenty_seconds():
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, host, _ = manager.create_room("doudizhu", "甲", "account-1")
+    _, first_guest, _ = manager.join_room(
+        room.code, "doudizhu", "乙", "account-2"
+    )
+    _, second_guest, _ = manager.join_room(
+        room.code, "doudizhu", "丙", "account-3"
+    )
+    disconnected_at = datetime(2026, 8, 1, tzinfo=timezone.utc)
+    host.connected = False
+    manager.update_presence(room, now=disconnected_at)
+
+    assert manager.maintain(
+        now=disconnected_at + timedelta(seconds=19)
+    ) == []
+    assert manager.maintain(
+        now=disconnected_at + timedelta(seconds=20)
+    ) == [room]
+    assert room.host_id == first_guest.id
+    assert room.host_id != second_guest.id
+
+
+def test_arcade_host_does_not_transfer_while_playing_or_all_offline():
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, host, _ = manager.create_room("gomoku", "甲", "account-1")
+    _, guest, _ = manager.join_room(
+        room.code, "gomoku", "乙", "account-2"
+    )
+    disconnected_at = datetime(2026, 8, 1, tzinfo=timezone.utc)
+    room.phase = "playing"
+    host.connected = False
+    manager.update_presence(room, now=disconnected_at)
+
+    assert manager.maintain(
+        now=disconnected_at + timedelta(minutes=1)
+    ) == []
+    assert room.host_id == host.id
+
+    room.phase = "lobby"
+    guest.connected = False
+    manager.update_presence(room, now=disconnected_at)
+    assert manager.maintain(
+        now=disconnected_at + timedelta(minutes=1)
+    ) == []
+    assert room.host_id == host.id
 
 
 def test_arcade_room_rules_are_validated_locked_and_applied_next_game() -> None:

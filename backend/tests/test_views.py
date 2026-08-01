@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from backend.app.games.avalon.engine import GameEngine
 from backend.app.games.avalon.models import Alignment, MissionRecord, Phase, Role
 from backend.app.games.avalon.rooms import RoomManager
@@ -113,6 +115,9 @@ def test_lobby_view_only_lists_public_joinable_rooms():
             "playerCount": 1,
             "maxPlayers": 10,
             "ladyEnabled": True,
+            "phase": "lobby",
+            "cleanupAvailable": False,
+            "allHumansOffline": False,
         }
     ]
 
@@ -124,6 +129,29 @@ def test_lobby_view_hides_room_when_every_human_is_offline():
     host.connected = False
 
     assert build_lobby_view(manager.rooms.values()) == []
+
+
+def test_cleanup_ready_room_returns_to_lobby_as_non_joinable_cleanup_item():
+    manager = RoomManager()
+    room, host, _ = manager.create_room("亚瑟")
+    disconnected_at = datetime(2026, 8, 1, tzinfo=timezone.utc)
+    room.phase = Phase.ROLE_REVEAL
+    host.connected = False
+    manager.update_human_presence(room, now=disconnected_at)
+    manager.maintain(now=disconnected_at + timedelta(minutes=10))
+
+    assert build_lobby_view(manager.rooms.values()) == [
+        {
+            "roomCode": room.code,
+            "hostName": "亚瑟",
+            "playerCount": 1,
+            "maxPlayers": 10,
+            "ladyEnabled": True,
+            "phase": "role_reveal",
+            "cleanupAvailable": True,
+            "allHumansOffline": True,
+        }
+    ]
 
 
 def test_player_view_contains_public_team_vote_replay():

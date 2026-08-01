@@ -30,6 +30,10 @@ class ResumePayload(BaseModel):
     token: str = Field(min_length=16, max_length=128)
 
 
+class RoomCodePayload(BaseModel):
+    room_code: str = Field(min_length=4, max_length=8)
+
+
 class ActionPayload(BaseModel):
     action: str = Field(min_length=1, max_length=32)
     payload: dict[str, Any] = Field(default_factory=dict)
@@ -80,6 +84,7 @@ class ArcadeRealtime:
         sio.on("arcade:restart")(self.restart_game)
         sio.on("arcade:kick")(self.kick_player)
         sio.on("arcade:dissolve")(self.dissolve_room)
+        sio.on("arcade:cleanup")(self.cleanup_room)
         sio.on("arcade:chat")(self.send_chat)
         sio.on("arcade:request")(self.request_game_action)
         sio.on("arcade:request:resolve")(self.resolve_game_request)
@@ -147,9 +152,11 @@ class ArcadeRealtime:
         try:
             payload = ResumePayload.model_validate(raw_data or {})
             account_id = await self._account_id(sid)
-            room, player = self.rooms.resume(
-                payload.room_code, payload.token, account_id
-            )
+            room = self.rooms.get_room(payload.room_code)
+            async with room.lock:
+                room, player = self.rooms.resume(
+                    payload.room_code, payload.token, account_id
+                )
             await self._bind_session(sid, room, player.id)
             await self.broadcast_room(room)
             return {
@@ -158,6 +165,20 @@ class ArcadeRealtime:
                 "gameKey": room.game_key,
                 "playerId": player.id,
             }
+        except (ValidationError, ArcadeRoomError, KeyError) as error:
+            return error_response(error)
+
+    async def cleanup_room(
+        self, sid: str, raw_data: Any = None
+    ) -> dict[str, Any]:
+        try:
+            payload = RoomCodePayload.model_validate(raw_data or {})
+            await self._account_id(sid)
+            room = self.rooms.get_room(payload.room_code)
+            async with room.lock:
+                self.rooms.cleanup_room(room.code)
+            await self.broadcast_lobby()
+            return {"ok": True}
         except (ValidationError, ArcadeRoomError, KeyError) as error:
             return error_response(error)
 
@@ -320,8 +341,11 @@ class ArcadeRealtime:
     ) -> dict[str, Any]:
         return {"ok": True, "rooms": self.lobby_view()}
 
-    async def cleanup(self) -> None:
-        if self.rooms.cleanup_abandoned():
+    async def maintain(self) -> None:
+        changed_rooms = self.rooms.maintain()
+        if changed_rooms:
+            for room in changed_rooms:
+                await self.broadcast_room(room)
             await self.broadcast_lobby()
 
     async def tick(self) -> None:
@@ -382,7 +406,7 @@ class ArcadeRealtime:
         await self._server.enter_room(sid, self._channel(room.code, player_id))
         self.active_sids[(room.code, player_id)].add(sid)
         room.player(player_id).connected = True
-        room.all_humans_offline_since = None
+        self.rooms.update_presence(room)
 
     async def _clear_room_session(self, sid: str) -> None:
         try:

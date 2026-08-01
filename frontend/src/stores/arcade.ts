@@ -146,6 +146,17 @@ export const useArcadeStore = defineStore('arcade', () => {
     }
   }
 
+  async function cleanupRoom(roomCode: string) {
+    const response = await perform('arcade:cleanup', {
+      room_code: roomCode,
+    })
+    if (response && session.value?.roomCode === roomCode) {
+      snapshot.value = null
+      clearSession()
+    }
+    return Boolean(response)
+  }
+
   async function startGame() {
     await perform('arcade:start')
   }
@@ -242,6 +253,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     createRoom,
     joinRoom,
     leaveRoom,
+    cleanupRoom,
     startGame,
     action,
     rapidAction,

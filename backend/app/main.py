@@ -15,13 +15,20 @@ from .access import access_password, access_token, verify_access_token, verify_p
 from .accounts import AccountError, GAME_NAMES, account_store
 from .games.registry import GAME_CATALOG
 from .infrastructure import redis_status
-from .realtime import cleanup_abandoned_rooms, sio
+from .realtime import (
+    cleanup_abandoned_rooms,
+    close_room_state_store,
+    persist_room_state,
+    restore_room_state,
+    sio,
+)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     access_password()
     account_store().initialize()
+    await restore_room_state()
     cleanup_task = asyncio.create_task(cleanup_abandoned_rooms())
     try:
         yield
@@ -29,6 +36,8 @@ async def lifespan(_: FastAPI):
         cleanup_task.cancel()
         with suppress(asyncio.CancelledError):
             await cleanup_task
+        await persist_room_state()
+        await close_room_state_store()
 
 
 api = FastAPI(title="Private Game Hall", version="0.2.0", lifespan=lifespan)

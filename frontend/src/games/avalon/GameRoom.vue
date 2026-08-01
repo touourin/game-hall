@@ -29,6 +29,7 @@ import {
 import MissionTrack from './components/MissionTrack.vue'
 import RoleSkinPicker from './components/RoleSkinPicker.vue'
 import SecretCard from './components/SecretCard.vue'
+import HostTransferNotice from '../../components/HostTransferNotice.vue'
 import InviteLinkPanel from '../../components/InviteLinkPanel.vue'
 import {
   clearRoleSkinLock,
@@ -612,6 +613,8 @@ async function sendChat() {
           aria-label="退出当前房间"
           @click="showExitConfirm = true"
         >
+    <HostTransferNotice :transfer-at="snapshot.hostTransferAt" />
+
           <DoorOpen :size="20" />
         </button>
       </div>

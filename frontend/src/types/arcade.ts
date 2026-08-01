@@ -23,6 +23,9 @@ export interface ArcadeLobbyRoom {
   playerCount: number
   maxPlayers: number
   options: Record<string, unknown>
+  phase?: 'lobby' | 'setup' | 'bidding' | 'playing' | 'scoring' | 'finished'
+  cleanupAvailable?: boolean
+  allHumansOffline?: boolean
 }
 
 export interface ArcadePlayer {
@@ -54,6 +57,7 @@ export interface ArcadeSnapshot {
   gameKey: ArcadeGameKey
   gameName: string
   phase: 'lobby' | 'setup' | 'bidding' | 'playing' | 'scoring' | 'finished'
+  hostTransferAt?: string | null
   options: Record<string, unknown>
   hostId: string
   self: { id: string; name: string; seat: number }

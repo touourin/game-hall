@@ -59,6 +59,8 @@ class ArcadeRoom:
     chat_messages: list[ArcadeChatMessage] = field(default_factory=list)
     undo_history: list[Any] = field(default_factory=list, repr=False)
     all_humans_offline_since: datetime | None = None
+    cleanup_ready: bool = False
+    host_offline_since: datetime | None = None
     lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
 
     def player(self, player_id: str) -> ArcadePlayer:

@@ -1,6 +1,7 @@
 import { createPinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import { useArcadeStore } from '../stores/arcade'
+import CleanupRoomButton from '../components/CleanupRoomButton.vue'
 import ArcadeHome from './ArcadeHome.vue'
 
 describe('ArcadeHome', () => {
@@ -82,5 +83,50 @@ describe('ArcadeHome', () => {
     expect(createRoom).toHaveBeenCalledWith('hanoi', { discCount: 6 })
     expect(startGame).toHaveBeenCalledOnce()
     expect(wrapper.text()).toContain('把整座圆盘移到最右侧')
+  })
+
+  it('shows and cleans an abandoned room without joining it', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    arcade.availableRooms = [
+      {
+        roomCode: 'OLD2',
+        gameKey: 'gomoku',
+        gameName: '五子棋',
+        hostName: '离线房主',
+        playerCount: 2,
+        maxPlayers: 2,
+        options: {},
+        phase: 'playing',
+        cleanupAvailable: true,
+        allHumansOffline: true,
+      },
+    ]
+    const cleanupRoom = vi.spyOn(arcade, 'cleanupRoom').mockResolvedValue(true)
+    const wrapper = mount(ArcadeHome, {
+      props: {
+        game: {
+          key: 'gomoku',
+          name: '五子棋',
+          players: '2 人',
+          description: '测试',
+        },
+        account: {
+          id: 'account-1',
+          username: 'tester',
+          playerName: '测试玩家',
+          nextRenameAt: null,
+          createdAt: '2026-08-01T00:00:00Z',
+        },
+      },
+      global: { plugins: [pinia] },
+    })
+
+    expect(wrapper.text()).toContain('待清理的房间')
+    expect(wrapper.text()).toContain('未完成对局')
+    wrapper.findComponent(CleanupRoomButton).vm.$emit('confirm')
+    await wrapper.vm.$nextTick()
+
+    expect(cleanupRoom).toHaveBeenCalledWith('OLD2')
   })
 })

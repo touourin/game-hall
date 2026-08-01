@@ -24,7 +24,8 @@ ROOM_ALPHABET = "".join(
     for character in string.ascii_uppercase + string.digits
     if character not in "0O1I"
 )
-ABANDONED_ROOM_GRACE = timedelta(minutes=5)
+ROOM_CLEANUP_GRACE = timedelta(minutes=10)
+HOST_TRANSFER_GRACE = timedelta(seconds=20)
 MAX_CHAT_LENGTH = 300
 MAX_CHAT_MESSAGES = 100
 UNDO_GAMES = {"gomoku", "xiangqi", "go"}
@@ -100,6 +101,8 @@ class ArcadeRoomManager:
             raise ArcadeRoomError("房间所属游戏不正确")
         if room.phase != "lobby":
             raise ArcadeRoomError("游戏已经开始，不能加入新玩家")
+        if not any(player.connected for player in room.players):
+            raise ArcadeRoomError("房间成员暂时都不在线，请等待原成员恢复房间")
         if len(room.players) >= engine.max_players:
             raise ArcadeRoomError("房间已经满员")
         if any(player.account_id == account_id for player in room.players):
@@ -132,7 +135,7 @@ class ArcadeRoomManager:
                 if player.account_id != account_id:
                     raise ArcadeRoomError("这个座位属于其他账号")
                 player.connected = True
-                room.all_humans_offline_since = None
+                self.update_presence(room)
                 room.revision += 1
                 return room, player
         raise ArcadeRoomError("恢复凭证无效，请重新加入房间")
@@ -341,26 +344,85 @@ class ArcadeRoomManager:
     def update_presence(
         self, room: ArcadeRoom, *, now: datetime | None = None
     ) -> None:
-        if any(player.connected for player in room.players):
+        current = now or datetime.now(timezone.utc)
+        connected_players = [player for player in room.players if player.connected]
+        if connected_players:
             room.all_humans_offline_since = None
-        elif room.all_humans_offline_since is None:
-            room.all_humans_offline_since = now or datetime.now(timezone.utc)
+            room.cleanup_ready = False
+            host = room.player(room.host_id)
+            if (
+                room.phase in {"lobby", "finished"}
+                and not host.connected
+                and any(player.id != host.id for player in connected_players)
+            ):
+                if room.host_offline_since is None:
+                    room.host_offline_since = current
+            else:
+                room.host_offline_since = None
+            return
+        room.host_offline_since = None
+        if room.all_humans_offline_since is None:
+            room.all_humans_offline_since = current
 
-    def cleanup_abandoned(
+    def maintain(
         self,
         *,
         now: datetime | None = None,
-        grace: timedelta = ABANDONED_ROOM_GRACE,
-    ) -> list[str]:
+        cleanup_grace: timedelta = ROOM_CLEANUP_GRACE,
+        host_grace: timedelta = HOST_TRANSFER_GRACE,
+    ) -> list[ArcadeRoom]:
         current = now or datetime.now(timezone.utc)
-        removed: list[str] = []
-        for code, room in list(self.rooms.items()):
+        changed: list[ArcadeRoom] = []
+        for room in list(self.rooms.values()):
             self.update_presence(room, now=current)
             offline_since = room.all_humans_offline_since
-            if offline_since is not None and current - offline_since >= grace:
-                self.rooms.pop(code, None)
-                removed.append(code)
-        return removed
+            if (
+                offline_since is not None
+                and current - offline_since >= cleanup_grace
+                and not room.cleanup_ready
+            ):
+                room.cleanup_ready = True
+                room.revision += 1
+                changed.append(room)
+
+            host_offline_since = room.host_offline_since
+            if (
+                host_offline_since is not None
+                and current - host_offline_since >= host_grace
+            ):
+                candidates = sorted(
+                    (
+                        player
+                        for player in room.players
+                        if player.connected and player.id != room.host_id
+                    ),
+                    key=lambda player: player.seat,
+                )
+                if candidates:
+                    room.host_id = candidates[0].id
+                    room.host_offline_since = None
+                    room.revision += 1
+                    if room not in changed:
+                        changed.append(room)
+        return changed
+
+    def cleanup_room(
+        self,
+        code: str,
+        *,
+        now: datetime | None = None,
+        grace: timedelta = ROOM_CLEANUP_GRACE,
+    ) -> ArcadeRoom:
+        current = now or datetime.now(timezone.utc)
+        room = self.get_room(code)
+        self.update_presence(room, now=current)
+        if any(player.connected for player in room.players):
+            raise ArcadeRoomError("已有玩家重新连接，不能清理这个房间")
+        offline_since = room.all_humans_offline_since
+        if offline_since is None or current - offline_since < grace:
+            raise ArcadeRoomError("房间全员离线满 10 分钟后才可以清理")
+        self.rooms.pop(room.code, None)
+        return room
 
     def _start_round(
         self,
