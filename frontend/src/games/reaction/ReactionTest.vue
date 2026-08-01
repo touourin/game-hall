@@ -170,11 +170,12 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <button
-        type="button"
+      <div
+        role="button"
+        tabindex="0"
         class="reaction-trigger"
-        :class="stage"
-        :disabled="['saving', 'result', 'false-start', 'finished'].includes(stage)"
+        :class="[stage, { inactive: ['saving', 'result', 'false-start', 'finished'].includes(stage) }]"
+        :aria-disabled="['saving', 'result', 'false-start', 'finished'].includes(stage)"
         :aria-label="buttonLabel"
         @click="activate"
       >
@@ -182,7 +183,7 @@ onBeforeUnmount(() => {
         <Gauge v-else :size="34" />
         <strong>{{ buttonLabel }}</strong>
         <small v-if="stage === 'ready'">SPACE</small>
-      </button>
+      </div>
 
       <p class="keyboard-hint"><kbd>SPACE</kbd> 电脑按空格 · 手机点击按钮</p>
     </div>
@@ -233,10 +234,11 @@ onBeforeUnmount(() => {
 .reaction-panel.stage-ready { border-color: #76d9ae78; background: radial-gradient(circle at 50% 55%, #62c69b24, transparent 46%), var(--surface); }
 .reaction-panel.stage-false-start { border-color: #e1727266; background: radial-gradient(circle at 50% 55%, #e1727218, transparent 46%), var(--surface); }
 .reaction-copy { min-height: 58px; display: flex; align-items: center; justify-content: center; gap: 11px; }.reaction-copy-icon { width: 46px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 14px; color: #8fe0bd; background: #62c69b16; }.reaction-copy-icon.warning { color: #f0a3a3; background: #e1727216; }.reaction-copy strong, .reaction-copy small { display: block; text-align: left; }.reaction-copy strong { font-family: "Songti SC", "STSong", serif; font-size: 22px; }.reaction-copy small { margin-top: 4px; color: var(--muted); }
-.reaction-trigger { appearance: none; position: relative; width: min(72vw, 300px); aspect-ratio: 1; display: grid; place-items: center; align-content: center; gap: 10px; border: 1px solid #e1bc6850; border-radius: 48px; color: var(--gold); background: linear-gradient(145deg, #e1bc681b, #06171955), var(--surface-strong); box-shadow: inset 0 1px 0 #ffffff14, 0 24px 55px #0007; cursor: pointer; overflow: hidden; transition: transform .14s; touch-action: manipulation; user-select: none; -webkit-appearance: none; }
+.reaction-trigger { position: relative; width: min(72vw, 300px); aspect-ratio: 1; display: grid; place-items: center; align-content: center; gap: 10px; border: 1px solid #e1bc6850; border-radius: 48px; color: var(--gold); background: linear-gradient(145deg, #e1bc681b, #06171955), var(--surface-strong); box-shadow: inset 0 1px 0 #ffffff14, 0 24px 55px #0007; cursor: pointer; overflow: hidden; transition: transform .14s; touch-action: manipulation; user-select: none; }
 .reaction-trigger::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: transparent; }
 .reaction-trigger > svg, .reaction-trigger > strong, .reaction-trigger > small { position: relative; z-index: 1; }
-.reaction-trigger:hover:not(:disabled) { transform: translateY(-2px); }.reaction-trigger:active:not(:disabled) { transform: scale(.975); }
+.reaction-trigger:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+.reaction-trigger:hover:not(.inactive) { transform: translateY(-2px); }.reaction-trigger:active:not(.inactive) { transform: scale(.975); }.reaction-trigger.inactive { cursor: default; }
 .reaction-trigger strong { font-family: "Songti SC", "STSong", serif; font-size: clamp(23px, 7vw, 34px); }.reaction-trigger small { font-size: 10px; font-weight: 900; letter-spacing: .18em; }
 .reaction-trigger.waiting { border-color: var(--line); color: var(--muted); background: var(--surface-strong); animation: waiting-pulse 1.4s ease-in-out infinite; }
 .reaction-trigger.ready { border-color: #a7efd0; color: #06231c; box-shadow: 0 0 0 10px #62c69b14, 0 24px 70px #3ab18442; }
