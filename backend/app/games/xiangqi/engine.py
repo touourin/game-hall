@@ -28,8 +28,11 @@ def initial_board() -> list[list[str | None]]:
 class XiangqiState:
     board: list[list[str | None]] = field(default_factory=initial_board)
     turn_color: str = "red"
-    last_move: dict[str, int | str] | None = None
+    last_move: dict[str, Any] | None = None
     move_count: int = 0
+    history: list[dict[str, Any]] = field(default_factory=list)
+    captured_pieces: list[dict[str, Any]] = field(default_factory=list)
+    position_history: list[str] = field(default_factory=list)
 
 
 class XiangqiEngine:
@@ -39,7 +42,11 @@ class XiangqiEngine:
     max_players = 2
 
     def initial_state(self) -> XiangqiState:
-        return XiangqiState()
+        state = XiangqiState()
+        state.position_history.append(
+            self._position_key(state.board, state.turn_color)
+        )
+        return state
 
     def start(self, room: ArcadeRoom) -> None:
         room.state = self.initial_state()
@@ -83,29 +90,59 @@ class XiangqiEngine:
             target_column,
         ):
             raise GameRuleError("这个走法不符合象棋规则")
+
         captured = board[target_row][target_column]
         board[target_row][target_column] = piece
         board[source_row][source_column] = None
-        state.last_move = {
+        opponent_color = self._opponent(player_color)
+        gave_check = self._in_check(board, opponent_color)
+        state.move_count += 1
+        move = {
+            "number": state.move_count,
             "fromRow": source_row,
             "fromColumn": source_column,
             "toRow": target_row,
             "toColumn": target_column,
             "piece": piece,
+            "captured": captured,
+            "color": player_color,
+            "gaveCheck": gave_check,
         }
-        state.move_count += 1
-        opponent_color = self._opponent(player_color)
+        state.last_move = move
+        state.history.append(move)
+        if captured is not None:
+            state.captured_pieces.append(
+                {
+                    "piece": captured,
+                    "capturedBy": player_color,
+                    "moveNumber": state.move_count,
+                }
+            )
+        state.turn_color = opponent_color
+        position_key = self._position_key(board, state.turn_color)
+        state.position_history.append(position_key)
+
         if captured is not None and captured[1] == "K":
             room.finish(player_color, [player.id], f"{player.name} 将死对方")
             return
         if not self._has_legal_move(board, opponent_color):
-            reason = "将死" if self._in_check(board, opponent_color) else "困毙"
+            reason = "将死" if gave_check else "困毙"
             room.finish(player_color, [player.id], f"{player.name} {reason}对方")
             return
-        state.turn_color = opponent_color
+        if state.position_history.count(position_key) >= 3:
+            if self._resolve_repetition(room, state, position_key):
+                return
 
     def view(self, room: ArcadeRoom, viewer: ArcadePlayer) -> dict[str, Any]:
         state: XiangqiState = room.state
+        red_in_check = self._in_check(state.board, "red")
+        black_in_check = self._in_check(state.board, "black")
+        viewer_color = self._seat_color(viewer.seat)
+        legal_moves = (
+            self._legal_moves(state.board, viewer_color)
+            if room.phase == "playing" and viewer_color == state.turn_color
+            else []
+        )
         return {
             "board": state.board,
             "turnPlayerId": (
@@ -120,9 +157,15 @@ class XiangqiEngine:
             if len(room.players) == 2
             else {},
             "lastMove": state.last_move,
-            "redInCheck": self._in_check(state.board, "red"),
-            "blackInCheck": self._in_check(state.board, "black"),
-            "viewerColor": self._seat_color(viewer.seat),
+            "moveHistory": state.history,
+            "capturedPieces": state.captured_pieces,
+            "legalMoves": legal_moves,
+            "redInCheck": red_in_check,
+            "blackInCheck": black_in_check,
+            "checkedColor": (
+                "red" if red_in_check else "black" if black_in_check else None
+            ),
+            "viewerColor": viewer_color,
         }
 
     def player_result(
@@ -130,6 +173,68 @@ class XiangqiEngine:
     ) -> tuple[str, str, bool]:
         color = self._seat_color(player.seat)
         return color, color, player.id in room.winner_player_ids
+
+    def _resolve_repetition(
+        self,
+        room: ArcadeRoom,
+        state: XiangqiState,
+        position_key: str,
+    ) -> bool:
+        occurrences = [
+            index
+            for index, key in enumerate(state.position_history)
+            if key == position_key
+        ]
+        if len(occurrences) < 3:
+            return False
+        cycle_moves = state.history[occurrences[-3] :]
+        long_check_colors = []
+        for color in ("red", "black"):
+            own_moves = [move for move in cycle_moves if move["color"] == color]
+            if len(own_moves) >= 2 and all(move["gaveCheck"] for move in own_moves):
+                long_check_colors.append(color)
+        if len(long_check_colors) == 1:
+            loser_color = long_check_colors[0]
+            winner_color = self._opponent(loser_color)
+            winner = room.players[0 if winner_color == "red" else 1]
+            loser_name = "红方" if loser_color == "red" else "黑方"
+            room.finish(
+                winner_color,
+                [winner.id],
+                f"{loser_name}连续长将未变，判负",
+            )
+        else:
+            room.finish("draw", [], "相同局面第三次出现，双方不变作和")
+        return True
+
+    def _legal_moves(
+        self, board: list[list[str | None]], color: str
+    ) -> list[dict[str, int]]:
+        moves: list[dict[str, int]] = []
+        for source_row in range(ROWS):
+            for source_column in range(COLUMNS):
+                piece = board[source_row][source_column]
+                if piece is None or self._piece_color(piece) != color:
+                    continue
+                for target_row in range(ROWS):
+                    for target_column in range(COLUMNS):
+                        if self._is_legal_move(
+                            board,
+                            color,
+                            source_row,
+                            source_column,
+                            target_row,
+                            target_column,
+                        ):
+                            moves.append(
+                                {
+                                    "fromRow": source_row,
+                                    "fromColumn": source_column,
+                                    "toRow": target_row,
+                                    "toColumn": target_column,
+                                }
+                            )
+        return moves
 
     def _is_legal_move(
         self,
@@ -180,11 +285,7 @@ class XiangqiEngine:
 
         if kind == "K":
             target = board[target_row][target_column]
-            if (
-                target is not None
-                and target[1] == "K"
-                and source_column == target_column
-            ):
+            if target is not None and target[1] == "K" and source_column == target_column:
                 return self._pieces_between(
                     board,
                     source_row,
@@ -278,23 +379,13 @@ class XiangqiEngine:
     def _has_legal_move(
         self, board: list[list[str | None]], color: str
     ) -> bool:
-        for source_row in range(ROWS):
-            for source_column in range(COLUMNS):
-                piece = board[source_row][source_column]
-                if piece is None or self._piece_color(piece) != color:
-                    continue
-                for target_row in range(ROWS):
-                    for target_column in range(COLUMNS):
-                        if self._is_legal_move(
-                            board,
-                            color,
-                            source_row,
-                            source_column,
-                            target_row,
-                            target_column,
-                        ):
-                            return True
-        return False
+        return bool(self._legal_moves(board, color))
+
+    @staticmethod
+    def _position_key(board: list[list[str | None]], turn_color: str) -> str:
+        return f"{turn_color}|" + "/".join(
+            ",".join(piece or "--" for piece in row) for row in board
+        )
 
     @staticmethod
     def _pieces_between(

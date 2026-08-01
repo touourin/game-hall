@@ -1,16 +1,20 @@
 from __future__ import annotations
 
+import random
+
 import pytest
 
 from backend.app.accounts import AccountStore
 from backend.app.arcade.models import ArcadePlayer, ArcadeRoom
-from backend.app.arcade.rooms import ArcadeRoomManager
+from backend.app.arcade.rooms import ArcadeRoomError, ArcadeRoomManager
 from backend.app.games.base import GameRuleError
 from backend.app.games.doudizhu.engine import (
     Card,
     DoudizhuEngine,
+    PlayPattern,
     beats,
     classify_cards,
+    create_deck,
 )
 from backend.app.games.go import GoEngine
 from backend.app.games.gomoku import GomokuEngine
@@ -18,6 +22,7 @@ from backend.app.games.junqi.engine import JunqiEngine, JunqiPiece, JunqiState
 from backend.app.games.reaction import ReactionEngine
 from backend.app.games.registry import build_engine_registry
 from backend.app.games.xiangqi import XiangqiEngine
+from backend.app.games.xiangqi.engine import XiangqiState
 
 
 def make_room(
@@ -64,6 +69,375 @@ def test_gomoku_enforces_turns_and_detects_five() -> None:
     assert room.winner_player_ids == [room.players[0].id]
 
 
+def test_gomoku_uses_fifteen_lines_and_supports_exact_five_rules() -> None:
+    engine = GomokuEngine()
+    exact_room = make_room(
+        engine,
+        2,
+        {"winRule": "exact_five"},
+    )
+    assert len(exact_room.state.board) == 15
+
+    for index, column in enumerate((0, 1, 2, 4, 5)):
+        engine.act(
+            exact_room,
+            exact_room.players[0],
+            "place",
+            {"row": 7, "column": column},
+        )
+        engine.act(
+            exact_room,
+            exact_room.players[1],
+            "place",
+            {"row": 10, "column": index * 2},
+        )
+    engine.act(
+        exact_room,
+        exact_room.players[0],
+        "place",
+        {"row": 7, "column": 3},
+    )
+    assert exact_room.phase == "playing"
+
+    freestyle_room = make_room(
+        engine,
+        2,
+        {"winRule": "freestyle"},
+    )
+    for index, column in enumerate((0, 1, 2, 4, 5)):
+        engine.act(
+            freestyle_room,
+            freestyle_room.players[0],
+            "place",
+            {"row": 7, "column": column},
+        )
+        engine.act(
+            freestyle_room,
+            freestyle_room.players[1],
+            "place",
+            {"row": 10, "column": index * 2},
+        )
+    engine.act(
+        freestyle_room,
+        freestyle_room.players[0],
+        "place",
+        {"row": 7, "column": 3},
+    )
+    assert freestyle_room.phase == "finished"
+
+
+def test_renju_requires_the_first_black_move_at_the_center() -> None:
+    engine = GomokuEngine()
+    room = make_room(engine, 2, {"winRule": "renju"})
+
+    with pytest.raises(GameRuleError, match="天元"):
+        engine.act(
+            room,
+            room.players[0],
+            "place",
+            {"row": 0, "column": 0},
+        )
+
+    engine.act(
+        room,
+        room.players[0],
+        "place",
+        {"row": 7, "column": 7},
+    )
+    assert room.state.board[7][7] == 1
+    assert room.state.turn_seat == 1
+
+
+@pytest.mark.parametrize(
+    ("black_stones", "move", "expected"),
+    [
+        (
+            [(7, 5), (7, 6), (7, 8), (5, 7), (6, 7), (8, 7)],
+            (7, 7),
+            (False, "四四"),
+        ),
+        (
+            [(7, 6), (7, 8), (6, 7), (8, 7)],
+            (7, 7),
+            (False, "三三"),
+        ),
+        (
+            [(1, 0), (1, 2), (0, 1), (2, 1)],
+            (1, 1),
+            (False, None),
+        ),
+        (
+            [(7, 5), (7, 6), (7, 8), (6, 7), (8, 7)],
+            (7, 7),
+            (False, None),
+        ),
+        (
+            [(7, column) for column in range(3, 8)],
+            (7, 8),
+            (False, "长连"),
+        ),
+    ],
+)
+def test_renju_classifies_core_forbidden_patterns(
+    black_stones: list[tuple[int, int]],
+    move: tuple[int, int],
+    expected: tuple[bool, str | None],
+) -> None:
+    engine = GomokuEngine()
+    board = [[0] * 15 for _ in range(15)]
+    for row, column in black_stones:
+        board[row][column] = 1
+
+    assert engine._analyze_black_move(board, *move) == expected
+
+
+def test_renju_ignores_a_three_when_all_extensions_are_forbidden() -> None:
+    engine = GomokuEngine()
+    board = [[0] * 15 for _ in range(15)]
+    for row, column in [
+        (7, 6),
+        (7, 8),
+        (6, 7),
+        (8, 7),
+        (5, 5),
+        (6, 5),
+        (8, 5),
+        (5, 9),
+        (6, 9),
+        (8, 9),
+    ]:
+        board[row][column] = 1
+
+    assert engine._analyze_black_move(board, 7, 7) == (False, None)
+
+
+def test_renju_exact_five_has_priority_over_an_overline() -> None:
+    engine = GomokuEngine()
+    board = [[0] * 15 for _ in range(15)]
+    for column in range(3, 8):
+        board[8][column] = 1
+    for row in range(4, 8):
+        board[row][8] = 1
+
+    assert engine._analyze_black_move(board, 8, 8) == (True, None)
+
+
+def test_renju_rejects_black_forbidden_move_without_mutating_board() -> None:
+    engine = GomokuEngine()
+    room = make_room(engine, 2, {"winRule": "renju"})
+    for row, column in [(7, 6), (7, 8), (6, 7), (8, 7)]:
+        room.state.board[row][column] = 1
+        room.state.moves.append({"row": row, "column": column, "stone": 1})
+
+    with pytest.raises(GameRuleError, match="三三"):
+        engine.act(
+            room,
+            room.players[0],
+            "place",
+            {"row": 7, "column": 7},
+        )
+
+    assert room.state.board[7][7] == 0
+    assert room.state.turn_seat == 0
+
+
+def test_renju_white_can_win_with_an_overline() -> None:
+    engine = GomokuEngine()
+    room = make_room(engine, 2, {"winRule": "renju"})
+    room.state.turn_seat = 1
+    for column in range(3, 8):
+        room.state.board[7][column] = 2
+        room.state.moves.append({"row": 7, "column": column, "stone": 2})
+
+    engine.act(
+        room,
+        room.players[1],
+        "place",
+        {"row": 7, "column": 8},
+    )
+
+    assert room.phase == "finished"
+    assert room.winner == "white"
+
+
+def test_renju_view_exposes_forbidden_points_with_reasons() -> None:
+    engine = GomokuEngine()
+    room = make_room(engine, 2, {"winRule": "renju"})
+    for row, column in [(7, 6), (7, 8), (6, 7), (8, 7)]:
+        room.state.board[row][column] = 1
+        room.state.moves.append({"row": row, "column": column, "stone": 1})
+
+    view = engine.view(room, room.players[0])
+    assert {"row": 7, "column": 7, "reason": "三三"} in view[
+        "forbiddenPoints"
+    ]
+
+
+def test_gomoku_swap2_can_keep_or_exchange_the_initial_colors() -> None:
+    engine = GomokuEngine()
+    room = make_room(
+        engine,
+        2,
+        {
+            "winRule": "freestyle",
+            "openingRule": "swap2",
+            "timeLimitSeconds": 0,
+        },
+    )
+    first, second = room.players
+
+    for row, column in [(7, 7), (7, 8), (8, 8)]:
+        engine.act(
+            room,
+            first,
+            "place",
+            {"row": row, "column": column},
+        )
+
+    assert [move["stone"] for move in room.state.moves] == [1, 2, 1]
+    assert room.state.swap2_stage == "second_choice"
+    assert room.state.turn_seat == second.seat
+
+    engine.act(room, second, "swap2_choose", {"choice": "black"})
+
+    assert room.state.swap2_stage is None
+    assert room.state.seat_stones == [2, 1]
+    assert room.state.turn_seat == first.seat
+    view = engine.view(room, first)
+    assert view["colors"] == {first.id: "white", second.id: "black"}
+    assert view["turnPlayerId"] == first.id
+
+
+def test_gomoku_swap2_can_add_two_stones_before_first_player_chooses() -> None:
+    engine = GomokuEngine()
+    room = make_room(
+        engine,
+        2,
+        {
+            "winRule": "freestyle",
+            "openingRule": "swap2",
+            "timeLimitSeconds": 0,
+        },
+    )
+    first, second = room.players
+    for row, column in [(7, 7), (7, 8), (8, 8)]:
+        engine.act(
+            room,
+            first,
+            "place",
+            {"row": row, "column": column},
+        )
+
+    engine.act(room, second, "swap2_choose", {"choice": "add"})
+    engine.act(room, second, "place", {"row": 8, "column": 7})
+    engine.act(room, second, "place", {"row": 9, "column": 7})
+
+    assert [move["stone"] for move in room.state.moves] == [1, 2, 1, 2, 1]
+    assert room.state.swap2_stage == "first_choice"
+    assert room.state.turn_seat == first.seat
+
+    engine.act(room, first, "swap2_choose", {"choice": "black"})
+    assert room.state.seat_stones == [1, 2]
+    assert room.state.turn_seat == second.seat
+
+
+def test_swap2_and_renju_still_require_the_first_black_stone_at_center() -> None:
+    engine = GomokuEngine()
+    room = make_room(
+        engine,
+        2,
+        {
+            "winRule": "renju",
+            "openingRule": "swap2",
+            "timeLimitSeconds": 0,
+        },
+    )
+
+    with pytest.raises(GameRuleError, match="天元"):
+        engine.act(
+            room,
+            room.players[0],
+            "place",
+            {"row": 0, "column": 0},
+        )
+
+    engine.act(
+        room,
+        room.players[0],
+        "place",
+        {"row": 7, "column": 7},
+    )
+    assert room.state.board[7][7] == 1
+
+
+def test_gomoku_two_consecutive_passes_draw_and_a_move_resets_passes() -> None:
+    engine = GomokuEngine()
+    room = make_room(engine, 2)
+    black, white = room.players
+
+    engine.act(room, black, "pass", {})
+    assert room.state.consecutive_passes == 1
+    engine.act(room, white, "place", {"row": 7, "column": 7})
+    assert room.state.consecutive_passes == 0
+    engine.act(room, black, "pass", {})
+    engine.act(room, white, "pass", {})
+
+    assert room.phase == "finished"
+    assert room.winner == "draw"
+    assert room.win_reason == "双方连续停一手，本局和棋"
+
+
+def test_renju_cannot_pass_during_the_first_three_stones() -> None:
+    engine = GomokuEngine()
+    room = make_room(engine, 2, {"winRule": "renju"})
+
+    with pytest.raises(GameRuleError, match="前三手"):
+        engine.act(room, room.players[0], "pass", {})
+
+
+def test_gomoku_clock_charges_each_player_and_expires_on_the_server() -> None:
+    now = [1_000.0]
+    engine = GomokuEngine(clock=lambda: now[0])
+    room = make_room(
+        engine,
+        2,
+        {
+            "winRule": "freestyle",
+            "openingRule": "standard",
+            "timeLimitSeconds": 180,
+        },
+    )
+    black, white = room.players
+
+    now[0] += 30
+    engine.act(room, black, "place", {"row": 7, "column": 7})
+    clock = engine.view(room, white)["clock"]
+    assert clock["remainingMs"] == {black.id: 150_000, white.id: 180_000}
+    assert clock["activePlayerId"] == white.id
+
+    now[0] += 181
+    assert engine.expire_timeout(room) is True
+    assert room.phase == "finished"
+    assert room.winner == "black"
+    assert room.winner_player_ids == [black.id]
+    assert "用时耗尽" in room.win_reason
+
+
+@pytest.mark.parametrize(
+    "options",
+    [
+        {"openingRule": "unknown"},
+        {"timeLimitSeconds": 60},
+        {"timeLimitSeconds": True},
+    ],
+)
+def test_gomoku_rejects_unsupported_opening_and_clock_options(
+    options: dict,
+) -> None:
+    with pytest.raises(GameRuleError):
+        GomokuEngine().room_options(options)
+
+
 def test_go_captures_stones_and_rejects_suicide() -> None:
     engine = GoEngine()
     room = make_room(engine, 2)
@@ -84,15 +458,126 @@ def test_go_captures_stones_and_rejects_suicide() -> None:
         engine.act(room, room.players[1], "place", {"row": 1, "column": 1})
 
 
-def test_go_two_passes_finish_with_chinese_area_score() -> None:
+def test_go_two_passes_enter_scoring_and_both_players_confirm_result() -> None:
     engine = GoEngine()
     room = make_room(engine, 2)
     engine.act(room, room.players[0], "pass", {})
     engine.act(room, room.players[1], "pass", {})
 
+    assert room.phase == "scoring"
+    preview = engine.view(room, room.players[0])["score"]
+    assert preview["black"] == 0.0
+    assert preview["white"] == 7.5
+    assert preview["neutralPoints"] == 361
+
+    engine.act(room, room.players[0], "confirm_score", {})
+    assert room.phase == "scoring"
+    engine.act(room, room.players[1], "confirm_score", {})
+
     assert room.phase == "finished"
-    assert room.state.score == {"black": 0.0, "white": 7.5}
+    assert room.state.score["black"] == 0.0
+    assert room.state.score["white"] == 7.5
     assert room.winner == "white"
+
+
+def test_go_supports_small_boards_and_zero_komi_draws() -> None:
+    engine = GoEngine()
+    room = make_room(engine, 2, {"boardSize": 9, "komi": 0.0})
+
+    assert len(room.state.board) == 9
+    engine.act(room, room.players[0], "pass", {})
+    engine.act(room, room.players[1], "pass", {})
+    engine.act(room, room.players[0], "confirm_score", {})
+    engine.act(room, room.players[1], "confirm_score", {})
+
+    assert room.phase == "finished"
+    assert room.winner == "draw"
+    assert room.state.score["black"] == 0.0
+    assert room.state.score["white"] == 0.0
+    assert room.state.score["neutralPoints"] == 81
+
+
+def test_go_dead_stone_changes_reset_confirmation_and_affect_score() -> None:
+    engine = GoEngine()
+    room = make_room(engine, 2, {"boardSize": 9, "komi": 0.0})
+    state = room.state
+    state.board[0][0] = 1
+    state.board[0][1] = 2
+    room.phase = "scoring"
+
+    engine.act(
+        room,
+        room.players[0],
+        "mark_dead",
+        {"row": 0, "column": 1},
+    )
+    preview = engine.view(room, room.players[0])["score"]
+    assert state.dead_stones == [(0, 1)]
+    assert preview["deadWhite"] == 1
+    assert preview["black"] == 81.0
+
+    engine.act(room, room.players[0], "confirm_score", {})
+    assert state.score_confirmed_player_ids == [room.players[0].id]
+    engine.act(
+        room,
+        room.players[1],
+        "mark_dead",
+        {"row": 0, "column": 1},
+    )
+    assert state.dead_stones == []
+    assert state.score_confirmed_player_ids == []
+
+    engine.act(
+        room,
+        room.players[1],
+        "mark_dead",
+        {"row": 0, "column": 1},
+    )
+    engine.act(room, room.players[0], "confirm_score", {})
+    engine.act(room, room.players[1], "confirm_score", {})
+
+    assert room.phase == "finished"
+    assert state.board[0][1] == 0
+    assert state.captures == [1, 0]
+    assert state.score["deadWhite"] == 1
+
+
+def test_go_scoring_resume_requires_both_players_and_restores_turn() -> None:
+    engine = GoEngine()
+    room = make_room(engine, 2, {"boardSize": 9, "komi": 7.5})
+    engine.act(room, room.players[0], "pass", {})
+    engine.act(room, room.players[1], "pass", {})
+
+    engine.act(room, room.players[0], "resume_play", {})
+    assert room.phase == "scoring"
+    assert room.state.resume_requested_by == room.players[0].id
+
+    engine.act(room, room.players[0], "resume_play", {})
+    assert room.state.resume_requested_by is None
+    engine.act(room, room.players[0], "resume_play", {})
+    engine.act(room, room.players[1], "resume_play", {})
+
+    assert room.phase == "playing"
+    assert room.state.turn_seat == 0
+    assert room.state.consecutive_passes == 0
+
+
+def test_go_rejects_any_previously_seen_board_position() -> None:
+    engine = GoEngine()
+    room = make_room(engine, 2, {"boardSize": 9, "komi": 7.5})
+    repeated_board = [row[:] for row in room.state.board]
+    repeated_board[0][0] = 1
+    room.state.position_history.append(engine._board_key(repeated_board))
+
+    with pytest.raises(GameRuleError, match="全局同形禁着"):
+        engine.act(
+            room,
+            room.players[0],
+            "place",
+            {"row": 0, "column": 0},
+        )
+
+    assert room.state.board[0][0] == 0
 
 
 def test_xiangqi_validates_piece_ownership_and_turns() -> None:
@@ -125,6 +610,154 @@ def test_xiangqi_validates_piece_ownership_and_turns() -> None:
     assert room.state.turn_color == "red"
 
 
+@pytest.mark.parametrize(
+    ("piece", "source", "target", "blocker", "expected"),
+    [
+        ("rK", (9, 4), (8, 4), None, True),
+        ("rK", (9, 4), (9, 6), None, False),
+        ("rA", (9, 3), (8, 4), None, True),
+        ("rA", (9, 3), (8, 3), None, False),
+        ("rE", (9, 2), (7, 4), None, True),
+        ("rE", (9, 2), (7, 4), (8, 3), False),
+        ("rE", (5, 2), (3, 4), None, False),
+        ("rH", (9, 1), (7, 2), None, True),
+        ("rH", (9, 1), (7, 2), (8, 1), False),
+        ("rR", (9, 0), (5, 0), None, True),
+        ("rR", (9, 0), (5, 0), (7, 0), False),
+        ("rC", (7, 1), (2, 1), (5, 1), False),
+        ("rC", (7, 1), (2, 1), None, True),
+        ("rP", (6, 0), (5, 0), None, True),
+        ("rP", (6, 0), (6, 1), None, False),
+        ("rP", (4, 0), (4, 1), None, True),
+    ],
+)
+def test_xiangqi_piece_movement_rules(
+    piece: str,
+    source: tuple[int, int],
+    target: tuple[int, int],
+    blocker: tuple[int, int] | None,
+    expected: bool,
+) -> None:
+    engine = XiangqiEngine()
+    board = [[None] * 9 for _ in range(10)]
+    board[source[0]][source[1]] = piece
+    if blocker is not None:
+        board[blocker[0]][blocker[1]] = "rP"
+
+    assert engine._piece_can_move(board, piece, *source, *target) is expected
+
+
+def test_xiangqi_cannon_captures_over_exactly_one_screen() -> None:
+    engine = XiangqiEngine()
+    board = [[None] * 9 for _ in range(10)]
+    board[7][1] = "rC"
+    board[5][1] = "rP"
+    board[2][1] = "bP"
+
+    assert engine._piece_can_move(board, "rC", 7, 1, 2, 1) is True
+
+
+def test_xiangqi_rejects_exposing_the_flying_generals() -> None:
+    engine = XiangqiEngine()
+    board = [[None] * 9 for _ in range(10)]
+    board[0][4] = "bK"
+    board[9][4] = "rK"
+    board[5][4] = "rR"
+
+    assert engine._is_legal_move(board, "red", 5, 4, 5, 3) is False
+
+
+def test_xiangqi_view_exposes_legal_moves_history_and_captures() -> None:
+    engine = XiangqiEngine()
+    room = make_room(engine, 2)
+    view = engine.view(room, room.players[0])
+
+    assert {
+        "fromRow": 6,
+        "fromColumn": 0,
+        "toRow": 5,
+        "toColumn": 0,
+    } in view["legalMoves"]
+
+    engine.act(
+        room,
+        room.players[0],
+        "move",
+        {"fromRow": 7, "fromColumn": 7, "toRow": 7, "toColumn": 4},
+    )
+    assert room.state.history[-1]["piece"] == "rC"
+
+    room.state.turn_color = "red"
+    room.state.board[6][0] = "rP"
+    room.state.board[5][0] = "bP"
+    engine.act(
+        room,
+        room.players[0],
+        "move",
+        {"fromRow": 6, "fromColumn": 0, "toRow": 5, "toColumn": 0},
+    )
+    assert room.state.captured_pieces[-1]["piece"] == "bP"
+
+
+def test_xiangqi_identifies_checkmate_and_stalemate_positions() -> None:
+    engine = XiangqiEngine()
+    checkmate = [[None] * 9 for _ in range(10)]
+    checkmate[0][4] = "bK"
+    checkmate[9][4] = "rK"
+    checkmate[2][3] = "rR"
+    checkmate[2][4] = "rR"
+    checkmate[2][5] = "rR"
+    assert engine._in_check(checkmate, "black") is True
+    assert engine._has_legal_move(checkmate, "black") is False
+
+    stalemate = [[None] * 9 for _ in range(10)]
+    stalemate[0][4] = "bK"
+    stalemate[9][4] = "rK"
+    stalemate[5][4] = "rP"
+    stalemate[1][3] = "rR"
+    stalemate[1][5] = "rR"
+    stalemate[3][3] = "rH"
+    assert engine._in_check(stalemate, "black") is False
+    assert engine._has_legal_move(stalemate, "black") is False
+
+
+def test_xiangqi_repeated_positions_are_drawn() -> None:
+    engine = XiangqiEngine()
+    repeat_room = make_room(engine, 2)
+    next_board = [row[:] for row in repeat_room.state.board]
+    next_board[5][0] = next_board[6][0]
+    next_board[6][0] = None
+    repeated_key = engine._position_key(next_board, "black")
+    repeat_room.state.position_history.extend([repeated_key, repeated_key])
+    engine.act(
+        repeat_room,
+        repeat_room.players[0],
+        "move",
+        {"fromRow": 6, "fromColumn": 0, "toRow": 5, "toColumn": 0},
+    )
+    assert repeat_room.phase == "finished"
+    assert repeat_room.winner == "draw"
+    assert "第三次" in repeat_room.win_reason
+
+
+def test_xiangqi_continuous_long_check_loses_on_repetition() -> None:
+    engine = XiangqiEngine()
+    room = make_room(engine, 2)
+    state: XiangqiState = room.state
+    key = "repeat"
+    state.position_history = [key, "a", key, "b", key]
+    state.history = [
+        {"color": "red", "gaveCheck": True},
+        {"color": "black", "gaveCheck": False},
+        {"color": "red", "gaveCheck": True},
+        {"color": "black", "gaveCheck": False},
+    ]
+
+    assert engine._resolve_repetition(room, state, key) is True
+    assert room.winner == "black"
+    assert "长将" in room.win_reason
+
+
 def cards(*ranks: int) -> list[Card]:
     return [Card(id=f"card-{index}-{rank}", rank=rank, suit="spade") for index, rank in enumerate(ranks)]
 
@@ -135,34 +768,202 @@ def test_doudizhu_classifies_and_compares_major_patterns() -> None:
     assert classify_cards(cards(3, 4, 5, 6, 7)).kind == "straight"
     assert classify_cards(cards(3, 3, 4, 4, 5, 5)).kind == "pair_straight"
     assert classify_cards(cards(3, 3, 3, 4, 4, 4)).kind == "airplane"
+    assert classify_cards(cards(3, 3, 3, 4, 4, 4, 7, 8)).kind == "airplane_single"
+    assert classify_cards(cards(3, 3, 3, 4, 4, 4, 7, 7, 8, 8)).kind == "airplane_pair"
     assert classify_cards(cards(6, 6, 6, 6, 8, 9)).kind == "four_two_single"
     assert beats(classify_cards(cards(8, 8, 8, 8)), classify_cards(cards(14)))
     with pytest.raises(GameRuleError, match="有效牌型"):
         classify_cards(cards(3, 3, 4))
+    with pytest.raises(GameRuleError, match="有效牌型"):
+        classify_cards(cards(3, 3, 3, 4, 4, 4, 7, 7))
+    with pytest.raises(GameRuleError, match="有效牌型"):
+        classify_cards(cards(6, 6, 6, 6, 8, 8))
 
 
-def test_doudizhu_bidding_assigns_landlord_and_records_winner() -> None:
-    engine = DoudizhuEngine()
+def test_doudizhu_laizi_supports_soft_hard_and_pure_wild_bombs() -> None:
+    soft = classify_cards(cards(3, 3, 3, 4), wild_rank=3)
+    hard = classify_cards(cards(4, 4, 4, 4), wild_rank=3)
+    pure = classify_cards(cards(3, 3, 3, 3), wild_rank=3)
+
+    assert (soft.kind, soft.bomb_level) == ("bomb", 1)
+    assert (hard.kind, hard.bomb_level) == ("bomb", 2)
+    assert (pure.kind, pure.bomb_level) == ("bomb", 3)
+    assert beats(pure, hard)
+    assert beats(PlayPattern("rocket", 17, 2, bomb_level=4), pure)
+
+
+def test_doudizhu_call_rob_assigns_landlord_and_settles_spring() -> None:
+    engine = DoudizhuEngine(random.Random(7))
     room = make_room(engine, 3)
 
-    engine.act(room, room.players[0], "bid", {"score": 1})
-    engine.act(room, room.players[1], "bid", {"score": 0})
-    engine.act(room, room.players[2], "bid", {"score": 2})
+    engine.act(room, room.players[0], "bid", {"decision": "call"})
+    engine.act(room, room.players[1], "bid", {"decision": "rob"})
+    engine.act(room, room.players[2], "bid", {"decision": "pass"})
 
     assert room.phase == "playing"
-    assert room.state.landlord_seat == 2
-    assert len(room.state.hands[2]) == 20
+    assert room.state.landlord_seat == 1
+    assert len(room.state.hands[1]) == 20
+    assert room.state.multiplier == 2
 
-    room.state.hands[2] = cards(3)
+    room.state.hands[1] = cards(3)
     engine.act(
         room,
-        room.players[2],
+        room.players[1],
         "play",
-        {"cardIds": [room.state.hands[2][0].id]},
+        {"cardIds": [room.state.hands[1][0].id]},
     )
     assert room.phase == "finished"
     assert room.winner == "landlord"
-    assert room.winner_player_ids == [room.players[2].id]
+    assert room.winner_player_ids == [room.players[1].id]
+    assert room.state.settlement["spring"] == "春天"
+    assert room.state.multiplier == 4
+    assert room.state.scores == {0: -4, 1: 8, 2: -4}
+
+
+def test_doudizhu_late_caller_still_gives_both_opponents_a_rob_turn() -> None:
+    engine = DoudizhuEngine(random.Random(13))
+    room = make_room(engine, 3)
+
+    engine.act(room, room.players[0], "bid", {"decision": "pass"})
+    engine.act(room, room.players[1], "bid", {"decision": "call"})
+    engine.act(room, room.players[2], "bid", {"decision": "pass"})
+    assert room.phase == "bidding"
+    assert room.state.current_bidder == 0
+    engine.act(room, room.players[0], "bid", {"decision": "rob"})
+
+    assert room.phase == "playing"
+    assert room.state.landlord_seat == 0
+    assert room.state.multiplier == 2
+
+
+def test_doudizhu_bomb_and_anti_spring_double_the_score() -> None:
+    engine = DoudizhuEngine(random.Random(3))
+    room = make_room(engine, 3)
+    engine.act(room, room.players[0], "bid", {"decision": "call"})
+    engine.act(room, room.players[1], "bid", {"decision": "pass"})
+    engine.act(room, room.players[2], "bid", {"decision": "pass"})
+    state = room.state
+    state.hands[0] = cards(6, 6, 6, 6, 9)
+    state.hands[1] = cards(10)
+    state.current_seat = 0
+
+    engine.act(
+        room,
+        room.players[0],
+        "play",
+        {"cardIds": [card.id for card in state.hands[0] if card.rank == 6]},
+    )
+    assert state.multiplier == 2
+    engine.act(room, room.players[1], "pass", {})
+    engine.act(room, room.players[2], "pass", {})
+    engine.act(
+        room,
+        room.players[0],
+        "play",
+        {"cardIds": [state.hands[0][0].id]},
+    )
+    assert room.phase == "finished"
+    assert state.multiplier == 4
+    assert state.settlement["spring"] == "春天"
+
+
+def test_doudizhu_all_pass_redeals_and_bidding_exit_cancels() -> None:
+    engine = DoudizhuEngine(random.Random(5))
+    room = make_room(engine, 3)
+    first_hand = [card.id for card in room.state.hands[0]]
+    for player in room.players:
+        engine.act(room, player, "bid", {"decision": "pass"})
+    assert room.phase == "bidding"
+    assert room.state.bids == []
+    assert [card.id for card in room.state.hands[0]] != first_hand
+
+    engine.act(room, room.players[0], "resign", {})
+    assert room.phase == "finished"
+    assert room.winner == "draw"
+    assert "本局取消" in room.win_reason
+
+
+def test_doudizhu_laizi_and_no_shuffle_variants_are_applied() -> None:
+    laizi_engine = DoudizhuEngine(random.Random(2))
+    laizi_room = make_room(laizi_engine, 3, {"variant": "laizi"})
+    laizi_engine.act(
+        laizi_room,
+        laizi_room.players[0],
+        "bid",
+        {"decision": "call"},
+    )
+    laizi_engine.act(
+        laizi_room,
+        laizi_room.players[1],
+        "bid",
+        {"decision": "pass"},
+    )
+    laizi_engine.act(
+        laizi_room,
+        laizi_room.players[2],
+        "bid",
+        {"decision": "pass"},
+    )
+    assert 3 <= laizi_room.state.wild_rank <= 15
+
+    no_shuffle_engine = DoudizhuEngine(random.Random(0))
+    no_shuffle_room = make_room(
+        no_shuffle_engine,
+        3,
+        {"variant": "no_shuffle"},
+    )
+    no_shuffle_room.state.next_deck = create_deck()
+    no_shuffle_engine.start(no_shuffle_room)
+    dealt_ids = {
+        card.id
+        for hand in no_shuffle_room.state.hands.values()
+        for card in hand
+    } | {card.id for card in no_shuffle_room.state.bottom_cards}
+    assert dealt_ids == {card.id for card in create_deck()}
+
+
+def test_doudizhu_counter_excludes_played_cards_and_the_viewers_hand() -> None:
+    engine = DoudizhuEngine(random.Random(17))
+    room = make_room(engine, 3)
+    room.state.played_cards = cards(3)
+    room.state.hands[0] = cards(3, 4)
+
+    counter = engine.view(room, room.players[0])["remainingRanks"]
+
+    assert counter["3"] == 2
+    assert counter["4"] == 3
+
+
+def test_doudizhu_completes_a_full_deal_through_legal_play() -> None:
+    engine = DoudizhuEngine(random.Random(11))
+    room = make_room(engine, 3)
+    engine.act(room, room.players[0], "bid", {"decision": "call"})
+    engine.act(room, room.players[1], "bid", {"decision": "pass"})
+    engine.act(room, room.players[2], "bid", {"decision": "pass"})
+
+    for _ in range(500):
+        if room.phase == "finished":
+            break
+        state = room.state
+        player = room.players[state.current_seat]
+        previous = engine._last_pattern(state)
+        playable = next(
+            (
+                card
+                for card in state.hands[player.seat]
+                if previous is None
+                or beats(classify_cards([card]), previous)
+            ),
+            None,
+        )
+        if playable is None:
+            engine.act(room, player, "pass", {})
+        else:
+            engine.act(room, player, "play", {"cardIds": [playable.id]})
+
+    assert room.phase == "finished"
+    assert room.winner in {"landlord", "farmers"}
+    assert room.state.history
 
 
 def test_junqi_dark_setup_keeps_opponent_pieces_private() -> None:
@@ -307,8 +1108,158 @@ def test_finished_room_leave_does_not_offer_resume() -> None:
 
     assert room.phase == "finished"
     assert manager.leave(room, host.id) is False
-    assert room.player(host.id).connected is False
+    assert all(player.id != host.id for player in room.players)
     assert room.player(guest.id).connected is True
+    assert room.phase == "lobby"
+
+
+def test_arcade_lobby_host_can_kick_and_dissolve() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, host, _ = manager.create_room("gomoku", "甲", "account-1")
+    _, guest, _ = manager.join_room(
+        room.code, "gomoku", "乙", "account-2"
+    )
+
+    manager.kick(room, host.id, guest.id)
+    assert [player.id for player in room.players] == [host.id]
+
+    manager.dissolve(room, host.id)
+    assert room.code not in manager.rooms
+
+
+def test_arcade_room_rules_are_validated_locked_and_applied_next_game() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, host, _ = manager.create_room(
+        "gomoku",
+        "甲",
+        "account-1",
+        {
+            "firstPlayer": "host",
+            "allowUndo": False,
+            "allowDraw": False,
+            "winRule": "exact_five",
+        },
+    )
+    _, guest, _ = manager.join_room(
+        room.code, "gomoku", "乙", "account-2"
+    )
+    assert "boardSize" not in room.options
+
+    with pytest.raises(ArcadeRoomError, match="只有房主"):
+        manager.update_options(room, guest.id, room.options)
+
+    manager.start(room, host.id)
+    assert room.players[0].id == host.id
+    assert len(room.state.board) == 15
+    with pytest.raises(ArcadeRoomError, match="没有开启悔棋"):
+        manager.request_game_action(room, host.id, "undo")
+    with pytest.raises(ArcadeRoomError, match="没有开启和棋"):
+        manager.request_game_action(room, host.id, "draw")
+    with pytest.raises(ArcadeRoomError, match="进行中"):
+        manager.update_options(room, host.id, room.options)
+
+    manager.act(room, host.id, "resign", {})
+    manager.update_options(
+        room,
+        host.id,
+        {
+            **room.options,
+            "winRule": "freestyle",
+        },
+    )
+    assert room.phase == "lobby"
+    assert "boardSize" not in room.options
+    assert room.options["winRule"] == "freestyle"
+
+
+def test_swap2_opening_choices_are_not_treated_as_undoable_moves() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, host, _ = manager.create_room(
+        "gomoku",
+        "甲",
+        "account-1",
+        {
+            "firstPlayer": "host",
+            "openingRule": "swap2",
+            "winRule": "freestyle",
+        },
+    )
+    manager.join_room(room.code, "gomoku", "乙", "account-2")
+    manager.start(room, host.id)
+
+    for row, column in [(7, 7), (7, 8), (8, 8)]:
+        manager.act(
+            room,
+            host.id,
+            "place",
+            {"row": row, "column": column},
+        )
+
+    assert room.undo_history == []
+    with pytest.raises(ArcadeRoomError, match="没有可以撤回"):
+        manager.request_game_action(room, host.id, "undo")
+
+
+def test_arcade_chat_is_shared_and_bounded() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, host, _ = manager.create_room("gomoku", "甲", "account-1")
+    message = manager.send_chat(room, host.id, "  准备好了吗  ")
+
+    assert message.content == "准备好了吗"
+    assert room.chat_messages[-1].sender_id == host.id
+
+    for index in range(101):
+        manager.send_chat(room, host.id, f"消息 {index}")
+    assert len(room.chat_messages) == 100
+    assert room.chat_messages[0].content == "消息 1"
+
+
+def test_rematch_waits_for_every_player_and_rotates_sides() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, host, _ = manager.create_room("gomoku", "甲", "account-1")
+    manager.join_room(room.code, "gomoku", "乙", "account-2")
+    manager.start(room, host.id)
+    first_black = room.players[0]
+    second_player = room.players[1]
+    manager.act(room, first_black.id, "resign", {})
+
+    manager.restart(room, first_black.id)
+    assert room.phase == "finished"
+    assert room.rematch_ready_ids == {first_black.id}
+
+    manager.restart(room, second_player.id)
+    assert room.phase == "playing"
+    assert room.round_number == 2
+    assert room.players[1].id == first_black.id
+    assert room.rematch_ready_ids == set()
+
+
+def test_gomoku_players_can_accept_undo_and_draw_requests() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, host, _ = manager.create_room("gomoku", "甲", "account-1")
+    manager.join_room(room.code, "gomoku", "乙", "account-2")
+    manager.start(room, host.id)
+    black, white = room.players
+
+    manager.act(room, black.id, "place", {"row": 7, "column": 7})
+    manager.request_game_action(room, white.id, "undo")
+    manager.resolve_game_request(room, white.id, False)
+    assert room.pending_request is None
+
+    manager.request_game_action(room, white.id, "undo")
+    manager.resolve_game_request(room, black.id, True)
+
+    assert room.state.board[7][7] == 0
+    assert room.state.turn_seat == 0
+    assert room.pending_request is None
+
+    manager.request_game_action(room, black.id, "draw")
+    with pytest.raises(ArcadeRoomError, match="先处理当前申请"):
+        manager.act(room, black.id, "place", {"row": 8, "column": 8})
+    manager.resolve_game_request(room, white.id, True)
+    assert room.phase == "finished"
+    assert room.winner == "draw"
+    assert room.winner_player_ids == []
 
 
 def test_reaction_records_exactly_three_rounds_and_average() -> None:

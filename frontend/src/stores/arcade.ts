@@ -54,6 +54,16 @@ export const useArcadeStore = defineStore('arcade', () => {
         snapshot.value = next
       }
     })
+    socket.on('arcade:kicked', (payload: { message?: string }) => {
+      snapshot.value = null
+      clearSession()
+      error.value = payload.message ?? '你已被移出房间'
+    })
+    socket.on('arcade:closed', (payload: { message?: string; silent?: boolean }) => {
+      snapshot.value = null
+      clearSession()
+      error.value = payload.silent ? null : (payload.message ?? '房间已经解散')
+    })
   }
 
   async function perform(
@@ -151,7 +161,31 @@ export const useArcadeStore = defineStore('arcade', () => {
   }
 
   async function restartGame() {
-    await perform('arcade:restart')
+    return Boolean(await perform('arcade:restart'))
+  }
+
+  async function kickPlayer(playerId: string) {
+    return Boolean(await perform('arcade:kick', { target_id: playerId }))
+  }
+
+  async function dissolveRoom() {
+    return Boolean(await perform('arcade:dissolve'))
+  }
+
+  async function sendChat(content: string) {
+    return Boolean(await perform('arcade:chat', { content }))
+  }
+
+  async function requestGameAction(kind: 'undo' | 'draw') {
+    return Boolean(await perform('arcade:request', { kind }))
+  }
+
+  async function resolveGameRequest(accept: boolean) {
+    return Boolean(await perform('arcade:request:resolve', { accept }))
+  }
+
+  async function updateRules(options: Record<string, unknown>) {
+    return Boolean(await perform('arcade:rules:update', { options }))
   }
 
   async function returnToRoom() {
@@ -193,6 +227,12 @@ export const useArcadeStore = defineStore('arcade', () => {
     startGame,
     action,
     restartGame,
+    kickPlayer,
+    dissolveRoom,
+    sendChat,
+    requestGameAction,
+    resolveGameRequest,
+    updateRules,
     returnToRoom,
     clearError,
     resetForLogout,

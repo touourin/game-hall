@@ -31,17 +31,33 @@ export interface ArcadePlayer {
   isHost: boolean
 }
 
+export interface ArcadeChatMessage {
+  id: string
+  senderId: string
+  senderName: string
+  content: string
+  createdAt: string
+}
+
+export interface ArcadeGameRequest {
+  kind: 'undo' | 'draw'
+  requesterId: string
+  requesterName: string
+  isMine: boolean
+}
+
 export interface ArcadeSnapshot {
   revision: number
   roomCode: string
   gameKey: ArcadeGameKey
   gameName: string
-  phase: 'lobby' | 'setup' | 'bidding' | 'playing' | 'finished'
+  phase: 'lobby' | 'setup' | 'bidding' | 'playing' | 'scoring' | 'finished'
   options: Record<string, unknown>
   hostId: string
   self: { id: string; name: string; seat: number }
   players: ArcadePlayer[]
   requiredPlayers: number
+  roundNumber: number
   winner: string | null
   winnerPlayerIds: string[]
   winReason: string | null
@@ -49,6 +65,18 @@ export interface ArcadeSnapshot {
     canStart: boolean
     canRestart: boolean
     canAct: boolean
+    canKickPlayers: boolean
+    canDissolve: boolean
+    canEditRules: boolean
+    canRequestUndo: boolean
+    canRequestDraw: boolean
+    canResolveRequest: boolean
+  }
+  rematchReadyPlayerIds: string[]
+  request: ArcadeGameRequest | null
+  chat: {
+    maxLength: number
+    messages: ArcadeChatMessage[]
   }
   game: Record<string, unknown>
 }

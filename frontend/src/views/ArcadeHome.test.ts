@@ -1,0 +1,50 @@
+import { createPinia } from 'pinia'
+import { flushPromises, mount } from '@vue/test-utils'
+import { useArcadeStore } from '../stores/arcade'
+import ArcadeHome from './ArcadeHome.vue'
+
+describe('ArcadeHome', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('submits the selected room rules when creating a game', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const createRoom = vi.spyOn(arcade, 'createRoom').mockResolvedValue(false)
+    const wrapper = mount(ArcadeHome, {
+      props: {
+        game: {
+          key: 'gomoku',
+          name: '五子棋',
+          players: '2 人',
+          description: '测试',
+        },
+        account: {
+          id: 'account-1',
+          username: 'tester',
+          displayName: '测试玩家',
+          createdAt: '2026-08-01T00:00:00Z',
+        },
+      },
+      global: { plugins: [pinia] },
+    })
+    const renju = wrapper
+      .findAll('.game-rule-settings button')
+      .find((button) => button.text().includes('有禁手连珠'))
+
+    await renju?.trigger('click')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(createRoom).toHaveBeenCalledWith(
+      'gomoku',
+      '测试玩家',
+      expect.objectContaining({
+        winRule: 'renju',
+        firstPlayer: 'random',
+        openingRule: 'swap2',
+        timeLimitSeconds: 0,
+      }),
+    )
+    expect(createRoom.mock.calls[0]?.[2]).not.toHaveProperty('boardSize')
+  })
+})

@@ -164,3 +164,23 @@ async def test_leaving_avalon_preserves_socket_account_identity(
             "arcade_player_id": "arcade-player",
         },
     )
+
+
+async def test_leaving_avalon_without_room_session_is_idempotent(
+    monkeypatch,
+) -> None:
+    session = {"account_id": "account-1"}
+    get_session = AsyncMock(return_value=session)
+    save_session = AsyncMock()
+    broadcast_lobby = AsyncMock()
+    monkeypatch.setattr(sio, "get_session", get_session)
+    monkeypatch.setattr(sio, "save_session", save_session)
+    monkeypatch.setattr(realtime, "broadcast_lobby", broadcast_lobby)
+
+    response = await realtime.leave_room("socket-without-room")
+
+    assert response == {"ok": True, "seatPreserved": False}
+    save_session.assert_awaited_once_with(
+        "socket-without-room",
+        {"account_id": "account-1"},
+    )

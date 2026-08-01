@@ -18,10 +18,10 @@ const showTheme = ref(false)
 
 const games: Array<GameCatalogItem & { symbol: string; tone: string }> = [
   { key: 'avalon', name: '阿瓦隆', players: '5–10 人', description: '身份推理、组队投票与湖中仙女', symbol: '♛', tone: 'gold' },
-  { key: 'gomoku', name: '五子棋', players: '2 人', description: '15 路棋盘，率先连成五子', symbol: '●', tone: 'ink' },
-  { key: 'xiangqi', name: '中国象棋', players: '2 人', description: '楚河汉界，完整将军与将死规则', symbol: '将', tone: 'red' },
-  { key: 'go', name: '围棋', players: '2 人', description: '19 路棋盘，中国数子与贴目', symbol: '○', tone: 'jade' },
-  { key: 'doudizhu', name: '斗地主', players: '3 人', description: '叫地主、牌型对抗与农民协作', symbol: '♠', tone: 'blue' },
+  { key: 'gomoku', name: '五子棋', players: '2 人', description: '15 路棋盘，Swap2 与有禁手连珠', symbol: '●', tone: 'ink' },
+  { key: 'xiangqi', name: '中国象棋', players: '2 人', description: '楚河汉界，重复局面与长将判定', symbol: '将', tone: 'red' },
+  { key: 'go', name: '围棋', players: '2 人', description: '9/13/19 路可选，中国数子与贴目', symbol: '○', tone: 'jade' },
+  { key: 'doudizhu', name: '斗地主', players: '3 人', description: '叫抢地主、三种玩法与倍数结算', symbol: '♠', tone: 'blue' },
   { key: 'junqi', name: '军旗', players: '2 人', description: '暗军旗布阵，或翻棋决定阵营', symbol: '旗', tone: 'army' },
   { key: 'reaction', name: '反应时间', players: '1 人', description: '等待信号变色，测出三轮真实反应', symbol: '⚡', tone: 'pulse' },
 ]

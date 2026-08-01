@@ -1056,7 +1056,7 @@ button:disabled {
   text-align: center;
 }
 
-.lobby-code-card button {
+.lobby-code-card > button {
   display: block;
   margin: 9px auto 5px;
   border: 0;
@@ -1069,60 +1069,14 @@ button:disabled {
   cursor: pointer;
 }
 
-.lobby-code-card .invite-link {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  margin-top: 14px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 9px 11px;
-  color: #9eb9af;
-  background: rgba(3, 19, 20, 0.46);
-}
-
-.invite-link svg {
-  flex: 0 0 auto;
-  color: var(--gold);
-}
-
-.invite-link span {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.invite-actions {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
-  width: 100%;
-  margin-top: 9px;
-}
-
-.lobby-code-card .invite-actions button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 42px;
-  border: 1px solid rgba(225, 188, 104, 0.22);
-  border-radius: 12px;
-  padding: 0 14px;
-  color: #ead9a9;
-  background: rgba(113, 84, 34, 0.18);
-  font-family: inherit;
-  font-size: 11px;
-  letter-spacing: 0;
-}
-
-.lobby-code-card p {
+.lobby-code-card > p {
   margin: 8px 0 0;
   color: var(--muted);
   font-size: 11px;
+}
+
+.lobby-code-card .invite-link-panel {
+  margin-top: 14px;
 }
 
 .section-heading,

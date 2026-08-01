@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from dataclasses import asdict, is_dataclass
-from typing import Any
+from typing import Any, Literal
 
 import socketio
 from pydantic import BaseModel, Field, ValidationError
@@ -36,6 +36,26 @@ class ActionPayload(BaseModel):
     payload: dict[str, Any] = Field(default_factory=dict)
 
 
+class TargetPayload(BaseModel):
+    target_id: str = Field(min_length=1, max_length=64)
+
+
+class ChatPayload(BaseModel):
+    content: str = Field(min_length=1, max_length=300)
+
+
+class GameRequestPayload(BaseModel):
+    kind: Literal["undo", "draw"]
+
+
+class ResolveRequestPayload(BaseModel):
+    accept: bool
+
+
+class RulesPayload(BaseModel):
+    options: dict[str, Any] = Field(default_factory=dict)
+
+
 def error_response(error: Exception) -> dict[str, Any]:
     if isinstance(error, ValidationError):
         return {"ok": False, "error": "提交的数据格式不正确"}
@@ -59,6 +79,12 @@ class ArcadeRealtime:
         sio.on("arcade:start")(self.start_game)
         sio.on("arcade:action")(self.game_action)
         sio.on("arcade:restart")(self.restart_game)
+        sio.on("arcade:kick")(self.kick_player)
+        sio.on("arcade:dissolve")(self.dissolve_room)
+        sio.on("arcade:chat")(self.send_chat)
+        sio.on("arcade:request")(self.request_game_action)
+        sio.on("arcade:request:resolve")(self.resolve_game_request)
+        sio.on("arcade:rules:update")(self.update_rules)
         sio.on("arcade:list")(self.list_rooms)
 
     async def on_connect(self, sid: str) -> None:
@@ -186,6 +212,101 @@ class ArcadeRealtime:
         except ACTION_ERRORS as error:
             return error_response(error)
 
+    async def kick_player(self, sid: str, raw_data: Any) -> dict[str, Any]:
+        try:
+            payload = TargetPayload.model_validate(raw_data or {})
+            room, player = await self._context(sid)
+            target = room.player(payload.target_id)
+            async with room.lock:
+                self.rooms.kick(room, player.id, target.id)
+            await self._eject_player(
+                room.code,
+                target.id,
+                event="arcade:kicked",
+                message="你已被房主移出房间",
+            )
+            await self.broadcast_room(room)
+            await self.broadcast_lobby()
+            return {"ok": True}
+        except (ValidationError, *ACTION_ERRORS) as error:
+            return error_response(error)
+
+    async def dissolve_room(
+        self, sid: str, raw_data: Any = None
+    ) -> dict[str, Any]:
+        try:
+            room, player = await self._context(sid)
+            player_ids = [member.id for member in room.players]
+            async with room.lock:
+                self.rooms.dissolve(room, player.id)
+            for player_id in player_ids:
+                await self._eject_player(
+                    room.code,
+                    player_id,
+                    event="arcade:closed",
+                    message="房主已解散房间",
+                    silent=player_id == player.id,
+                )
+            await self.broadcast_lobby()
+            return {"ok": True}
+        except ACTION_ERRORS as error:
+            return error_response(error)
+
+    async def send_chat(self, sid: str, raw_data: Any) -> dict[str, Any]:
+        try:
+            payload = ChatPayload.model_validate(raw_data or {})
+            room, player = await self._context(sid)
+            async with room.lock:
+                self.rooms.send_chat(room, player.id, payload.content)
+            await self.broadcast_room(room)
+            return {"ok": True}
+        except (ValidationError, *ACTION_ERRORS) as error:
+            return error_response(error)
+
+    async def request_game_action(
+        self, sid: str, raw_data: Any
+    ) -> dict[str, Any]:
+        try:
+            payload = GameRequestPayload.model_validate(raw_data or {})
+            room, player = await self._context(sid)
+            async with room.lock:
+                self.rooms.request_game_action(room, player.id, payload.kind)
+            await self.broadcast_room(room)
+            return {"ok": True}
+        except (ValidationError, *ACTION_ERRORS) as error:
+            return error_response(error)
+
+    async def resolve_game_request(
+        self, sid: str, raw_data: Any
+    ) -> dict[str, Any]:
+        try:
+            payload = ResolveRequestPayload.model_validate(raw_data or {})
+            room, player = await self._context(sid)
+            async with room.lock:
+                self.rooms.resolve_game_request(
+                    room,
+                    player.id,
+                    payload.accept,
+                )
+                if room.phase == "finished":
+                    self._record_room(room)
+            await self.broadcast_room(room)
+            return {"ok": True}
+        except (ValidationError, *ACTION_ERRORS) as error:
+            return error_response(error)
+
+    async def update_rules(self, sid: str, raw_data: Any) -> dict[str, Any]:
+        try:
+            payload = RulesPayload.model_validate(raw_data or {})
+            room, player = await self._context(sid)
+            async with room.lock:
+                self.rooms.update_options(room, player.id, payload.options)
+            await self.broadcast_room(room)
+            await self.broadcast_lobby()
+            return {"ok": True}
+        except (ValidationError, *ACTION_ERRORS) as error:
+            return error_response(error)
+
     async def list_rooms(
         self, sid: str, raw_data: Any = None
     ) -> dict[str, Any]:
@@ -194,6 +315,32 @@ class ArcadeRealtime:
     async def cleanup(self) -> None:
         if self.rooms.cleanup_abandoned():
             await self.broadcast_lobby()
+
+    async def tick(self) -> None:
+        for room in list(self.rooms.rooms.values()):
+            if room.phase != "playing":
+                continue
+            try:
+                expire_timeout = getattr(
+                    self.engines[room.game_key],
+                    "expire_timeout",
+                    None,
+                )
+                if expire_timeout is None:
+                    continue
+                async with room.lock:
+                    expired = expire_timeout(room)
+                    if expired:
+                        self._record_room(room)
+                if expired:
+                    await self.broadcast_room(room)
+            except Exception:
+                # A broken room must not stop clock handling for every other
+                # active game or terminate the shared maintenance task.
+                self.logger.exception(
+                    "Failed to process clock tick for room %s",
+                    room.code,
+                )
 
     def lobby_view(self) -> list[dict[str, Any]]:
         return build_lobby_view(list(self.rooms.rooms.values()), self.engines)
@@ -237,6 +384,29 @@ class ArcadeRealtime:
         session.pop("arcade_room_code", None)
         session.pop("arcade_player_id", None)
         await self._server.save_session(sid, session)
+
+    async def _eject_player(
+        self,
+        room_code: str,
+        player_id: str,
+        *,
+        event: str,
+        message: str,
+        silent: bool = False,
+    ) -> None:
+        key = (room_code, player_id)
+        target_sids = list(self.active_sids.pop(key, set()))
+        for target_sid in target_sids:
+            await self._server.emit(
+                event,
+                {"message": message, "silent": silent},
+                to=target_sid,
+            )
+            await self._server.leave_room(
+                target_sid,
+                self._channel(room_code, player_id),
+            )
+            await self._clear_room_session(target_sid)
 
     async def _context(self, sid: str):
         try:

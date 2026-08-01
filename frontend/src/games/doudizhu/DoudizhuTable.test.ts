@@ -155,47 +155,14 @@ describe('DoudizhuTable', () => {
       ...bidding,
       revision: bidding.revision + 1,
       game: {
-      ...(bidding.game as Record<string, unknown>),
-      biddingMode: 'rob',
-      landlordCandidatePlayerId: 'p2',
+        ...(bidding.game as Record<string, unknown>),
+        biddingMode: 'rob',
+        landlordCandidatePlayerId: 'p2',
       },
     }
     await wrapper.setProps({ snapshot: robSnapshot })
     expect(wrapper.text()).toContain('是否抢 玩家二 的地主')
     await wrapper.findAll('.bid-panel button').find((button) => button.text().includes('抢地主 ×2'))?.trigger('click')
     expect(action).toHaveBeenLastCalledWith('bid', { decision: 'rob' })
-  })
-
-  it('keeps the score-bidding protocol compatible with older rooms', async () => {
-    const legacy = playingSnapshot()
-    legacy.phase = 'bidding'
-    legacy.game = {
-      phase: 'bidding',
-      currentPlayerId: 'p1',
-      bids: [{ seat: 1, score: 1 }],
-      highestBid: 1,
-      landlordPlayerId: null,
-      bottomCards: [],
-      hand: [],
-      cardCounts: { p1: 17, p2: 17, p3: 17 },
-      teams: {},
-      lastPlay: null,
-      lastPlayPlayerId: null,
-    }
-    const pinia = createPinia()
-    const arcade = useArcadeStore(pinia)
-    const action = vi.spyOn(arcade, 'action').mockResolvedValue()
-    const wrapper = mount(DoudizhuTable, {
-      props: { snapshot: legacy },
-      global: { plugins: [pinia] },
-    })
-
-    expect(wrapper.text()).toContain('轮到你叫地主')
-    expect(wrapper.text()).toContain('2号 1')
-    expect(wrapper.find('.landlord-tools').exists()).toBe(false)
-
-    const twoPoints = wrapper.findAll('.bid-panel button').find((button) => button.text() === '2 分')
-    await twoPoints?.trigger('click')
-    expect(action).toHaveBeenCalledWith('bid', { score: 2 })
   })
 })

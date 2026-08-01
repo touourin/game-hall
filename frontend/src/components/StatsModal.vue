@@ -269,7 +269,7 @@ onMounted(async () => {
             <span><Shield :size="15" /> 好人 {{ summary.goodWins }}/{{ summary.goodGames }}</span>
             <span><Swords :size="15" /> 坏人 {{ summary.evilWins }}/{{ summary.evilGames }}</span>
           </div>
-          <div v-if="props.gameKey === 'gomoku'" class="match-result-summary">
+          <div v-if="['gomoku', 'xiangqi', 'go'].includes(props.gameKey ?? '')" class="match-result-summary">
             <span>胜 {{ summary.wins }}</span>
             <span>和 {{ summary.draws }}</span>
             <span>负 {{ summary.losses }}</span>

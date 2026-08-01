@@ -1,9 +1,13 @@
 import { createPinia } from 'pinia'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
-import { vi } from 'vitest'
+import { beforeEach, vi } from 'vitest'
 import * as clipboard from '../../clipboard'
 import { useRoomStore } from './store'
+import {
+  storedRoleSkin,
+  storedRoleSkinLock,
+} from './roleSkins'
 import type { RoomSnapshot } from './types'
 import GameRoom from './GameRoom.vue'
 
@@ -103,6 +107,10 @@ function roleRevealSnapshot(revision: number): RoomSnapshot {
 }
 
 describe('GameRoom role reveal', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
   it('keeps the player own number visible and opens the full number list', async () => {
     const snapshot = roleRevealSnapshot(1)
     snapshot.players.push({
@@ -273,6 +281,50 @@ describe('GameRoom role reveal', () => {
     expect(perform).toHaveBeenCalledWith('room:add-ai-player')
   })
 
+  it('chooses a personal skin in the lobby and locks it for the game', async () => {
+    const lobby = roleRevealSnapshot(1)
+    lobby.phase = 'lobby'
+    lobby.self.isHost = false
+    lobby.self.role = null
+    lobby.actions.canConfirmRole = false
+    lobby.actions.canUpdateSettings = false
+
+    const wrapper = mount(GameRoom, {
+      props: { snapshot: lobby },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.get('.role-skin-lobby-card').text()).toContain(
+      '开局后锁定',
+    )
+    await wrapper
+      .get('button[data-role-skin="royal-codex"]')
+      .trigger('click')
+
+    expect(storedRoleSkin()).toBe('royal-codex')
+    expect(storedRoleSkinLock('TEST')).toBeNull()
+
+    await wrapper.setProps({ snapshot: roleRevealSnapshot(2) })
+    await nextTick()
+
+    expect(wrapper.find('.role-skin-lobby-card').exists()).toBe(false)
+    expect(wrapper.get('.secret-card').attributes('data-skin')).toBe(
+      'royal-codex',
+    )
+    expect(wrapper.get('.role-skin-lock').text()).toContain('王庭秘卷')
+    expect(storedRoleSkinLock('TEST')).toBe('royal-codex')
+
+    const nextLobby = roleRevealSnapshot(3)
+    nextLobby.phase = 'lobby'
+    nextLobby.self.role = null
+    nextLobby.actions.canConfirmRole = false
+    await wrapper.setProps({ snapshot: nextLobby })
+    await nextTick()
+
+    expect(wrapper.find('.role-skin-lobby-card').exists()).toBe(true)
+    expect(storedRoleSkinLock('TEST')).toBeNull()
+  })
+
   it('uses the shared invitation copier and confirms success', async () => {
     const snapshot = roleRevealSnapshot(1)
     snapshot.phase = 'lobby'
@@ -284,11 +336,14 @@ describe('GameRoom role reveal', () => {
       global: { plugins: [createPinia()] },
     })
 
-    await wrapper.get('.invite-actions button').trigger('click')
+    await wrapper.get('.invite-link-actions button').trigger('click')
     await nextTick()
 
     expect(copyText).toHaveBeenCalledOnce()
-    expect(wrapper.get('.invite-actions button').text()).toContain('已复制')
+    const invitation = new URL(String(copyText.mock.calls[0]?.[0]))
+    expect(invitation.searchParams.get('game')).toBe('avalon')
+    expect(invitation.searchParams.get('room')).toBe('TEST')
+    expect(wrapper.get('.invite-link-actions button').text()).toContain('已复制')
     copyText.mockRestore()
   })
 

@@ -19,10 +19,24 @@ function snapshot(phase: 'playing' | 'finished' = 'playing'): ArcadeSnapshot {
     self: { id: 'p1', name: '测试者', seat: 0 },
     players: [{ id: 'p1', name: '测试者', seat: 0, connected: true, isHost: true }],
     requiredPlayers: 1,
+    roundNumber: 1,
     winner: finished ? 'completed' : null,
     winnerPlayerIds: finished ? ['p1'] : [],
     winReason: finished ? '三轮平均反应时间 210 毫秒' : null,
-    actions: { canStart: false, canRestart: finished, canAct: !finished },
+    actions: {
+      canStart: false,
+      canRestart: finished,
+      canAct: !finished,
+      canKickPlayers: false,
+      canDissolve: false,
+      canEditRules: false,
+      canRequestUndo: false,
+      canRequestDraw: false,
+      canResolveRequest: false,
+    },
+    rematchReadyPlayerIds: [],
+    request: null,
+    chat: { maxLength: 300, messages: [] },
     game: {
       roundsRequired: 3,
       resultsMs: finished ? [180, 240, 210] : [],
@@ -110,8 +124,7 @@ describe('ReactionTest', () => {
   it('shows all three results and can restart', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)
-    const restart = vi.spyOn(arcade, 'restartGame').mockResolvedValue()
-    const start = vi.spyOn(arcade, 'startGame').mockResolvedValue()
+    const restart = vi.spyOn(arcade, 'restartGame').mockResolvedValue(true)
     const wrapper = mount(ReactionTest, {
       props: { snapshot: snapshot('finished') },
       global: { plugins: [pinia] },
@@ -121,7 +134,6 @@ describe('ReactionTest', () => {
     expect(wrapper.text()).toContain('180 ms')
     await wrapper.get('.reaction-result .primary-button').trigger('click')
     expect(restart).toHaveBeenCalledOnce()
-    expect(start).toHaveBeenCalledOnce()
     wrapper.unmount()
   })
 })

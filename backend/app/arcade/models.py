@@ -21,6 +21,21 @@ class ArcadePlayer:
 
 
 @dataclass
+class ArcadeChatMessage:
+    id: str
+    sender_id: str
+    sender_name: str
+    content: str
+    created_at: str = field(default_factory=utc_now_iso)
+
+
+@dataclass
+class ArcadeGameRequest:
+    kind: str
+    requester_id: str
+
+
+@dataclass
 class ArcadeRoom:
     code: str
     game_key: str
@@ -38,6 +53,11 @@ class ArcadeRoom:
     winner_player_ids: list[str] = field(default_factory=list)
     win_reason: str | None = None
     recorded: bool = False
+    round_number: int = 0
+    rematch_ready_ids: set[str] = field(default_factory=set)
+    pending_request: ArcadeGameRequest | None = None
+    chat_messages: list[ArcadeChatMessage] = field(default_factory=list)
+    undo_history: list[Any] = field(default_factory=list, repr=False)
     all_humans_offline_since: datetime | None = None
     lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
 

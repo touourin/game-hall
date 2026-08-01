@@ -70,11 +70,16 @@ async def broadcast_lobby() -> None:
 
 
 async def cleanup_abandoned_rooms() -> None:
+    cleanup_seconds = 0
     while True:
-        await asyncio.sleep(60)
-        if rooms.cleanup_abandoned():
-            await broadcast_lobby()
-        await arcade_realtime.cleanup()
+        await asyncio.sleep(1)
+        await arcade_realtime.tick()
+        cleanup_seconds += 1
+        if cleanup_seconds >= 60:
+            cleanup_seconds = 0
+            if rooms.cleanup_abandoned():
+                await broadcast_lobby()
+            await arcade_realtime.cleanup()
 
 
 async def bind_session(
@@ -105,11 +110,11 @@ async def clear_room_session(sid: str) -> None:
 async def context_for_sid(sid: str) -> tuple[Room, str]:
     try:
         session = await sio.get_session(sid)
-    except KeyError as exc:
+        room = rooms.get_room(session["room_code"])
+        player_id = session["player_id"]
+        room.player(player_id)
+    except (KeyError, TypeError) as exc:
         raise RoomError("连接还没有加入房间") from exc
-    room = rooms.get_room(session["room_code"])
-    player_id = session["player_id"]
-    room.player(player_id)
     return room, player_id
 
 
@@ -270,6 +275,14 @@ async def resume_room(sid: str, raw_data: Any) -> dict[str, Any]:
 async def leave_room(sid: str, raw_data: Any = None) -> dict[str, Any]:
     try:
         room, player_id = await context_for_sid(sid)
+    except (RoomError, KeyError):
+        # Leaving is idempotent. A reconnect after a server restart can leave
+        # the browser showing a stale room even though the socket no longer
+        # has room context; in that state the user's intent is already met.
+        await clear_room_session(sid)
+        return {"ok": True, "seatPreserved": False}
+
+    try:
         seat_preserved = room.phase != Phase.LOBBY
         async with room.lock:
             if not seat_preserved:

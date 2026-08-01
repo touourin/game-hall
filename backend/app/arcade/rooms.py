@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import copy
 import hashlib
+import random
 import secrets
 import string
 from datetime import datetime, timedelta, timezone
@@ -8,7 +10,13 @@ from typing import Any
 
 from backend.app.games.base import GameEngine, GameRuleError
 
-from .models import ArcadePlayer, ArcadeRoom, utc_now_iso
+from .models import (
+    ArcadeChatMessage,
+    ArcadeGameRequest,
+    ArcadePlayer,
+    ArcadeRoom,
+    utc_now_iso,
+)
 
 
 ROOM_ALPHABET = "".join(
@@ -17,6 +25,17 @@ ROOM_ALPHABET = "".join(
     if character not in "0O1I"
 )
 ABANDONED_ROOM_GRACE = timedelta(minutes=5)
+MAX_CHAT_LENGTH = 300
+MAX_CHAT_MESSAGES = 100
+UNDO_GAMES = {"gomoku", "xiangqi", "go"}
+DRAW_GAMES = {"gomoku", "xiangqi", "go"}
+FIRST_PLAYER_MODES = {"random", "host"}
+UNDOABLE_ACTIONS = {
+    "gomoku": {"place", "pass"},
+    "xiangqi": {"move"},
+    "go": {"place", "pass"},
+}
+MAX_UNDO_HISTORY = 100
 
 
 class ArcadeRoomError(ValueError):
@@ -28,9 +47,14 @@ def hash_token(token: str) -> str:
 
 
 class ArcadeRoomManager:
-    def __init__(self, engines: dict[str, GameEngine]) -> None:
+    def __init__(
+        self,
+        engines: dict[str, GameEngine],
+        rng: random.Random | random.SystemRandom | None = None,
+    ) -> None:
         self.engines = engines
         self.rooms: dict[str, ArcadeRoom] = {}
+        self.rng = rng or random.SystemRandom()
 
     def create_room(
         self,
@@ -114,27 +138,58 @@ class ArcadeRoomManager:
         raise ArcadeRoomError("恢复凭证无效，请重新加入房间")
 
     def leave(self, room: ArcadeRoom, player_id: str) -> bool:
-        if room.phase in {"setup", "playing", "bidding"}:
+        if room.phase in {"setup", "playing", "bidding", "scoring"}:
             room.player(player_id).connected = False
             room.revision += 1
             self.update_presence(room)
             return True
         if room.phase == "finished":
-            room.player(player_id).connected = False
-            room.revision += 1
-            self.update_presence(room)
+            self._remove_player(room, player_id)
+            if room.players:
+                self._prepare_lobby(room)
+            else:
+                self.rooms.pop(room.code, None)
             return False
-        leaving = room.player(player_id)
-        room.players.remove(leaving)
-        for index, player in enumerate(room.players):
-            player.seat = index
+        self._remove_player(room, player_id)
         if not room.players:
             self.rooms.pop(room.code, None)
             return False
-        if room.host_id == player_id:
-            room.host_id = room.players[0].id
         room.revision += 1
         return False
+
+    def kick(self, room: ArcadeRoom, actor_id: str, target_id: str) -> None:
+        if room.phase != "lobby":
+            raise ArcadeRoomError("只能移除等待中的玩家")
+        if room.host_id != actor_id:
+            raise ArcadeRoomError("只有房主可以移除玩家")
+        if actor_id == target_id:
+            raise ArcadeRoomError("房主不能移除自己，请使用解散房间")
+        room.player(target_id)
+        self._remove_player(room, target_id)
+        room.revision += 1
+
+    def dissolve(self, room: ArcadeRoom, actor_id: str) -> None:
+        if room.phase != "lobby":
+            raise ArcadeRoomError("游戏开始后不能直接解散，请使用认输")
+        if room.host_id != actor_id:
+            raise ArcadeRoomError("只有房主可以解散房间")
+        self.rooms.pop(room.code, None)
+
+    def update_options(
+        self,
+        room: ArcadeRoom,
+        actor_id: str,
+        options: dict[str, Any],
+    ) -> None:
+        if room.phase not in {"lobby", "finished"}:
+            raise ArcadeRoomError("对局进行中不能修改规则")
+        if room.host_id != actor_id:
+            raise ArcadeRoomError("只有房主可以修改规则")
+        normalized = self._room_options(self.engine(room.game_key), options)
+        if room.phase == "finished":
+            self._prepare_lobby(room)
+        room.options = normalized
+        room.revision += 1
 
     def start(self, room: ArcadeRoom, actor_id: str) -> None:
         engine = self.engine(room.game_key)
@@ -148,14 +203,7 @@ class ArcadeRoomManager:
             raise ArcadeRoomError(
                 f"该游戏需要 {engine.min_players}–{engine.max_players} 名玩家"
             )
-        room.game_id = secrets.token_urlsafe(16)
-        room.started_at = utc_now_iso()
-        room.ended_at = None
-        room.winner = None
-        room.winner_player_ids = []
-        room.win_reason = None
-        room.recorded = False
-        engine.start(room)
+        self._start_round(room, engine, first_round=room.round_number == 0)
         room.revision += 1
 
     def act(
@@ -165,26 +213,116 @@ class ArcadeRoomManager:
         action: str,
         payload: dict[str, Any],
     ) -> None:
-        if room.phase not in {"setup", "playing", "bidding"}:
+        if room.phase not in {"setup", "playing", "bidding", "scoring"}:
             raise ArcadeRoomError("当前不能进行这个操作")
+        if room.pending_request is not None and action != "resign":
+            raise ArcadeRoomError("请先处理当前申请")
         player = room.player(player_id)
-        self.engine(room.game_key).act(room, player, action, payload)
+        engine = self.engine(room.game_key)
+        should_track_undo = (
+            room.game_key in UNDO_GAMES
+            and action in UNDOABLE_ACTIONS[room.game_key]
+            and room.phase == "playing"
+        )
+        undo_guard = getattr(engine, "should_track_undo", None)
+        if should_track_undo and undo_guard is not None:
+            should_track_undo = undo_guard(room, action)
+        previous_state = copy.deepcopy(room.state) if should_track_undo else None
+        engine.act(room, player, action, payload)
+        if previous_state is not None:
+            room.undo_history.append(previous_state)
+            room.undo_history = room.undo_history[-MAX_UNDO_HISTORY:]
+        room.pending_request = None
         room.revision += 1
 
     def restart(self, room: ArcadeRoom, actor_id: str) -> None:
-        if room.host_id != actor_id:
-            raise ArcadeRoomError("只有房主可以再来一局")
         if room.phase != "finished":
             raise ArcadeRoomError("本局尚未结束")
-        room.state = self.engine(room.game_key).initial_state()
-        room.phase = "lobby"
-        room.game_id = None
-        room.started_at = None
-        room.ended_at = None
-        room.winner = None
-        room.winner_player_ids = []
-        room.win_reason = None
-        room.recorded = False
+        room.player(actor_id)
+        room.rematch_ready_ids.add(actor_id)
+        if room.rematch_ready_ids == {player.id for player in room.players}:
+            self._start_round(
+                room,
+                self.engine(room.game_key),
+                first_round=False,
+            )
+        room.revision += 1
+
+    def send_chat(
+        self, room: ArcadeRoom, player_id: str, content: str
+    ) -> ArcadeChatMessage:
+        player = room.player(player_id)
+        normalized = " ".join(content.strip().split())
+        if not normalized:
+            raise ArcadeRoomError("消息不能为空")
+        if len(normalized) > MAX_CHAT_LENGTH:
+            raise ArcadeRoomError(f"消息最多 {MAX_CHAT_LENGTH} 个字符")
+        message = ArcadeChatMessage(
+            id=secrets.token_urlsafe(10),
+            sender_id=player.id,
+            sender_name=player.name,
+            content=normalized,
+        )
+        room.chat_messages.append(message)
+        room.chat_messages = room.chat_messages[-MAX_CHAT_MESSAGES:]
+        room.revision += 1
+        return message
+
+    def request_game_action(
+        self, room: ArcadeRoom, player_id: str, kind: str
+    ) -> None:
+        room.player(player_id)
+        if room.phase != "playing":
+            raise ArcadeRoomError("当前不能发起这个申请")
+        if room.pending_request is not None:
+            raise ArcadeRoomError("已经有一项申请等待处理")
+        if kind == "undo":
+            if room.game_key not in UNDO_GAMES:
+                raise ArcadeRoomError("这个游戏不支持悔棋")
+            if not room.options.get("allowUndo", True):
+                raise ArcadeRoomError("本房间没有开启悔棋")
+            if not room.undo_history:
+                raise ArcadeRoomError("当前还没有可以撤回的操作")
+        elif kind == "draw":
+            if room.game_key not in DRAW_GAMES:
+                raise ArcadeRoomError("这个游戏不支持和棋申请")
+            if not room.options.get("allowDraw", True):
+                raise ArcadeRoomError("本房间没有开启和棋申请")
+        else:
+            raise ArcadeRoomError("不支持这个申请")
+        room.pending_request = ArcadeGameRequest(
+            kind=kind,
+            requester_id=player_id,
+        )
+        room.revision += 1
+
+    def resolve_game_request(
+        self, room: ArcadeRoom, player_id: str, accept: bool
+    ) -> None:
+        request = room.pending_request
+        if request is None:
+            raise ArcadeRoomError("当前没有等待处理的申请")
+        room.player(player_id)
+        if request.requester_id == player_id:
+            if accept:
+                raise ArcadeRoomError("申请需要由其他玩家确认")
+            room.pending_request = None
+            room.revision += 1
+            return
+        room.pending_request = None
+        if accept and request.kind == "draw":
+            room.finish("draw", [], "双方同意和棋")
+        elif accept and request.kind == "undo":
+            if not room.undo_history:
+                raise ArcadeRoomError("当前没有可以撤回的操作")
+            room.state = room.undo_history.pop()
+            resume_clock = getattr(
+                self.engine(room.game_key),
+                "resume_clock",
+                None,
+            )
+            if resume_clock is not None:
+                resume_clock(room)
         room.revision += 1
 
     def get_room(self, code: str) -> ArcadeRoom:
@@ -224,6 +362,69 @@ class ArcadeRoomManager:
                 removed.append(code)
         return removed
 
+    def _start_round(
+        self,
+        room: ArcadeRoom,
+        engine: GameEngine,
+        *,
+        first_round: bool,
+    ) -> None:
+        if len(room.players) > 1:
+            if first_round:
+                if room.options.get("firstPlayer", "random") == "host":
+                    room.players.sort(
+                        key=lambda player: player.id != room.host_id
+                    )
+                else:
+                    self.rng.shuffle(room.players)
+            else:
+                room.players = room.players[1:] + room.players[:1]
+            for seat, player in enumerate(room.players):
+                player.seat = seat
+        room.game_id = secrets.token_urlsafe(16)
+        room.started_at = utc_now_iso()
+        room.ended_at = None
+        room.winner = None
+        room.winner_player_ids = []
+        room.win_reason = None
+        room.recorded = False
+        room.round_number += 1
+        room.rematch_ready_ids.clear()
+        room.pending_request = None
+        room.undo_history.clear()
+        engine.start(room)
+
+    def _prepare_lobby(self, room: ArcadeRoom) -> None:
+        room.state = self.engine(room.game_key).initial_state()
+        room.phase = "lobby"
+        room.game_id = None
+        room.started_at = None
+        room.ended_at = None
+        room.winner = None
+        room.winner_player_ids = []
+        room.win_reason = None
+        room.recorded = False
+        room.round_number = 0
+        room.rematch_ready_ids.clear()
+        room.pending_request = None
+        room.undo_history.clear()
+        room.revision += 1
+
+    @staticmethod
+    def _remove_player(room: ArcadeRoom, player_id: str) -> None:
+        leaving = room.player(player_id)
+        room.players.remove(leaving)
+        room.rematch_ready_ids.discard(player_id)
+        if (
+            room.pending_request is not None
+            and room.pending_request.requester_id == player_id
+        ):
+            room.pending_request = None
+        for index, player in enumerate(room.players):
+            player.seat = index
+        if room.players and room.host_id == player_id:
+            room.host_id = room.players[0].id
+
     def _new_code(self) -> str:
         for _ in range(100):
             code = "".join(secrets.choice(ROOM_ALPHABET) for _ in range(4))
@@ -244,10 +445,25 @@ class ArcadeRoomManager:
     def _room_options(
         engine: GameEngine, options: dict[str, Any]
     ) -> dict[str, Any]:
+        normalized: dict[str, Any] = {}
+        if engine.max_players > 1:
+            first_player = options.get("firstPlayer", "random")
+            if first_player not in FIRST_PLAYER_MODES:
+                raise ArcadeRoomError("请选择随机先手或房主先手")
+            normalized["firstPlayer"] = first_player
+        if engine.key in UNDO_GAMES:
+            allow_undo = options.get("allowUndo", True)
+            allow_draw = options.get("allowDraw", True)
+            if not isinstance(allow_undo, bool) or not isinstance(
+                allow_draw, bool
+            ):
+                raise ArcadeRoomError("协商规则格式不正确")
+            normalized["allowUndo"] = allow_undo
+            normalized["allowDraw"] = allow_draw
         normalizer = getattr(engine, "room_options", None)
-        if normalizer is None:
-            return {}
-        return normalizer(options)
+        if normalizer is not None:
+            normalized.update(normalizer(options))
+        return normalized
 
 
 ACTION_ERRORS = (ArcadeRoomError, GameRuleError, KeyError)

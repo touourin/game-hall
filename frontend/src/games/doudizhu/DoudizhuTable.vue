@@ -20,22 +20,16 @@ interface HistoryEntry {
   pattern?: { kind: string; label: string }
 }
 
-interface LegacyBidEntry {
-  seat: number
-  score: number
-}
-
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
 const selectedIds = ref<string[]>([])
 const game = computed(() => props.snapshot.game as {
   phase: string
-  variant?: 'classic' | 'laizi' | 'no_shuffle'
+  variant: 'classic' | 'laizi' | 'no_shuffle'
   currentPlayerId: string | null
-  bids: Array<HistoryEntry | LegacyBidEntry>
-  biddingMode?: 'call' | 'rob'
-  highestBid?: number
-  landlordCandidatePlayerId?: string | null
+  bids: HistoryEntry[]
+  biddingMode: 'call' | 'rob'
+  landlordCandidatePlayerId: string | null
   landlordPlayerId: string | null
   bottomCards: PlayingCard[]
   hand: PlayingCard[]
@@ -43,14 +37,14 @@ const game = computed(() => props.snapshot.game as {
   teams: Record<string, 'landlord' | 'farmer'>
   lastPlay: { cards: PlayingCard[]; pattern: { kind: string; label?: string } } | null
   lastPlayPlayerId: string | null
-  multiplier?: number
-  multiplierEvents?: Array<{ reason: string; multiplier: number }>
-  wildRank?: number | null
-  wildLabel?: string | null
-  history?: HistoryEntry[]
-  remainingRanks?: Record<string, number>
-  scores?: Record<string, number>
-  settlement?: { baseScore: number; multiplier: number; spring: string | null } | null
+  multiplier: number
+  multiplierEvents: Array<{ reason: string; multiplier: number }>
+  wildRank: number | null
+  wildLabel: string | null
+  history: HistoryEntry[]
+  remainingRanks: Record<string, number>
+  scores: Record<string, number>
+  settlement: { baseScore: number; multiplier: number; spring: string | null } | null
 })
 const isMyTurn = computed(
   () => game.value.currentPlayerId === props.snapshot.self.id,
@@ -75,10 +69,7 @@ const currentPlayer = computed(() =>
 const selectedCards = computed(() =>
   game.value.hand.filter((card) => selectedIds.value.includes(card.id)),
 )
-const usesDecisionBidding = computed(() =>
-  game.value.biddingMode === 'call' || game.value.biddingMode === 'rob',
-)
-const normalizedHistory = computed(() => game.value.history ?? [])
+const normalizedHistory = computed(() => game.value.history)
 const canPass = computed(
   () => isMyTurn.value
     && game.value.lastPlay !== null
@@ -134,10 +125,6 @@ function bid(decision: 'call' | 'rob' | 'pass') {
   void arcade.action('bid', { decision })
 }
 
-function bidScore(score: number) {
-  void arcade.action('bid', { score })
-}
-
 function suitSymbol(suit: PlayingCard['suit']): string {
   if (!suit) return ''
   return { spade: '♠', heart: '♥', club: '♣', diamond: '♦' }[suit] ?? ''
@@ -184,8 +171,7 @@ function describeSelectedCards(cards: PlayingCard[]): string {
   return ''
 }
 
-function historyText(entry: HistoryEntry | LegacyBidEntry): string {
-  if ('score' in entry) return `${entry.seat + 1}号 ${entry.score || '不叫'}`
+function historyText(entry: HistoryEntry): string {
   if (entry.type === 'landlord') return `${entry.playerName} 成为地主`
   if (entry.type === 'pass' || entry.decision === 'pass') {
     return `${entry.playerName} ${entry.type === 'bid' ? '不叫／不抢' : '不出'}`
@@ -205,7 +191,7 @@ function rankLabel(rank: number): string {
   <section class="landlord-table" :class="{ 'is-my-turn': isMyTurn }">
     <header class="landlord-rule-bar">
       <span class="rule-chip">{{ game.variant === 'laizi' ? '癞子玩法' : game.variant === 'no_shuffle' ? '不洗牌玩法' : '经典玩法' }}</span>
-      <strong class="multiplier-chip">倍数 <b>×{{ game.multiplier ?? 1 }}</b></strong>
+      <strong class="multiplier-chip">倍数 <b>×{{ game.multiplier }}</b></strong>
       <em v-if="game.wildLabel" class="wild-chip">癞子：{{ game.wildLabel }}</em>
     </header>
 
@@ -274,25 +260,14 @@ function rankLabel(rank: number): string {
       <div v-if="snapshot.phase === 'bidding'" class="bid-panel">
         <small>地主竞选</small>
         <strong v-if="isMyTurn">
-          {{ !usesDecisionBidding || game.biddingMode === 'call' ? '轮到你叫地主' : `是否抢 ${candidateName} 的地主？` }}
+          {{ game.biddingMode === 'call' ? '轮到你叫地主' : `是否抢 ${candidateName} 的地主？` }}
         </strong>
-        <strong v-else>等待其他玩家{{ !usesDecisionBidding || game.biddingMode === 'call' ? '叫地主' : '抢地主' }}</strong>
-        <div v-if="isMyTurn && usesDecisionBidding">
+        <strong v-else>等待其他玩家{{ game.biddingMode === 'call' ? '叫地主' : '抢地主' }}</strong>
+        <div v-if="isMyTurn">
           <button type="button" :disabled="arcade.busy" @click="bid('pass')">{{ game.biddingMode === 'call' ? '不叫' : '不抢' }}</button>
-          <button type="button" class="primary" :disabled="arcade.busy" @click="bid(game.biddingMode ?? 'call')">
+          <button type="button" class="primary" :disabled="arcade.busy" @click="bid(game.biddingMode)">
             {{ game.biddingMode === 'call' ? '叫地主' : '抢地主 ×2' }}
           </button>
-        </div>
-        <div v-else-if="isMyTurn">
-          <button type="button" :disabled="arcade.busy" @click="bidScore(0)">不叫</button>
-          <button
-            v-for="score in [1, 2, 3]"
-            :key="score"
-            type="button"
-            :class="{ primary: score === 3 }"
-            :disabled="arcade.busy || score <= (game.highestBid ?? 0)"
-            @click="bidScore(score)"
-          >{{ score }} 分</button>
         </div>
         <p v-if="game.bids.length">{{ game.bids.map((entry) => historyText(entry)).join(' · ') }}</p>
         <button type="button" class="arcade-danger-button" :disabled="arcade.busy" @click="arcade.action('resign')">
@@ -349,19 +324,19 @@ function rankLabel(rank: number): string {
       <p v-if="game.settlement.spring">{{ game.settlement.spring }}，倍数翻倍</p>
       <div>
         <span v-for="player in snapshot.players" :key="player.id">
-          {{ player.name }} <b :class="{ gain: (game.scores?.[player.id] ?? 0) > 0 }">{{ (game.scores?.[player.id] ?? 0) > 0 ? '+' : '' }}{{ game.scores?.[player.id] ?? 0 }}</b>
+          {{ player.name }} <b :class="{ gain: (game.scores[player.id] ?? 0) > 0 }">{{ (game.scores[player.id] ?? 0) > 0 ? '+' : '' }}{{ game.scores[player.id] ?? 0 }}</b>
         </span>
       </div>
     </section>
 
-    <div v-if="game.history || game.remainingRanks" class="landlord-tools">
+    <div class="landlord-tools">
       <details class="history-panel">
         <summary><History :size="16" />完整记录（{{ normalizedHistory.length }}）</summary>
         <ol><li v-for="(entry, index) in normalizedHistory" :key="index">{{ historyText(entry) }}</li></ol>
       </details>
       <details class="counter-panel">
         <summary><ListOrdered :size="16" />记牌器</summary>
-        <div><span v-for="rank in rankOrder" :key="rank"><b>{{ rankLabel(rank) }}</b>{{ game.remainingRanks?.[String(rank)] ?? 0 }}</span></div>
+        <div><span v-for="rank in rankOrder" :key="rank"><b>{{ rankLabel(rank) }}</b>{{ game.remainingRanks[String(rank)] ?? 0 }}</span></div>
       </details>
     </div>
   </section>

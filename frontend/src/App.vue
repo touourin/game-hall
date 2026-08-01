@@ -51,10 +51,10 @@ function initialSelectedGame(): GameCatalogItem | null {
   const gameKey = params.get('game')
   const catalog: Record<string, GameCatalogItem> = {
     avalon: { key: 'avalon', name: '阿瓦隆', players: '5–10 人', description: '身份推理与团队博弈' },
-    gomoku: { key: 'gomoku', name: '五子棋', players: '2 人', description: '15 路棋盘，率先连成五子' },
-    xiangqi: { key: 'xiangqi', name: '中国象棋', players: '2 人', description: '楚河汉界，完整走子规则' },
+    gomoku: { key: 'gomoku', name: '五子棋', players: '2 人', description: '15 路棋盘，Swap2 与有禁手连珠' },
+    xiangqi: { key: 'xiangqi', name: '中国象棋', players: '2 人', description: '楚河汉界，重复局面与长将判定' },
     go: { key: 'go', name: '围棋', players: '2 人', description: '19 路中国规则' },
-    doudizhu: { key: 'doudizhu', name: '斗地主', players: '3 人', description: '叫地主与完整牌型对战' },
+    doudizhu: { key: 'doudizhu', name: '斗地主', players: '3 人', description: '叫抢地主、三种玩法与倍数结算' },
     junqi: { key: 'junqi', name: '军旗', players: '2 人', description: '暗军旗布阵与翻棋对战' },
     reaction: { key: 'reaction', name: '反应时间', players: '1 人', description: '三轮高精度反应测试' },
   }

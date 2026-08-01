@@ -59,7 +59,7 @@ async function playToResignation(gameKey, clients, names, options = {}) {
   const created = await emitAck(clients[0], 'arcade:create', {
     game_key: gameKey,
     name: names[0],
-    options,
+    options: { firstPlayer: 'host', ...options },
   })
   for (let index = 1; index < clients.length; index += 1) {
     await emitAck(clients[index], 'arcade:join', {
@@ -72,7 +72,15 @@ async function playToResignation(gameKey, clients, names, options = {}) {
   if (gameKey === 'doudizhu') {
     await emitAck(clients[0], 'arcade:action', {
       action: 'bid',
-      payload: { score: 3 },
+      payload: { decision: 'call' },
+    })
+    await emitAck(clients[1], 'arcade:action', {
+      action: 'bid',
+      payload: { decision: 'pass' },
+    })
+    await emitAck(clients[2], 'arcade:action', {
+      action: 'bid',
+      payload: { decision: 'pass' },
     })
   }
   await emitAck(clients[0], 'arcade:action', {

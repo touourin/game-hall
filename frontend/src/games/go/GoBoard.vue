@@ -1,8 +1,27 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Flag } from '@lucide/vue'
+import { CheckCircle2, Flag, Play } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
+
+interface GoScore {
+  black: number
+  white: number
+  blackStones: number
+  blackTerritory: number
+  whiteStones: number
+  whiteTerritory: number
+  neutralPoints: number
+  komi: number
+  deadBlack: number
+  deadWhite: number
+}
+
+interface GoScoring {
+  deadStones: Array<{ row: number; column: number }>
+  confirmedPlayerIds: string[]
+  resumeRequesterId: string | null
+}
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
@@ -15,14 +34,34 @@ const game = computed(() => props.snapshot.game as {
   captures: { black: number; white: number }
   komi: number
   lastMove: { row?: number; column?: number; pass: boolean } | null
-  score: { black: number; white: number } | null
+  score: GoScore | null
+  scoring: GoScoring | null
 })
 const isMyTurn = computed(
   () => game.value.turnPlayerId === props.snapshot.self.id,
 )
-const canPlace = computed(
-  () => isMyTurn.value && props.snapshot.phase === 'playing' && !arcade.busy,
+const isScoring = computed(() => props.snapshot.phase === 'scoring')
+const deadStoneKeys = computed(
+  () => new Set(
+    (game.value.scoring?.deadStones ?? []).map(
+      ({ row, column }) => `${row}:${column}`,
+    ),
+  ),
 )
+const selfConfirmed = computed(() =>
+  game.value.scoring?.confirmedPlayerIds.includes(props.snapshot.self.id) ?? false,
+)
+const resumeRequester = computed(() =>
+  props.snapshot.players.find(
+    (player) => player.id === game.value.scoring?.resumeRequesterId,
+  ) ?? null,
+)
+const resumeLabel = computed(() => {
+  if (!resumeRequester.value) return '申请继续对局'
+  return resumeRequester.value.id === props.snapshot.self.id
+    ? '撤回继续申请'
+    : '同意继续对局'
+})
 const previewColor = computed<'black' | 'white'>(() =>
   game.value.colors[props.snapshot.self.id] ?? 'black',
 )
@@ -46,8 +85,22 @@ watch(
   },
 )
 
+function isDead(row: number, column: number) {
+  return deadStoneKeys.value.has(`${row}:${column}`)
+}
+
+function pointDisabled(cell: number) {
+  if (arcade.busy) return true
+  if (isScoring.value) return cell === 0
+  return props.snapshot.phase !== 'playing' || !isMyTurn.value || cell !== 0
+}
+
 function isPendingMove(row: number, column: number) {
   return pendingMove.value?.row === row && pendingMove.value?.column === column
+}
+
+function pointCanPreview(cell: number) {
+  return !isScoring.value && !pointDisabled(cell)
 }
 
 function usesTouchConfirmation(event: MouseEvent) {
@@ -69,8 +122,12 @@ function isStarPoint(row: number, column: number) {
   )
 }
 
-function place(row: number, column: number, event: MouseEvent) {
-  if (!canPlace.value || game.value.board[row]?.[column]) return
+function selectPoint(row: number, column: number, cell: number, event: MouseEvent) {
+  if (pointDisabled(cell)) return
+  if (isScoring.value) {
+    void arcade.action('mark_dead', { row, column })
+    return
+  }
   if (usesTouchConfirmation(event) && !isPendingMove(row, column)) {
     pendingMove.value = { row, column }
     return
@@ -83,15 +140,23 @@ function place(row: number, column: number, event: MouseEvent) {
 <template>
   <section class="go-panel">
     <div class="go-status">
-      <strong>{{ isMyTurn ? '轮到你落子' : '等待对手落子' }}</strong>
+      <strong v-if="isScoring">终局数子确认</strong>
+      <strong v-else>{{ isMyTurn ? '轮到你落子' : '等待对手落子' }}</strong>
       <span>你执{{ game.colors[snapshot.self.id] === 'black' ? '黑' : '白' }}</span>
       <span>提子 黑 {{ game.captures.black }} · 白 {{ game.captures.white }}</span>
       <span>贴目 {{ game.komi }}</span>
     </div>
+
+    <section v-if="isScoring" class="go-scoring-guide" aria-live="polite">
+      <strong>点击棋盘上的死棋，整块棋会一起标记</strong>
+      <p>标记有变化时，双方需要重新确认。对死活有争议，可以申请继续下棋。</p>
+    </section>
+
     <div
       class="go-board"
+      :class="{ scoring: isScoring }"
       :style="{ '--board-size': game.boardSize }"
-      aria-label="十九路围棋棋盘"
+      :aria-label="`${game.boardSize} 路围棋棋盘`"
     >
       <template v-for="(row, rowIndex) in game.board" :key="rowIndex">
         <button
@@ -100,16 +165,17 @@ function place(row: number, column: number, event: MouseEvent) {
           type="button"
           class="go-point"
           :class="{
+            'dead-point': isDead(rowIndex, columnIndex),
             star: isStarPoint(rowIndex, columnIndex),
             previewing: isPendingMove(rowIndex, columnIndex),
           }"
-          :disabled="!canPlace || cell !== 0"
+          :disabled="pointDisabled(cell)"
           :aria-pressed="isPendingMove(rowIndex, columnIndex)"
-          :aria-label="`${isPendingMove(rowIndex, columnIndex) ? '已预览，' : ''}第 ${rowIndex + 1} 行第 ${columnIndex + 1} 列`"
-          @click="place(rowIndex, columnIndex, $event)"
+          :aria-label="isScoring && cell ? `${isDead(rowIndex, columnIndex) ? '取消' : ''}标记死子` : undefined"
+          @click="selectPoint(rowIndex, columnIndex, cell, $event)"
         >
           <span
-            v-if="!cell && canPlace"
+            v-if="!cell && pointCanPreview(cell)"
             class="go-stone go-preview"
             :class="[previewColor, { active: isPendingMove(rowIndex, columnIndex) }]"
             aria-hidden="true"
@@ -124,26 +190,71 @@ function place(row: number, column: number, event: MouseEvent) {
                   !game.lastMove?.pass &&
                   game.lastMove?.row === rowIndex &&
                   game.lastMove?.column === columnIndex,
+                dead: isDead(rowIndex, columnIndex),
               },
             ]"
           />
         </button>
       </template>
     </div>
-    <p v-if="canPlace" class="go-board-hint" aria-live="polite">
+    <p v-if="snapshot.phase === 'playing' && isMyTurn" class="go-board-hint" aria-live="polite">
       {{ pendingMoveLabel }}
     </p>
+
     <div v-if="snapshot.phase === 'playing'" class="inline-actions">
-      <button type="button" :disabled="!isMyTurn" @click="arcade.action('pass')">
+      <button type="button" :disabled="!isMyTurn || arcade.busy" @click="arcade.action('pass')">
         停一手
       </button>
-      <button type="button" class="arcade-danger-button" @click="arcade.action('resign')">
+      <button type="button" class="arcade-danger-button" :disabled="arcade.busy" @click="arcade.action('resign')">
         <Flag :size="17" />认输
       </button>
+      <small>本回合不落子；双方连续停一手后进入终局数子</small>
     </div>
-    <p v-if="game.score" class="score-line">
-      终局数子：黑 {{ game.score.black }} · 白 {{ game.score.white }}
-    </p>
+
+    <section v-if="isScoring && game.scoring" class="go-scoring-actions">
+      <p>
+        已确认 {{ game.scoring.confirmedPlayerIds.length }} / {{ snapshot.players.length }} 人
+        <template v-if="resumeRequester">
+          · {{ resumeRequester.id === snapshot.self.id ? '已申请继续对局' : `${resumeRequester.name}申请继续对局` }}
+        </template>
+      </p>
+      <div>
+        <button
+          type="button"
+          class="confirm-score-button"
+          :disabled="selfConfirmed || arcade.busy"
+          @click="arcade.action('confirm_score')"
+        >
+          <CheckCircle2 :size="18" />{{ selfConfirmed ? '你已确认' : '确认死子和数子' }}
+        </button>
+        <button type="button" :disabled="arcade.busy" @click="arcade.action('resume_play')">
+          <Play :size="18" />{{ resumeLabel }}
+        </button>
+      </div>
+    </section>
+
+    <section v-if="game.score" class="go-score-card">
+      <header>
+        <strong>{{ isScoring ? '当前数子预览' : '终局数子' }}</strong>
+        <span>中国数子</span>
+      </header>
+      <div class="go-score-breakdown">
+        <article>
+          <b>黑方 {{ game.score.black }}</b>
+          <span>棋子 {{ game.score.blackStones }} ＋ 围空 {{ game.score.blackTerritory }}</span>
+        </article>
+        <article>
+          <b>白方 {{ game.score.white }}</b>
+          <span>棋子 {{ game.score.whiteStones }} ＋ 围空 {{ game.score.whiteTerritory }} ＋ 贴目 {{ game.score.komi }}</span>
+        </article>
+      </div>
+      <p>
+        中立点 {{ game.score.neutralPoints }}
+        <template v-if="game.score.deadBlack || game.score.deadWhite">
+          · 标记死子：黑 {{ game.score.deadBlack }}、白 {{ game.score.deadWhite }}
+        </template>
+      </p>
+    </section>
   </section>
 </template>
 
@@ -151,6 +262,9 @@ function place(row: number, column: number, event: MouseEvent) {
 .go-panel { display: grid; gap: 14px; justify-items: center; }
 .go-status { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 16px; color: var(--muted); }
 .go-status strong { color: var(--gold); }
+.go-scoring-guide { width: min(94vw, 700px); padding: 13px 15px; border: 1px solid color-mix(in srgb, var(--gold) 42%, var(--line)); border-radius: 13px; background: color-mix(in srgb, var(--gold) 8%, var(--surface)); text-align: center; }
+.go-scoring-guide strong { color: var(--gold); }
+.go-scoring-guide p { margin: 5px 0 0; color: var(--muted); line-height: 1.5; }
 .go-board {
   --board-size: 19;
   width: min(94vw, 700px);
@@ -170,6 +284,7 @@ function place(row: number, column: number, event: MouseEvent) {
     0 20px 50px #0006,
     0 0 0 1px color-mix(in srgb, var(--gold) 24%, transparent);
 }
+.go-board.scoring { box-shadow: 0 20px 50px #0006, 0 0 0 3px color-mix(in srgb, var(--gold) 45%, transparent); }
 .go-point {
   position: relative;
   min-width: 0;
@@ -183,6 +298,7 @@ function place(row: number, column: number, event: MouseEvent) {
 .go-point:not(:disabled) { cursor: crosshair; }
 .go-point:focus-visible { border-radius: 50%; outline-offset: -3px; }
 .go-point.star::before { content: ''; position: absolute; inset: 40%; z-index: 1; border-radius: 50%; background: #513016; }
+.go-board.scoring .go-point:not(:disabled) { cursor: pointer; }
 .go-stone { position: absolute; inset: 3%; z-index: 2; border-radius: 50%; box-shadow: inset -2px -3px 4px #0005, 0 2px 5px #0008; transition: opacity .15s, transform .15s; }
 .go-stone.black { background: radial-gradient(circle at 35% 30%, #555, #050505 68%); }
 .go-stone.white { border: 1px solid rgba(76, 56, 32, .22); background: radial-gradient(circle at 35% 30%, white, #d7d2c8 72%); }
@@ -191,13 +307,32 @@ function place(row: number, column: number, event: MouseEvent) {
 .go-point:not(:disabled):hover .go-preview,
 .go-preview.active { opacity: .48; transform: scale(1); }
 .go-preview.active { outline: 2px solid rgba(255, 245, 197, .78); outline-offset: 2px; }
-.inline-actions { display: flex; gap: 10px; }
+.go-stone.dead { opacity: .38; transform: scale(.88); }
+.go-stone.dead::after { content: '×'; position: absolute; inset: -20%; display: grid; place-items: center; border-radius: 50%; color: #8d1717; background: rgba(255, 230, 210, .55); font-size: clamp(14px, 2.4vw, 26px); font-weight: 950; }
+.inline-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 .inline-actions button:not(.arcade-danger-button) { border: 1px solid var(--line); border-radius: 12px; padding: 10px 18px; color: var(--text); background: var(--surface); }
-.score-line { color: var(--gold); }
+.inline-actions small { flex-basis: 100%; color: var(--muted); text-align: center; }
+.go-scoring-actions { width: min(94vw, 700px); display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.go-scoring-actions p { margin: 0; color: var(--muted); text-align: center; }
+.go-scoring-actions > div { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.go-scoring-actions button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--line); border-radius: 11px; color: var(--text); background: transparent; font-weight: 850; }
+.go-scoring-actions .confirm-score-button { border-color: color-mix(in srgb, var(--gold) 48%, var(--line)); color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, transparent); }
+.go-scoring-actions button:disabled { opacity: .58; }
+.go-score-card { width: min(94vw, 700px); display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.go-score-card header { display: flex; align-items: center; justify-content: space-between; }
+.go-score-card header strong { color: var(--gold); }
+.go-score-card header span, .go-score-card p, .go-score-breakdown span { color: var(--muted); }
+.go-score-breakdown { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.go-score-breakdown article { display: grid; gap: 4px; padding: 11px; border: 1px solid var(--line); border-radius: 11px; }
+.go-score-breakdown b { font-size: 16px; }
+.go-score-breakdown span { line-height: 1.45; }
+.go-score-card p { margin: 0; text-align: center; }
 .go-board-hint { width: min(94vw, 700px); margin: -3px 0 0; color: var(--muted); text-align: center; font-size: 13px; }
 @media (max-width: 600px) {
+  .go-scoring-guide, .go-scoring-actions, .go-score-card { width: 100%; }
+  .go-scoring-guide { text-align: left; }
+  .go-scoring-actions > div, .go-score-breakdown { grid-template-columns: 1fr; }
   .go-board { width: min(96vw, 700px); padding: 7px; border-width: 4px; }
-  .go-board-hint { width: 100%; }
 }
 @media (hover: none) {
   .go-point:hover .go-preview:not(.active) { opacity: 0; transform: scale(.82); }

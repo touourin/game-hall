@@ -7,7 +7,6 @@ import {
   Check,
   ChevronRight,
   CircleHelp,
-  Copy,
   Crown,
   DoorOpen,
   Eye,
@@ -20,7 +19,6 @@ import {
   QrCode,
   RotateCcw,
   Send,
-  Share2,
   Shield,
   Sparkles,
   Swords,
@@ -29,8 +27,17 @@ import {
   X,
 } from '@lucide/vue'
 import MissionTrack from './components/MissionTrack.vue'
+import RoleSkinPicker from './components/RoleSkinPicker.vue'
 import SecretCard from './components/SecretCard.vue'
-import { copyText } from '../../clipboard'
+import InviteLinkPanel from '../../components/InviteLinkPanel.vue'
+import {
+  clearRoleSkinLock,
+  lockRoleSkin,
+  rememberRoleSkin,
+  storedRoleSkin,
+  storedRoleSkinLock,
+  type RoleSkinId,
+} from './roleSkins'
 import { useRoomStore } from './store'
 import type { PlayerView, RoomSnapshot } from './types'
 
@@ -60,9 +67,9 @@ const chatOffset = ref({ x: 0, y: 0 })
 const chatDraft = ref('')
 const chatSheet = ref<HTMLElement | null>(null)
 const chatList = ref<HTMLElement | null>(null)
-const inviteCopied = ref(false)
-const inviteCopyFailed = ref(false)
 const selectedReplayMission = ref<number | null>(null)
+const selectedRoleSkin = ref<RoleSkinId>(storedRoleSkin())
+const lockedRoleSkin = ref<RoleSkinId | null>(null)
 const seenChatIds = ref(
   new Set(props.snapshot.chat.messages.map((message) => message.id)),
 )
@@ -118,6 +125,7 @@ const shareUrl = computed(() => {
   const url = new URL(window.location.href)
   url.search = ''
   url.hash = ''
+  url.searchParams.set('game', 'avalon')
   url.searchParams.set('room', props.snapshot.roomCode)
   return url.toString()
 })
@@ -159,7 +167,6 @@ const replayProposals = computed(() =>
           proposal.missionNumber === selectedReplayMission.value,
       ),
 )
-const canShareInvite = typeof navigator.share === 'function'
 const chatPanelStyle = computed<Record<string, string>>(() => {
   const style: Record<string, string> = {}
   if (chatHeight.value !== null) {
@@ -169,6 +176,9 @@ const chatPanelStyle = computed<Record<string, string>>(() => {
   style['--chat-sheet-offset-y'] = `${chatOffset.value.y}px`
   return style
 })
+const activeRoleSkin = computed(
+  () => lockedRoleSkin.value ?? selectedRoleSkin.value,
+)
 
 let chatResizePointerId: number | null = null
 let chatResizeStartY = 0
@@ -200,6 +210,22 @@ watch(
   },
 )
 watch(
+  () => [props.snapshot.roomCode, props.snapshot.phase] as const,
+  ([roomCode, phase]) => {
+    if (phase === 'lobby') {
+      clearRoleSkinLock(roomCode)
+      lockedRoleSkin.value = null
+      selectedRoleSkin.value = storedRoleSkin()
+      return
+    }
+
+    lockedRoleSkin.value =
+      storedRoleSkinLock(roomCode) ??
+      lockRoleSkin(roomCode, selectedRoleSkin.value)
+  },
+  { immediate: true },
+)
+watch(
   () => props.snapshot.chat.messages.at(-1)?.id,
   async () => {
     if (!showChat.value) return
@@ -211,6 +237,12 @@ watch(
 function playerName(playerId: string | null): string {
   const player = props.snapshot.players.find((item) => item.id === playerId)
   return player ? playerDisplayName(player) : '未知玩家'
+}
+
+function selectRoleSkin(skin: RoleSkinId) {
+  if (props.snapshot.phase !== 'lobby') return
+  selectedRoleSkin.value = skin
+  rememberRoleSkin(skin)
 }
 
 function playerDisplayName(player: PlayerView): string {
@@ -512,31 +544,6 @@ async function sendChat() {
   }
 }
 
-async function copyInviteLink() {
-  const copied = await copyText(shareUrl.value)
-  inviteCopied.value = copied
-  inviteCopyFailed.value = !copied
-  window.setTimeout(() => {
-    inviteCopied.value = false
-    inviteCopyFailed.value = false
-  }, 1800)
-}
-
-async function shareInviteLink() {
-  if (!canShareInvite) {
-    await copyInviteLink()
-    return
-  }
-  try {
-    await navigator.share({
-      title: `加入阿瓦隆房间 ${props.snapshot.roomCode}`,
-      text: `点击链接加入我的阿瓦隆房间 ${props.snapshot.roomCode}`,
-      url: shareUrl.value,
-    })
-  } catch {
-    // 用户关闭系统分享面板时无需提示错误。
-  }
-}
 </script>
 
 <template>
@@ -672,22 +679,11 @@ async function shareInviteLink() {
           {{ snapshot.roomCode }}
         </button>
         <p>让朋友连接同一 Wi‑Fi，输入代码或扫描二维码加入</p>
-        <div class="invite-link">
-          <Link2 :size="16" />
-          <span>{{ shareUrl }}</span>
-        </div>
-        <div class="invite-actions">
-          <button type="button" @click="copyInviteLink">
-            <Check v-if="inviteCopied" :size="17" />
-            <Copy v-else :size="17" />
-            {{ inviteCopied ? '已复制' : inviteCopyFailed ? '复制失败' : '复制邀请链接' }}
-          </button>
-          <button v-if="canShareInvite" type="button" @click="shareInviteLink">
-            <Share2 :size="17" />
-            分享
-          </button>
-        </div>
-        <p v-if="inviteCopyFailed">自动复制失败，请长按上方链接手动复制。</p>
+        <InviteLinkPanel
+          :url="shareUrl"
+          :share-title="`加入阿瓦隆房间 ${snapshot.roomCode}`"
+          :share-text="`点击链接加入我的阿瓦隆房间 ${snapshot.roomCode}`"
+        />
       </div>
 
       <div class="section-heading">
@@ -836,6 +832,11 @@ async function shareInviteLink() {
         </div>
       </div>
 
+      <RoleSkinPicker
+        :model-value="selectedRoleSkin"
+        @update:model-value="selectRoleSkin"
+      />
+
       <button
         v-if="snapshot.self.isHost"
         class="primary-button wide-button"
@@ -934,6 +935,8 @@ async function shareInviteLink() {
         v-if="snapshot.self.role"
         :title="snapshot.self.role.label"
         :subtitle="snapshot.self.role.alignment === 'good' ? '亚瑟阵营' : '莫德雷德阵营'"
+        :role-code="snapshot.self.role.code"
+        :role-skin="activeRoleSkin"
         @seen="roleSeen = true"
       >
         <p class="secret-description">{{ snapshot.self.role.description }}</p>
@@ -1940,6 +1943,8 @@ async function shareInviteLink() {
         <SecretCard
           :title="snapshot.self.role.label"
           :subtitle="snapshot.self.role.alignment === 'good' ? '亚瑟阵营' : '莫德雷德阵营'"
+          :role-code="snapshot.self.role.code"
+          :role-skin="activeRoleSkin"
           hint="按住重新查看身份"
         >
           <p class="secret-description">{{ snapshot.self.role.description }}</p>

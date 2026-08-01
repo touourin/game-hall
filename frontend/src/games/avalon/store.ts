@@ -128,7 +128,9 @@ export const useRoomStore = defineStore('room', () => {
       token: session.value.resumeToken,
     })
     if (!response) {
+      snapshot.value = null
       clearSession()
+      error.value = null
     }
     restoring.value = false
   }

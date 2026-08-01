@@ -144,7 +144,6 @@ function onAccessibleClick(event: MouseEvent) {
 
 async function restartTest() {
   await arcade.restartGame()
-  if (!arcade.error) await arcade.startGame()
 }
 
 function onKeydown(event: KeyboardEvent) {
@@ -160,6 +159,9 @@ watch(
     if (phase === 'finished') {
       clearTimers()
       stage.value = 'finished'
+    } else if (stage.value === 'finished') {
+      localResult.value = null
+      stage.value = 'intro'
     }
   },
 )
