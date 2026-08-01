@@ -5,6 +5,7 @@ import logging
 from collections import defaultdict
 from collections.abc import Callable
 from datetime import datetime, timezone
+from functools import wraps
 from typing import Any
 
 import socketio
@@ -32,10 +33,14 @@ from .games.avalon.schemas import (
 )
 from .games.avalon.views import build_lobby_view, build_player_view
 from .infrastructure import redis_url
+from .logging_config import bind_game_context, reset_game_context
 from .room_state import RedisRoomStateStore
 
 
 redis_connection_url = redis_url()
+logger = logging.getLogger(__name__)
+socketio_logger = logging.getLogger("game_hall.socketio")
+engineio_logger = logging.getLogger("game_hall.engineio")
 socket_manager = (
     socketio.AsyncRedisManager(redis_connection_url, channel="game-hall")
     if redis_connection_url is not None
@@ -44,15 +49,27 @@ socket_manager = (
 sio = socketio.AsyncServer(
     async_mode="asgi",
     client_manager=socket_manager,
-    logger=False,
-    engineio_logger=False,
+    logger=socketio_logger,
+    engineio_logger=engineio_logger,
 )
 arcade_realtime.bind(sio)
 rooms = RoomManager()
 engine = GameEngine()
 active_sids: dict[tuple[str, str], set[str]] = defaultdict(set)
-logger = logging.getLogger(__name__)
 room_state_store = RedisRoomStateStore(redis_connection_url)
+INFO_SOCKET_EVENTS = {
+    "game:restart",
+    "game:start",
+    "room:cleanup",
+    "room:create",
+    "room:join",
+    "room:kick",
+    "room:leave",
+    "room:resume",
+    "room:set-early-assassination",
+    "room:set-lady",
+    "room:set-listed",
+}
 
 
 class RoomCodePayload(BaseModel):
@@ -140,14 +157,22 @@ async def broadcast_lobby() -> None:
 async def cleanup_abandoned_rooms() -> None:
     while True:
         await asyncio.sleep(1)
-        await arcade_realtime.tick()
-        changed_rooms = rooms.maintain()
-        if changed_rooms:
-            for room in changed_rooms:
-                await broadcast_room(room)
-            await broadcast_lobby()
-        await arcade_realtime.maintain()
-        await persist_room_state()
+        try:
+            await arcade_realtime.tick()
+            changed_rooms = rooms.maintain()
+            if changed_rooms:
+                for room in changed_rooms:
+                    await broadcast_room(room)
+                await broadcast_lobby()
+            await arcade_realtime.maintain()
+            await persist_room_state()
+        except Exception:
+            # Keep the shared maintenance task alive after a transient room,
+            # Redis, or broadcast failure. The full traceback is persisted.
+            logger.exception(
+                "Room maintenance iteration failed",
+                extra={"event": "maintenance.failed"},
+            )
 
 
 async def bind_session(
@@ -195,9 +220,96 @@ async def account_id_for_sid(sid: str) -> str:
 
 
 def error_response(error: Exception) -> dict[str, Any]:
+    detail = (
+        "validation error"
+        if isinstance(error, ValidationError)
+        else str(error)
+    )
+    logger.warning(
+        "Realtime request rejected: %s",
+        detail,
+        extra={
+            "error_type": type(error).__name__,
+            "event": "socket.rejected",
+        },
+    )
     if isinstance(error, ValidationError):
         return {"ok": False, "error": "提交的数据格式不正确"}
     return {"ok": False, "error": str(error)}
+
+
+async def avalon_event_log_context(
+    sid: str, raw_data: Any
+) -> dict[str, str | None]:
+    data = raw_data if isinstance(raw_data, dict) else {}
+    room_code = data.get("room_code")
+    player_id = None
+    account_id = None
+    try:
+        session = await sio.get_session(sid)
+        room_code = session.get("room_code") or room_code
+        player_id = session.get("player_id")
+        account_id = session.get("account_id")
+    except (KeyError, TypeError):
+        pass
+    normalized_code = (
+        str(room_code).strip().upper() if room_code else None
+    )
+    room = rooms.rooms.get(normalized_code or "")
+    if room is not None:
+        normalized_code = room.code
+    return {
+        "room_code": normalized_code,
+        "player_id": str(player_id) if player_id else None,
+        "account_id": str(account_id) if account_id else None,
+    }
+
+
+def logged_socket_event(event_name: str):
+    def register(handler):
+        @wraps(handler)
+        async def logged_handler(sid: str, *args):
+            raw_data = args[0] if args else None
+            context = await avalon_event_log_context(sid, raw_data)
+            tokens = bind_game_context(
+                game_key="avalon",
+                room_code=context["room_code"],
+                socket_event=event_name,
+                player_id=context["player_id"],
+                account_id=context["account_id"],
+            )
+            try:
+                response = await handler(sid, *args)
+                if isinstance(response, dict) and response.get("ok"):
+                    logger.log(
+                        logging.INFO
+                        if event_name in INFO_SOCKET_EVENTS
+                        else logging.DEBUG,
+                        "Avalon socket event completed",
+                        extra={
+                            "event": "socket.completed",
+                            "game_key": "avalon",
+                            "player_id": response.get("playerId")
+                            or context["player_id"],
+                            "room_code": response.get("roomCode")
+                            or context["room_code"],
+                            "socket_event": event_name,
+                        },
+                    )
+                return response
+            except Exception:
+                logger.exception(
+                    "Unhandled Avalon socket event",
+                    extra={"event": "socket.unhandled"},
+                )
+                raise
+            finally:
+                reset_game_context(tokens)
+
+        sio.on(event_name)(logged_handler)
+        return logged_handler
+
+    return register
 
 
 async def execute_action(
@@ -217,7 +329,17 @@ async def execute_action(
             advance_ai_players(room, engine)
             if room.phase == Phase.GAME_OVER:
                 try:
-                    account_store().record_match(room)
+                    recorded = account_store().record_match(room)
+                    if recorded:
+                        logger.info(
+                            "Avalon match persisted",
+                            extra={
+                                "event": "match.persisted",
+                                "game_id": room.game_id,
+                                "game_key": "avalon",
+                                "room_code": room.code,
+                            },
+                        )
                 except Exception:
                     # A storage failure must not prevent the completed game
                     # state from reaching connected players.
@@ -246,14 +368,26 @@ async def execute_lobby_action(
 async def connect(sid: str, environ: dict, auth: Any) -> bool | None:
     token = auth.get("token") if isinstance(auth, dict) else None
     if not verify_access_token(token):
+        logger.warning(
+            "Socket connection rejected by access verification",
+            extra={"event": "socket.connect_rejected"},
+        )
         return False
     account_token = (
         auth.get("accountToken") if isinstance(auth, dict) else None
     )
     account = account_store().account_for_token(account_token)
     if account is None:
+        logger.warning(
+            "Socket connection rejected by account verification",
+            extra={"event": "socket.connect_rejected"},
+        )
         return False
     await sio.save_session(sid, {"account_id": account.id})
+    logger.debug(
+        "Socket connected",
+        extra={"account_id": account.id, "event": "socket.connected"},
+    )
     await sio.emit(
         "lobby:rooms",
         build_lobby_view(rooms.rooms.values()),
@@ -280,7 +414,7 @@ async def disconnect(sid: str, reason: str) -> None:
         await broadcast_room(room)
 
 
-@sio.on("room:create")
+@logged_socket_event("room:create")
 async def create_room(sid: str, raw_data: Any) -> dict[str, Any]:
     try:
         account_id = await account_id_for_sid(sid)
@@ -303,7 +437,7 @@ async def create_room(sid: str, raw_data: Any) -> dict[str, Any]:
         return error_response(error)
 
 
-@sio.on("room:join")
+@logged_socket_event("room:join")
 async def join_room(sid: str, raw_data: Any) -> dict[str, Any]:
     try:
         payload = JoinPayload.model_validate(raw_data or {})
@@ -327,7 +461,7 @@ async def join_room(sid: str, raw_data: Any) -> dict[str, Any]:
         return error_response(error)
 
 
-@sio.on("room:resume")
+@logged_socket_event("room:resume")
 async def resume_room(sid: str, raw_data: Any) -> dict[str, Any]:
     try:
         payload = ResumePayload.model_validate(raw_data or {})
@@ -348,7 +482,7 @@ async def resume_room(sid: str, raw_data: Any) -> dict[str, Any]:
         return error_response(error)
 
 
-@sio.on("room:cleanup")
+@logged_socket_event("room:cleanup")
 async def cleanup_room(sid: str, raw_data: Any) -> dict[str, Any]:
     try:
         payload = RoomCodePayload.model_validate(raw_data or {})
@@ -363,7 +497,7 @@ async def cleanup_room(sid: str, raw_data: Any) -> dict[str, Any]:
         return error_response(error)
 
 
-@sio.on("room:leave")
+@logged_socket_event("room:leave")
 async def leave_room(sid: str, raw_data: Any = None) -> dict[str, Any]:
     try:
         room, player_id = await context_for_sid(sid)
@@ -397,7 +531,7 @@ async def leave_room(sid: str, raw_data: Any = None) -> dict[str, Any]:
         return error_response(error)
 
 
-@sio.on("room:set-lady")
+@logged_socket_event("room:set-lady")
 async def set_lady(sid: str, raw_data: Any) -> dict[str, Any]:
     return await execute_lobby_action(
         sid,
@@ -409,7 +543,7 @@ async def set_lady(sid: str, raw_data: Any) -> dict[str, Any]:
     )
 
 
-@sio.on("room:add-ai-player")
+@logged_socket_event("room:add-ai-player")
 async def add_ai_player(
     sid: str, raw_data: Any = None
 ) -> dict[str, Any]:
@@ -418,7 +552,7 @@ async def add_ai_player(
     )
 
 
-@sio.on("room:set-listed")
+@logged_socket_event("room:set-listed")
 async def set_listed(sid: str, raw_data: Any) -> dict[str, Any]:
     return await execute_lobby_action(
         sid,
@@ -430,7 +564,7 @@ async def set_listed(sid: str, raw_data: Any) -> dict[str, Any]:
     )
 
 
-@sio.on("room:set-early-assassination")
+@logged_socket_event("room:set-early-assassination")
 async def set_early_assassination(
     sid: str, raw_data: Any
 ) -> dict[str, Any]:
@@ -446,7 +580,7 @@ async def set_early_assassination(
     )
 
 
-@sio.on("room:kick")
+@logged_socket_event("room:kick")
 async def kick_player(sid: str, raw_data: Any) -> dict[str, Any]:
     try:
         payload = TargetPayload.model_validate(raw_data or {})
@@ -470,19 +604,19 @@ async def kick_player(sid: str, raw_data: Any) -> dict[str, Any]:
         return error_response(error)
 
 
-@sio.on("game:start")
+@logged_socket_event("game:start")
 async def start_game(sid: str, raw_data: Any = None) -> dict[str, Any]:
     return await execute_lobby_action(
         sid, raw_data, None, engine.start_game
     )
 
 
-@sio.on("game:confirm-role")
+@logged_socket_event("game:confirm-role")
 async def confirm_role(sid: str, raw_data: Any = None) -> dict[str, Any]:
     return await execute_action(sid, raw_data, None, engine.confirm_role)
 
 
-@sio.on("game:propose-team")
+@logged_socket_event("game:propose-team")
 async def propose_team(sid: str, raw_data: Any) -> dict[str, Any]:
     return await execute_action(
         sid,
@@ -494,7 +628,7 @@ async def propose_team(sid: str, raw_data: Any) -> dict[str, Any]:
     )
 
 
-@sio.on("game:vote-team")
+@logged_socket_event("game:vote-team")
 async def vote_team(sid: str, raw_data: Any) -> dict[str, Any]:
     return await execute_action(
         sid,
@@ -506,7 +640,7 @@ async def vote_team(sid: str, raw_data: Any) -> dict[str, Any]:
     )
 
 
-@sio.on("game:vote-mission")
+@logged_socket_event("game:vote-mission")
 async def vote_mission(sid: str, raw_data: Any) -> dict[str, Any]:
     return await execute_action(
         sid,
@@ -518,14 +652,14 @@ async def vote_mission(sid: str, raw_data: Any) -> dict[str, Any]:
     )
 
 
-@sio.on("game:continue")
+@logged_socket_event("game:continue")
 async def continue_game(sid: str, raw_data: Any = None) -> dict[str, Any]:
     return await execute_action(
         sid, raw_data, None, engine.continue_after_mission
     )
 
 
-@sio.on("game:lady-inspect")
+@logged_socket_event("game:lady-inspect")
 async def lady_inspect(sid: str, raw_data: Any) -> dict[str, Any]:
     return await execute_action(
         sid,
@@ -537,14 +671,14 @@ async def lady_inspect(sid: str, raw_data: Any) -> dict[str, Any]:
     )
 
 
-@sio.on("game:lady-acknowledge")
+@logged_socket_event("game:lady-acknowledge")
 async def lady_acknowledge(
     sid: str, raw_data: Any = None
 ) -> dict[str, Any]:
     return await execute_action(sid, raw_data, None, engine.acknowledge_lady)
 
 
-@sio.on("game:assassinate")
+@logged_socket_event("game:assassinate")
 async def assassinate(sid: str, raw_data: Any) -> dict[str, Any]:
     return await execute_action(
         sid,
@@ -556,7 +690,7 @@ async def assassinate(sid: str, raw_data: Any) -> dict[str, Any]:
     )
 
 
-@sio.on("game:early-assassinate")
+@logged_socket_event("game:early-assassinate")
 async def early_assassinate(sid: str, raw_data: Any) -> dict[str, Any]:
     return await execute_action(
         sid,
@@ -568,12 +702,12 @@ async def early_assassinate(sid: str, raw_data: Any) -> dict[str, Any]:
     )
 
 
-@sio.on("game:restart")
+@logged_socket_event("game:restart")
 async def restart(sid: str, raw_data: Any = None) -> dict[str, Any]:
     return await execute_lobby_action(sid, raw_data, None, engine.restart)
 
 
-@sio.on("chat:send")
+@logged_socket_event("chat:send")
 async def send_chat(sid: str, raw_data: Any) -> dict[str, Any]:
     return await execute_action(
         sid,
@@ -585,7 +719,7 @@ async def send_chat(sid: str, raw_data: Any) -> dict[str, Any]:
     )
 
 
-@sio.on("lobby:list")
+@logged_socket_event("lobby:list")
 async def list_lobby_rooms(
     sid: str, raw_data: Any = None
 ) -> dict[str, Any]:

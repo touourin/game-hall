@@ -31,6 +31,7 @@ def test_legacy_avalon_access_password_is_still_accepted(monkeypatch) -> None:
 def test_access_endpoints_reject_wrong_password(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GAME_HALL_ACCESS_PASSWORD", "test-secret")
     monkeypatch.setenv("GAME_HALL_DB_PATH", str(tmp_path / "access.sqlite3"))
+    monkeypatch.setenv("LOG_DIR", str(tmp_path / "logs"))
 
     with TestClient(api) as client:
         rejected = client.post(
@@ -50,6 +51,14 @@ def test_access_endpoints_reject_wrong_password(monkeypatch, tmp_path) -> None:
     assert accepted.status_code == 200
     assert unauthorized.status_code == 401
     assert authorized.status_code == 200
+    assert len(rejected.headers["X-Request-ID"]) == 16
+    application_log = (tmp_path / "logs" / "app.log").read_text(
+        encoding="utf-8"
+    )
+    assert '"event": "http.completed"' in application_log
+    assert '"path": "/api/access/unlock"' in application_log
+    assert "test-secret" not in application_log
+    assert '"password"' not in application_log
 
 
 def test_account_registration_login_and_session(monkeypatch, tmp_path) -> None:

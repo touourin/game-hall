@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from dataclasses import asdict, is_dataclass
+from functools import wraps
 from typing import Any, Literal
 
 import socketio
@@ -10,10 +11,26 @@ from pydantic import BaseModel, Field, ValidationError
 
 from backend.app.accounts import account_store
 from backend.app.games.registry import build_engine_registry
+from backend.app.logging_config import bind_game_context, reset_game_context
 
 from .models import ArcadeRoom
 from .rooms import ACTION_ERRORS, ArcadeRoomError, ArcadeRoomManager
 from .views import build_lobby_view, build_room_view
+
+
+logger = logging.getLogger(__name__)
+INFO_SOCKET_EVENTS = {
+    "arcade:cleanup",
+    "arcade:create",
+    "arcade:dissolve",
+    "arcade:join",
+    "arcade:kick",
+    "arcade:leave",
+    "arcade:restart",
+    "arcade:resume",
+    "arcade:rules:update",
+    "arcade:start",
+}
 
 
 class CreatePayload(BaseModel):
@@ -60,6 +77,19 @@ class RulesPayload(BaseModel):
 
 
 def error_response(error: Exception) -> dict[str, Any]:
+    detail = (
+        "validation error"
+        if isinstance(error, ValidationError)
+        else str(error)
+    )
+    logger.warning(
+        "Arcade realtime request rejected: %s",
+        detail,
+        extra={
+            "error_type": type(error).__name__,
+            "event": "socket.rejected",
+        },
+    )
     if isinstance(error, ValidationError):
         return {"ok": False, "error": "提交的数据格式不正确"}
     return {"ok": False, "error": str(error)}
@@ -71,25 +101,107 @@ class ArcadeRealtime:
         self.rooms = ArcadeRoomManager(self.engines)
         self.active_sids: dict[tuple[str, str], set[str]] = defaultdict(set)
         self.sio: socketio.AsyncServer | None = None
-        self.logger = logging.getLogger(__name__)
+        self.logger = logger
 
     def bind(self, sio: socketio.AsyncServer) -> None:
         self.sio = sio
-        sio.on("arcade:create")(self.create_room)
-        sio.on("arcade:join")(self.join_room)
-        sio.on("arcade:resume")(self.resume_room)
-        sio.on("arcade:leave")(self.leave_room)
-        sio.on("arcade:start")(self.start_game)
-        sio.on("arcade:action")(self.game_action)
-        sio.on("arcade:restart")(self.restart_game)
-        sio.on("arcade:kick")(self.kick_player)
-        sio.on("arcade:dissolve")(self.dissolve_room)
-        sio.on("arcade:cleanup")(self.cleanup_room)
-        sio.on("arcade:chat")(self.send_chat)
-        sio.on("arcade:request")(self.request_game_action)
-        sio.on("arcade:request:resolve")(self.resolve_game_request)
-        sio.on("arcade:rules:update")(self.update_rules)
-        sio.on("arcade:list")(self.list_rooms)
+        self._bind_event(sio, "arcade:create", self.create_room)
+        self._bind_event(sio, "arcade:join", self.join_room)
+        self._bind_event(sio, "arcade:resume", self.resume_room)
+        self._bind_event(sio, "arcade:leave", self.leave_room)
+        self._bind_event(sio, "arcade:start", self.start_game)
+        self._bind_event(sio, "arcade:action", self.game_action)
+        self._bind_event(sio, "arcade:restart", self.restart_game)
+        self._bind_event(sio, "arcade:kick", self.kick_player)
+        self._bind_event(sio, "arcade:dissolve", self.dissolve_room)
+        self._bind_event(sio, "arcade:cleanup", self.cleanup_room)
+        self._bind_event(sio, "arcade:chat", self.send_chat)
+        self._bind_event(
+            sio, "arcade:request", self.request_game_action
+        )
+        self._bind_event(
+            sio, "arcade:request:resolve", self.resolve_game_request
+        )
+        self._bind_event(
+            sio, "arcade:rules:update", self.update_rules
+        )
+        self._bind_event(sio, "arcade:list", self.list_rooms)
+
+    def _bind_event(self, sio, event_name: str, handler) -> None:
+        @wraps(handler)
+        async def logged_handler(sid: str, *args):
+            raw_data = args[0] if args else None
+            context = await self._event_log_context(sid, raw_data)
+            tokens = bind_game_context(
+                game_key=context["game_key"],
+                room_code=context["room_code"],
+                socket_event=event_name,
+                player_id=context["player_id"],
+                account_id=context["account_id"],
+                action=context["action"],
+            )
+            try:
+                response = await handler(sid, *args)
+                if isinstance(response, dict) and response.get("ok"):
+                    room_code = response.get("roomCode") or context[
+                        "room_code"
+                    ]
+                    self.logger.log(
+                        logging.INFO
+                        if event_name in INFO_SOCKET_EVENTS
+                        else logging.DEBUG,
+                        "Arcade socket event completed",
+                        extra={
+                            "event": "socket.completed",
+                            "game_key": context["game_key"],
+                            "player_id": response.get("playerId")
+                            or context["player_id"],
+                            "room_code": room_code,
+                            "socket_event": event_name,
+                        },
+                    )
+                return response
+            except Exception:
+                self.logger.exception(
+                    "Unhandled arcade socket event",
+                    extra={"event": "socket.unhandled"},
+                )
+                raise
+            finally:
+                reset_game_context(tokens)
+
+        sio.on(event_name)(logged_handler)
+
+    async def _event_log_context(
+        self, sid: str, raw_data: Any
+    ) -> dict[str, str | None]:
+        data = raw_data if isinstance(raw_data, dict) else {}
+        game_key = data.get("game_key")
+        room_code = data.get("room_code")
+        action = data.get("action")
+        player_id = None
+        account_id = None
+        try:
+            session = await self._server.get_session(sid)
+            room_code = session.get("arcade_room_code") or room_code
+            player_id = session.get("arcade_player_id")
+            account_id = session.get("account_id")
+        except (KeyError, TypeError):
+            pass
+        normalized_code = (
+            str(room_code).strip().upper() if room_code else None
+        )
+        room = self.rooms.rooms.get(normalized_code or "")
+        if room is not None:
+            game_key = room.game_key
+            normalized_code = room.code
+        return {
+            "game_key": str(game_key) if game_key else None,
+            "room_code": normalized_code,
+            "player_id": str(player_id) if player_id else None,
+            "account_id": str(account_id) if account_id else None,
+            "action": str(action) if action else None,
+        }
 
     async def on_connect(self, sid: str) -> None:
         await self._server.emit("arcade:lobby", self.lobby_view(), to=sid)
@@ -514,6 +626,16 @@ class ArcadeRealtime:
                 players=players,
             )
             room.recorded = stored
+            if stored:
+                self.logger.info(
+                    "Arcade match persisted",
+                    extra={
+                        "event": "match.persisted",
+                        "game_id": room.game_id,
+                        "game_key": room.game_key,
+                        "room_code": room.code,
+                    },
+                )
         except Exception:
             self.logger.exception("Failed to persist %s match", room.game_key)
 

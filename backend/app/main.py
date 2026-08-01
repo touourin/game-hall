@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import secrets
+import time
 from contextlib import suppress
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import socketio
-from fastapi import FastAPI, Header, HTTPException, status
+from fastapi import FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -15,6 +18,11 @@ from .access import access_password, access_token, verify_access_token, verify_p
 from .accounts import AccountError, GAME_NAMES, account_store
 from .games.registry import GAME_CATALOG
 from .infrastructure import redis_status
+from .logging_config import (
+    bind_request_context,
+    configure_logging,
+    reset_request_context,
+)
 from .realtime import (
     cleanup_abandoned_rooms,
     close_room_state_store,
@@ -24,23 +32,102 @@ from .realtime import (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    access_password()
-    account_store().initialize()
-    await restore_room_state()
-    cleanup_task = asyncio.create_task(cleanup_abandoned_rooms())
+    log_dir = configure_logging()
+    cleanup_task: asyncio.Task | None = None
     try:
+        logger.info(
+            "Game hall is starting",
+            extra={
+                "event": "application.starting",
+                "log_dir": str(log_dir),
+            },
+        )
+        access_password()
+        account_store().initialize()
+        await restore_room_state()
+        cleanup_task = asyncio.create_task(cleanup_abandoned_rooms())
+        logger.info(
+            "Game hall is ready",
+            extra={"event": "application.ready"},
+        )
         yield
+    except Exception:
+        logger.exception(
+            "Application lifecycle failed",
+            extra={"event": "application.failed"},
+        )
+        raise
     finally:
-        cleanup_task.cancel()
-        with suppress(asyncio.CancelledError):
-            await cleanup_task
+        if cleanup_task is not None:
+            cleanup_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await cleanup_task
         await persist_room_state()
         await close_room_state_store()
+        logger.info(
+            "Game hall stopped",
+            extra={"event": "application.stopped"},
+        )
 
 
 api = FastAPI(title="Private Game Hall", version="0.2.0", lifespan=lifespan)
+
+
+@api.middleware("http")
+async def log_http_request(request: Request, call_next):
+    request_id = secrets.token_hex(8)
+    path = request.url.path
+    tokens = bind_request_context(request_id, request.method, path)
+    started_at = time.perf_counter()
+    client_ip = request.client.host if request.client else None
+    try:
+        response = await call_next(request)
+    except Exception:
+        duration_ms = round((time.perf_counter() - started_at) * 1000, 2)
+        logger.exception(
+            "Unhandled HTTP request failure",
+            extra={
+                "client_ip": client_ip,
+                "duration_ms": duration_ms,
+                "event": "http.failed",
+                "method": request.method,
+                "path": path,
+                "status_code": 500,
+            },
+        )
+        raise
+    else:
+        duration_ms = round((time.perf_counter() - started_at) * 1000, 2)
+        response.headers["X-Request-ID"] = request_id
+        log_level = (
+            logging.ERROR
+            if response.status_code >= 500
+            else logging.WARNING
+            if response.status_code >= 400
+            else logging.DEBUG
+            if path == "/api/health"
+            else logging.INFO
+        )
+        logger.log(
+            log_level,
+            "HTTP request completed",
+            extra={
+                "client_ip": client_ip,
+                "duration_ms": duration_ms,
+                "event": "http.completed",
+                "method": request.method,
+                "path": path,
+                "status_code": response.status_code,
+            },
+        )
+        return response
+    finally:
+        reset_request_context(tokens)
 
 
 class AccessRequest(BaseModel):
@@ -98,6 +185,10 @@ def health() -> dict[str, str]:
         account_store().ping()
         cache_status = redis_status()
     except Exception as error:
+        logger.exception(
+            "Infrastructure health check failed",
+            extra={"event": "health.failed"},
+        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="基础服务暂不可用",
