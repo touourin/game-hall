@@ -210,6 +210,37 @@ describe('GameRoom role reveal', () => {
     expect(wrapper.get('.player-number-roster').text()).toContain('仙女')
   })
 
+  it('keeps the current Lady holder visible while the first team is built', () => {
+    const snapshot = roleRevealSnapshot(1)
+    snapshot.phase = 'team_building'
+    snapshot.actions.canConfirmRole = false
+    snapshot.actions.canProposeTeam = true
+    snapshot.players.push({
+      id: 'p2',
+      name: '仙女持有者',
+      seat: 1,
+      connected: true,
+      isBot: false,
+      isHost: false,
+      isLeader: false,
+      isSelected: false,
+    })
+    snapshot.lady.holderId = 'p2'
+
+    const wrapper = mount(GameRoom, {
+      props: { snapshot },
+      global: { plugins: [createPinia()] },
+    })
+
+    const reminder = wrapper.get('.mission-lady-reminder')
+    expect(reminder.text()).toContain('湖中仙女当前持有者')
+    expect(reminder.text()).toContain('2号 仙女持有者')
+    expect(reminder.text()).toContain('第 2 次任务结束后首次查验')
+
+    const holderTile = wrapper.findAll('.player-tile')[1]!
+    expect(holderTile.get('.lady-chip').text()).toContain('仙女')
+  })
+
   it('shows numbered AI players and lets the host add another one', async () => {
     const snapshot = roleRevealSnapshot(1)
     snapshot.phase = 'lobby'

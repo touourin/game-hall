@@ -70,6 +70,29 @@ const leader = computed(() =>
     (player) => player.id === props.snapshot.game.leaderId,
   ),
 )
+const ladyHolder = computed(() =>
+  props.snapshot.players.find(
+    (player) => player.id === props.snapshot.lady.holderId,
+  ),
+)
+const showLadyReminder = computed(
+  () =>
+    props.snapshot.lady.enabled &&
+    Boolean(props.snapshot.lady.holderId) &&
+    ['team_building', 'team_voting', 'mission_voting'].includes(
+      props.snapshot.phase,
+    ),
+)
+const ladyReminderTiming = computed(() => {
+  const missionNumber = props.snapshot.game.missionNumber
+  if (missionNumber === 1) {
+    return '第 2 次任务结束后首次查验'
+  }
+  if (missionNumber <= 4) {
+    return '本次任务结束后负责查验'
+  }
+  return '本局仙女查验已经结束'
+})
 const selectedPlayers = computed(() =>
   props.snapshot.players.filter((player) =>
     props.snapshot.game.selectedTeamIds.includes(player.id),
@@ -636,6 +659,19 @@ async function shareInviteLink() {
       </button>
     </div>
 
+    <div
+      v-if="showLadyReminder"
+      class="surface mission-lady-reminder"
+      aria-label="湖中仙女当前持有者"
+    >
+      <span class="mission-lady-icon"><Sparkles :size="20" /></span>
+      <div>
+        <small>湖中仙女当前持有者</small>
+        <strong>{{ playerLabel(ladyHolder?.id ?? null) }}</strong>
+      </div>
+      <em>{{ ladyReminderTiming }}</em>
+    </div>
+
     <section v-if="snapshot.phase === 'lobby'" class="phase-stack">
       <div class="surface lobby-code-card">
         <span class="eyebrow">ROOM CODE</span>
@@ -981,7 +1017,20 @@ async function shareInviteLink() {
           >
             <span class="avatar number-avatar">{{ player.seat + 1 }}</span>
             <strong>{{ playerDisplayName(player) }}</strong>
-            <small v-if="player.isLeader">队长</small>
+            <span
+              v-if="player.isLeader || player.id === snapshot.lady.holderId"
+              class="player-tile-badges"
+            >
+              <small v-if="player.isLeader" class="leader-chip">
+                <Crown :size="10" /> 队长
+              </small>
+              <small
+                v-if="player.id === snapshot.lady.holderId"
+                class="lady-chip"
+              >
+                <Sparkles :size="10" /> 仙女
+              </small>
+            </span>
             <Check v-if="selectedTeamIds.includes(player.id)" :size="18" />
           </button>
         </div>

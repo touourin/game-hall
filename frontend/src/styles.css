@@ -1604,6 +1604,63 @@ button:disabled {
   font-weight: 900;
 }
 
+.mission-lady-reminder {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-color: rgba(171, 223, 220, 0.24);
+  padding: 10px 12px;
+  background:
+    radial-gradient(circle at 10% 50%, rgba(69, 147, 143, 0.16), transparent 34%),
+    rgba(11, 45, 43, 0.72);
+}
+
+.mission-lady-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(171, 223, 220, 0.22);
+  border-radius: 12px;
+  color: #abdfdc;
+  background: rgba(69, 147, 143, 0.13);
+}
+
+.mission-lady-reminder > div {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mission-lady-reminder small {
+  color: #abdfdc;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+}
+
+.mission-lady-reminder strong {
+  overflow: hidden;
+  color: #d9f4ef;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mission-lady-reminder > em {
+  flex: 0 0 auto;
+  border: 1px solid rgba(171, 223, 220, 0.18);
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: #cdece7;
+  background: rgba(69, 147, 143, 0.1);
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 850;
+}
+
 .player-number-roster {
   display: grid;
   gap: 12px;
@@ -1746,6 +1803,18 @@ button:disabled {
 
   .initial-lady-card strong {
     font-size: 16px;
+  }
+
+  .mission-lady-reminder {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .mission-lady-reminder > em {
+    grid-column: 2;
+    justify-self: start;
+    margin-top: 2px;
   }
 }
 
@@ -1894,6 +1963,36 @@ button:disabled {
   bottom: 5px;
   color: var(--gold);
   font-size: 8px;
+}
+
+.player-tile-badges {
+  position: absolute;
+  right: 8px;
+  bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.player-tile .player-tile-badges small {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 999px;
+  padding: 2px 5px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.player-tile .player-tile-badges .leader-chip {
+  color: #f7e5b5;
+  background: rgba(225, 188, 104, 0.12);
+}
+
+.player-tile .player-tile-badges .lady-chip {
+  color: #d6f3ee;
+  background: rgba(69, 147, 143, 0.28);
 }
 
 .player-tile.selected {
