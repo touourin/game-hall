@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import {
-  ArrowLeft,
   Crown,
   Handshake,
   RotateCcw,
@@ -14,8 +13,9 @@ import {
 } from '@lucide/vue'
 import ArcadeChatPanel from '../components/ArcadeChatPanel.vue'
 import InviteLinkPanel from '../components/InviteLinkPanel.vue'
-import HostTransferNotice from '../components/HostTransferNotice.vue'
 import GameRuleSettings from '../components/GameRuleSettings.vue'
+import HostTransferNotice from '../components/HostTransferNotice.vue'
+import RoomExitButton from '../components/RoomExitButton.vue'
 import { useArcadeStore } from '../stores/arcade'
 import type { ArcadePlayer, ArcadeSnapshot } from '../types/arcade'
 import { gameRuleLabels, withDefaultGameRules } from '../gameRules'
@@ -49,6 +49,15 @@ const selfRematchReady = computed(() =>
   props.snapshot.rematchReadyPlayerIds.includes(props.snapshot.self.id),
 )
 const isSolo = computed(() => ['reaction', 'schulte', 'minesweeper', 'hanoi'].includes(props.snapshot.gameKey))
+const exitDescription = computed(() => {
+  if (props.snapshot.phase === 'lobby') {
+    return '你会离开房间并让出座位；如果你是房主，房主将自动移交。'
+  }
+  if (props.snapshot.phase === 'finished') {
+    return '你会退出当前房间并返回游戏大厅。'
+  }
+  return '你的座位和本局进度都会保留，可以从大厅随时返回。'
+})
 
 async function confirmRoomAction() {
   if (!confirmation.value) return
@@ -91,11 +100,15 @@ async function saveRules() {
         >
           <Trash2 :size="17" />解散房间
         </button>
-        <button type="button" class="icon-button" aria-label="离开房间" @click="arcade.leaveRoom">
-          <ArrowLeft :size="21" />
-        </button>
+        <RoomExitButton
+          :busy="arcade.busy"
+          :description="exitDescription"
+          @confirm="arcade.leaveRoom"
+        />
       </div>
     </header>
+
+    <HostTransferNotice :transfer-at="snapshot.hostTransferAt" />
 
     <section v-if="!isSolo" class="surface arcade-player-strip" aria-label="房间玩家">
       <article
@@ -112,8 +125,6 @@ async function saveRules() {
             {{ player.connected ? '· 在线' : '· 离线' }}
           </small>
         </div>
-    <HostTransferNotice :transfer-at="snapshot.hostTransferAt" />
-
         <button
           v-if="snapshot.actions.canKickPlayers && player.id !== snapshot.self.id"
           type="button"

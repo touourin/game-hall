@@ -119,6 +119,26 @@ describe('ArcadeRoom', () => {
     expect(wrapper.find('.arcade-confirm-card').exists()).toBe(false)
   })
 
+  it('asks for confirmation before leaving the room', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const leaveRoom = vi.spyOn(arcade, 'leaveRoom').mockResolvedValue()
+    const wrapper = mount(ArcadeRoom, {
+      props: { snapshot: snapshot('gomoku') },
+      global: { plugins: [pinia] },
+    })
+
+    await wrapper.get('.exit-room-trigger').trigger('click')
+    expect(wrapper.get('.exit-room-modal').text()).toContain(
+      '离开房间并让出座位',
+    )
+    expect(leaveRoom).not.toHaveBeenCalled()
+
+    await wrapper.get('.exit-room-modal .danger-button').trigger('click')
+
+    expect(leaveRoom).toHaveBeenCalledOnce()
+  })
+
   it('shows the opponent response controls for a draw request', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)

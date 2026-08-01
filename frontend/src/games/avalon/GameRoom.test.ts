@@ -697,6 +697,21 @@ describe('GameRoom role reveal', () => {
     expect(leaveRoom).toHaveBeenCalledOnce()
   })
 
+  it('renders only one exit control in the waiting room', () => {
+    const snapshot = roleRevealSnapshot(1)
+    snapshot.phase = 'lobby'
+    snapshot.actions.canLeave = true
+    const wrapper = mount(GameRoom, {
+      props: { snapshot },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.findAll('.exit-room-trigger')).toHaveLength(1)
+    expect(wrapper.find('.lobby-heading-actions .danger-text').exists()).toBe(
+      false,
+    )
+  })
+
   it('renders the early assassination target in the final record', () => {
     const snapshot = roleRevealSnapshot(1)
     snapshot.phase = 'game_over'

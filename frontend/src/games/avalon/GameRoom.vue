@@ -8,7 +8,6 @@ import {
   ChevronRight,
   CircleHelp,
   Crown,
-  DoorOpen,
   Eye,
   History,
   Link2,
@@ -29,8 +28,9 @@ import {
 import MissionTrack from './components/MissionTrack.vue'
 import RoleSkinPicker from './components/RoleSkinPicker.vue'
 import SecretCard from './components/SecretCard.vue'
-import HostTransferNotice from '../../components/HostTransferNotice.vue'
 import InviteLinkPanel from '../../components/InviteLinkPanel.vue'
+import HostTransferNotice from '../../components/HostTransferNotice.vue'
+import RoomExitButton from '../../components/RoomExitButton.vue'
 import {
   clearRoleSkinLock,
   lockRoleSkin,
@@ -59,7 +59,6 @@ const showReplay = ref(false)
 const showPlayerNumbers = ref(false)
 const showLadyHistory = ref(false)
 const showEarlyAssassination = ref(false)
-const showExitConfirm = ref(false)
 const chatHeight = ref<number | null>(null)
 const chatRestoreHeight = ref<number | null>(null)
 const chatMaximized = ref(false)
@@ -322,11 +321,6 @@ async function assassinate() {
   await room.perform('game:assassinate', {
     target_id: assassinTargetId.value,
   })
-}
-
-async function confirmExitRoom() {
-  showExitConfirm.value = false
-  await room.leaveRoom()
 }
 
 async function earlyAssassinate() {
@@ -607,18 +601,19 @@ async function sendChat() {
             <CircleHelp :size="21" />
           </button>
         </template>
-        <button
-          class="header-action exit-room-trigger"
-          type="button"
-          aria-label="退出当前房间"
-          @click="showExitConfirm = true"
-        >
-    <HostTransferNotice :transfer-at="snapshot.hostTransferAt" />
-
-          <DoorOpen :size="20" />
-        </button>
+        <RoomExitButton
+          :busy="room.busy"
+          :description="
+            snapshot.phase === 'lobby'
+              ? '你会离开圆桌并让出号码；如果你是房主，房主将自动移交。'
+              : '你的座位、号码和身份都会保留，可以从首页随时返回本局。'
+          "
+          @confirm="room.leaveRoom"
+        />
       </div>
     </header>
+
+    <HostTransferNotice :transfer-at="snapshot.hostTransferAt" />
 
     <MissionTrack
       v-if="snapshot.phase !== 'lobby' && snapshot.phase !== 'role_reveal'"
@@ -703,14 +698,6 @@ async function sendChat() {
             @click="room.perform('room:add-ai-player')"
           >
             <Bot :size="16" /> 添加 AI
-          </button>
-          <button
-            v-if="snapshot.actions.canLeave"
-            class="text-button danger-text"
-            type="button"
-            @click="showExitConfirm = true"
-          >
-            <DoorOpen :size="16" /> 离开
           </button>
         </div>
       </div>
@@ -1447,52 +1434,6 @@ async function sendChat() {
         等待房主决定是否再来一局
       </div>
     </section>
-
-    <div
-      v-if="showExitConfirm"
-      class="modal-backdrop"
-      @click.self="showExitConfirm = false"
-    >
-      <section
-        class="modal-card exit-room-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label="确认退出房间"
-      >
-        <button
-          class="modal-close"
-          type="button"
-          aria-label="取消退出"
-          @click="showExitConfirm = false"
-        >
-          <X :size="20" />
-        </button>
-        <span class="modal-icon"><DoorOpen :size="25" /></span>
-        <h2>退出当前房间？</h2>
-        <p v-if="snapshot.phase === 'lobby'">
-          你会离开圆桌并让出号码；如果你是房主，房主将自动移交。
-        </p>
-        <p v-else>
-          你的座位、号码和身份都会保留，可以从首页随时返回本局。
-        </p>
-        <div class="exit-room-actions">
-          <button
-            type="button"
-            class="secondary-button"
-            @click="showExitConfirm = false"
-          >
-            继续游戏
-          </button>
-          <button
-            type="button"
-            class="danger-button"
-            @click="confirmExitRoom"
-          >
-            <DoorOpen :size="17" /> 确认退出
-          </button>
-        </div>
-      </section>
-    </div>
 
     <div
       v-if="showEarlyAssassination && snapshot.actions.canEarlyAssassinate"
