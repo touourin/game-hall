@@ -224,3 +224,67 @@ async function chooseRoom(code: string) {
     <ThemeModal v-if="showTheme" @close="showTheme = false" />
   </main>
 </template>
+
+<style scoped>
+@media (max-width: 680px) {
+  .home-page {
+    align-content: start;
+    gap: 20px;
+  }
+
+  .account-bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 0 0 12px;
+  }
+
+  .account-bar > div:first-child {
+    min-width: 0;
+  }
+
+  .account-bar > div:first-child strong {
+    max-width: min(68vw, 260px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .account-bar .account-bar-actions {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    width: 100%;
+    gap: 6px;
+  }
+
+  .account-bar button {
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
+    padding: 5px 2px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+  }
+
+  .account-bar button span {
+    display: block;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .brand-hero {
+    padding-top: 4px;
+  }
+
+  .brand-mark {
+    width: 58px;
+    height: 58px;
+    margin-bottom: 14px;
+  }
+
+  .brand-hero h1 {
+    font-size: clamp(40px, 13vw, 56px);
+  }
+}
+</style>

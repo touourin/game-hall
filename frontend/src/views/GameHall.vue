@@ -103,5 +103,15 @@ const games: Array<GameCatalogItem & { symbol: string; tone: string }> = [
 .enter-game { position: absolute; right: 22px; bottom: 20px; color: var(--gold); font-weight: 800; }
 .tone-red .game-symbol { color: #e88a82; }.tone-jade .game-symbol { color: #72d0ad; }.tone-blue .game-symbol { color: #86bde4; }.tone-ink .game-symbol { color: #d7d8d1; }
 .tone-army .game-symbol { color: #d8b66b; }
-@media (max-width: 680px) { .game-grid { grid-template-columns: 1fr; }.game-card:first-child { grid-column: auto; }.account-bar-actions span { display: none; }.resume-arcade-card { align-items: stretch; flex-direction: column; } }
+@media (max-width: 680px) {
+  .game-grid { grid-template-columns: 1fr; }
+  .game-card:first-child { grid-column: auto; }
+  .resume-arcade-card { align-items: stretch; flex-direction: column; }
+  .account-bar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 0 0 12px; }
+  .account-bar > div:first-child { min-width: 0; }
+  .account-bar > div:first-child strong { max-width: min(68vw, 260px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .account-bar .account-bar-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; gap: 6px; }
+  .account-bar button { width: 100%; min-width: 0; min-height: 46px; padding: 5px 2px; flex-direction: column; justify-content: center; gap: 2px; }
+  .account-bar-actions span { display: block; line-height: 1; white-space: nowrap; }
+}
 </style>

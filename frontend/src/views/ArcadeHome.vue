@@ -118,14 +118,15 @@ async function chooseRoom(code: string) {
 .game-home-actions { display: flex; gap: 7px; }
 .game-home-actions button { display: inline-flex; align-items: center; gap: 6px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 11px; color: var(--muted); background: var(--surface); font-weight: 800; }
 .arcade-home .room-browser { margin-bottom: 22px; }
-.junqi-mode-picker { margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; border: 0; }
+.junqi-mode-picker { width: 100%; min-width: 0; margin: 0 0 16px; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; border: 0; }
 .junqi-mode-picker legend { margin-bottom: 8px; color: var(--muted); font-size: 13px; font-weight: 800; }
-.junqi-mode-picker button { padding: 14px; display: grid; gap: 4px; text-align: left; border: 1px solid var(--line); border-radius: 13px; color: var(--text); background: var(--surface); }
+.junqi-mode-picker button { min-height: 78px; padding: 14px; display: grid; align-content: center; gap: 4px; text-align: left; border: 1px solid var(--line); border-radius: 13px; color: var(--text); background: var(--surface); }
 .junqi-mode-picker button.active { border-color: var(--gold); background: #d6ae5114; box-shadow: inset 0 0 0 1px #d6ae5138; }
 .junqi-mode-picker small { color: var(--muted); line-height: 1.4; }
 @media (max-width: 600px) {
-  .game-home-header { grid-template-columns: auto 1fr; }
-  .game-home-actions { grid-column: 1 / -1; justify-content: flex-end; }
+  .game-home-header { padding: 18px 0 26px; grid-template-columns: auto minmax(0, 1fr); gap: 14px; }
+  .game-home-actions { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  .game-home-actions button { min-height: 42px; justify-content: center; }
   .junqi-mode-picker { grid-template-columns: 1fr; }
 }
 </style>
