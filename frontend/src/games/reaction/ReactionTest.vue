@@ -237,7 +237,7 @@ onBeforeUnmount(() => {
 .reaction-trigger:hover:not(:disabled) { transform: translateY(-2px); }.reaction-trigger:active:not(:disabled) { transform: scale(.975); }
 .reaction-trigger strong { font-family: "Songti SC", "STSong", serif; font-size: clamp(23px, 7vw, 34px); }.reaction-trigger small { font-size: 10px; font-weight: 900; letter-spacing: .18em; }
 .reaction-trigger.waiting { border-color: var(--line); color: var(--muted); background: var(--surface-strong); animation: waiting-pulse 1.4s ease-in-out infinite; }
-.reaction-trigger.ready { border-color: #a7efd0; color: #06231c; background: linear-gradient(145deg, #a7efd0, #62c69b); box-shadow: 0 0 0 10px #62c69b14, 0 24px 70px #3ab18442; }
+.reaction-trigger.ready { border-color: #a7efd0; color: #06231c; background: var(--green); box-shadow: 0 0 0 10px #62c69b14, 0 24px 70px #3ab18442; }
 .reaction-trigger.false-start { color: #f3b1b1; border-color: #e1727266; background: #6a292d55; }.reaction-trigger.saving, .reaction-trigger.result, .reaction-trigger.finished { opacity: 1; }
 .keyboard-hint { margin: 0; color: var(--muted); font-size: 11px; }.keyboard-hint kbd { margin-right: 3px; border: 1px solid var(--line); border-bottom-width: 3px; border-radius: 7px; padding: 4px 7px; color: var(--text); background: #061719; font: inherit; font-weight: 850; }
 .reaction-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }.reaction-metrics > div { padding: 14px; text-align: center; }.reaction-metrics small, .reaction-metrics strong { display: block; }.reaction-metrics small { color: var(--muted); }.reaction-metrics strong { margin-top: 5px; color: var(--gold); font-size: 17px; }
