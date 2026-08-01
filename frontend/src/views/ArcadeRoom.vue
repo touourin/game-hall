@@ -28,6 +28,7 @@ import ReactionTest from '../games/reaction/ReactionTest.vue'
 import SchulteGrid from '../games/schulte/SchulteGrid.vue'
 import MinesweeperBoard from '../games/minesweeper/MinesweeperBoard.vue'
 import HanoiGame from '../games/hanoi/HanoiGame.vue'
+import PokerTable from '../games/poker/PokerTable.vue'
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
@@ -36,7 +37,10 @@ const confirmation = ref<
 >(null)
 const ruleEditor = ref<Record<string, unknown> | null>(null)
 const missingPlayers = computed(
-  () => props.snapshot.requiredPlayers - props.snapshot.players.length,
+  () => Math.max(0, (props.snapshot.minimumPlayers ?? props.snapshot.requiredPlayers) - props.snapshot.players.length),
+)
+const availableSeats = computed(
+  () => Math.max(0, props.snapshot.requiredPlayers - props.snapshot.players.length),
 )
 const inviteUrl = computed(() => {
   const url = new URL(window.location.href)
@@ -84,7 +88,7 @@ async function saveRules() {
 <template>
   <main
     class="arcade-room page-container"
-    :class="{ 'arcade-room--wide': ['doudizhu', 'junqi', 'minesweeper'].includes(snapshot.gameKey) }"
+    :class="{ 'arcade-room--wide': ['poker', 'doudizhu', 'junqi', 'minesweeper'].includes(snapshot.gameKey) }"
   >
     <header class="arcade-room-header">
       <div>
@@ -149,6 +153,7 @@ async function saveRules() {
       <UsersRound :size="48" />
       <h2>等待玩家到齐</h2>
       <p v-if="missingPlayers > 0">还需要 {{ missingPlayers }} 名玩家</p>
+      <p v-else-if="availableSeats > 0">已可开始，还可加入 {{ availableSeats }} 名玩家</p>
       <p v-else>人员已到齐，房主可以开始</p>
       <div class="room-code-share">
         <b>{{ snapshot.roomCode }}</b>
@@ -233,6 +238,7 @@ async function saveRules() {
       <GomokuBoard v-if="snapshot.gameKey === 'gomoku'" :snapshot="snapshot" />
       <XiangqiBoard v-else-if="snapshot.gameKey === 'xiangqi'" :snapshot="snapshot" />
       <GoBoard v-else-if="snapshot.gameKey === 'go'" :snapshot="snapshot" />
+      <PokerTable v-else-if="snapshot.gameKey === 'poker'" :snapshot="snapshot" />
       <DoudizhuTable v-else-if="snapshot.gameKey === 'doudizhu'" :snapshot="snapshot" />
       <JunqiBoard v-else-if="snapshot.gameKey === 'junqi'" :snapshot="snapshot" />
       <ReactionTest v-else-if="snapshot.gameKey === 'reaction'" :snapshot="snapshot" />

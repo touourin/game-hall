@@ -145,6 +145,10 @@ try {
   for (const gameKey of ['gomoku', 'xiangqi', 'go']) {
     rooms[gameKey] = await playToResignation(gameKey, sockets.slice(0, 2))
   }
+  rooms.poker = await playToResignation('poker', sockets.slice(0, 2), {
+    startingChips: 500,
+    smallBlind: 5,
+  })
   rooms.doudizhu = await playToResignation('doudizhu', sockets)
   rooms.junqiDark = await playToResignation(
     'junqi', sockets.slice(0, 2), { mode: 'dark' },
@@ -160,8 +164,8 @@ try {
     'X-Avalon-Access': access.token,
   }
   const catalog = await jsonRequest('/api/games', { headers })
-  if (catalog.games.length !== 8) throw new Error('游戏目录数量不是 8')
-  for (const gameKey of ['gomoku', 'xiangqi', 'go', 'doudizhu']) {
+  if (catalog.games.length !== 11) throw new Error('游戏目录数量不是 11')
+  for (const gameKey of ['gomoku', 'xiangqi', 'go', 'poker', 'doudizhu']) {
     const stats = await jsonRequest(`/api/stats/me?game=${gameKey}`, { headers })
     if (stats.summary.games !== 1 || stats.history[0]?.gameKey !== gameKey) {
       throw new Error(`${gameKey} 战绩没有正确保存`)

@@ -53,6 +53,7 @@ function winnerLabel(match: MatchDetail): string {
   if (match.gameKey === 'schulte') return '舒尔特挑战完成'
   if (match.gameKey === 'minesweeper') return match.winner === 'completed' ? '扫雷挑战完成' : '踩中地雷'
   if (match.gameKey === 'hanoi') return '汉诺塔挑战完成'
+  if (match.gameKey === 'poker') return '筹码结算完成'
   if (match.winner === 'draw') return '双方和棋'
   if (match.gameKey === 'avalon') return match.winner === 'good' ? '好人获胜' : '坏人获胜'
   return `${roleLabel(match.winner)}获胜`

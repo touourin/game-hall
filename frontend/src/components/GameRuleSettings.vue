@@ -112,6 +112,20 @@ function setOption(key: string, value: unknown) {
       </div>
     </section>
 
+    <section v-if="gameKey === 'poker'" class="rule-setting-group">
+      <header><strong>起始筹码</strong><small>每局重新发放，不涉及真实货币</small></header>
+      <div class="rule-segmented three">
+        <button v-for="chips in [500, 1000, 2000]" :key="chips" type="button" :class="{ active: option('startingChips') === chips }" @click="setOption('startingChips', chips)">{{ chips }}</button>
+      </div>
+    </section>
+
+    <section v-if="gameKey === 'poker'" class="rule-setting-group">
+      <header><strong>大小盲注</strong><small>大盲始终是小盲的两倍</small></header>
+      <div class="rule-segmented three">
+        <button v-for="blind in [5, 10, 20]" :key="blind" type="button" :class="{ active: option('smallBlind') === blind }" @click="setOption('smallBlind', blind)">{{ blind }}/{{ blind * 2 }}</button>
+      </div>
+    </section>
+
     <section v-if="gameKey === 'go'" class="rule-setting-group">
       <header><strong>贴目</strong><small>终局数子时计入白方</small></header>
       <div class="rule-segmented three">
@@ -119,7 +133,7 @@ function setOption(key: string, value: unknown) {
       </div>
     </section>
 
-    <section v-if="!['reaction', 'schulte', 'minesweeper', 'hanoi'].includes(gameKey)" class="rule-setting-group">
+    <section v-if="!['reaction', 'schulte', 'minesweeper', 'hanoi', 'poker'].includes(gameKey)" class="rule-setting-group">
       <header><strong>{{ gameKey === 'doudizhu' ? '首叫玩家' : gameKey === 'gomoku' && option('openingRule') === 'swap2' ? '首局摆子者' : '首局先手' }}</strong><small>再来一局时仍会自动轮换</small></header>
       <div class="rule-option-grid">
         <button type="button" :class="{ active: option('firstPlayer') === 'random' }" @click="setOption('firstPlayer', 'random')">

@@ -88,6 +88,25 @@ describe('GameRuleSettings', () => {
     expect(wrapper.text()).toContain('随机指定首叫玩家')
   })
 
+  it('offers Texas Holdem stacks and blinds without a first-player setting', async () => {
+    const wrapper = mount(GameRuleSettings, {
+      props: {
+        gameKey: 'poker',
+        modelValue: defaultGameRules('poker'),
+      },
+    })
+    const deepStack = wrapper.findAll('button').find((button) => button.text().trim() === '2000')
+    const highBlind = wrapper.findAll('button').find((button) => button.text().trim() === '20/40')
+
+    await deepStack?.trigger('click')
+    await highBlind?.trigger('click')
+
+    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toMatchObject({ startingChips: 2000 })
+    expect(wrapper.emitted('update:modelValue')?.[1]?.[0]).toMatchObject({ smallBlind: 20 })
+    expect(gameRuleLabels('poker', {})).toEqual(['2–8 人', '起始 1000 筹码', '盲注 10/20'])
+    expect(wrapper.text()).not.toContain('首局先手')
+  })
+
   it('offers Hanoi difficulties without multiplayer settings', async () => {
     const wrapper = mount(GameRuleSettings, {
       props: {

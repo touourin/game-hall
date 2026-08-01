@@ -26,6 +26,7 @@ const games: Array<GameCatalogItem & { symbol: string; tone: string }> = [
   { key: 'gomoku', name: '五子棋', players: '2 人', description: '15 路棋盘，Swap2 与有禁手连珠', symbol: '●', tone: 'ink' },
   { key: 'xiangqi', name: '中国象棋', players: '2 人', description: '楚河汉界，完整走子与重复局面限制', symbol: '将', tone: 'red' },
   { key: 'go', name: '围棋', players: '2 人', description: '9/13/19 路可选，中国数子与贴目', symbol: '○', tone: 'jade' },
+  { key: 'poker', name: '德州扑克', players: '2–8 人', description: '大小盲、四轮下注与全押边池', symbol: '♥', tone: 'poker' },
   { key: 'doudizhu', name: '斗地主', players: '3 人', description: '叫抢地主、三种玩法与倍数结算', symbol: '♠', tone: 'blue' },
   { key: 'junqi', name: '军旗', players: '2 人', description: '暗军旗布阵，或翻棋决定阵营', symbol: '旗', tone: 'army' },
   { key: 'reaction', name: '反应挑战', players: '1 人', description: '等待信号变色，测出三轮真实反应', symbol: '⚡', tone: 'pulse' },
@@ -119,6 +120,7 @@ const games: Array<GameCatalogItem & { symbol: string; tone: string }> = [
 .tone-focus .game-symbol { color: #7ecdb5; }
 .tone-mine .game-symbol { color: #ef9d93; }
 .tone-tower .game-symbol { color: #d9a86c; }
+.tone-poker .game-symbol { color: #ef8c88; }
 @media (max-width: 680px) {
   .game-grid { grid-template-columns: 1fr; }
   .game-card:first-child { grid-column: auto; }

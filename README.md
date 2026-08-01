@@ -6,14 +6,15 @@
 
 ### 游戏大厅
 
-- 阿瓦隆、五子棋、中国象棋、围棋、斗地主、军旗、反应挑战、舒尔特方格、扫雷和汉诺塔统一入口
-- 十款游戏共用访问密码、个人账号、登录会话与界面主题
+- 阿瓦隆、五子棋、中国象棋、围棋、德州扑克、斗地主、军旗、反应挑战、舒尔特方格、扫雷和汉诺塔统一入口
+- 十一款游戏共用访问密码、个人账号、登录会话与界面主题
 - 账号名固定用于登录；游戏昵称统一用于大厅、对局、聊天与排行榜，设置中可每 30 天修改一次，旧昵称仍归原账号保留
 - 每款游戏均可查看独立战绩和排行榜，也可在大厅查看全部战绩
 - 通用公开房间列表、邀请码、掉线重连、认输、再来一局和结算落库
 - 五子棋：15 路棋盘、回合校验、五连胜负与和棋
 - 中国象棋：完整基础走子、蹩马腿、塞象眼、炮架、将帅照面、自将校验、将死与困毙
 - 围棋：19 路棋盘、提子、禁入点、简单劫、停一手、中国面积数子与 7.5 目贴目
+- 德州扑克：2–8 人大小盲、翻牌/转牌/河牌、过牌/跟注/加注/全押、边池与摊牌结算
 - 斗地主：三人叫分、地主底牌、主要牌型比较、炸弹/王炸、不出与农民协作胜负
 - 军旗：创建房间时可选暗军旗或翻棋军旗；支持私密随机布阵、交换确认、首翻定阵营、铁路与工兵转弯、行营保护、司令阵亡亮旗及完整胜负判定
 - 反应挑战：单人自动开局，随机信号、抢跑判定、空格键与触摸操作；连续三轮并记录最佳、平均成绩和独立排行榜
@@ -123,7 +124,7 @@ npm --prefix frontend run smoke:arcade
 
 `npm run smoke` 需要开发服务正在运行，它会注册五个测试账号，通过真实 Socket.IO 连接模拟五名玩家发送聊天消息并完成第一轮任务。可用 `AVALON_SMOKE_ACCESS_PASSWORD` 和 `AVALON_SMOKE_PREFIX` 指定测试访问密码与账号前缀。
 
-`npm --prefix frontend run smoke:arcade` 需要本地 Docker 服务运行在 `http://127.0.0.1:10618`。它会注册三个测试账号，通过真实 Socket.IO 依次完成五子棋、象棋、围棋、斗地主以及两种军旗模式的创建、加入、开局、结算及 MySQL 战绩检查。可通过 `ARCADE_SMOKE_URL`、`ARCADE_SMOKE_ACCESS_PASSWORD` 和 `ARCADE_SMOKE_PREFIX` 指定地址、访问密码与账号前缀。两种冒烟脚本都会输出测试账号前缀，验证后可按该前缀从测试数据库清理账号。
+`npm --prefix frontend run smoke:arcade` 需要本地 Docker 服务运行在 `http://127.0.0.1:10618`。它会注册三个测试账号，通过真实 Socket.IO 依次完成五子棋、象棋、围棋、德州扑克、斗地主以及两种军旗模式的创建、加入、开局、结算及 MySQL 战绩检查。可通过 `ARCADE_SMOKE_URL`、`ARCADE_SMOKE_ACCESS_PASSWORD` 和 `ARCADE_SMOKE_PREFIX` 指定地址、访问密码与账号前缀。两种冒烟脚本都会输出测试账号前缀，验证后可按该前缀从测试数据库清理账号。
 
 生产构建后，也可以在已经准备好 MySQL 和 Redis、且 `.env` 包含 `DATABASE_URL` 与 `REDIS_URL` 时直接运行：
 
@@ -177,6 +178,7 @@ frontend/src/games/avalon/  阿瓦隆界面与状态
 frontend/src/games/gomoku/  五子棋界面
 frontend/src/games/xiangqi/ 中国象棋界面
 frontend/src/games/go/      围棋界面
+frontend/src/games/poker/   德州扑克牌桌
 frontend/src/games/doudizhu/
                             斗地主界面
 frontend/src/games/junqi/   军旗双模式界面

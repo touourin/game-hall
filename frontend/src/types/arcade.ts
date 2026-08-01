@@ -2,6 +2,7 @@ export type ArcadeGameKey =
   | 'gomoku'
   | 'xiangqi'
   | 'go'
+  | 'poker'
   | 'doudizhu'
   | 'junqi'
   | 'reaction'
@@ -64,6 +65,7 @@ export interface ArcadeSnapshot {
   self: { id: string; name: string; seat: number }
   players: ArcadePlayer[]
   requiredPlayers: number
+  minimumPlayers?: number
   roundNumber: number
   winner: string | null
   winnerPlayerIds: string[]

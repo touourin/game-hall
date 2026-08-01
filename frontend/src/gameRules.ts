@@ -13,6 +13,10 @@ export function defaultGameRules(
   if (gameKey === 'minesweeper') return { difficulty: 'beginner' }
   if (gameKey === 'hanoi') return { discCount: 5 }
   const options: Record<string, unknown> = { firstPlayer: 'random' }
+  if (gameKey === 'poker') {
+    options.startingChips = 1000
+    options.smallBlind = 10
+  }
   if (NEGOTIATION_GAMES.has(gameKey)) {
     options.allowUndo = true
     options.allowDraw = true
@@ -54,6 +58,14 @@ export function gameRuleLabels(
   if (gameKey === 'hanoi') {
     const discCount = Number(options.discCount)
     return [`${discCount} 层圆盘`, `理论最少 ${2 ** discCount - 1} 步`]
+  }
+  if (gameKey === 'poker') {
+    const smallBlind = Number(options.smallBlind)
+    return [
+      '2–8 人',
+      `起始 ${Number(options.startingChips)} 筹码`,
+      `盲注 ${smallBlind}/${smallBlind * 2}`,
+    ]
   }
   const swap2 = gameKey === 'gomoku' && options.openingRule === 'swap2'
   const labels = [

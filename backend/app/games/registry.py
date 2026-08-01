@@ -7,6 +7,7 @@ from backend.app.games.gomoku import GomokuEngine
 from backend.app.games.hanoi import HanoiEngine
 from backend.app.games.junqi import JunqiEngine
 from backend.app.games.minesweeper import MinesweeperEngine
+from backend.app.games.poker import PokerEngine
 from backend.app.games.reaction import ReactionEngine
 from backend.app.games.schulte import SchulteEngine
 from backend.app.games.xiangqi import XiangqiEngine
@@ -17,6 +18,7 @@ def build_engine_registry() -> dict[str, GameEngine]:
         GomokuEngine(),
         XiangqiEngine(),
         GoEngine(),
+        PokerEngine(),
         DoudizhuEngine(),
         JunqiEngine(),
         ReactionEngine(),
@@ -51,6 +53,12 @@ GAME_CATALOG = [
         "name": "围棋",
         "players": "2 人",
         "description": "9/13/19 路中国规则，贴目可选",
+    },
+    {
+        "key": "poker",
+        "name": "德州扑克",
+        "players": "2–8 人",
+        "description": "大小盲、四轮下注与全押边池",
     },
     {
         "key": "doudizhu",

@@ -599,7 +599,14 @@ class ArcadeRealtime:
                     ),
                 }
             )
-        state = asdict(room.state) if is_dataclass(room.state) else room.state
+        record_state = getattr(engine, "record_state", None)
+        state = (
+            record_state(room)
+            if record_state is not None
+            else asdict(room.state)
+            if is_dataclass(room.state)
+            else room.state
+        )
         try:
             stored = account_store().record_game_match(
                 game_key=room.game_key,

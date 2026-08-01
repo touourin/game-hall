@@ -36,6 +36,7 @@ GAME_NAMES = {
     "gomoku": "五子棋",
     "xiangqi": "中国象棋",
     "go": "围棋",
+    "poker": "德州扑克",
     "doudizhu": "斗地主",
     "junqi": "军旗",
     "reaction": "反应挑战",

@@ -74,6 +74,7 @@ def build_room_view(
             for player in room.players
         ],
         "requiredPlayers": engine.max_players,
+        "minimumPlayers": engine.min_players,
         "roundNumber": room.round_number,
         "winner": room.winner,
         "winnerPlayerIds": room.winner_player_ids,
