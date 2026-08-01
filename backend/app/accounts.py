@@ -36,6 +36,7 @@ GAME_NAMES = {
     "go": "围棋",
     "doudizhu": "斗地主",
     "junqi": "军旗",
+    "reaction": "反应时间",
 }
 
 
@@ -331,6 +332,7 @@ class AccountStore:
                             "alignment": player["alignment"],
                             "won": player["won"],
                             "is_host": player["isHost"],
+                            "score_ms": player.get("scoreMs"),
                         }
                         for player in players
                     ],
@@ -363,6 +365,7 @@ class AccountStore:
                 match_players.c.role,
                 match_players.c.alignment,
                 match_players.c.won,
+                match_players.c.score_ms,
             )
             .select_from(
                 match_players.join(
@@ -381,8 +384,47 @@ class AccountStore:
 
     def summary_for_account(
         self, account_id: str, *, game_key: str | None = None
-    ) -> dict[str, int | float]:
+    ) -> dict[str, int | float | None]:
         self.initialize()
+        if game_key == "reaction":
+            statement = (
+                select(
+                    func.count().label("games"),
+                    func.min(match_players.c.score_ms).label("best_ms"),
+                    func.avg(match_players.c.score_ms).label("average_ms"),
+                )
+                .select_from(
+                    match_players.join(
+                        matches, matches.c.id == match_players.c.match_id
+                    )
+                )
+                .where(
+                    match_players.c.account_id == account_id,
+                    matches.c.game_key == "reaction",
+                    match_players.c.score_ms.is_not(None),
+                )
+            )
+            with self.engine.connect() as connection:
+                row = connection.execute(statement).mappings().one()
+            return {
+                "games": int(row["games"]),
+                "wins": 0,
+                "winRate": 0,
+                "goodGames": 0,
+                "goodWins": 0,
+                "evilGames": 0,
+                "evilWins": 0,
+                "bestMs": (
+                    int(row["best_ms"])
+                    if row["best_ms"] is not None
+                    else None
+                ),
+                "averageMs": (
+                    round(float(row["average_ms"]))
+                    if row["average_ms"] is not None
+                    else None
+                ),
+            }
         statement = (
             select(
                 func.count().label("games"),
@@ -438,6 +480,8 @@ class AccountStore:
         )
         if game_key is not None:
             statement = statement.where(matches.c.game_key == game_key)
+        else:
+            statement = statement.where(matches.c.game_key != "reaction")
         with self.engine.connect() as connection:
             row = connection.execute(statement).mappings().one()
         game_count = int(row["games"])
@@ -456,6 +500,52 @@ class AccountStore:
         self, *, game_key: str | None = None, limit: int = 50
     ) -> list[dict]:
         self.initialize()
+        if game_key == "reaction":
+            attempt_count = func.count().label("games")
+            best_ms = func.min(match_players.c.score_ms).label("best_ms")
+            average_ms = func.avg(match_players.c.score_ms).label("average_ms")
+            statement = (
+                select(
+                    users.c.id,
+                    users.c.display_name,
+                    attempt_count,
+                    best_ms,
+                    average_ms,
+                )
+                .select_from(
+                    match_players.join(
+                        matches, matches.c.id == match_players.c.match_id
+                    ).join(users, users.c.id == match_players.c.account_id)
+                )
+                .where(
+                    matches.c.game_key == "reaction",
+                    matches.c.ranked.is_(True),
+                    match_players.c.score_ms.is_not(None),
+                )
+                .group_by(users.c.id, users.c.display_name, users.c.created_at)
+                .order_by(
+                    best_ms.asc(),
+                    average_ms.asc(),
+                    attempt_count.desc(),
+                    users.c.created_at.asc(),
+                )
+                .limit(min(max(limit, 1), 100))
+            )
+            with self.engine.connect() as connection:
+                rows = connection.execute(statement).mappings().all()
+            return [
+                {
+                    "rank": index,
+                    "accountId": row["id"],
+                    "displayName": row["display_name"],
+                    "games": int(row["games"]),
+                    "wins": 0,
+                    "winRate": 0,
+                    "bestMs": int(row["best_ms"]),
+                    "averageMs": round(float(row["average_ms"])),
+                }
+                for index, row in enumerate(rows, start=1)
+            ]
         game_count = func.count().label("games")
         win_count = func.coalesce(
             func.sum(case((match_players.c.won.is_(True), 1), else_=0)), 0
@@ -484,6 +574,8 @@ class AccountStore:
         )
         if game_key is not None:
             statement = statement.where(matches.c.game_key == game_key)
+        else:
+            statement = statement.where(matches.c.game_key != "reaction")
         with self.engine.connect() as connection:
             rows = connection.execute(statement).mappings().all()
         return [
@@ -589,6 +681,11 @@ class AccountStore:
             "role": row["role"],
             "alignment": row["alignment"],
             "won": bool(row["won"]),
+            "scoreMs": (
+                int(row["score_ms"])
+                if row["score_ms"] is not None
+                else None
+            ),
         }
 
     @staticmethod

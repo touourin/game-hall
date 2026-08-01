@@ -1,4 +1,10 @@
-export type ArcadeGameKey = 'gomoku' | 'xiangqi' | 'go' | 'doudizhu' | 'junqi'
+export type ArcadeGameKey =
+  | 'gomoku'
+  | 'xiangqi'
+  | 'go'
+  | 'doudizhu'
+  | 'junqi'
+  | 'reaction'
 
 export interface GameCatalogItem {
   key: 'avalon' | ArcadeGameKey

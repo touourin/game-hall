@@ -15,6 +15,7 @@ from backend.app.games.doudizhu.engine import (
 from backend.app.games.go import GoEngine
 from backend.app.games.gomoku import GomokuEngine
 from backend.app.games.junqi.engine import JunqiEngine, JunqiPiece, JunqiState
+from backend.app.games.reaction import ReactionEngine
 from backend.app.games.registry import build_engine_registry
 from backend.app.games.xiangqi import XiangqiEngine
 
@@ -308,3 +309,35 @@ def test_finished_room_leave_does_not_offer_resume() -> None:
     assert manager.leave(room, host.id) is False
     assert room.player(host.id).connected is False
     assert room.player(guest.id).connected is True
+
+
+def test_reaction_records_exactly_three_rounds_and_average() -> None:
+    engine = ReactionEngine()
+    room = make_room(engine, 1)
+
+    engine.act(room, room.players[0], "record", {"elapsedMs": 180})
+    with pytest.raises(GameRuleError, match="数据不正确"):
+        engine.act(room, room.players[0], "record", {"elapsedMs": 0})
+    engine.act(room, room.players[0], "record", {"elapsedMs": 240})
+    engine.act(room, room.players[0], "record", {"elapsedMs": 210})
+
+    assert room.phase == "finished"
+    assert room.winner == "completed"
+    assert room.state.results_ms == [180, 240, 210]
+    assert engine.player_score(room, room.players[0]) == 210
+    assert engine.view(room, room.players[0]) == {
+        "roundsRequired": 3,
+        "resultsMs": [180, 240, 210],
+        "roundNumber": 3,
+        "bestMs": 180,
+        "averageMs": 210,
+    }
+
+
+def test_reaction_room_is_private_single_player_room() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, host, _ = manager.create_room("reaction", "测试者", "account-1")
+
+    assert room.listed is False
+    manager.start(room, host.id)
+    assert room.phase == "playing"

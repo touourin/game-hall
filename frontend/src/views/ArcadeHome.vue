@@ -19,20 +19,22 @@ const joinCard = ref<HTMLElement | null>(null)
 const showStats = ref(false)
 const showLeaderboard = ref(false)
 const junqiMode = ref<'dark' | 'flip'>('dark')
+const isSolo = computed(() => props.game.key === 'reaction')
 const rooms = computed(() =>
   arcade.availableRooms.filter((room) => room.gameKey === props.game.key),
 )
 const canSubmit = computed(
-  () => name.value.trim() && (mode.value === 'create' || roomCode.value.trim().length >= 4),
+  () => name.value.trim() && (isSolo.value || mode.value === 'create' || roomCode.value.trim().length >= 4),
 )
 
 async function submit() {
   if (!canSubmit.value) return
   localStorage.setItem('gamehall:last-name', name.value.trim())
   const key = props.game.key as ArcadeGameKey
-  if (mode.value === 'create') {
+  if (isSolo.value || mode.value === 'create') {
     const options = key === 'junqi' ? { mode: junqiMode.value } : {}
-    await arcade.createRoom(key, name.value.trim(), options)
+    const created = await arcade.createRoom(key, name.value.trim(), options)
+    if (created && isSolo.value) await arcade.startGame()
   }
   else await arcade.joinRoom(key, roomCode.value, name.value.trim())
 }
@@ -56,7 +58,7 @@ async function chooseRoom(code: string) {
       </div>
     </header>
 
-    <section class="surface room-browser">
+    <section v-if="!isSolo" class="surface room-browser">
       <header>
         <div><span class="room-browser-icon"><UsersRound :size="19" /></span><div><strong>等待中的房间</strong><small>选择后可直接加入</small></div></div>
         <span>{{ rooms.length }} 间</span>
@@ -72,12 +74,19 @@ async function chooseRoom(code: string) {
     </section>
 
     <section ref="joinCard" class="surface join-card">
-      <div class="segmented-control">
+      <div v-if="!isSolo" class="segmented-control">
         <button type="button" :class="{ active: mode === 'create' }" @click="mode = 'create'">创建房间</button>
         <button type="button" :class="{ active: mode === 'join' }" @click="mode = 'join'">加入房间</button>
       </div>
+      <div v-else class="solo-game-intro">
+        <span class="solo-game-mark">⚡</span>
+        <div>
+          <strong>准备测试你的反应速度</strong>
+          <small>共三轮；看到按钮变绿后，按空格键或直接点击</small>
+        </div>
+      </div>
       <form @submit.prevent="submit">
-        <label class="field"><span>你的称呼</span><input v-model="name" maxlength="12" autocomplete="nickname" /></label>
+        <label v-if="!isSolo" class="field"><span>你的称呼</span><input v-model="name" maxlength="12" autocomplete="nickname" /></label>
         <fieldset v-if="game.key === 'junqi' && mode === 'create'" class="junqi-mode-picker">
           <legend>选择军旗玩法</legend>
           <button type="button" :class="{ active: junqiMode === 'dark' }" @click="junqiMode = 'dark'">
@@ -87,10 +96,10 @@ async function chooseRoom(code: string) {
             <strong>翻棋军旗</strong><small>随机扣棋，首翻决定阵营</small>
           </button>
         </fieldset>
-        <label v-if="mode === 'join'" class="field"><span>房间代码</span><input v-model="roomCode" maxlength="8" class="room-code-input" @input="roomCode = roomCode.toUpperCase()" /></label>
+        <label v-if="!isSolo && mode === 'join'" class="field"><span>房间代码</span><input v-model="roomCode" maxlength="8" class="room-code-input" @input="roomCode = roomCode.toUpperCase()" /></label>
         <button type="submit" class="primary-button wide-button" :disabled="!canSubmit">
-          <Plus v-if="mode === 'create'" :size="19" /><LogIn v-else :size="19" />
-          {{ mode === 'create' ? `创建${game.name}房间` : '进入房间' }}
+          <Plus v-if="isSolo || mode === 'create'" :size="19" /><LogIn v-else :size="19" />
+          {{ isSolo ? '开始三轮反应测试' : mode === 'create' ? `创建${game.name}房间` : '进入房间' }}
         </button>
       </form>
     </section>
@@ -123,6 +132,9 @@ async function chooseRoom(code: string) {
 .junqi-mode-picker button { min-height: 78px; padding: 14px; display: grid; align-content: center; gap: 4px; text-align: left; border: 1px solid var(--line); border-radius: 13px; color: var(--text); background: var(--surface); }
 .junqi-mode-picker button.active { border-color: var(--gold); background: #d6ae5114; box-shadow: inset 0 0 0 1px #d6ae5138; }
 .junqi-mode-picker small { color: var(--muted); line-height: 1.4; }
+.solo-game-intro { margin: 4px 0 20px; padding: 14px 4px 4px; display: flex; align-items: center; gap: 12px; }
+.solo-game-mark { width: 46px; aspect-ratio: 1; display: grid; flex: 0 0 auto; place-items: center; border: 1px solid #78d2aa55; border-radius: 14px; color: #8fe0bd; background: #62c69b16; font-size: 22px; }
+.solo-game-intro strong, .solo-game-intro small { display: block; }.solo-game-intro small { margin-top: 4px; color: var(--muted); line-height: 1.5; }
 @media (max-width: 600px) {
   .game-home-header { padding: 18px 0 26px; grid-template-columns: auto minmax(0, 1fr); gap: 14px; }
   .game-home-actions { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }

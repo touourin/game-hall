@@ -25,6 +25,7 @@ const games: Array<GameCatalogItem & { symbol: string; tone: string }> = [
   { key: 'go', name: '围棋', players: '2 人', description: '19 路棋盘，中国数子与贴目', symbol: '○', tone: 'jade' },
   { key: 'doudizhu', name: '斗地主', players: '3 人', description: '叫地主、牌型对抗与农民协作', symbol: '♠', tone: 'blue' },
   { key: 'junqi', name: '军旗', players: '2 人', description: '暗军旗布阵，或翻棋决定阵营', symbol: '旗', tone: 'army' },
+  { key: 'reaction', name: '反应时间', players: '1 人', description: '等待信号变色，测出三轮真实反应', symbol: '⚡', tone: 'pulse' },
 ]
 </script>
 
@@ -103,6 +104,7 @@ const games: Array<GameCatalogItem & { symbol: string; tone: string }> = [
 .enter-game { position: absolute; right: 22px; bottom: 20px; color: var(--gold); font-weight: 800; }
 .tone-red .game-symbol { color: #e88a82; }.tone-jade .game-symbol { color: #72d0ad; }.tone-blue .game-symbol { color: #86bde4; }.tone-ink .game-symbol { color: #d7d8d1; }
 .tone-army .game-symbol { color: #d8b66b; }
+.tone-pulse .game-symbol { color: #8fe0bd; }
 @media (max-width: 680px) {
   .game-grid { grid-template-columns: 1fr; }
   .game-card:first-child { grid-column: auto; }

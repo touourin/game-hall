@@ -8,6 +8,7 @@ import GoBoard from '../games/go/GoBoard.vue'
 import GomokuBoard from '../games/gomoku/GomokuBoard.vue'
 import XiangqiBoard from '../games/xiangqi/XiangqiBoard.vue'
 import JunqiBoard from '../games/junqi/JunqiBoard.vue'
+import ReactionTest from '../games/reaction/ReactionTest.vue'
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
@@ -35,15 +36,15 @@ async function copyInvite() {
   <main class="arcade-room page-container">
     <header class="arcade-room-header">
       <div>
-        <small>{{ snapshot.gameName }}<template v-if="snapshot.gameKey === 'junqi'"> · {{ snapshot.options.mode === 'flip' ? '翻棋军旗' : '暗军旗' }}</template></small>
-        <h1>房间 {{ snapshot.roomCode }}</h1>
+        <small>{{ snapshot.gameName }}<template v-if="snapshot.gameKey === 'junqi'"> · {{ snapshot.options.mode === 'flip' ? '翻棋军旗' : '暗军旗' }}</template><template v-else-if="snapshot.gameKey === 'reaction'"> · 单人测试</template></small>
+        <h1>{{ snapshot.gameKey === 'reaction' ? '三轮反应挑战' : `房间 ${snapshot.roomCode}` }}</h1>
       </div>
       <button type="button" class="icon-button" aria-label="离开房间" @click="arcade.leaveRoom">
         <ArrowLeft :size="21" />
       </button>
     </header>
 
-    <section class="surface arcade-player-strip" aria-label="房间玩家">
+    <section v-if="snapshot.gameKey !== 'reaction'" class="surface arcade-player-strip" aria-label="房间玩家">
       <article
         v-for="player in snapshot.players"
         :key="player.id"
@@ -81,7 +82,7 @@ async function copyInvite() {
     </section>
 
     <section v-else class="arcade-game-stage">
-      <div v-if="snapshot.phase === 'finished'" class="surface result-banner">
+      <div v-if="snapshot.phase === 'finished' && snapshot.gameKey !== 'reaction'" class="surface result-banner">
         <small>本局结束</small>
         <h2>{{ snapshot.winReason }}</h2>
         <p>
@@ -103,6 +104,7 @@ async function copyInvite() {
       <GoBoard v-else-if="snapshot.gameKey === 'go'" :snapshot="snapshot" />
       <DoudizhuTable v-else-if="snapshot.gameKey === 'doudizhu'" :snapshot="snapshot" />
       <JunqiBoard v-else-if="snapshot.gameKey === 'junqi'" :snapshot="snapshot" />
+      <ReactionTest v-else-if="snapshot.gameKey === 'reaction'" :snapshot="snapshot" />
     </section>
   </main>
 </template>

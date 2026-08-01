@@ -58,6 +58,7 @@ class ArcadeRoomManager:
             players=[player],
             state=engine.initial_state(),
             options=normalized_options,
+            listed=getattr(engine, "public_rooms", True),
         )
         self.rooms[code] = room
         return room, player, token

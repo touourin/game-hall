@@ -9,6 +9,8 @@ export interface StatsSummary {
   goodWins: number
   evilGames: number
   evilWins: number
+  bestMs: number | null
+  averageMs: number | null
 }
 
 export interface MatchHistoryItem {
@@ -26,6 +28,7 @@ export interface MatchHistoryItem {
   role: string
   alignment: string
   won: boolean
+  scoreMs: number | null
 }
 
 export interface MatchDetail {
@@ -72,7 +75,7 @@ export interface MatchDetail {
     }>
     assassinTargetId?: string | null
     assassinationWasEarly?: boolean
-    state?: Record<string, unknown>
+    state?: Record<string, unknown> & { results_ms?: number[] }
   }
 }
 
@@ -83,6 +86,8 @@ export interface LeaderboardEntry {
   games: number
   wins: number
   winRate: number
+  bestMs?: number
+  averageMs?: number
 }
 
 async function statsRequest<T>(path: string): Promise<T> {

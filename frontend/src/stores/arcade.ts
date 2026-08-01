@@ -94,7 +94,9 @@ export const useArcadeStore = defineStore('arcade', () => {
         playerId: response.playerId,
         resumeToken: response.resumeToken,
       })
+      return true
     }
+    return false
   }
 
   async function joinRoom(

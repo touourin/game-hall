@@ -266,6 +266,7 @@ class ArcadeRealtime:
             return
         engine = self.engines[room.game_key]
         players = []
+        score_reader = getattr(engine, "player_score", None)
         for player in room.players:
             role, alignment, won = engine.player_result(room, player)
             players.append(
@@ -277,6 +278,11 @@ class ArcadeRealtime:
                     "alignment": alignment,
                     "won": won,
                     "isHost": player.id == room.host_id,
+                    "scoreMs": (
+                        score_reader(room, player)
+                        if score_reader is not None
+                        else None
+                    ),
                 }
             )
         state = asdict(room.state) if is_dataclass(room.state) else room.state
