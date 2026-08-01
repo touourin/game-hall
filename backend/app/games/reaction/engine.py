@@ -9,7 +9,7 @@ from backend.app.games.base import GameRuleError
 
 ROUNDS_REQUIRED = 3
 MIN_REACTION_MS = 1
-MAX_REACTION_MS = 5_000
+MAX_REACTION_MS = 60_000
 
 
 @dataclass
