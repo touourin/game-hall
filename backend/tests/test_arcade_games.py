@@ -721,7 +721,7 @@ def test_xiangqi_identifies_checkmate_and_stalemate_positions() -> None:
     assert engine._has_legal_move(stalemate, "black") is False
 
 
-def test_xiangqi_repeated_positions_are_drawn() -> None:
+def test_xiangqi_third_repeated_position_must_be_changed() -> None:
     engine = XiangqiEngine()
     repeat_room = make_room(engine, 2)
     next_board = [row[:] for row in repeat_room.state.board]
@@ -729,33 +729,21 @@ def test_xiangqi_repeated_positions_are_drawn() -> None:
     next_board[6][0] = None
     repeated_key = engine._position_key(next_board, "black")
     repeat_room.state.position_history.extend([repeated_key, repeated_key])
-    engine.act(
-        repeat_room,
-        repeat_room.players[0],
-        "move",
-        {"fromRow": 6, "fromColumn": 0, "toRow": 5, "toColumn": 0},
-    )
-    assert repeat_room.phase == "finished"
-    assert repeat_room.winner == "draw"
-    assert "第三次" in repeat_room.win_reason
+    with pytest.raises(GameRuleError, match="请更换走法"):
+        engine.act(
+            repeat_room,
+            repeat_room.players[0],
+            "move",
+            {"fromRow": 6, "fromColumn": 0, "toRow": 5, "toColumn": 0},
+        )
 
-
-def test_xiangqi_continuous_long_check_loses_on_repetition() -> None:
-    engine = XiangqiEngine()
-    room = make_room(engine, 2)
-    state: XiangqiState = room.state
-    key = "repeat"
-    state.position_history = [key, "a", key, "b", key]
-    state.history = [
-        {"color": "red", "gaveCheck": True},
-        {"color": "black", "gaveCheck": False},
-        {"color": "red", "gaveCheck": True},
-        {"color": "black", "gaveCheck": False},
-    ]
-
-    assert engine._resolve_repetition(room, state, key) is True
-    assert room.winner == "black"
-    assert "长将" in room.win_reason
+    assert repeat_room.phase == "playing"
+    assert repeat_room.winner is None
+    assert repeat_room.state.board[6][0] == "rP"
+    assert repeat_room.state.board[5][0] is None
+    assert repeat_room.state.move_count == 0
+    assert repeat_room.state.history == []
+    assert repeat_room.state.position_history.count(repeated_key) == 2
 
 
 def cards(*ranks: int) -> list[Card]:

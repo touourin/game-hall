@@ -95,6 +95,12 @@ class XiangqiEngine:
         board[target_row][target_column] = piece
         board[source_row][source_column] = None
         opponent_color = self._opponent(player_color)
+        position_key = self._position_key(board, opponent_color)
+        if state.position_history.count(position_key) >= 2:
+            board[source_row][source_column] = piece
+            board[target_row][target_column] = captured
+            raise GameRuleError("相同局面已出现两次，请更换走法")
+
         gave_check = self._in_check(board, opponent_color)
         state.move_count += 1
         move = {
@@ -119,7 +125,6 @@ class XiangqiEngine:
                 }
             )
         state.turn_color = opponent_color
-        position_key = self._position_key(board, state.turn_color)
         state.position_history.append(position_key)
 
         if captured is not None and captured[1] == "K":
@@ -129,10 +134,6 @@ class XiangqiEngine:
             reason = "将死" if gave_check else "困毙"
             room.finish(player_color, [player.id], f"{player.name} {reason}对方")
             return
-        if state.position_history.count(position_key) >= 3:
-            if self._resolve_repetition(room, state, position_key):
-                return
-
     def view(self, room: ArcadeRoom, viewer: ArcadePlayer) -> dict[str, Any]:
         state: XiangqiState = room.state
         red_in_check = self._in_check(state.board, "red")
@@ -173,39 +174,6 @@ class XiangqiEngine:
     ) -> tuple[str, str, bool]:
         color = self._seat_color(player.seat)
         return color, color, player.id in room.winner_player_ids
-
-    def _resolve_repetition(
-        self,
-        room: ArcadeRoom,
-        state: XiangqiState,
-        position_key: str,
-    ) -> bool:
-        occurrences = [
-            index
-            for index, key in enumerate(state.position_history)
-            if key == position_key
-        ]
-        if len(occurrences) < 3:
-            return False
-        cycle_moves = state.history[occurrences[-3] :]
-        long_check_colors = []
-        for color in ("red", "black"):
-            own_moves = [move for move in cycle_moves if move["color"] == color]
-            if len(own_moves) >= 2 and all(move["gaveCheck"] for move in own_moves):
-                long_check_colors.append(color)
-        if len(long_check_colors) == 1:
-            loser_color = long_check_colors[0]
-            winner_color = self._opponent(loser_color)
-            winner = room.players[0 if winner_color == "red" else 1]
-            loser_name = "红方" if loser_color == "red" else "黑方"
-            room.finish(
-                winner_color,
-                [winner.id],
-                f"{loser_name}连续长将未变，判负",
-            )
-        else:
-            room.finish("draw", [], "相同局面第三次出现，双方不变作和")
-        return True
 
     def _legal_moves(
         self, board: list[list[str | None]], color: str

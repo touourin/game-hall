@@ -38,7 +38,7 @@ GAME_CATALOG = [
         "key": "xiangqi",
         "name": "中国象棋",
         "players": "2 人",
-        "description": "完整走子、重复局面与长将判定",
+        "description": "完整走子与重复局面限制",
     },
     {
         "key": "go",
