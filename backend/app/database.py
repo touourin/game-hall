@@ -110,6 +110,7 @@ match_players = Table(
     Column("role", String(32), nullable=False),
     Column("alignment", String(16), nullable=False),
     Column("won", Boolean(), nullable=False),
+    Column("outcome", String(16), nullable=False),
     Column("is_host", Boolean(), nullable=False),
     Column("score_ms", Integer(), nullable=True),
 )

@@ -41,11 +41,11 @@ function chooseTheme(theme: ThemeName) {
 <template>
   <div class="modal-backdrop" @click.self="$emit('close')">
     <section class="modal-card theme-modal" role="dialog" aria-modal="true">
-      <button class="modal-close" type="button" aria-label="关闭皮肤" @click="$emit('close')">
+      <button class="modal-close" type="button" aria-label="关闭主题" @click="$emit('close')">
         <X :size="20" />
       </button>
       <span class="modal-icon"><Palette :size="25" /></span>
-      <h2>界面皮肤</h2>
+      <h2>界面主题</h2>
       <p>只改变界面氛围；好人、坏人和投票结果的颜色保持一致。</p>
 
       <div class="theme-list">

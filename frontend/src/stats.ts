@@ -4,6 +4,8 @@ import { storedAccountToken } from './account'
 export interface StatsSummary {
   games: number
   wins: number
+  draws: number
+  losses: number
   winRate: number
   goodGames: number
   goodWins: number
@@ -12,6 +14,8 @@ export interface StatsSummary {
   bestMs: number | null
   averageMs: number | null
 }
+
+export type MatchOutcome = 'win' | 'loss' | 'draw' | 'completed'
 
 export interface MatchHistoryItem {
   id: string
@@ -28,6 +32,7 @@ export interface MatchHistoryItem {
   role: string
   alignment: string
   won: boolean
+  outcome: MatchOutcome
   scoreMs: number | null
 }
 
@@ -85,6 +90,7 @@ export interface LeaderboardEntry {
   displayName: string
   games: number
   wins: number
+  draws: number
   winRate: number
   bestMs?: number
   averageMs?: number
@@ -140,10 +146,10 @@ export async function loadMatchDetail(matchId: string): Promise<MatchDetail> {
   return response.match
 }
 
-export async function loadLeaderboard(gameKey?: string): Promise<LeaderboardEntry[]> {
+export async function loadLeaderboard(gameKey: string): Promise<LeaderboardEntry[]> {
   const response = await statsRequest<{
     ok: boolean
     players: LeaderboardEntry[]
-  }>(`/api/leaderboard${gameKey ? `?game=${encodeURIComponent(gameKey)}` : ''}`)
+  }>(`/api/leaderboard?game=${encodeURIComponent(gameKey)}`)
   return response.players
 }

@@ -2,6 +2,7 @@ import { createPinia } from 'pinia'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { vi } from 'vitest'
+import * as clipboard from '../../clipboard'
 import { useRoomStore } from './store'
 import type { RoomSnapshot } from './types'
 import GameRoom from './GameRoom.vue'
@@ -270,6 +271,25 @@ describe('GameRoom role reveal', () => {
     await wrapper.get('.add-ai-button').trigger('click')
 
     expect(perform).toHaveBeenCalledWith('room:add-ai-player')
+  })
+
+  it('uses the shared invitation copier and confirms success', async () => {
+    const snapshot = roleRevealSnapshot(1)
+    snapshot.phase = 'lobby'
+    snapshot.self.role = null
+    snapshot.actions.canConfirmRole = false
+    const copyText = vi.spyOn(clipboard, 'copyText').mockResolvedValue(true)
+    const wrapper = mount(GameRoom, {
+      props: { snapshot },
+      global: { plugins: [createPinia()] },
+    })
+
+    await wrapper.get('.invite-actions button').trigger('click')
+    await nextTick()
+
+    expect(copyText).toHaveBeenCalledOnce()
+    expect(wrapper.get('.invite-actions button').text()).toContain('已复制')
+    copyText.mockRestore()
   })
 
   it('keeps confirmation enabled when another player updates the room', async () => {

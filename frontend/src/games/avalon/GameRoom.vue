@@ -30,6 +30,7 @@ import {
 } from '@lucide/vue'
 import MissionTrack from './components/MissionTrack.vue'
 import SecretCard from './components/SecretCard.vue'
+import { copyText } from '../../clipboard'
 import { useRoomStore } from './store'
 import type { PlayerView, RoomSnapshot } from './types'
 
@@ -60,6 +61,7 @@ const chatDraft = ref('')
 const chatSheet = ref<HTMLElement | null>(null)
 const chatList = ref<HTMLElement | null>(null)
 const inviteCopied = ref(false)
+const inviteCopyFailed = ref(false)
 const selectedReplayMission = ref<number | null>(null)
 const seenChatIds = ref(
   new Set(props.snapshot.chat.messages.map((message) => message.id)),
@@ -511,21 +513,12 @@ async function sendChat() {
 }
 
 async function copyInviteLink() {
-  try {
-    await navigator.clipboard.writeText(shareUrl.value)
-  } catch {
-    const textarea = document.createElement('textarea')
-    textarea.value = shareUrl.value
-    textarea.style.position = 'fixed'
-    textarea.style.opacity = '0'
-    document.body.appendChild(textarea)
-    textarea.select()
-    document.execCommand('copy')
-    textarea.remove()
-  }
-  inviteCopied.value = true
+  const copied = await copyText(shareUrl.value)
+  inviteCopied.value = copied
+  inviteCopyFailed.value = !copied
   window.setTimeout(() => {
     inviteCopied.value = false
+    inviteCopyFailed.value = false
   }, 1800)
 }
 
@@ -687,13 +680,14 @@ async function shareInviteLink() {
           <button type="button" @click="copyInviteLink">
             <Check v-if="inviteCopied" :size="17" />
             <Copy v-else :size="17" />
-            {{ inviteCopied ? '已复制' : '复制邀请链接' }}
+            {{ inviteCopied ? '已复制' : inviteCopyFailed ? '复制失败' : '复制邀请链接' }}
           </button>
           <button v-if="canShareInvite" type="button" @click="shareInviteLink">
             <Share2 :size="17" />
             分享
           </button>
         </div>
+        <p v-if="inviteCopyFailed">自动复制失败，请长按上方链接手动复制。</p>
       </div>
 
       <div class="section-heading">

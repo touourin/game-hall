@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { ArrowLeft, Copy, Crown, RotateCcw, UsersRound } from '@lucide/vue'
+import { computed, ref } from 'vue'
+import { ArrowLeft, Check, Copy, Crown, RotateCcw, UsersRound } from '@lucide/vue'
+import { copyText } from '../clipboard'
 import { useArcadeStore } from '../stores/arcade'
 import type { ArcadeSnapshot } from '../types/arcade'
 import DoudizhuTable from '../games/doudizhu/DoudizhuTable.vue'
@@ -12,6 +13,7 @@ import ReactionTest from '../games/reaction/ReactionTest.vue'
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
+const inviteCopyStatus = ref<'idle' | 'copied' | 'failed'>('idle')
 const missingPlayers = computed(
   () => props.snapshot.requiredPlayers - props.snapshot.players.length,
 )
@@ -24,11 +26,10 @@ const inviteUrl = computed(() => {
 })
 
 async function copyInvite() {
-  try {
-    await navigator.clipboard.writeText(inviteUrl.value)
-  } catch {
-    // Browsers without clipboard permission can still copy the visible room code.
-  }
+  inviteCopyStatus.value = (await copyText(inviteUrl.value)) ? 'copied' : 'failed'
+  window.setTimeout(() => {
+    inviteCopyStatus.value = 'idle'
+  }, 1800)
 }
 </script>
 
@@ -72,7 +73,15 @@ async function copyInvite() {
       <p v-else>人员已到齐，房主可以开始</p>
       <div class="room-code-share">
         <b>{{ snapshot.roomCode }}</b>
-        <button type="button" @click="copyInvite"><Copy :size="17" />复制邀请链接</button>
+        <button type="button" @click="copyInvite">
+          <Check v-if="inviteCopyStatus === 'copied'" :size="17" />
+          <Copy v-else :size="17" />
+          {{ inviteCopyStatus === 'copied' ? '已复制' : inviteCopyStatus === 'failed' ? '复制失败' : '复制邀请链接' }}
+        </button>
+      </div>
+      <div v-if="inviteCopyStatus === 'failed'" class="invite-copy-fallback">
+        <span>请长按复制下面的邀请链接</span>
+        <input :value="inviteUrl" readonly aria-label="邀请链接" />
       </div>
       <button
         v-if="snapshot.actions.canStart"
@@ -131,6 +140,9 @@ async function copyInvite() {
 .room-code-share { margin: 14px 0; display: flex; gap: 12px; align-items: center; }
 .room-code-share b { font-size: 28px; letter-spacing: .18em; }
 .room-code-share button { display: inline-flex; gap: 7px; align-items: center; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; color: var(--text); background: transparent; }
+.invite-copy-fallback { display: grid; gap: 6px; width: min(100%, 520px); }
+.invite-copy-fallback span { color: var(--muted); font-size: 11px; }
+.invite-copy-fallback input { width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; color: var(--text); background: rgba(3, 19, 20, 0.46); font-size: 11px; }
 .arcade-game-stage { display: grid; gap: 22px; }
 .result-banner { padding: 18px; text-align: center; }
 .result-banner small { color: var(--gold); }

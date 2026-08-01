@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { History, LogOut, Palette, RotateCcw, Trophy } from '@lucide/vue'
+import { History, LogOut, Palette, RotateCcw } from '@lucide/vue'
 import type { AccountProfile } from '../account'
 import type { GameCatalogItem } from '../types/arcade'
 import { useArcadeStore } from '../stores/arcade'
-import LeaderboardModal from '../components/LeaderboardModal.vue'
 import StatsModal from '../components/StatsModal.vue'
 import ThemeModal from '../components/ThemeModal.vue'
 
@@ -15,7 +14,6 @@ const emit = defineEmits<{
 }>()
 const arcade = useArcadeStore()
 const showStats = ref(false)
-const showLeaderboard = ref(false)
 const showTheme = ref(false)
 
 const games: Array<GameCatalogItem & { symbol: string; tone: string }> = [
@@ -38,8 +36,7 @@ const games: Array<GameCatalogItem & { symbol: string; tone: string }> = [
       </div>
       <div class="account-bar-actions">
         <button type="button" @click="showStats = true"><History :size="16" /><span>战绩</span></button>
-        <button type="button" @click="showLeaderboard = true"><Trophy :size="16" /><span>总榜</span></button>
-        <button type="button" @click="showTheme = true"><Palette :size="16" /><span>皮肤</span></button>
+        <button type="button" @click="showTheme = true"><Palette :size="16" /><span>主题</span></button>
         <button type="button" @click="emit('logout')"><LogOut :size="16" /><span>退出</span></button>
       </div>
     </section>
@@ -78,7 +75,6 @@ const games: Array<GameCatalogItem & { symbol: string; tone: string }> = [
     </section>
 
     <StatsModal v-if="showStats" @close="showStats = false" />
-    <LeaderboardModal v-if="showLeaderboard" :account-id="account.id" @close="showLeaderboard = false" />
     <ThemeModal v-if="showTheme" @close="showTheme = false" />
   </main>
 </template>
@@ -112,7 +108,7 @@ const games: Array<GameCatalogItem & { symbol: string; tone: string }> = [
   .account-bar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 0 0 12px; }
   .account-bar > div:first-child { min-width: 0; }
   .account-bar > div:first-child strong { max-width: min(68vw, 260px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .account-bar .account-bar-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; gap: 6px; }
+  .account-bar .account-bar-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; gap: 6px; }
   .account-bar button { width: 100%; min-width: 0; min-height: 46px; padding: 5px 2px; flex-direction: column; justify-content: center; gap: 2px; }
   .account-bar-actions span { display: block; line-height: 1; white-space: nowrap; }
 }

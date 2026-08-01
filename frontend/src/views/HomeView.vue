@@ -81,8 +81,8 @@ async function chooseRoom(code: string) {
         <button type="button" aria-label="查看排行榜" @click="showLeaderboard = true">
           <Trophy :size="16" /><span>排行榜</span>
         </button>
-        <button type="button" aria-label="选择界面皮肤" @click="showTheme = true">
-          <Palette :size="16" /><span>皮肤</span>
+        <button type="button" aria-label="选择界面主题" @click="showTheme = true">
+          <Palette :size="16" /><span>主题</span>
         </button>
         <button type="button" aria-label="退出账号" @click="$emit('logout')">
           <LogOut :size="16" /><span>退出</span>

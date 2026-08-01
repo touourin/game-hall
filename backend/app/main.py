@@ -193,12 +193,12 @@ def personal_stats(
 
 @api.get("/api/leaderboard")
 def leaderboard(
-    game: str | None = None,
+    game: str,
     authorization: str | None = Header(default=None),
     x_avalon_access: str | None = Header(default=None),
 ) -> dict:
     require_account_session(authorization, x_avalon_access)
-    if game is not None and game not in GAME_NAMES:
+    if game not in GAME_NAMES:
         raise HTTPException(status_code=404, detail="没有找到这个游戏")
     return {
         "ok": True,

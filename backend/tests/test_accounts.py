@@ -43,6 +43,9 @@ def test_completed_match_is_saved_once_with_personal_history(tmp_path):
     assert history[0]["won"] is (
         first_player.alignment == Alignment.EVIL
     )
+    assert history[0]["outcome"] == (
+        "win" if first_player.alignment == Alignment.EVIL else "loss"
+    )
     assert summary["games"] == 1
     assert summary["wins"] == int(first_player.alignment == Alignment.EVIL)
     assert detail["details"]["players"][0]["name"] == "玩家0"
@@ -54,7 +57,7 @@ def test_ranked_leaderboard_excludes_matches_with_ai_players(tmp_path):
     ranked_room = completed_room_with_accounts(store)
     store.record_match(ranked_room)
 
-    leaderboard = store.leaderboard()
+    leaderboard = store.leaderboard(game_key="avalon")
     assert leaderboard
     assert leaderboard[0]["wins"] == 1
     assert all(player["games"] == 1 for player in leaderboard)
@@ -64,7 +67,10 @@ def test_ranked_leaderboard_excludes_matches_with_ai_players(tmp_path):
     ai_room.players[-1].account_id = None
     store.record_match(ai_room)
 
-    assert all(player["games"] == 1 for player in store.leaderboard())
+    assert all(
+        player["games"] == 1
+        for player in store.leaderboard(game_key="avalon")
+    )
     human = ai_room.players[0]
     assert len(store.history_for_account(human.account_id)) == 1
     assert store.history_for_account(human.account_id)[0]["ranked"] is False
@@ -113,4 +119,49 @@ def test_reaction_scores_have_lowest_time_leaderboard(tmp_path):
     assert history[0]["scoreMs"] == 220
     assert leaderboard[0]["accountId"] == first.id
     assert leaderboard[0]["bestMs"] == 220
-    assert store.leaderboard() == []
+    assert store.leaderboard(game_key="avalon") == []
+
+
+def test_gomoku_draw_is_not_recorded_as_two_losses(tmp_path):
+    store = AccountStore(tmp_path / "gomoku-draw.sqlite3")
+    first = account_for_player(store, 1, "draw")
+    second = account_for_player(store, 2, "draw")
+
+    assert store.record_game_match(
+        game_key="gomoku",
+        match_id="gomoku-draw",
+        room_code="DRAW",
+        winner="draw",
+        reason="棋盘已满，双方和棋",
+        started_at="2026-08-01T00:00:00+00:00",
+        ended_at="2026-08-01T00:10:00+00:00",
+        details={"players": [], "state": {}},
+        players=[
+            {
+                "accountId": account.id,
+                "displayName": account.display_name,
+                "seat": seat,
+                "role": role,
+                "alignment": role,
+                "won": False,
+                "isHost": seat == 0,
+            }
+            for seat, (account, role) in enumerate(
+                ((first, "black"), (second, "white"))
+            )
+        ],
+    )
+
+    for account in (first, second):
+        summary = store.summary_for_account(account.id, game_key="gomoku")
+        history = store.history_for_account(account.id, game_key="gomoku")
+
+        assert summary["games"] == 1
+        assert summary["wins"] == 0
+        assert summary["draws"] == 1
+        assert summary["losses"] == 0
+        assert history[0]["won"] is False
+        assert history[0]["outcome"] == "draw"
+
+    leaderboard = store.leaderboard(game_key="gomoku")
+    assert all(entry["draws"] == 1 for entry in leaderboard)

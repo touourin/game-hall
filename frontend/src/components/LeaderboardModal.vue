@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue'
 import { LoaderCircle, Trophy, X } from '@lucide/vue'
 import { loadLeaderboard, type LeaderboardEntry } from '../stats'
 
-const props = defineProps<{ accountId: string; gameKey?: string; gameName?: string }>()
+const props = defineProps<{ accountId: string; gameKey: string; gameName: string }>()
 defineEmits<{ close: [] }>()
 
 const players = ref<LeaderboardEntry[]>([])
@@ -28,7 +28,7 @@ onMounted(async () => {
         <X :size="20" />
       </button>
       <span class="modal-icon"><Trophy :size="25" /></span>
-      <h2>{{ props.gameName ? `${props.gameName}排行榜` : '游戏总排行榜' }}</h2>
+      <h2>{{ props.gameName }}排行榜</h2>
       <p>{{ props.gameKey === 'reaction' ? '按个人历史最佳三轮平均时间排序，数值越低越快。' : '按胜场排序，同胜场时依次比较胜率和有效场次。' }}</p>
 
       <div v-if="loading" class="stats-loading">
@@ -44,7 +44,9 @@ onMounted(async () => {
           <span>
             <strong>{{ player.displayName }}</strong>
             <small v-if="props.gameKey === 'reaction'">{{ player.games }} 次测试 · 总平均 {{ player.averageMs }} ms</small>
-            <small v-else>{{ player.wins }} 胜 / {{ player.games }} 场</small>
+            <small v-else>
+              {{ player.wins }} 胜<span v-if="player.draws"> · {{ player.draws }} 和</span> / {{ player.games }} 场
+            </small>
           </span>
           <em>{{ props.gameKey === 'reaction' ? `${player.bestMs} ms` : `${player.winRate}%` }}</em>
         </div>

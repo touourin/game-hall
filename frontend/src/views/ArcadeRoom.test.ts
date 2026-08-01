@@ -1,6 +1,7 @@
 import { createPinia } from 'pinia'
-import { shallowMount } from '@vue/test-utils'
+import { flushPromises, shallowMount } from '@vue/test-utils'
 import type { ArcadeGameKey, ArcadeSnapshot } from '../types/arcade'
+import * as clipboard from '../clipboard'
 import ArcadeRoom from './ArcadeRoom.vue'
 
 function snapshot(gameKey: ArcadeGameKey): ArcadeSnapshot {
@@ -35,5 +36,39 @@ describe('ArcadeRoom', () => {
     expect(wrapper.get('.arcade-room').classes()).toContain('arcade-room--wide')
     await wrapper.setProps({ snapshot: snapshot('gomoku') })
     expect(wrapper.get('.arcade-room').classes()).not.toContain('arcade-room--wide')
+  })
+
+  it('copies the shared invitation link and confirms success', async () => {
+    const copyText = vi.spyOn(clipboard, 'copyText').mockResolvedValue(true)
+    const wrapper = shallowMount(ArcadeRoom, {
+      props: { snapshot: snapshot('xiangqi') },
+      global: { plugins: [createPinia()] },
+    })
+
+    await wrapper.get('.room-code-share button').trigger('click')
+    await flushPromises()
+
+    const invitation = new URL(String(copyText.mock.calls[0]?.[0]))
+    expect(invitation.searchParams.get('game')).toBe('xiangqi')
+    expect(invitation.searchParams.get('room')).toBe('TEST')
+    expect(wrapper.get('.room-code-share button').text()).toContain('已复制')
+    copyText.mockRestore()
+  })
+
+  it('shows the invitation URL when automatic copying is blocked', async () => {
+    const copyText = vi.spyOn(clipboard, 'copyText').mockResolvedValue(false)
+    const wrapper = shallowMount(ArcadeRoom, {
+      props: { snapshot: snapshot('gomoku') },
+      global: { plugins: [createPinia()] },
+    })
+
+    await wrapper.get('.room-code-share button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('.room-code-share button').text()).toContain('复制失败')
+    expect(wrapper.get('.invite-copy-fallback input').attributes('value')).toContain(
+      'game=gomoku',
+    )
+    copyText.mockRestore()
   })
 })

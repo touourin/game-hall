@@ -3126,6 +3126,23 @@ button:disabled {
   font-weight: 800;
 }
 
+.match-result-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.match-result-summary span {
+  border-radius: 11px;
+  padding: 8px;
+  color: var(--muted);
+  background: rgba(var(--surface-deep-rgb), 0.5);
+  font-size: 9px;
+  font-weight: 800;
+  text-align: center;
+}
+
 .match-history-list {
   display: grid;
   gap: 7px;
@@ -3157,14 +3174,20 @@ button:disabled {
   font-weight: 900;
 }
 
-.match-outcome.won {
+.match-outcome.win,
+.match-outcome.completed {
   color: #b5ead0;
   background: rgba(45, 126, 89, 0.24);
 }
 
-.match-outcome.lost {
+.match-outcome.loss {
   color: #efadad;
   background: rgba(153, 58, 63, 0.24);
+}
+
+.match-outcome.draw {
+  color: #f6df9b;
+  background: rgba(165, 130, 52, 0.24);
 }
 
 .match-history-copy {
@@ -3230,6 +3253,11 @@ button:disabled {
 .match-detail-result.evil {
   color: #efadad;
   background: rgba(153, 58, 63, 0.18);
+}
+
+.match-detail-result.draw {
+  color: #f6df9b;
+  background: rgba(165, 130, 52, 0.18);
 }
 
 .match-detail-result strong {

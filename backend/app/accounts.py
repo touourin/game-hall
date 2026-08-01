@@ -270,6 +270,9 @@ class AccountStore:
                         "role": player.role.value,
                         "alignment": player.alignment.value,
                         "won": player.alignment == room.winner,
+                        "outcome": (
+                            "win" if player.alignment == room.winner else "loss"
+                        ),
                         "is_host": player.id == room.host_id,
                     }
                     for player in human_players
@@ -331,6 +334,11 @@ class AccountStore:
                             "role": player["role"],
                             "alignment": player["alignment"],
                             "won": player["won"],
+                            "outcome": self._game_outcome(
+                                game_key=game_key,
+                                winner=winner,
+                                won=bool(player["won"]),
+                            ),
                             "is_host": player["isHost"],
                             "score_ms": player.get("scoreMs"),
                         }
@@ -365,6 +373,7 @@ class AccountStore:
                 match_players.c.role,
                 match_players.c.alignment,
                 match_players.c.won,
+                match_players.c.outcome,
                 match_players.c.score_ms,
             )
             .select_from(
@@ -409,6 +418,8 @@ class AccountStore:
             return {
                 "games": int(row["games"]),
                 "wins": 0,
+                "draws": 0,
+                "losses": 0,
                 "winRate": 0,
                 "goodGames": 0,
                 "goodWins": 0,
@@ -429,9 +440,17 @@ class AccountStore:
             select(
                 func.count().label("games"),
                 func.coalesce(
-                    func.sum(case((match_players.c.won.is_(True), 1), else_=0)),
+                    func.sum(case((match_players.c.outcome == "win", 1), else_=0)),
                     0,
                 ).label("wins"),
+                func.coalesce(
+                    func.sum(case((match_players.c.outcome == "draw", 1), else_=0)),
+                    0,
+                ).label("draws"),
+                func.coalesce(
+                    func.sum(case((match_players.c.outcome == "loss", 1), else_=0)),
+                    0,
+                ).label("losses"),
                 func.coalesce(
                     func.sum(
                         case((match_players.c.alignment == "good", 1), else_=0)
@@ -443,7 +462,7 @@ class AccountStore:
                         case(
                             (
                                 (match_players.c.alignment == "good")
-                                & match_players.c.won.is_(True),
+                                & (match_players.c.outcome == "win"),
                                 1,
                             ),
                             else_=0,
@@ -462,7 +481,7 @@ class AccountStore:
                         case(
                             (
                                 (match_players.c.alignment == "evil")
-                                & match_players.c.won.is_(True),
+                                & (match_players.c.outcome == "win"),
                                 1,
                             ),
                             else_=0,
@@ -489,6 +508,8 @@ class AccountStore:
         return {
             "games": game_count,
             "wins": win_count,
+            "draws": int(row["draws"]),
+            "losses": int(row["losses"]),
             "winRate": round(win_count / game_count * 100, 1) if game_count else 0,
             "goodGames": int(row["good_games"]),
             "goodWins": int(row["good_wins"]),
@@ -496,9 +517,7 @@ class AccountStore:
             "evilWins": int(row["evil_wins"]),
         }
 
-    def leaderboard(
-        self, *, game_key: str | None = None, limit: int = 50
-    ) -> list[dict]:
+    def leaderboard(self, *, game_key: str, limit: int = 50) -> list[dict]:
         self.initialize()
         if game_key == "reaction":
             attempt_count = func.count().label("games")
@@ -540,6 +559,7 @@ class AccountStore:
                     "displayName": row["display_name"],
                     "games": int(row["games"]),
                     "wins": 0,
+                    "draws": 0,
                     "winRate": 0,
                     "bestMs": int(row["best_ms"]),
                     "averageMs": round(float(row["average_ms"])),
@@ -548,14 +568,18 @@ class AccountStore:
             ]
         game_count = func.count().label("games")
         win_count = func.coalesce(
-            func.sum(case((match_players.c.won.is_(True), 1), else_=0)), 0
+            func.sum(case((match_players.c.outcome == "win", 1), else_=0)), 0
         ).label("wins")
+        draw_count = func.coalesce(
+            func.sum(case((match_players.c.outcome == "draw", 1), else_=0)), 0
+        ).label("draws")
         statement = (
             select(
                 users.c.id,
                 users.c.display_name,
                 game_count,
                 win_count,
+                draw_count,
             )
             .select_from(
                 match_players.join(
@@ -572,10 +596,7 @@ class AccountStore:
             )
             .limit(min(max(limit, 1), 100))
         )
-        if game_key is not None:
-            statement = statement.where(matches.c.game_key == game_key)
-        else:
-            statement = statement.where(matches.c.game_key != "reaction")
+        statement = statement.where(matches.c.game_key == game_key)
         with self.engine.connect() as connection:
             rows = connection.execute(statement).mappings().all()
         return [
@@ -585,6 +606,7 @@ class AccountStore:
                 "displayName": row["display_name"],
                 "games": int(row["games"]),
                 "wins": int(row["wins"]),
+                "draws": int(row["draws"]),
                 "winRate": round(row["wins"] / row["games"] * 100, 1),
             }
             for index, row in enumerate(rows, start=1)
@@ -681,12 +703,21 @@ class AccountStore:
             "role": row["role"],
             "alignment": row["alignment"],
             "won": bool(row["won"]),
+            "outcome": row["outcome"],
             "scoreMs": (
                 int(row["score_ms"])
                 if row["score_ms"] is not None
                 else None
             ),
         }
+
+    @staticmethod
+    def _game_outcome(*, game_key: str, winner: str, won: bool) -> str:
+        if game_key == "reaction":
+            return "completed"
+        if winner == "draw":
+            return "draw"
+        return "win" if won else "loss"
 
     @staticmethod
     def _match_details(room: Room) -> dict:

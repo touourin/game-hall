@@ -47,8 +47,15 @@ function roleLabel(role: string): string {
 
 function winnerLabel(match: MatchDetail): string {
   if (match.gameKey === 'reaction') return '三轮测试完成'
+  if (match.winner === 'draw') return '双方和棋'
   if (match.gameKey === 'avalon') return match.winner === 'good' ? '好人获胜' : '坏人获胜'
   return `${roleLabel(match.winner)}获胜`
+}
+
+function outcomeLabel(match: MatchHistoryItem): string {
+  if (match.outcome === 'draw') return '和'
+  if (match.outcome === 'completed') return '测'
+  return match.outcome === 'win' ? '胜' : '负'
 }
 
 function formatDate(value: string): string {
@@ -262,11 +269,16 @@ onMounted(async () => {
             <span><Shield :size="15" /> 好人 {{ summary.goodWins }}/{{ summary.goodGames }}</span>
             <span><Swords :size="15" /> 坏人 {{ summary.evilWins }}/{{ summary.evilGames }}</span>
           </div>
+          <div v-if="props.gameKey === 'gomoku'" class="match-result-summary">
+            <span>胜 {{ summary.wins }}</span>
+            <span>和 {{ summary.draws }}</span>
+            <span>负 {{ summary.losses }}</span>
+          </div>
 
           <div v-if="history.length" class="match-history-list">
             <button v-for="match in history" :key="match.id" type="button" @click="openMatch(match.id)">
-              <span :class="['match-outcome', match.won ? 'won' : 'lost']">
-                {{ match.gameKey === 'reaction' ? '测' : match.won ? '胜' : '负' }}
+              <span :class="['match-outcome', match.outcome]">
+                {{ outcomeLabel(match) }}
               </span>
               <span class="match-history-copy">
                 <strong v-if="match.gameKey === 'avalon'">{{ roleLabel(match.role) }} · {{ match.alignment === 'good' ? '好人' : '坏人' }}</strong>
