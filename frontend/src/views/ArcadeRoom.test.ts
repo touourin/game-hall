@@ -2,6 +2,7 @@ import { createPinia } from 'pinia'
 import { flushPromises, mount, shallowMount } from '@vue/test-utils'
 import type { ArcadeGameKey, ArcadeSnapshot } from '../types/arcade'
 import * as clipboard from '../clipboard'
+import RoomPageHeader from '../components/RoomPageHeader.vue'
 import { useArcadeStore } from '../stores/arcade'
 import ArcadeRoom from './ArcadeRoom.vue'
 
@@ -48,6 +49,7 @@ describe('ArcadeRoom', () => {
       global: { plugins: [createPinia()] },
     })
 
+    expect(wrapper.getComponent(RoomPageHeader).props('title')).toBe('房间 TEST')
     expect(wrapper.get('.arcade-room').classes()).toContain('arcade-room--wide')
     await wrapper.setProps({ snapshot: snapshot('gomoku') })
     expect(wrapper.get('.arcade-room').classes()).not.toContain('arcade-room--wide')
@@ -73,6 +75,24 @@ describe('ArcadeRoom', () => {
     expect(invitation.searchParams.get('room')).toBe('TEST')
     expect(wrapper.get('.invite-link-actions button').text()).toContain('已复制')
     copyText.mockRestore()
+  })
+
+  it('shows the shared QR invitation in multiplayer lobbies only', async () => {
+    const wrapper = mount(ArcadeRoom, {
+      props: { snapshot: snapshot('gomoku') },
+      global: { plugins: [createPinia()] },
+    })
+
+    const qrButtons = wrapper.findAll('[aria-label="显示加入二维码"]')
+    expect(qrButtons).toHaveLength(2)
+    await qrButtons[0]?.trigger('click')
+
+    expect(wrapper.get('.qr-modal').text()).toContain('扫描加入测试游戏房间')
+    expect(wrapper.get('.qr-modal').text()).toContain('TEST')
+
+    await wrapper.setProps({ snapshot: snapshot('hanoi') })
+    expect(wrapper.find('[aria-label="显示加入二维码"]').exists()).toBe(false)
+    expect(wrapper.find('.qr-modal').exists()).toBe(false)
   })
 
   it('shows the invitation URL when automatic copying is blocked', async () => {

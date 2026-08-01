@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import QrcodeVue from 'qrcode.vue'
 import {
   ArrowRight,
   Bot,
@@ -31,6 +30,8 @@ import SecretCard from './components/SecretCard.vue'
 import InviteLinkPanel from '../../components/InviteLinkPanel.vue'
 import HostTransferNotice from '../../components/HostTransferNotice.vue'
 import RoomExitButton from '../../components/RoomExitButton.vue'
+import RoomPageHeader from '../../components/RoomPageHeader.vue'
+import RoomInviteModal from '../../components/RoomInviteModal.vue'
 import {
   clearRoleSkinLock,
   lockRoleSkin,
@@ -224,6 +225,12 @@ watch(
       lockRoleSkin(roomCode, selectedRoleSkin.value)
   },
   { immediate: true },
+)
+watch(
+  () => props.snapshot.phase,
+  (phase) => {
+    if (phase !== 'lobby') showQr.value = false
+  },
 )
 watch(
   () => props.snapshot.chat.messages.at(-1)?.id,
@@ -547,32 +554,25 @@ async function sendChat() {
     :class="{ 'chat-open': showChat }"
     :style="chatPanelStyle"
   >
-    <header class="room-header">
-      <div class="room-brand">
-        <Crown :size="20" />
-        <div>
-          <span>{{ phaseTitle }}</span>
-          <strong>
-            房间 {{ snapshot.roomCode }}
-            <button
-              class="self-number-trigger"
-              type="button"
-              :aria-label="`我的号码是 ${playerNumber(snapshot.self.id)} 号，查看玩家号码表`"
-              @click="showPlayerNumbers = true"
-            >
-              <span class="self-number-value">
-                {{ playerNumber(snapshot.self.id) }}号
-              </span>
-              <span class="self-number-copy">
-                <small>我的号码</small>
-                <span>查看号码表</span>
-              </span>
-              <ChevronRight :size="14" aria-hidden="true" />
-            </button>
-          </strong>
-        </div>
-      </div>
-      <div class="header-actions">
+    <RoomPageHeader :eyebrow="`阿瓦隆 · ${phaseTitle}`" :title="`房间 ${snapshot.roomCode}`">
+      <template #details>
+        <button
+          class="self-number-trigger"
+          type="button"
+          :aria-label="`我的号码是 ${playerNumber(snapshot.self.id)} 号，查看玩家号码表`"
+          @click="showPlayerNumbers = true"
+        >
+          <span class="self-number-value">
+            {{ playerNumber(snapshot.self.id) }}号
+          </span>
+          <span class="self-number-copy">
+            <small>我的号码</small>
+            <span>查看号码表</span>
+          </span>
+          <ChevronRight :size="14" aria-hidden="true" />
+        </button>
+      </template>
+      <template #actions>
         <button
           v-if="snapshot.phase === 'lobby'"
           class="header-action"
@@ -610,8 +610,8 @@ async function sendChat() {
           "
           @confirm="room.leaveRoom"
         />
-      </div>
-    </header>
+      </template>
+    </RoomPageHeader>
 
     <HostTransferNotice :transfer-at="snapshot.hostTransferAt" />
 
@@ -1817,21 +1817,13 @@ async function sendChat() {
         </form>
     </section>
 
-    <div v-if="showQr" class="modal-backdrop" @click.self="showQr = false">
-      <section class="modal-card qr-modal" role="dialog" aria-modal="true">
-        <button class="modal-close" aria-label="关闭" @click="showQr = false">
-          <X :size="20" />
-        </button>
-        <span class="modal-icon"><QrCode :size="25" /></span>
-        <h2>扫描加入圆桌</h2>
-        <p>请先连接与服务器相同的 Wi‑Fi</p>
-        <div class="qr-frame">
-          <QrcodeVue :value="shareUrl" :size="196" level="M" />
-        </div>
-        <strong class="modal-room-code">{{ snapshot.roomCode }}</strong>
-        <small>{{ shareUrl }}</small>
-      </section>
-    </div>
+    <RoomInviteModal
+      v-if="showQr && snapshot.phase === 'lobby'"
+      :url="shareUrl"
+      :room-code="snapshot.roomCode"
+      title="扫描加入圆桌"
+      @close="showQr = false"
+    />
 
     <div
       v-if="showPlayerNumbers"

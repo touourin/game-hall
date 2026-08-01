@@ -2,16 +2,10 @@
 import { computed, nextTick, ref } from 'vue'
 import {
   ChevronRight,
-  ArrowLeft,
-  Crown,
   History,
   LogIn,
-  LogOut,
-  Palette,
   Plus,
   RotateCcw,
-  ShieldCheck,
-  Sparkles,
   Trophy,
   UsersRound,
 } from '@lucide/vue'
@@ -19,11 +13,11 @@ import { useRoomStore } from '../games/avalon/store'
 import type { AccountProfile } from '../account'
 import LeaderboardModal from '../components/LeaderboardModal.vue'
 import StatsModal from '../components/StatsModal.vue'
-import ThemeModal from '../components/ThemeModal.vue'
 import CleanupRoomButton from '../components/CleanupRoomButton.vue'
+import GameHomeHeader from '../components/GameHomeHeader.vue'
 
 defineProps<{ account: AccountProfile }>()
-defineEmits<{ logout: []; back: [] }>()
+defineEmits<{ back: [] }>()
 
 const room = useRoomStore()
 const params = new URLSearchParams(window.location.search)
@@ -33,7 +27,6 @@ const roomCode = ref(initialRoomCode)
 const joinCard = ref<HTMLElement | null>(null)
 const showStats = ref(false)
 const showLeaderboard = ref(false)
-const showTheme = ref(false)
 const joinableRooms = computed(() =>
   room.availableRooms.filter((availableRoom) => !availableRoom.cleanupAvailable),
 )
@@ -64,45 +57,17 @@ async function chooseRoom(code: string) {
 
 <template>
   <main class="home-page page-container">
-    <section class="account-bar" aria-label="当前登录账号">
-      <div>
-        <span class="avatar">{{ account.playerName.slice(0, 1) }}</span>
-        <span>
-          <small>已登录</small>
-          <strong>{{ account.playerName }}</strong>
-        </span>
-      </div>
-      <div class="account-bar-actions">
-        <button type="button" aria-label="返回游戏大厅" @click="$emit('back')">
-          <ArrowLeft :size="16" /><span>大厅</span>
-        </button>
-        <button type="button" aria-label="查看战绩" @click="showStats = true">
-          <History :size="16" /><span>战绩</span>
-        </button>
-        <button type="button" aria-label="查看排行榜" @click="showLeaderboard = true">
-          <Trophy :size="16" /><span>排行榜</span>
-        </button>
-        <button type="button" aria-label="选择界面主题" @click="showTheme = true">
-          <Palette :size="16" /><span>主题</span>
-        </button>
-        <button type="button" aria-label="退出账号" @click="$emit('logout')">
-          <LogOut :size="16" /><span>退出</span>
-        </button>
-      </div>
-    </section>
-
-    <section class="brand-hero">
-      <div class="brand-mark" aria-hidden="true">
-        <Crown :size="34" />
-      </div>
-      <p class="eyebrow">AVALON · LAN EDITION</p>
-      <h1>圆桌密令</h1>
-      <p class="hero-copy">同一局域网，拿起手机就能开始一场忠诚与谎言的较量。</p>
-      <div class="feature-row">
-        <span><ShieldCheck :size="15" /> 身份私密</span>
-        <span><Sparkles :size="15" /> 湖中仙女</span>
-      </div>
-    </section>
+    <GameHomeHeader
+      eyebrow="5–10 人"
+      title="阿瓦隆"
+      description="身份推理、组队投票与湖中仙女"
+      @back="$emit('back')"
+    >
+      <template #actions>
+        <button type="button" @click="showStats = true"><History :size="17" />我的战绩</button>
+        <button type="button" @click="showLeaderboard = true"><Trophy :size="17" />排行榜</button>
+      </template>
+    </GameHomeHeader>
 
     <section
       v-if="room.resumableRoomCode"
@@ -236,7 +201,6 @@ async function chooseRoom(code: string) {
       game-name="阿瓦隆"
       @close="showLeaderboard = false"
     />
-    <ThemeModal v-if="showTheme" @close="showTheme = false" />
   </main>
 </template>
 
@@ -257,59 +221,5 @@ async function chooseRoom(code: string) {
     gap: 20px;
   }
 
-  .account-bar {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 10px;
-    padding: 0 0 12px;
-  }
-
-  .account-bar > div:first-child {
-    min-width: 0;
-  }
-
-  .account-bar > div:first-child strong {
-    max-width: min(68vw, 260px);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .account-bar .account-bar-actions {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    width: 100%;
-    gap: 6px;
-  }
-
-  .account-bar button {
-    width: 100%;
-    min-width: 0;
-    min-height: 46px;
-    padding: 5px 2px;
-    flex-direction: column;
-    justify-content: center;
-    gap: 2px;
-  }
-
-  .account-bar button span {
-    display: block;
-    line-height: 1;
-    white-space: nowrap;
-  }
-
-  .brand-hero {
-    padding-top: 4px;
-  }
-
-  .brand-mark {
-    width: 58px;
-    height: 58px;
-    margin-bottom: 14px;
-  }
-
-  .brand-hero h1 {
-    font-size: clamp(40px, 13vw, 56px);
-  }
 }
 </style>

@@ -34,6 +34,8 @@ describe('Avalon home view', () => {
       global: { plugins: [pinia] },
     })
 
+    expect(wrapper.get('.game-home-header').text()).toContain('阿瓦隆')
+    expect(wrapper.find('.account-bar').exists()).toBe(false)
     expect(wrapper.text()).toContain('待清理的圆桌')
     expect(wrapper.text()).toContain('未完成对局')
     wrapper.findComponent(CleanupRoomButton).vm.$emit('confirm')

@@ -754,40 +754,6 @@ button:disabled {
   text-align: center;
 }
 
-.room-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 7px;
-}
-
-.room-brand {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-}
-
-.room-brand > svg {
-  color: var(--gold);
-}
-
-.room-brand div {
-  display: grid;
-  gap: 2px;
-}
-
-.room-brand strong {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 .self-number-trigger {
   display: inline-flex;
   align-items: center;
@@ -805,7 +771,7 @@ button:disabled {
   cursor: pointer;
 }
 
-.room-brand .self-number-value {
+.self-number-trigger .self-number-value {
   display: grid;
   place-items: center;
   min-width: 34px;
@@ -819,7 +785,7 @@ button:disabled {
   line-height: 1;
 }
 
-.room-brand .self-number-copy {
+.self-number-trigger .self-number-copy {
   display: grid;
   gap: 1px;
   text-align: left;
@@ -832,7 +798,7 @@ button:disabled {
   line-height: 1.2;
 }
 
-.room-brand .self-number-copy > span {
+.self-number-trigger .self-number-copy > span {
   color: #b9c9c2;
   font-size: 7px;
   font-weight: 750;
@@ -841,16 +807,6 @@ button:disabled {
 
 .self-number-trigger > svg {
   color: rgba(255, 240, 192, 0.7);
-}
-
-.room-brand span {
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.room-brand strong {
-  font-size: 15px;
-  letter-spacing: 0.03em;
 }
 
 .header-action,
@@ -3834,34 +3790,6 @@ button:disabled {
   margin: 7px 0 18px;
   color: var(--muted);
   font-size: 10px;
-}
-
-.qr-frame {
-  width: 220px;
-  margin: 0 auto 15px;
-  border-radius: 18px;
-  padding: 12px;
-  background: white;
-  line-height: 0;
-}
-
-.modal-room-code {
-  display: block;
-  color: var(--gold);
-  font-family: ui-monospace, monospace;
-  font-size: 28px;
-  letter-spacing: 0.16em;
-}
-
-.qr-modal > small {
-  display: block;
-  max-width: 100%;
-  margin-top: 8px;
-  overflow: hidden;
-  color: #78958b;
-  font-size: 8px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .rules-modal {

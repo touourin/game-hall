@@ -242,7 +242,6 @@ onMounted(async () => {
     <AvalonHomeView
       v-else-if="selectedGame.key === 'avalon'"
       :account="account"
-      @logout="logout"
       @back="selectedGame = null"
     />
     <ArcadeHome

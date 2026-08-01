@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   Crown,
   Handshake,
+  QrCode,
   RotateCcw,
   Settings2,
   Trash2,
@@ -16,6 +17,8 @@ import InviteLinkPanel from '../components/InviteLinkPanel.vue'
 import GameRuleSettings from '../components/GameRuleSettings.vue'
 import HostTransferNotice from '../components/HostTransferNotice.vue'
 import RoomExitButton from '../components/RoomExitButton.vue'
+import RoomPageHeader from '../components/RoomPageHeader.vue'
+import RoomInviteModal from '../components/RoomInviteModal.vue'
 import { useArcadeStore } from '../stores/arcade'
 import type { ArcadePlayer, ArcadeSnapshot } from '../types/arcade'
 import { gameRuleLabels, withDefaultGameRules } from '../gameRules'
@@ -36,6 +39,7 @@ const confirmation = ref<
   { kind: 'kick'; player: ArcadePlayer } | { kind: 'dissolve' } | null
 >(null)
 const ruleEditor = ref<Record<string, unknown> | null>(null)
+const showQr = ref(false)
 const missingPlayers = computed(
   () => Math.max(0, (props.snapshot.minimumPlayers ?? props.snapshot.requiredPlayers) - props.snapshot.players.length),
 )
@@ -53,6 +57,35 @@ const selfRematchReady = computed(() =>
   props.snapshot.rematchReadyPlayerIds.includes(props.snapshot.self.id),
 )
 const isSolo = computed(() => ['reaction', 'schulte', 'minesweeper', 'hanoi'].includes(props.snapshot.gameKey))
+const roomHeaderEyebrow = computed(() => {
+  const suffix = props.snapshot.gameKey === 'junqi'
+    ? ` · ${props.snapshot.options.mode === 'flip' ? '翻棋军旗' : '暗军旗'}`
+    : props.snapshot.gameKey === 'reaction'
+      ? ' · 单人测试'
+      : props.snapshot.gameKey === 'schulte'
+        ? ' · 单人专注'
+        : props.snapshot.gameKey === 'minesweeper'
+          ? ` · ${props.snapshot.game.difficultyLabel}`
+          : props.snapshot.gameKey === 'hanoi'
+            ? ' · 单人益智'
+            : ''
+  return `${props.snapshot.gameName}${suffix}`
+})
+const roomHeaderTitle = computed(() => {
+  const soloTitles: Partial<Record<ArcadeSnapshot['gameKey'], string>> = {
+    reaction: '反应挑战',
+    schulte: '舒尔特挑战',
+    minesweeper: '扫雷挑战',
+    hanoi: '汉诺塔挑战',
+  }
+  return soloTitles[props.snapshot.gameKey] ?? `房间 ${props.snapshot.roomCode}`
+})
+watch(
+  () => [props.snapshot.phase, props.snapshot.gameKey] as const,
+  ([phase]) => {
+    if (phase !== 'lobby' || isSolo.value) showQr.value = false
+  },
+)
 const exitDescription = computed(() => {
   if (props.snapshot.phase === 'lobby') {
     return '你会离开房间并让出座位；如果你是房主，房主将自动移交。'
@@ -90,12 +123,20 @@ async function saveRules() {
     class="arcade-room page-container"
     :class="{ 'arcade-room--wide': ['poker', 'doudizhu', 'junqi', 'minesweeper'].includes(snapshot.gameKey) }"
   >
-    <header class="arcade-room-header">
-      <div>
-        <small>{{ snapshot.gameName }}<template v-if="snapshot.gameKey === 'junqi'"> · {{ snapshot.options.mode === 'flip' ? '翻棋军旗' : '暗军旗' }}</template><template v-else-if="snapshot.gameKey === 'reaction'"> · 单人测试</template><template v-else-if="snapshot.gameKey === 'schulte'"> · 单人专注</template><template v-else-if="snapshot.gameKey === 'minesweeper'"> · {{ snapshot.game.difficultyLabel }}</template><template v-else-if="snapshot.gameKey === 'hanoi'"> · 单人益智</template></small>
-        <h1>{{ snapshot.gameKey === 'reaction' ? '反应挑战' : snapshot.gameKey === 'schulte' ? '舒尔特挑战' : snapshot.gameKey === 'minesweeper' ? '扫雷挑战' : snapshot.gameKey === 'hanoi' ? '汉诺塔挑战' : `房间 ${snapshot.roomCode}` }}</h1>
-      </div>
-      <div class="arcade-room-actions">
+    <RoomPageHeader
+      :eyebrow="roomHeaderEyebrow"
+      :title="roomHeaderTitle"
+    >
+      <template #actions>
+        <button
+          v-if="snapshot.phase === 'lobby' && !isSolo"
+          type="button"
+          class="header-action"
+          aria-label="显示加入二维码"
+          @click="showQr = true"
+        >
+          <QrCode :size="21" />
+        </button>
         <button
           v-if="snapshot.actions.canDissolve"
           type="button"
@@ -109,8 +150,8 @@ async function saveRules() {
           :description="exitDescription"
           @confirm="arcade.leaveRoom"
         />
-      </div>
-    </header>
+      </template>
+    </RoomPageHeader>
 
     <HostTransferNotice :transfer-at="snapshot.hostTransferAt" />
 
@@ -155,10 +196,11 @@ async function saveRules() {
       <p v-if="missingPlayers > 0">还需要 {{ missingPlayers }} 名玩家</p>
       <p v-else-if="availableSeats > 0">已可开始，还可加入 {{ availableSeats }} 名玩家</p>
       <p v-else>人员已到齐，房主可以开始</p>
-      <div class="room-code-share">
-        <b>{{ snapshot.roomCode }}</b>
-      </div>
+      <button v-if="!isSolo" type="button" class="room-code-share" aria-label="显示加入二维码" @click="showQr = true">
+        {{ snapshot.roomCode }}
+      </button>
       <InviteLinkPanel
+        v-if="!isSolo"
         :url="inviteUrl"
         :share-title="`加入${snapshot.gameName}房间 ${snapshot.roomCode}`"
         :share-text="`点击链接加入我的${snapshot.gameName}房间 ${snapshot.roomCode}`"
@@ -256,6 +298,14 @@ async function saveRules() {
       :send="arcade.sendChat"
     />
 
+    <RoomInviteModal
+      v-if="showQr && snapshot.phase === 'lobby' && !isSolo"
+      :url="inviteUrl"
+      :room-code="snapshot.roomCode"
+      :title="`扫描加入${snapshot.gameName}房间`"
+      @close="showQr = false"
+    />
+
     <div v-if="confirmation" class="modal-backdrop" @click.self="confirmation = null">
       <section class="modal-card arcade-confirm-card" role="dialog" aria-modal="true">
         <button class="modal-close" type="button" aria-label="关闭" @click="confirmation = null">
@@ -289,10 +339,6 @@ async function saveRules() {
 
 <style scoped>
 .arcade-room { padding-bottom: 70px; }
-.arcade-room-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-.arcade-room-header small { color: var(--gold); letter-spacing: .14em; }
-.arcade-room-header h1 { margin: 4px 0 0; font-size: clamp(24px, 4vw, 38px); }
-.arcade-room-actions { display: flex; align-items: center; gap: 8px; }
 .text-danger-button { display: inline-flex; align-items: center; gap: 6px; min-height: 42px; border: 1px solid rgba(225, 114, 114, .3); border-radius: 11px; padding: 0 12px; color: #efaaa7; background: rgba(133, 47, 52, .16); font-weight: 800; }
 .arcade-player-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px; margin-bottom: 24px; padding: 14px; }
 .arcade-player-strip article { display: flex; gap: 10px; align-items: center; padding: 10px; border: 1px solid transparent; border-radius: 12px; }
@@ -312,8 +358,7 @@ async function saveRules() {
 .arcade-waiting > svg { color: var(--gold); }
 .arcade-waiting h2, .arcade-waiting p { margin: 0; }
 .arcade-waiting p { color: var(--muted); }
-.room-code-share { margin: 14px 0 0; display: flex; align-items: center; }
-.room-code-share b { font-size: 28px; letter-spacing: .18em; }
+.room-code-share { margin: 14px 0 0; border: 0; padding: 0; color: var(--text); background: transparent; font-size: 28px; font-weight: 800; letter-spacing: .18em; }
 .arcade-waiting :deep(.invite-link-panel) { width: min(100%, 620px); }
 .arcade-game-stage { display: grid; gap: 22px; }
 .result-banner { padding: 18px; text-align: center; }

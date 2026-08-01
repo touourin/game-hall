@@ -128,6 +128,8 @@ describe('GameRoom role reveal', () => {
       global: { plugins: [createPinia()] },
     })
 
+    expect(wrapper.get('.room-page-header').text()).toContain('阿瓦隆')
+    expect(wrapper.get('.room-page-header').text()).toContain('房间 TEST')
     expect(wrapper.get('.self-number-trigger').text()).toContain('我的号码')
     expect(wrapper.get('.self-number-trigger').text()).toContain('1号')
     expect(wrapper.get('.self-number-trigger').text()).toContain('查看号码表')

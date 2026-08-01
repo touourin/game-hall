@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import { ArrowLeft, ChevronRight, History, LogIn, Plus, Trophy, UsersRound } from '@lucide/vue'
+import { ChevronRight, History, LogIn, Plus, Trophy, UsersRound } from '@lucide/vue'
 import type { AccountProfile } from '../account'
 import type { ArcadeGameKey, GameCatalogItem } from '../types/arcade'
 import { useArcadeStore } from '../stores/arcade'
@@ -8,6 +8,7 @@ import LeaderboardModal from '../components/LeaderboardModal.vue'
 import StatsModal from '../components/StatsModal.vue'
 import GameRuleSettings from '../components/GameRuleSettings.vue'
 import CleanupRoomButton from '../components/CleanupRoomButton.vue'
+import GameHomeHeader from '../components/GameHomeHeader.vue'
 import { defaultGameRules, gameRuleSummary } from '../gameRules'
 
 const props = defineProps<{ game: GameCatalogItem; account: AccountProfile }>()
@@ -88,14 +89,17 @@ async function chooseRoom(code: string) {
 
 <template>
   <main class="arcade-home page-container">
-    <header class="game-home-header">
-      <button type="button" class="icon-button" aria-label="返回游戏大厅" @click="$emit('back')"><ArrowLeft :size="21" /></button>
-      <div><small>{{ game.players }}</small><h1>{{ game.name }}</h1><p>{{ game.description }}</p></div>
-      <div class="game-home-actions">
+    <GameHomeHeader
+      :eyebrow="game.players"
+      :title="game.name"
+      :description="game.description"
+      @back="$emit('back')"
+    >
+      <template #actions>
         <button type="button" @click="showStats = true"><History :size="17" />我的战绩</button>
         <button type="button" @click="showLeaderboard = true"><Trophy :size="17" />排行榜</button>
-      </div>
-    </header>
+      </template>
+    </GameHomeHeader>
 
     <section v-if="!isSolo" class="surface room-browser">
       <header>
@@ -173,10 +177,6 @@ async function chooseRoom(code: string) {
 
 <style scoped>
 .arcade-home { padding-bottom: 70px; }
-.game-home-header { padding: 25px 0 38px; display: grid; grid-template-columns: auto 1fr auto; gap: 18px; align-items: flex-start; }
-.game-home-header small { color: var(--gold); font-weight: 800; }.game-home-header h1 { margin: 4px 0; font-family: serif; font-size: clamp(34px, 6vw, 58px); }.game-home-header p { margin: 0; color: var(--muted); }
-.game-home-actions { display: flex; gap: 7px; }
-.game-home-actions button { display: inline-flex; align-items: center; gap: 6px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 11px; color: var(--muted); background: var(--surface); font-weight: 800; }
 .arcade-home .room-browser { margin-bottom: 22px; }
 .cleanup-room-browser { margin-bottom: 22px; }
 .cleanup-room-browser > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
@@ -191,8 +191,5 @@ async function chooseRoom(code: string) {
 .solo-game-intro strong, .solo-game-intro small { display: block; }.solo-game-intro small { margin-top: 4px; color: var(--muted); line-height: 1.5; }
 @media (max-width: 600px) {
   .cleanup-room-item { grid-template-columns: auto minmax(0, 1fr); }.cleanup-room-item :deep(.cleanup-room-button) { grid-column: 1 / -1; width: 100%; }
-  .game-home-header { padding: 18px 0 26px; grid-template-columns: auto minmax(0, 1fr); gap: 14px; }
-  .game-home-actions { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
-  .game-home-actions button { min-height: 42px; justify-content: center; }
 }
 </style>
