@@ -94,6 +94,12 @@ docker compose up -d --build
 docker compose down
 ```
 
+## 日志排查
+
+应用日志保存在 `logs/app.log` 和 `logs/error.log`，支持按游戏、房间和请求编号筛选。
+
+详细字段、过滤命令和轮转配置见 [日志与故障排查](docs/LOGGING.md)。
+
 ## 本地开发
 
 需要 Node.js 24+ 和 Python 3.11+。
