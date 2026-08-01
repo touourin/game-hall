@@ -157,6 +157,27 @@ export const useArcadeStore = defineStore('arcade', () => {
     await perform('arcade:action', { action: actionName, payload })
   }
 
+  async function rapidAction(
+    actionName: string,
+    payload: Record<string, unknown> = {},
+  ): Promise<boolean> {
+    error.value = null
+    try {
+      const response = await emitWithAck('arcade:action', {
+        action: actionName,
+        payload,
+      })
+      if (!response.ok) {
+        error.value = response.error ?? '操作没有成功'
+        return false
+      }
+      return true
+    } catch (caught) {
+      error.value = caught instanceof Error ? caught.message : '网络连接异常'
+      return false
+    }
+  }
+
   async function restartGame() {
     return Boolean(await perform('arcade:restart'))
   }
@@ -223,6 +244,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     leaveRoom,
     startGame,
     action,
+    rapidAction,
     restartGame,
     kickPlayer,
     dissolveRoom,

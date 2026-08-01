@@ -12,7 +12,7 @@ function snapshot(phase: 'playing' | 'finished' = 'playing'): ArcadeSnapshot {
     revision: finished ? 5 : 2,
     roomCode: 'SOLO',
     gameKey: 'reaction',
-    gameName: '反应时间',
+    gameName: '反应挑战',
     options: {},
     phase,
     hostId: 'p1',

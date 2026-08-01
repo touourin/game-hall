@@ -9,7 +9,7 @@ const NEGOTIATION_GAMES = new Set<ArcadeGameKey>([
 export function defaultGameRules(
   gameKey: ArcadeGameKey,
 ): Record<string, unknown> {
-  if (gameKey === 'reaction') return {}
+  if (gameKey === 'reaction' || gameKey === 'schulte') return {}
   if (gameKey === 'hanoi') return { discCount: 5 }
   const options: Record<string, unknown> = { firstPlayer: 'random' }
   if (NEGOTIATION_GAMES.has(gameKey)) {
@@ -43,6 +43,7 @@ export function gameRuleLabels(
 ): string[] {
   const options = withDefaultGameRules(gameKey, rawOptions)
   if (gameKey === 'reaction') return ['三轮测试']
+  if (gameKey === 'schulte') return ['5×5 标准挑战', '服务端计时']
   if (gameKey === 'hanoi') {
     const discCount = Number(options.discCount)
     return [`${discCount} 层圆盘`, `理论最少 ${2 ** discCount - 1} 步`]

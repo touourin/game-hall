@@ -85,6 +85,7 @@ export interface MatchDetail {
       disc_count?: number
       moves?: number
       elapsed_ms?: number
+      mistakes?: number
     }
   }
 }

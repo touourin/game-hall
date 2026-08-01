@@ -5,6 +5,7 @@ export type ArcadeGameKey =
   | 'doudizhu'
   | 'junqi'
   | 'reaction'
+  | 'schulte'
   | 'hanoi'
 
 export interface GameCatalogItem {

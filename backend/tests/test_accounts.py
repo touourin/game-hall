@@ -158,6 +158,52 @@ def test_reaction_scores_have_lowest_time_leaderboard(tmp_path):
     assert store.leaderboard(game_key="avalon") == []
 
 
+def test_schulte_scores_use_server_time_trial_ranking(tmp_path):
+    store = AccountStore(tmp_path / "schulte.sqlite3")
+    first = account_for_player(store, 1, "schulte")
+    second = account_for_player(store, 2, "schulte")
+
+    def record(match_id: str, account, score_ms: int) -> None:
+        assert store.record_game_match(
+            game_key="schulte",
+            match_id=match_id,
+            room_code="GRID",
+            winner="completed",
+            reason=f"5×5 舒尔特方格完成，用时 {score_ms} 毫秒",
+            started_at="2026-08-01T00:00:00+00:00",
+            ended_at="2026-08-01T00:01:00+00:00",
+            details={
+                "players": [],
+                "state": {"elapsed_ms": score_ms, "mistakes": 0},
+            },
+            players=[
+                {
+                    "accountId": account.id,
+                    "playerName": account.player_name,
+                    "seat": 0,
+                    "role": "challenger",
+                    "alignment": "solo",
+                    "won": True,
+                    "isHost": True,
+                    "scoreMs": score_ms,
+                }
+            ],
+        )
+
+    record("schulte-1", first, 13_400)
+    record("schulte-2", first, 12_800)
+    record("schulte-3", second, 13_100)
+
+    summary = store.summary_for_account(first.id, game_key="schulte")
+    leaderboard = store.leaderboard(game_key="schulte")
+
+    assert summary["games"] == 2
+    assert summary["bestMs"] == 12_800
+    assert summary["averageMs"] == 13_100
+    assert leaderboard[0]["accountId"] == first.id
+    assert leaderboard[0]["bestMs"] == 12_800
+
+
 def test_gomoku_draw_is_not_recorded_as_two_losses(tmp_path):
     store = AccountStore(tmp_path / "gomoku-draw.sqlite3")
     first = account_for_player(store, 1, "draw")

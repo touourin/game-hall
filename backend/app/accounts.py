@@ -38,9 +38,11 @@ GAME_NAMES = {
     "go": "围棋",
     "doudizhu": "斗地主",
     "junqi": "军旗",
-    "reaction": "反应时间",
+    "reaction": "反应挑战",
+    "schulte": "舒尔特方格",
     "hanoi": "汉诺塔",
 }
+TIME_TRIAL_GAMES = {"reaction", "schulte"}
 
 
 class AccountError(ValueError):
@@ -99,6 +101,12 @@ class AccountStore:
             ]
             if missing_games:
                 connection.execute(insert(games), missing_games)
+            for key, name in GAME_NAMES.items():
+                connection.execute(
+                    update(games)
+                    .where(games.c.key == key, games.c.name != name)
+                    .values(name=name)
+                )
         self._initialized = True
 
     def ping(self) -> None:
@@ -505,7 +513,7 @@ class AccountStore:
         self, account_id: str, *, game_key: str | None = None
     ) -> dict[str, int | float | None]:
         self.initialize()
-        if game_key == "reaction":
+        if game_key in TIME_TRIAL_GAMES:
             statement = (
                 select(
                     func.count().label("games"),
@@ -519,7 +527,7 @@ class AccountStore:
                 )
                 .where(
                     match_players.c.account_id == account_id,
-                    matches.c.game_key == "reaction",
+                    matches.c.game_key == game_key,
                     match_players.c.score_ms.is_not(None),
                 )
             )
@@ -610,7 +618,7 @@ class AccountStore:
         if game_key is not None:
             statement = statement.where(matches.c.game_key == game_key)
         else:
-            statement = statement.where(matches.c.game_key != "reaction")
+            statement = statement.where(matches.c.game_key.not_in(TIME_TRIAL_GAMES))
         with self.engine.connect() as connection:
             row = connection.execute(statement).mappings().one()
         game_count = int(row["games"])
@@ -629,7 +637,7 @@ class AccountStore:
 
     def leaderboard(self, *, game_key: str, limit: int = 50) -> list[dict]:
         self.initialize()
-        if game_key == "reaction":
+        if game_key in TIME_TRIAL_GAMES:
             attempt_count = func.count().label("games")
             best_ms = func.min(match_players.c.score_ms).label("best_ms")
             average_ms = func.avg(match_players.c.score_ms).label("average_ms")
@@ -647,7 +655,7 @@ class AccountStore:
                     ).join(users, users.c.id == match_players.c.account_id)
                 )
                 .where(
-                    matches.c.game_key == "reaction",
+                    matches.c.game_key == game_key,
                     matches.c.ranked.is_(True),
                     match_players.c.score_ms.is_not(None),
                 )
@@ -823,7 +831,7 @@ class AccountStore:
 
     @staticmethod
     def _game_outcome(*, game_key: str, winner: str, won: bool) -> str:
-        if game_key == "reaction":
+        if game_key in TIME_TRIAL_GAMES:
             return "completed"
         if winner == "draw":
             return "draw"

@@ -21,20 +21,31 @@ const showStats = ref(false)
 const showLeaderboard = ref(false)
 const gameKey = computed(() => props.game.key as ArcadeGameKey)
 const rules = ref<Record<string, unknown>>(defaultGameRules(gameKey.value))
-const isSolo = computed(() => ['reaction', 'hanoi'].includes(props.game.key))
-const soloIntro = computed(() => props.game.key === 'hanoi'
-  ? {
+const isSolo = computed(() => ['reaction', 'schulte', 'hanoi'].includes(props.game.key))
+const soloIntro = computed(() => {
+  if (props.game.key === 'hanoi') {
+    return {
       mark: '塔',
       title: '把整座圆盘移到最右侧',
       description: '每次只能移动最上方一块，大圆盘不能压在小圆盘上',
       button: '开始汉诺塔挑战',
     }
-  : {
+  }
+  if (props.game.key === 'schulte') {
+    return {
+      mark: '格',
+      title: '按顺序找到 1–25',
+      description: '5×5 标准挑战，服务端计时并验证每一次点击',
+      button: '开始舒尔特挑战',
+    }
+  }
+  return {
       mark: '⚡',
       title: '准备测试你的反应速度',
       description: '共三轮；看到按钮变绿后，按空格键或直接点击',
       button: '开始反应挑战',
-    })
+    }
+})
 const rooms = computed(() =>
   arcade.availableRooms.filter((room) => room.gameKey === props.game.key),
 )
@@ -104,7 +115,7 @@ async function chooseRoom(code: string) {
       </div>
       <form @submit.prevent="submit">
         <GameRuleSettings
-          v-if="mode === 'create' && gameKey !== 'reaction'"
+          v-if="mode === 'create' && !['reaction', 'schulte'].includes(gameKey)"
           v-model="rules"
           :game-key="gameKey"
           class="create-rule-settings"

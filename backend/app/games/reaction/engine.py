@@ -19,7 +19,7 @@ class ReactionState:
 
 class ReactionEngine:
     key = "reaction"
-    name = "反应时间"
+    name = "反应挑战"
     min_players = 1
     max_players = 1
     public_rooms = False
