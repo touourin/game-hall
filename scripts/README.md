@@ -1,6 +1,6 @@
 # 服务重启脚本
 
-`restart.py` 使用 Docker Compose 重新构建并重启 Avalon。它会根据脚本自身的位置寻找仓库根目录，因此既能用于本机目录，也能用于 `/opt/Avalon` 这样的服务器目录。
+`restart.py` 使用 Docker Compose 重新构建并重启私人游戏大厅。它会根据脚本自身的位置寻找仓库根目录，因此既能用于本机目录，也能用于 `/opt/Avalon` 这样的服务器目录。
 
 重新构建当前代码：
 

@@ -3,7 +3,7 @@ requires = ["setuptools>=75"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "avalon-lan-server"
+name = "private-game-hall-server"
 version = "0.2.0"
 description = "Authoritative LAN server for a private multiplayer game hall"
 requires-python = ">=3.11"

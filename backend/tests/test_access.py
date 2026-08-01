@@ -12,7 +12,7 @@ from backend.app.realtime import connect, sio
 
 
 def test_password_and_token_are_verified_server_side(monkeypatch) -> None:
-    monkeypatch.setenv("AVALON_ACCESS_PASSWORD", "test-secret")
+    monkeypatch.setenv("GAME_HALL_ACCESS_PASSWORD", "test-secret")
 
     assert verify_password("test-secret") is True
     assert verify_password("wrong") is False
@@ -21,9 +21,16 @@ def test_password_and_token_are_verified_server_side(monkeypatch) -> None:
     assert verify_access_token(None) is False
 
 
+def test_legacy_avalon_access_password_is_still_accepted(monkeypatch) -> None:
+    monkeypatch.delenv("GAME_HALL_ACCESS_PASSWORD", raising=False)
+    monkeypatch.setenv("AVALON_ACCESS_PASSWORD", "legacy-secret")
+
+    assert verify_password("legacy-secret") is True
+
+
 def test_access_endpoints_reject_wrong_password(monkeypatch, tmp_path) -> None:
-    monkeypatch.setenv("AVALON_ACCESS_PASSWORD", "test-secret")
-    monkeypatch.setenv("AVALON_DB_PATH", str(tmp_path / "access.sqlite3"))
+    monkeypatch.setenv("GAME_HALL_ACCESS_PASSWORD", "test-secret")
+    monkeypatch.setenv("GAME_HALL_DB_PATH", str(tmp_path / "access.sqlite3"))
 
     with TestClient(api) as client:
         rejected = client.post(
@@ -46,8 +53,8 @@ def test_access_endpoints_reject_wrong_password(monkeypatch, tmp_path) -> None:
 
 
 def test_account_registration_login_and_session(monkeypatch, tmp_path) -> None:
-    monkeypatch.setenv("AVALON_ACCESS_PASSWORD", "test-secret")
-    monkeypatch.setenv("AVALON_DB_PATH", str(tmp_path / "accounts.sqlite3"))
+    monkeypatch.setenv("GAME_HALL_ACCESS_PASSWORD", "test-secret")
+    monkeypatch.setenv("GAME_HALL_DB_PATH", str(tmp_path / "accounts.sqlite3"))
     access_header = {"X-Avalon-Access": access_token()}
 
     with TestClient(api) as client:
@@ -99,8 +106,8 @@ def test_account_registration_login_and_session(monkeypatch, tmp_path) -> None:
 async def test_socket_connection_requires_both_tokens(
     monkeypatch, tmp_path
 ) -> None:
-    monkeypatch.setenv("AVALON_ACCESS_PASSWORD", "test-secret")
-    monkeypatch.setenv("AVALON_DB_PATH", str(tmp_path / "socket.sqlite3"))
+    monkeypatch.setenv("GAME_HALL_ACCESS_PASSWORD", "test-secret")
+    monkeypatch.setenv("GAME_HALL_DB_PATH", str(tmp_path / "socket.sqlite3"))
     _, account_token = account_store().register(
         "socket_player", "secret123", "连接玩家"
     )

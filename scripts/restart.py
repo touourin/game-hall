@@ -26,7 +26,7 @@ def positive_integer(raw_value: str) -> int:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Rebuild and restart Avalon with Docker Compose.",
+        description="Rebuild and restart the game hall with Docker Compose.",
     )
     parser.add_argument(
         "--pull",
@@ -114,7 +114,7 @@ def pull_current_branch() -> None:
 
 def container_status() -> str:
     container_result = run(
-        ["docker", "compose", "ps", "-q", "avalon"],
+        ["docker", "compose", "ps", "-q", "app"],
         capture_output=True,
         check=False,
     )
@@ -140,13 +140,13 @@ def container_status() -> str:
 
 def show_recent_logs() -> None:
     run(
-        ["docker", "compose", "logs", "--tail", "100", "avalon"],
+        ["docker", "compose", "logs", "--tail", "100", "app"],
         check=False,
     )
 
 
 def wait_until_healthy(timeout: int) -> None:
-    log("Waiting for the Avalon container to become healthy")
+    log("Waiting for the game hall container to become healthy")
     deadline = time.monotonic() + timeout
     last_status = "unknown"
 
@@ -157,18 +157,18 @@ def wait_until_healthy(timeout: int) -> None:
 
         if current_status in {"healthy", "running"}:
             run(["docker", "compose", "ps"])
-            print("\nAvalon restarted successfully.")
+            print("\nGame hall restarted successfully.")
             return
 
         if current_status in {"unhealthy", "exited", "dead"}:
             show_recent_logs()
-            fail(f"Avalon container entered state: {current_status}")
+            fail(f"Game hall container entered state: {current_status}")
 
         time.sleep(2)
 
     show_recent_logs()
     fail(
-        f"Avalon did not become healthy within {timeout} seconds "
+        f"Game hall did not become healthy within {timeout} seconds "
         f"(last state: {last_status})"
     )
 
@@ -182,8 +182,8 @@ def main() -> int:
 
     run(["docker", "compose", "config", "--quiet"])
 
-    log("Building and restarting Avalon")
-    run(["docker", "compose", "up", "-d", "--build", "avalon"])
+    log("Building and restarting the game hall")
+    run(["docker", "compose", "up", "-d", "--build", "app"])
     wait_until_healthy(args.timeout)
     return 0
 

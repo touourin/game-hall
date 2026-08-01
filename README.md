@@ -53,7 +53,7 @@
 cp .env.example .env
 ```
 
-编辑 `.env` 中的访问密码、MySQL 密码和 Redis 密码，不要把 `.env` 提交到 Git。建议为三个密码分别使用随机值。
+编辑 `.env` 中的大厅访问密码、MySQL 密码和 Redis 密码，不要把 `.env` 提交到 Git。建议为四个密码分别使用独立随机值。默认配置使用数据库和用户 `game_hall`，并只在服务器回环地址发布 MySQL `1025` 与 Redis `7878`；容器内部仍使用标准端口 `3306` 与 `6379`。
 
 ```bash
 docker compose up -d --build
@@ -75,6 +75,13 @@ http://192.168.1.20:8800
 所有浏览器必须先通过访问密码验证，再注册或登录个人账号；验证前无法连接房间和游戏服务。
 
 账号、战绩和排行榜保存在 MySQL 命名卷 `mysql-data` 中；Redis 数据保存在 `redis-data` 中。普通的重新构建和重启不会清空这些数据；不要使用 `docker compose down -v`，除非确定要删除全部持久化数据。
+
+从旧的 Avalon 级基础设施命名切换到游戏大厅命名、且明确不保留旧数据时，可以先清理旧 Compose 项目，再使用新配置启动：
+
+```bash
+docker compose -p avalon down -v --remove-orphans
+docker compose up -d --build
+```
 
 停止服务：
 
@@ -146,15 +153,15 @@ Redis 负责 Socket.IO 跨进程消息协调，并启用 AOF 持久化。当前�
 MySQL 和 Redis 默认只监听服务器的 `127.0.0.1`，不会暴露到局域网或公网。需要用数据库可视化软件时，推荐建立 SSH 隧道：
 
 ```bash
-ssh -L 13306:127.0.0.1:3306 root@服务器IP
+ssh -L 13306:127.0.0.1:1025 root@服务器IP
 ```
 
-然后在数据库软件中连接 `127.0.0.1:13306`，用户名、密码和数据库名取自服务器的 `.env`。这样无需开放公网 3306；如果本机的 13306 已被占用，可以换成其他本地端口。
+然后在数据库软件中连接 `127.0.0.1:13306`，用户名、密码和数据库名取自服务器的 `.env`。这样无需把数据库端口开放到公网；如果本机的 `13306` 已被占用，可以换成其他本地端口。
 
 备份 MySQL：
 
 ```bash
-docker exec avalon-mysql sh -c 'exec mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"' > avalon-backup.sql
+docker exec game-hall-mysql sh -c 'exec mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"' > game-hall-backup.sql
 ```
 
 ## 项目结构

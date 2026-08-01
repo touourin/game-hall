@@ -5,12 +5,13 @@ import hmac
 import os
 
 
-PASSWORD_ENV = "AVALON_ACCESS_PASSWORD"
-TOKEN_MESSAGE = b"avalon-lan-access-v1"
+PASSWORD_ENV = "GAME_HALL_ACCESS_PASSWORD"
+LEGACY_PASSWORD_ENV = "AVALON_ACCESS_PASSWORD"
+TOKEN_MESSAGE = b"game-hall-access-v1"
 
 
 def access_password() -> str:
-    password = os.getenv(PASSWORD_ENV)
+    password = os.getenv(PASSWORD_ENV) or os.getenv(LEGACY_PASSWORD_ENV)
     if not password:
         raise RuntimeError(
             f"{PASSWORD_ENV} is required and must not be empty"

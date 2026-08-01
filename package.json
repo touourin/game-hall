@@ -1,5 +1,5 @@
 {
-  "name": "avalon-lan",
+  "name": "private-game-hall",
   "private": true,
   "scripts": {
     "dev": "concurrently -k -n SERVER,WEB -c magenta,cyan \"npm run dev:server\" \"npm run dev:web\"",

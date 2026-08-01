@@ -1,11 +1,13 @@
+name: game-hall
+
 services:
   mysql:
     image: mysql:8.4
-    container_name: avalon-mysql
+    container_name: game-hall-mysql
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-avalon}
-      MYSQL_USER: ${MYSQL_USER:-avalon}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-game_hall}
+      MYSQL_USER: ${MYSQL_USER:-game_hall}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
       TZ: Asia/Shanghai
@@ -13,7 +15,7 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_0900_ai_ci
     ports:
-      - "${MYSQL_PUBLISH_HOST:-127.0.0.1}:${MYSQL_PORT:-3306}:3306"
+      - "${MYSQL_PUBLISH_HOST:-127.0.0.1}:${MYSQL_PUBLISH_PORT:-1025}:3306"
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
@@ -27,7 +29,7 @@ services:
 
   redis:
     image: redis:7.4-alpine
-    container_name: avalon-redis
+    container_name: game-hall-redis
     restart: unless-stopped
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
@@ -37,7 +39,7 @@ services:
       - -c
       - exec redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}"
     ports:
-      - "${REDIS_PUBLISH_HOST:-127.0.0.1}:${REDIS_PORT:-6379}:6379"
+      - "${REDIS_PUBLISH_HOST:-127.0.0.1}:${REDIS_PUBLISH_PORT:-7878}:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -50,7 +52,7 @@ services:
       start_period: 10s
 
   migrate:
-    image: avalon-app:local
+    image: game-hall-app:local
     command:
       - alembic
       - -c
@@ -58,23 +60,23 @@ services:
       - upgrade
       - head
     environment:
-      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-avalon}:${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}@mysql:3306/${MYSQL_DATABASE:-avalon}?charset=utf8mb4
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-game_hall}:${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}@mysql:3306/${MYSQL_DATABASE:-game_hall}?charset=utf8mb4
     depends_on:
       mysql:
         condition: service_healthy
     restart: "no"
 
-  avalon:
-    image: avalon-app:local
+  app:
+    image: game-hall-app:local
     build:
       context: .
       args:
         PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
-    container_name: avalon-lan
+    container_name: game-hall-app
     restart: unless-stopped
     environment:
-      AVALON_ACCESS_PASSWORD: ${AVALON_ACCESS_PASSWORD:?Set AVALON_ACCESS_PASSWORD in .env}
-      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-avalon}:${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}@mysql:3306/${MYSQL_DATABASE:-avalon}?charset=utf8mb4
+      GAME_HALL_ACCESS_PASSWORD: ${GAME_HALL_ACCESS_PASSWORD:-${AVALON_ACCESS_PASSWORD:-}}
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-game_hall}:${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}@mysql:3306/${MYSQL_DATABASE:-game_hall}?charset=utf8mb4
       REDIS_URL: redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}@redis:6379/0
     depends_on:
       migrate:
@@ -82,7 +84,7 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "${AVALON_PORT:-8800}:8000"
+      - "${GAME_HALL_PORT:-${AVALON_PORT:-8800}}:8000"
 
 volumes:
   mysql-data:

@@ -840,9 +840,11 @@ def account_store() -> AccountStore:
     source = os.environ.get("DATABASE_URL")
     if source is None:
         default_path = (
-            Path(__file__).resolve().parents[2] / ".data" / "avalon.sqlite3"
+            Path(__file__).resolve().parents[2] / ".data" / "game-hall.sqlite3"
         )
-        source = os.environ.get("AVALON_DB_PATH", str(default_path))
+        source = os.environ.get("GAME_HALL_DB_PATH") or os.environ.get(
+            "AVALON_DB_PATH", str(default_path)
+        )
     key = normalize_database_url(source)
     if key not in _stores:
         _stores[key] = AccountStore(key)

@@ -35,7 +35,7 @@ from .infrastructure import redis_url
 
 redis_connection_url = redis_url()
 socket_manager = (
-    socketio.AsyncRedisManager(redis_connection_url, channel="avalon")
+    socketio.AsyncRedisManager(redis_connection_url, channel="game-hall")
     if redis_connection_url is not None
     else None
 )
