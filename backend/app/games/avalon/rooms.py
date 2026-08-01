@@ -251,6 +251,13 @@ class RoomManager:
         self._remove_player(room, target_id)
         room.revision += 1
 
+    def dissolve_room(self, room: Room, actor_id: str) -> None:
+        if room.phase != Phase.LOBBY:
+            raise RoomError("游戏开始后不能直接解散房间")
+        if room.host_id != actor_id:
+            raise RoomError("只有房主可以解散房间")
+        self.rooms.pop(room.code, None)
+
     def set_lady_enabled(
         self, room: Room, actor_id: str, enabled: bool
     ) -> None:

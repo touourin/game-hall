@@ -30,8 +30,10 @@ import SecretCard from './components/SecretCard.vue'
 import InviteLinkPanel from '../../components/InviteLinkPanel.vue'
 import HostTransferNotice from '../../components/HostTransferNotice.vue'
 import RoomExitButton from '../../components/RoomExitButton.vue'
+import RoomDissolveButton from '../../components/RoomDissolveButton.vue'
 import RoomPageHeader from '../../components/RoomPageHeader.vue'
 import RoomInviteModal from '../../components/RoomInviteModal.vue'
+import RoomKickButton from '../../components/RoomKickButton.vue'
 import {
   clearRoleSkinLock,
   lockRoleSkin,
@@ -601,6 +603,11 @@ async function sendChat() {
             <CircleHelp :size="21" />
           </button>
         </template>
+        <RoomDissolveButton
+          v-if="snapshot.actions.canDissolve"
+          :busy="room.busy"
+          @confirm="room.dissolveRoom"
+        />
         <RoomExitButton
           :busy="room.busy"
           :description="
@@ -723,15 +730,12 @@ async function sendChat() {
           <div class="player-row-actions">
             <span v-if="player.isHost" class="status-badge gold">房主</span>
             <span v-if="!player.connected" class="status-badge">离线</span>
-            <button
+            <RoomKickButton
               v-if="snapshot.self.isHost && !player.isHost"
-              class="kick-button"
-              type="button"
-              :aria-label="`移除 ${player.name}`"
-              @click="room.perform('room:kick', { target_id: player.id })"
-            >
-              <X :size="15" /> 移除
-            </button>
+              :player-name="player.name"
+              :busy="room.busy"
+              @confirm="room.perform('room:kick', { target_id: player.id })"
+            />
           </div>
         </div>
       </div>

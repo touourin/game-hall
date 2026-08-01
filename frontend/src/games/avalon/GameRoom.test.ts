@@ -1,5 +1,5 @@
 import { createPinia } from 'pinia'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { beforeEach, vi } from 'vitest'
 import * as clipboard from '../../clipboard'
@@ -89,6 +89,7 @@ function roleRevealSnapshot(revision: number): RoomSnapshot {
     actions: {
       canStart: false,
       canUpdateSettings: false,
+      canDissolve: false,
       canLeave: false,
       canConfirmRole: true,
       canProposeTeam: false,
@@ -281,6 +282,65 @@ describe('GameRoom role reveal', () => {
     await wrapper.get('.add-ai-button').trigger('click')
 
     expect(perform).toHaveBeenCalledWith('room:add-ai-player')
+  })
+
+  it('uses the shared confirmation before the host dissolves a lobby', async () => {
+    const snapshot = roleRevealSnapshot(1)
+    snapshot.phase = 'lobby'
+    snapshot.self.role = null
+    snapshot.actions.canConfirmRole = false
+    snapshot.actions.canDissolve = true
+    const pinia = createPinia()
+    const room = useRoomStore(pinia)
+    const dissolveRoom = vi.spyOn(room, 'dissolveRoom').mockResolvedValue(true)
+    const wrapper = mount(GameRoom, {
+      props: { snapshot },
+      global: { plugins: [pinia] },
+    })
+
+    await wrapper.get('.dissolve-room-trigger').trigger('click')
+    expect(wrapper.get('.dissolve-room-modal').text()).toContain(
+      '所有等待中的玩家都会返回大厅',
+    )
+    expect(dissolveRoom).not.toHaveBeenCalled()
+
+    await wrapper.get('.dissolve-room-actions .danger').trigger('click')
+    await flushPromises()
+
+    expect(dissolveRoom).toHaveBeenCalledOnce()
+  })
+
+  it('uses the shared confirmation before the host removes a player', async () => {
+    const snapshot = roleRevealSnapshot(1)
+    snapshot.phase = 'lobby'
+    snapshot.self.role = null
+    snapshot.actions.canConfirmRole = false
+    snapshot.players.push({
+      id: 'p2',
+      name: '第二位玩家',
+      seat: 1,
+      connected: true,
+      isBot: false,
+      isHost: false,
+      isLeader: false,
+      isSelected: false,
+    })
+    const pinia = createPinia()
+    const room = useRoomStore(pinia)
+    const perform = vi.spyOn(room, 'perform').mockResolvedValue({ ok: true })
+    const wrapper = mount(GameRoom, {
+      props: { snapshot },
+      global: { plugins: [pinia] },
+    })
+
+    await wrapper.get('[aria-label="移除第二位玩家"]').trigger('click')
+    expect(wrapper.get('.kick-player-modal').text()).toContain('移除第二位玩家？')
+    expect(perform).not.toHaveBeenCalled()
+
+    await wrapper.get('.kick-player-actions .danger').trigger('click')
+    await flushPromises()
+
+    expect(perform).toHaveBeenCalledWith('room:kick', { target_id: 'p2' })
   })
 
   it('chooses a personal skin in the lobby and locks it for the game', async () => {

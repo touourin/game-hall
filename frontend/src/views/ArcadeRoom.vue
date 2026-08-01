@@ -6,9 +6,7 @@ import {
   QrCode,
   RotateCcw,
   Settings2,
-  Trash2,
   Undo2,
-  UserMinus,
   UsersRound,
   X,
 } from '@lucide/vue'
@@ -17,10 +15,12 @@ import InviteLinkPanel from '../components/InviteLinkPanel.vue'
 import GameRuleSettings from '../components/GameRuleSettings.vue'
 import HostTransferNotice from '../components/HostTransferNotice.vue'
 import RoomExitButton from '../components/RoomExitButton.vue'
+import RoomDissolveButton from '../components/RoomDissolveButton.vue'
 import RoomPageHeader from '../components/RoomPageHeader.vue'
 import RoomInviteModal from '../components/RoomInviteModal.vue'
+import RoomKickButton from '../components/RoomKickButton.vue'
 import { useArcadeStore } from '../stores/arcade'
-import type { ArcadePlayer, ArcadeSnapshot } from '../types/arcade'
+import type { ArcadeSnapshot } from '../types/arcade'
 import { gameRuleLabels, withDefaultGameRules } from '../gameRules'
 import DoudizhuTable from '../games/doudizhu/DoudizhuTable.vue'
 import GoBoard from '../games/go/GoBoard.vue'
@@ -35,9 +35,6 @@ import PokerTable from '../games/poker/PokerTable.vue'
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
-const confirmation = ref<
-  { kind: 'kick'; player: ArcadePlayer } | { kind: 'dissolve' } | null
->(null)
 const ruleEditor = ref<Record<string, unknown> | null>(null)
 const showQr = ref(false)
 const missingPlayers = computed(
@@ -96,14 +93,6 @@ const exitDescription = computed(() => {
   return '你的座位和本局进度都会保留，可以从大厅随时返回。'
 })
 
-async function confirmRoomAction() {
-  if (!confirmation.value) return
-  const succeeded = confirmation.value.kind === 'kick'
-    ? await arcade.kickPlayer(confirmation.value.player.id)
-    : await arcade.dissolveRoom()
-  if (succeeded) confirmation.value = null
-}
-
 function openRuleEditor() {
   ruleEditor.value = withDefaultGameRules(
     props.snapshot.gameKey,
@@ -137,14 +126,11 @@ async function saveRules() {
         >
           <QrCode :size="21" />
         </button>
-        <button
+        <RoomDissolveButton
           v-if="snapshot.actions.canDissolve"
-          type="button"
-          class="text-danger-button"
-          @click="confirmation = { kind: 'dissolve' }"
-        >
-          <Trash2 :size="17" />解散房间
-        </button>
+          :busy="arcade.busy"
+          @confirm="arcade.dissolveRoom"
+        />
         <RoomExitButton
           :busy="arcade.busy"
           :description="exitDescription"
@@ -170,15 +156,12 @@ async function saveRules() {
             {{ player.connected ? '· 在线' : '· 离线' }}
           </small>
         </div>
-        <button
+        <RoomKickButton
           v-if="snapshot.actions.canKickPlayers && player.id !== snapshot.self.id"
-          type="button"
-          class="kick-player-button"
-          :aria-label="`移除${player.name}`"
-          @click="confirmation = { kind: 'kick', player }"
-        >
-          <UserMinus :size="16" />
-        </button>
+          :player-name="player.name"
+          :busy="arcade.busy"
+          @confirm="arcade.kickPlayer(player.id)"
+        />
       </article>
     </section>
 
@@ -306,22 +289,6 @@ async function saveRules() {
       @close="showQr = false"
     />
 
-    <div v-if="confirmation" class="modal-backdrop" @click.self="confirmation = null">
-      <section class="modal-card arcade-confirm-card" role="dialog" aria-modal="true">
-        <button class="modal-close" type="button" aria-label="关闭" @click="confirmation = null">
-          <X :size="20" />
-        </button>
-        <Trash2 v-if="confirmation.kind === 'dissolve'" :size="28" />
-        <UserMinus v-else :size="28" />
-        <h2>{{ confirmation.kind === 'dissolve' ? '解散这个房间？' : `移除${confirmation.player.name}？` }}</h2>
-        <p>{{ confirmation.kind === 'dissolve' ? '所有等待中的玩家都会返回大厅。' : '对方会立即离开当前房间。' }}</p>
-        <div class="arcade-confirm-actions">
-          <button type="button" @click="confirmation = null">取消</button>
-          <button type="button" class="danger" @click="confirmRoomAction">确认</button>
-        </div>
-      </section>
-    </div>
-
     <div v-if="ruleEditor" class="modal-backdrop" @click.self="ruleEditor = null">
       <section class="modal-card rule-editor-modal" role="dialog" aria-modal="true">
         <button class="modal-close" type="button" aria-label="关闭规则设置" @click="ruleEditor = null">
@@ -339,7 +306,6 @@ async function saveRules() {
 
 <style scoped>
 .arcade-room { padding-bottom: 70px; }
-.text-danger-button { display: inline-flex; align-items: center; gap: 6px; min-height: 42px; border: 1px solid rgba(225, 114, 114, .3); border-radius: 11px; padding: 0 12px; color: #efaaa7; background: rgba(133, 47, 52, .16); font-weight: 800; }
 .arcade-player-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px; margin-bottom: 24px; padding: 14px; }
 .arcade-player-strip article { display: flex; gap: 10px; align-items: center; padding: 10px; border: 1px solid transparent; border-radius: 12px; }
 .arcade-player-strip article > div { min-width: 0; flex: 1; }
@@ -348,7 +314,6 @@ async function saveRules() {
 .arcade-player-strip strong, .arcade-player-strip small { display: block; }
 .arcade-player-strip small { margin-top: 2px; color: var(--muted); }
 .arcade-player-strip small svg { vertical-align: -2px; color: var(--gold); }
-.kick-player-button { display: grid; flex: 0 0 auto; place-items: center; width: 34px; aspect-ratio: 1; border: 1px solid rgba(225, 114, 114, .24); border-radius: 10px; color: #efaaa7; background: rgba(133, 47, 52, .12); }
 .room-rule-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -12px 0 24px; padding: 11px 13px; }
 .room-rule-bar > div { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; min-width: 0; }
 .room-rule-bar svg { flex: 0 0 auto; color: var(--gold); }
@@ -376,18 +341,10 @@ async function saveRules() {
 .match-request-panel button { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; border: 1px solid var(--line); border-radius: 10px; padding: 0 11px; color: var(--text); background: transparent; font-weight: 800; }
 .request-waiting-actions { justify-content: flex-end; }
 .request-response-actions button.accept { border-color: color-mix(in srgb, var(--gold) 38%, var(--line)); color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, transparent); }
-.arcade-confirm-card { width: min(92vw, 430px); text-align: center; }
-.arcade-confirm-card > svg { color: #efaaa7; }
-.arcade-confirm-card h2 { margin: 12px 0 6px; }
-.arcade-confirm-card p { color: var(--muted); }
-.arcade-confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 18px; }
-.arcade-confirm-actions button { min-height: 43px; border: 1px solid var(--line); border-radius: 11px; color: var(--text); background: transparent; font-weight: 850; }
-.arcade-confirm-actions button.danger { border-color: rgba(225, 114, 114, .34); color: #f1b0b0; background: rgba(133, 47, 52, .18); }
 .rule-editor-modal { width: min(94vw, 620px); max-height: min(88vh, 820px); overflow-y: auto; }
 .rule-editor-modal > p { margin: -4px 0 20px; color: var(--muted); }
 .rule-editor-modal > .wide-button { margin-top: 22px; }
 @media (max-width: 600px) {
-  .text-danger-button { width: 42px; padding: 0; justify-content: center; font-size: 0; }
   .match-request-panel { align-items: stretch; flex-direction: column; }
   .match-request-panel > div { display: grid; grid-template-columns: 1fr 1fr; }
   .match-request-panel button { justify-content: center; }

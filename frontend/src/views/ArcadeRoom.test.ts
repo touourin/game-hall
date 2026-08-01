@@ -95,6 +95,27 @@ describe('ArcadeRoom', () => {
     expect(wrapper.find('.qr-modal').exists()).toBe(false)
   })
 
+  it('uses the shared confirmation before dissolving a multiplayer room', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const dissolveRoom = vi.spyOn(arcade, 'dissolveRoom').mockResolvedValue(true)
+    const wrapper = mount(ArcadeRoom, {
+      props: { snapshot: snapshot('gomoku') },
+      global: { plugins: [pinia] },
+    })
+
+    await wrapper.get('.dissolve-room-trigger').trigger('click')
+    expect(wrapper.get('.dissolve-room-modal').text()).toContain(
+      '所有等待中的玩家都会返回大厅',
+    )
+    expect(dissolveRoom).not.toHaveBeenCalled()
+
+    await wrapper.get('.dissolve-room-actions .danger').trigger('click')
+    await flushPromises()
+
+    expect(dissolveRoom).toHaveBeenCalledOnce()
+  })
+
   it('shows the invitation URL when automatic copying is blocked', async () => {
     const copyText = vi.spyOn(clipboard, 'copyText').mockResolvedValue(false)
     const wrapper = mount(ArcadeRoom, {
@@ -132,11 +153,11 @@ describe('ArcadeRoom', () => {
 
     await wrapper.get('[aria-label="移除玩家二"]').trigger('click')
     expect(wrapper.text()).toContain('移除玩家二？')
-    await wrapper.get('.arcade-confirm-actions .danger').trigger('click')
+    await wrapper.get('.kick-player-actions .danger').trigger('click')
     await flushPromises()
 
     expect(kickPlayer).toHaveBeenCalledWith('p2')
-    expect(wrapper.find('.arcade-confirm-card').exists()).toBe(false)
+    expect(wrapper.find('.kick-player-modal').exists()).toBe(false)
   })
 
   it('asks for confirmation before leaving the room', async () => {

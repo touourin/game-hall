@@ -221,3 +221,77 @@ async def test_leaving_avalon_without_room_session_is_idempotent(
         "socket-without-room",
         {"account_id": "account-1"},
     )
+
+
+async def test_dissolving_avalon_ejects_every_player_and_clears_sessions(
+    monkeypatch,
+) -> None:
+    manager = RoomManager()
+    room, host, _ = manager.create_room("亚瑟", account_id="account-1")
+    _, guest, _ = manager.join_room(
+        room.code, "兰斯洛特", account_id="account-2"
+    )
+    sessions = {
+        "host-socket": {
+            "account_id": "account-1",
+            "room_code": room.code,
+            "player_id": host.id,
+        },
+        "guest-socket": {
+            "account_id": "account-2",
+            "room_code": room.code,
+            "player_id": guest.id,
+        },
+    }
+
+    async def get_session(sid: str):
+        return sessions[sid]
+
+    emit = AsyncMock()
+    save_session = AsyncMock()
+    leave_socket_room = AsyncMock()
+    broadcast_lobby = AsyncMock()
+    persist_state = AsyncMock()
+    monkeypatch.setattr(realtime, "avalon_rooms", manager)
+    monkeypatch.setattr(
+        realtime,
+        "avalon_active_sids",
+        defaultdict(
+            set,
+            {
+                (room.code, host.id): {"host-socket"},
+                (room.code, guest.id): {"guest-socket"},
+            },
+        ),
+    )
+    monkeypatch.setattr(sio, "get_session", get_session)
+    monkeypatch.setattr(sio, "emit", emit)
+    monkeypatch.setattr(sio, "save_session", save_session)
+    monkeypatch.setattr(sio, "leave_room", leave_socket_room)
+    monkeypatch.setattr(
+        realtime, "broadcast_avalon_lobby", broadcast_lobby
+    )
+    monkeypatch.setattr(realtime, "persist_room_state", persist_state)
+
+    response = await realtime.dissolve_room("host-socket")
+
+    assert response == {"ok": True}
+    assert room.code not in manager.rooms
+    assert emit.await_count == 2
+    assert all(call.args[0] == "room:closed" for call in emit.await_args_list)
+    payloads = {
+        call.kwargs["to"]: call.args[1] for call in emit.await_args_list
+    }
+    assert payloads["host-socket"]["silent"] is True
+    assert payloads["guest-socket"] == {
+        "message": "房主已解散房间",
+        "silent": False,
+    }
+    assert save_session.await_count == 2
+    assert sessions == {
+        "host-socket": {"account_id": "account-1"},
+        "guest-socket": {"account_id": "account-2"},
+    }
+    assert not realtime.avalon_active_sids
+    broadcast_lobby.assert_awaited_once()
+    persist_state.assert_awaited_once()

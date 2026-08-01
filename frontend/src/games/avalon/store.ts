@@ -72,6 +72,11 @@ export const useRoomStore = defineStore('room', () => {
         if (!socket.connected) socket.connect()
       }, 250)
     })
+    socket.on('room:closed', (payload: { message?: string; silent?: boolean }) => {
+      snapshot.value = null
+      clearSession()
+      error.value = payload.silent ? null : (payload.message ?? '房间已经解散')
+    })
     socket.connect()
   }
 
@@ -156,6 +161,15 @@ export const useRoomStore = defineStore('room', () => {
     return Boolean(response)
   }
 
+  async function dissolveRoom() {
+    const response = await perform('room:dissolve')
+    if (response) {
+      snapshot.value = null
+      clearSession()
+    }
+    return Boolean(response)
+  }
+
   async function returnToRoom() {
     if (!session.value || snapshot.value) return
     await resume()
@@ -199,6 +213,7 @@ export const useRoomStore = defineStore('room', () => {
     joinRoom,
     leaveRoom,
     cleanupRoom,
+    dissolveRoom,
     returnToRoom,
     clearError,
     resetForLogout,

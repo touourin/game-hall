@@ -158,6 +158,8 @@ def build_player_view(
         and player_count in GOOD_EVIL_COUNTS,
         "canUpdateSettings": room.phase == Phase.LOBBY
         and viewer.id == room.host_id,
+        "canDissolve": room.phase == Phase.LOBBY
+        and viewer.id == room.host_id,
         "canLeave": True,
         "canConfirmRole": room.phase == Phase.ROLE_REVEAL
         and viewer.id not in room.role_confirmed_ids,

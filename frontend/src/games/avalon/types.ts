@@ -79,6 +79,7 @@ export interface LobbyRoom {
 export interface RoomActions {
   canStart: boolean
   canUpdateSettings: boolean
+  canDissolve: boolean
   canLeave: boolean
   canConfirmRole: boolean
   canProposeTeam: boolean

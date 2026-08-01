@@ -48,6 +48,24 @@ def test_host_can_remove_player_from_lobby():
     assert [current.id for current in room.players] == [host.id]
 
 
+def test_only_host_can_dissolve_a_waiting_room():
+    manager = RoomManager()
+    room, host, _ = manager.create_room("亚瑟")
+    _, guest, _ = manager.join_room(room.code, "兰斯洛特")
+
+    with pytest.raises(RoomError, match="只有房主"):
+        manager.dissolve_room(room, guest.id)
+
+    room.phase = Phase.ROLE_REVEAL
+    with pytest.raises(RoomError, match="游戏开始后"):
+        manager.dissolve_room(room, host.id)
+
+    room.phase = Phase.LOBBY
+    manager.dissolve_room(room, host.id)
+
+    assert room.code not in manager.rooms
+
+
 def test_host_can_add_and_remove_ai_players_from_lobby():
     manager = RoomManager()
     room, host, _ = manager.create_room("亚瑟")

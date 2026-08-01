@@ -98,6 +98,18 @@ def test_ai_player_marker_and_add_action_are_in_player_view():
     assert view["actions"]["canAddAiPlayer"] is True
 
 
+def test_only_lobby_host_can_dissolve_avalon_room():
+    manager = RoomManager()
+    room, host, _ = manager.create_room("亚瑟")
+    _, guest, _ = manager.join_room(room.code, "兰斯洛特")
+
+    host_view = build_player_view(room, host, GameEngine())
+    guest_view = build_player_view(room, guest, GameEngine())
+
+    assert host_view["actions"]["canDissolve"] is True
+    assert guest_view["actions"]["canDissolve"] is False
+
+
 def test_lobby_view_only_lists_public_joinable_rooms():
     manager = RoomManager()
     visible, _, _ = manager.create_room("亚瑟")

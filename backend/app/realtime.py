@@ -62,6 +62,7 @@ INFO_SOCKET_EVENTS = {
     "game:start",
     "room:cleanup",
     "room:create",
+    "room:dissolve",
     "room:join",
     "room:kick",
     "room:leave",
@@ -200,6 +201,29 @@ async def clear_room_session(sid: str) -> None:
     session.pop("room_code", None)
     session.pop("player_id", None)
     await sio.save_session(sid, session)
+
+
+async def eject_avalon_player(
+    room_code: str,
+    player_id: str,
+    *,
+    event: str,
+    message: str,
+    silent: bool = False,
+) -> None:
+    key = (room_code, player_id)
+    target_sids = list(avalon_active_sids.pop(key, set()))
+    for target_sid in target_sids:
+        await sio.emit(
+            event,
+            {"message": message, "silent": silent},
+            to=target_sid,
+        )
+        await sio.leave_room(
+            target_sid,
+            player_channel(room_code, player_id),
+        )
+        await clear_room_session(target_sid)
 
 
 async def context_for_sid(sid: str) -> tuple[Room, str]:
@@ -529,6 +553,30 @@ async def leave_room(sid: str, raw_data: Any = None) -> dict[str, Any]:
             await broadcast_avalon_room(room)
         await broadcast_avalon_lobby()
         return {"ok": True, "seatPreserved": seat_preserved}
+    except (RoomError, GameRuleError, KeyError) as error:
+        return error_response(error)
+
+
+@logged_socket_event("room:dissolve")
+async def dissolve_room(
+    sid: str, raw_data: Any = None
+) -> dict[str, Any]:
+    try:
+        room, player_id = await context_for_sid(sid)
+        player_ids = [player.id for player in room.players]
+        async with room.lock:
+            avalon_rooms.dissolve_room(room, player_id)
+        for target_id in player_ids:
+            await eject_avalon_player(
+                room.code,
+                target_id,
+                event="room:closed",
+                message="房主已解散房间",
+                silent=target_id == player_id,
+            )
+        await broadcast_avalon_lobby()
+        await persist_room_state()
+        return {"ok": True}
     except (RoomError, GameRuleError, KeyError) as error:
         return error_response(error)
 
