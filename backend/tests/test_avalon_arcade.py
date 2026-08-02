@@ -126,12 +126,5 @@ def test_avalon_ai_and_finished_room_lifecycle_remain_unchanged() -> None:
     domain.win_reason = "测试终局"
     domain.phase = Phase.GAME_OVER
     engine._sync_outer(room, domain)
-    assert manager.leave(room, host.id) is True
-    assert room.players[0].id == host.id
-    assert host.connected is False
-
-    host.connected = True
-    engine.restart(room, host)
-    assert room.phase == "lobby"
-    assert domain.phase == Phase.LOBBY
-    assert all(player.role is None for player in domain.players)
+    manager.leave(room, host.id)
+    assert room.code not in manager.rooms

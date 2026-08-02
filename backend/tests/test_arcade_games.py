@@ -7,7 +7,11 @@ import pytest
 
 from backend.app.accounts import AccountStore
 from backend.app.arcade.models import ArcadePlayer, ArcadeRoom
-from backend.app.arcade.rooms import ArcadeRoomError, ArcadeRoomManager
+from backend.app.arcade.rooms import (
+    ActiveRoomError,
+    ArcadeRoomError,
+    ArcadeRoomManager,
+)
 from backend.app.arcade.views import (
     build_lobby_view as build_arcade_lobby_view,
     build_room_view as build_arcade_room_view,
@@ -1076,10 +1080,59 @@ def test_finished_room_leave_does_not_offer_resume() -> None:
     manager.act(room, host.id, "resign", {})
 
     assert room.phase == "finished"
-    assert manager.leave(room, host.id) is False
+    manager.leave(room, host.id)
     assert all(player.id != host.id for player in room.players)
     assert room.player(guest.id).connected is True
     assert room.phase == "lobby"
+
+
+def test_active_solo_abandon_removes_room_and_releases_account() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, player, _ = manager.create_room(
+        "reaction", "反应玩家", "account-solo"
+    )
+    manager.start(room, player.id)
+
+    assert manager.abandon(room, player.id) is False
+    assert room.code not in manager.rooms
+    assert manager.active_room_for_account("account-solo") is None
+
+    next_room, _, _ = manager.create_room(
+        "minesweeper", "反应玩家", "account-solo"
+    )
+    assert next_room.code in manager.rooms
+
+
+def test_account_cannot_occupy_two_active_rooms() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    first, _, _ = manager.create_room(
+        "reaction", "同账号玩家", "same-account"
+    )
+
+    with pytest.raises(ActiveRoomError) as error:
+        manager.create_room(
+            "minesweeper", "同账号玩家", "same-account"
+        )
+
+    assert error.value.room_code == first.code
+    assert error.value.game_key == "reaction"
+
+
+def test_active_multiplayer_abandon_forfeits_and_releases_account() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, host, _ = manager.create_room("gomoku", "甲", "account-1")
+    _, guest, _ = manager.join_room(
+        room.code, "gomoku", "乙", "account-2"
+    )
+    manager.start(room, host.id)
+
+    assert manager.abandon(room, host.id) is True
+    assert room.phase == "finished"
+    assert room.winner_player_ids == [guest.id]
+    assert host.left_room is True
+    assert host.connected is False
+    assert manager.active_room_for_account("account-1") is None
+    assert manager.active_room_for_account("account-2") == (room, guest)
 
 
 def test_arcade_lobby_host_can_kick_and_dissolve() -> None:

@@ -79,10 +79,6 @@ class AvalonEngine:
         return room.phase == "finished" and room.host_id == viewer.id
 
     @staticmethod
-    def preserve_seat_on_leave(room: ArcadeRoom) -> bool:
-        return room.phase != Phase.LOBBY.value
-
-    @staticmethod
     def can_update_options(room: ArcadeRoom) -> bool:
         return room.phase == Phase.LOBBY.value
 
@@ -167,6 +163,31 @@ class AvalonEngine:
     def disconnect_timeout(
         self, room: ArcadeRoom, player: ArcadePlayer
     ) -> bool:
+        return self._forfeit_player(
+            room,
+            player,
+            reason=f"{player.name} 掉线超过 10 分钟，所属阵营视为弃权",
+            ending_route="disconnect_forfeit",
+        )
+
+    def manual_forfeit(
+        self, room: ArcadeRoom, player: ArcadePlayer
+    ) -> bool:
+        return self._forfeit_player(
+            room,
+            player,
+            reason=f"{player.name} 主动退出，所属阵营视为弃权",
+            ending_route="manual_forfeit",
+        )
+
+    def _forfeit_player(
+        self,
+        room: ArcadeRoom,
+        player: ArcadePlayer,
+        *,
+        reason: str,
+        ending_route: str,
+    ) -> bool:
         domain = self._domain(room)
         domain_player = domain.player(player.id)
         if domain_player.alignment is None:
@@ -179,10 +200,8 @@ class AvalonEngine:
         domain_player.disconnect_forfeited = True
         domain_player.disconnected_at = None
         domain.winner = winner
-        domain.win_reason = (
-            f"{domain_player.name} 掉线超过 10 分钟，所属阵营视为弃权"
-        )
-        domain.ending_route = "disconnect_forfeit"
+        domain.win_reason = reason
+        domain.ending_route = ending_route
         domain.phase = Phase.GAME_OVER
         domain.revision += 1
         self._sync_outer(room, domain)
@@ -393,6 +412,7 @@ class AvalonEngine:
                 disconnected_at=player.disconnected_at,
                 disconnect_timeout_handled=player.disconnect_forfeited,
                 disconnect_forfeited=player.disconnect_forfeited,
+                left_room=False,
             )
             for player in legacy.players
         ]

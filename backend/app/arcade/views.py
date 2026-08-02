@@ -106,6 +106,7 @@ def build_room_view(
                     else None
                 ),
                 "disconnectForfeited": player.disconnect_forfeited,
+                "leftRoom": player.left_room,
                 "isHost": player.id == room.host_id,
             }
             for player in room.players

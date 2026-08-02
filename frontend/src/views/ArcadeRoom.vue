@@ -202,13 +202,23 @@ watch(
   { immediate: true },
 )
 const exitDescription = computed(() => {
+  if (props.snapshot.actions.canAct && isSolo.value) {
+    return '退出将放弃当前进度，未完成的挑战不会记录成绩。'
+  }
+  if (props.snapshot.actions.canAct) {
+    return '暂时返回会保留座位和进度；认输并退出将放弃本局，而且无法再返回。'
+  }
   if (props.snapshot.phase === 'lobby') {
     return '你会离开房间并让出座位；如果你是房主，房主将自动移交。'
   }
   if (props.snapshot.phase === 'finished') {
     return '你会退出当前房间并返回游戏大厅。'
   }
-  return '你的座位和本局进度都会保留，可以从大厅随时返回。'
+  return '退出后将返回游戏大厅。'
+})
+const exitMode = computed(() => {
+  if (!props.snapshot.actions.canAct) return 'leave'
+  return isSolo.value ? 'solo-active' : 'multiplayer-active'
 })
 
 function openRuleEditor() {
@@ -279,7 +289,10 @@ function openSharedChat() {
         <RoomExitButton
           :busy="arcade.busy"
           :description="exitDescription"
-          @confirm="arcade.leaveRoom"
+          :mode="exitMode"
+          @leave="arcade.leaveRoom"
+          @detach="arcade.detachRoom"
+          @abandon="arcade.abandonRoom"
         />
       </template>
       <template v-if="avalonSnapshot" #details>
@@ -387,7 +400,9 @@ function openSharedChat() {
           <small>
             <Crown v-if="player.isHost" :size="13" />
             {{ player.isHost ? '房主' : '玩家' }}{{ player.isGuest ? ' · 游客' : '' }}
-            {{ player.connected
+            {{ player.leftRoom
+              ? '· 已退出'
+              : player.connected
               ? '· 在线'
               : player.disconnectForfeited
                 ? '· 掉线弃权'

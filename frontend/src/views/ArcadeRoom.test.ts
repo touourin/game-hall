@@ -449,7 +449,7 @@ describe('ArcadeRoom', () => {
   it('asks for confirmation before leaving the room', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)
-    const leaveRoom = vi.spyOn(arcade, 'leaveRoom').mockResolvedValue()
+    const leaveRoom = vi.spyOn(arcade, 'leaveRoom').mockResolvedValue(true)
     const wrapper = mount(ArcadeRoom, {
       props: { snapshot: snapshot('gomoku') },
       global: { plugins: [pinia] },
@@ -464,6 +464,48 @@ describe('ArcadeRoom', () => {
     await wrapper.get('.exit-room-modal .danger-button').trigger('click')
 
     expect(leaveRoom).toHaveBeenCalledOnce()
+  })
+
+  it('separates temporary return from resigning an active multiplayer game', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const detachRoom = vi.spyOn(arcade, 'detachRoom').mockResolvedValue(true)
+    const abandonRoom = vi.spyOn(arcade, 'abandonRoom').mockResolvedValue(true)
+    const playingRoom = snapshot('gomoku')
+    playingRoom.phase = 'playing'
+    playingRoom.actions.canAct = true
+    const wrapper = mount(ArcadeRoom, {
+      props: { snapshot: playingRoom },
+      global: { plugins: [pinia], stubs: { GomokuBoard: true } },
+    })
+
+    await wrapper.get('.exit-room-trigger').trigger('click')
+    expect(wrapper.get('.exit-room-modal').text()).toContain('暂时返回')
+    expect(wrapper.get('.exit-room-modal').text()).toContain('认输并退出')
+    await wrapper.get('.exit-room-modal .secondary-button').trigger('click')
+    expect(detachRoom).toHaveBeenCalledOnce()
+
+    await wrapper.get('.exit-room-trigger').trigger('click')
+    await wrapper.get('.exit-room-modal .danger-button').trigger('click')
+    expect(abandonRoom).toHaveBeenCalledOnce()
+  })
+
+  it('warns that leaving an active solo challenge discards progress', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const abandonRoom = vi.spyOn(arcade, 'abandonRoom').mockResolvedValue(true)
+    const playingRoom = snapshot('reaction')
+    playingRoom.phase = 'playing'
+    playingRoom.actions.canAct = true
+    const wrapper = mount(ArcadeRoom, {
+      props: { snapshot: playingRoom },
+      global: { plugins: [pinia], stubs: { ReactionTest: true } },
+    })
+
+    await wrapper.get('.exit-room-trigger').trigger('click')
+    expect(wrapper.get('.exit-room-modal').text()).toContain('放弃当前进度')
+    await wrapper.get('.exit-room-modal .danger-button').trigger('click')
+    expect(abandonRoom).toHaveBeenCalledOnce()
   })
 
   it('shows the opponent response controls for a draw request', async () => {

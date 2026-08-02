@@ -436,6 +436,17 @@ class PokerEngine:
             state.history[-1]["action"] = "disconnect_timeout"
         return True
 
+    def manual_forfeit(
+        self,
+        room: ArcadeRoom,
+        player: ArcadePlayer,
+    ) -> bool:
+        state: PokerState = room.state
+        if player.id in state.folded_ids or player.id in state.all_in_ids:
+            return False
+        self._resign(room, state, player)
+        return True
+
     def view(self, room: ArcadeRoom, viewer: ArcadePlayer) -> dict[str, Any]:
         state: PokerState = room.state
         players = self._players(room)

@@ -32,6 +32,7 @@ export interface AckResponse {
   playerId?: string
   resumeToken?: string
   seatPreserved?: boolean
+  activeRoom?: boolean
   gameKey?: string
 }
 

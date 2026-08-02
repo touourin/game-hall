@@ -49,6 +49,15 @@ class ArcadeRoomError(ValueError):
     pass
 
 
+class ActiveRoomError(ArcadeRoomError):
+    def __init__(self, room: ArcadeRoom) -> None:
+        super().__init__(
+            f"你已在{room.code}房间中，请先返回或退出当前对局"
+        )
+        self.room_code = room.code
+        self.game_key = room.game_key
+
+
 def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
@@ -74,6 +83,7 @@ class ArcadeRoomManager:
         is_guest: bool = False,
     ) -> tuple[ArcadeRoom, ArcadePlayer, str]:
         engine = self.engine(game_key)
+        self._ensure_account_available(account_id)
         normalized_options = self._room_options(engine, options or {})
         if is_guest and normalized_options.get("allowGuests") is False:
             raise ArcadeRoomError("游客只能创建允许游客加入的休闲房间")
@@ -116,6 +126,7 @@ class ArcadeRoomManager:
     ) -> tuple[ArcadeRoom, ArcadePlayer, str]:
         room = self.get_room(code)
         engine = self.engine(room.game_key)
+        self._ensure_account_available(account_id)
         if room.game_key != game_key:
             raise ArcadeRoomError("房间所属游戏不正确")
         if room.phase != "lobby":
@@ -163,40 +174,103 @@ class ArcadeRoomManager:
             if secrets.compare_digest(player.token_hash, digest):
                 if player.account_id != account_id:
                     raise ArcadeRoomError("这个座位属于其他账号")
+                if player.left_room:
+                    raise ArcadeRoomError("你已经退出这个房间")
                 player.connected = True
                 self.update_presence(room)
                 room.revision += 1
                 return room, player
         raise ArcadeRoomError("恢复凭证无效，请重新加入房间")
 
-    def leave(self, room: ArcadeRoom, player_id: str) -> bool:
-        engine = self.engine(room.game_key)
-        seat_preserver = getattr(engine, "preserve_seat_on_leave", None)
-        if seat_preserver is not None and seat_preserver(room):
-            room.player(player_id).connected = False
-            room.revision += 1
-            self.update_presence(room)
-            return True
+    def leave(self, room: ArcadeRoom, player_id: str) -> None:
         if self._is_active(room):
-            room.player(player_id).connected = False
-            room.revision += 1
-            self.update_presence(room)
-            return True
+            raise ArcadeRoomError("对局进行中，请选择暂时返回或认输并退出")
         if room.phase == "finished":
             self._remove_player(room, player_id)
-            if room.players:
+            self._prune_departed_players(room)
+            if self._active_human_players(room):
                 self._prepare_lobby(room)
             else:
                 self.rooms.pop(room.code, None)
-            return False
+            return
         self._remove_player(room, player_id)
-        if not room.players or not any(
-            not player.is_bot for player in room.players
-        ):
+        if not self._active_human_players(room):
             self.rooms.pop(room.code, None)
-            return False
+            return
         room.revision += 1
-        return False
+
+    def abandon(self, room: ArcadeRoom, player_id: str) -> bool:
+        player = room.player(player_id)
+        engine = self.engine(room.game_key)
+        if not self._is_active(room):
+            self.leave(room, player_id)
+            return False
+        if engine.max_players == 1:
+            self.rooms.pop(room.code, None)
+            logger.info(
+                "Solo room abandoned",
+                extra={
+                    "action": "abandon",
+                    "event": "room.abandoned",
+                    "game_key": room.game_key,
+                    "player_id": player.id,
+                    "room_code": room.code,
+                },
+            )
+            return False
+
+        handler = getattr(engine, "manual_forfeit", None)
+        if handler is not None:
+            forfeited = handler(room, player) is not False
+        else:
+            engine.act(room, player, "resign", {})
+            forfeited = True
+        player.connected = False
+        player.left_room = True
+        player.disconnect_timeout_handled = True
+        player.disconnect_forfeited = forfeited
+        player.disconnected_at = None
+        room.pending_request = None
+        if room.host_id == player.id:
+            successors = self._active_human_players(room)
+            if successors:
+                room.host_id = min(successors, key=lambda member: member.seat).id
+        self.update_presence(room)
+        room.revision += 1
+        logger.info(
+            "Player abandoned active room",
+            extra={
+                "action": "abandon",
+                "event": "room.abandoned",
+                "game_key": room.game_key,
+                "player_id": player.id,
+                "room_code": room.code,
+            },
+        )
+        return forfeited
+
+    def active_room_for_account(
+        self, account_id: str
+    ) -> tuple[ArcadeRoom, ArcadePlayer] | None:
+        candidates = [
+            (room, player)
+            for room in self.rooms.values()
+            for player in room.players
+            if not player.is_bot
+            and not player.left_room
+            and player.account_id == account_id
+        ]
+        if not candidates:
+            return None
+        return max(
+            candidates,
+            key=lambda item: (
+                item[1].connected,
+                item[0].started_at or "",
+                item[0].revision,
+                item[0].code,
+            ),
+        )
 
     def kick(self, room: ArcadeRoom, actor_id: str, target_id: str) -> None:
         if room.phase != "lobby":
@@ -293,6 +367,12 @@ class ArcadeRoomManager:
             raise ArcadeRoomError("本局尚未结束")
         player = room.player(actor_id)
         engine = self.engine(room.game_key)
+        self._prune_departed_players(room)
+        if player not in room.players:
+            raise ArcadeRoomError("你已经退出这个房间")
+        if len(room.players) < engine.min_players:
+            self._prepare_lobby(room)
+            return
         restart_handler = getattr(engine, "restart", None)
         if restart_handler is not None:
             room.stats_eligible = not any(
@@ -408,7 +488,7 @@ class ArcadeRoomManager:
         connected_players = [
             player
             for player in room.players
-            if player.connected and not player.is_bot
+            if player.connected and not player.is_bot and not player.left_room
         ]
         if connected_players:
             room.all_humans_offline_since = None
@@ -481,6 +561,7 @@ class ArcadeRoomManager:
                         player
                         for player in room.players
                         if not player.is_bot
+                        and not player.left_room
                         and not player.connected
                         and not player.disconnect_timeout_handled
                         and player.disconnected_at is not None
@@ -575,6 +656,7 @@ class ArcadeRoomManager:
             player.disconnected_at = None
             player.disconnect_timeout_handled = False
             player.disconnect_forfeited = False
+            player.left_room = False
         engine.start(room)
 
     def _prepare_lobby(self, room: ArcadeRoom) -> None:
@@ -598,6 +680,7 @@ class ArcadeRoomManager:
             player.disconnected_at = None
             player.disconnect_timeout_handled = False
             player.disconnect_forfeited = False
+            player.left_room = False
         room.revision += 1
 
     def _is_active(self, room: ArcadeRoom) -> bool:
@@ -665,11 +748,53 @@ class ArcadeRoomManager:
         for index, player in enumerate(room.players):
             player.seat = index
         if room.players and room.host_id == player_id:
-            room.host_id = room.players[0].id
+            successor = next(
+                (
+                    player
+                    for player in room.players
+                    if not player.is_bot and not player.left_room
+                ),
+                room.players[0],
+            )
+            room.host_id = successor.id
         if room.phase in {"lobby", "finished"}:
             room.stats_eligible = not any(
                 player.is_guest for player in room.players
             )
+
+    def _ensure_account_available(
+        self,
+        account_id: str,
+    ) -> None:
+        active = self.active_room_for_account(account_id)
+        if active is None:
+            return
+        room, _ = active
+        logger.info(
+            "Account already occupies an active room",
+            extra={
+                "event": "account.active_room_conflict",
+                "game_key": room.game_key,
+                "room_code": room.code,
+            },
+        )
+        raise ActiveRoomError(room)
+
+    @staticmethod
+    def _active_human_players(room: ArcadeRoom) -> list[ArcadePlayer]:
+        return [
+            player
+            for player in room.players
+            if not player.is_bot and not player.left_room
+        ]
+
+    @classmethod
+    def _prune_departed_players(cls, room: ArcadeRoom) -> None:
+        departed_ids = {
+            player.id for player in room.players if player.left_room
+        }
+        for player_id in departed_ids:
+            cls._remove_player(room, player_id)
 
     def _new_code(self) -> str:
         for _ in range(100):

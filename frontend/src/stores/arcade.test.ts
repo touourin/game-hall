@@ -29,6 +29,12 @@ function connectHandler(): (() => Promise<void>) | undefined {
   )?.[1] as (() => Promise<void>) | undefined
 }
 
+function socketHandler<T>(eventName: string): ((payload: T) => void) | undefined {
+  return socketMocks.socket.on.mock.calls.find(
+    ([event]) => event === eventName,
+  )?.[1] as ((payload: T) => void) | undefined
+}
+
 describe('arcade room store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -104,6 +110,52 @@ describe('arcade room store', () => {
     expect(await arcade.joinRoom('junqi', 'a1b2')).toBe(true)
     expect(arcade.activeGame).toBe('junqi')
     expect(arcade.activeRoomCode).toBe('A1B2')
+  })
+
+  it('discovers an active room from another device after connecting', async () => {
+    socketMocks.emitWithAck.mockResolvedValue({
+      ok: true,
+      activeRoom: true,
+      roomCode: 'SYNC',
+      gameKey: 'reaction',
+      playerId: 'player-sync',
+    })
+    const arcade = useArcadeStore()
+    arcade.init()
+
+    await connectHandler()?.()
+
+    expect(socketMocks.emitWithAck).toHaveBeenCalledWith('arcade:active', {})
+    expect(arcade.activeGame).toBe('reaction')
+    expect(arcade.activeRoomCode).toBe('SYNC')
+  })
+
+  it('keeps recovery state on temporary return and clears it on abandon', async () => {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(storedSession))
+    socketMocks.emitWithAck.mockResolvedValue({ ok: true, seatPreserved: true })
+    const arcade = useArcadeStore()
+
+    expect(await arcade.detachRoom()).toBe(true)
+    expect(arcade.activeRoomCode).toBe('TEST')
+
+    socketMocks.emitWithAck.mockResolvedValue({ ok: true, seatPreserved: false })
+    expect(await arcade.abandonRoom()).toBe(true)
+    expect(arcade.activeRoomCode).toBeNull()
+    expect(localStorage.getItem(SESSION_KEY)).toBeNull()
+  })
+
+  it('clears a detached device when another device exits the room', () => {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(storedSession))
+    const arcade = useArcadeStore()
+    arcade.init()
+
+    socketHandler<{ roomCode: string; silent: boolean }>('arcade:left')?.({
+      roomCode: 'TEST',
+      silent: true,
+    })
+
+    expect(arcade.activeRoomCode).toBeNull()
+    expect(localStorage.getItem(SESSION_KEY)).toBeNull()
   })
 
   it('clears the stale room screen when reconnecting cannot restore the seat', async () => {

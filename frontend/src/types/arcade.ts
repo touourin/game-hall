@@ -44,6 +44,7 @@ export interface ArcadePlayer {
   connected: boolean
   disconnectForfeitAt?: string | null
   disconnectForfeited?: boolean
+  leftRoom?: boolean
   isHost: boolean
 }
 

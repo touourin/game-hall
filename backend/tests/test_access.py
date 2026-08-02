@@ -241,6 +241,7 @@ async def test_leaving_avalon_through_arcade_preserves_account_identity(
     }
     get_session = AsyncMock(return_value=session)
     save_session = AsyncMock()
+    emit = AsyncMock()
     leave_socket_room = AsyncMock()
     broadcast_lobby = AsyncMock()
     monkeypatch.setattr(arcade_realtime, "rooms", manager)
@@ -251,6 +252,7 @@ async def test_leaving_avalon_through_arcade_preserves_account_identity(
     )
     monkeypatch.setattr(sio, "get_session", get_session)
     monkeypatch.setattr(sio, "save_session", save_session)
+    monkeypatch.setattr(sio, "emit", emit)
     monkeypatch.setattr(sio, "leave_room", leave_socket_room)
     monkeypatch.setattr(arcade_realtime, "broadcast_lobby", broadcast_lobby)
     monkeypatch.setattr(arcade_realtime, "broadcast_room", AsyncMock())
@@ -262,6 +264,155 @@ async def test_leaving_avalon_through_arcade_preserves_account_identity(
         "socket-1",
         {"account_id": "account-1"},
     )
+    emit.assert_awaited_once_with(
+        "arcade:left",
+        {
+            "roomCode": room.code,
+            "message": "你已退出房间",
+            "silent": True,
+        },
+        to="socket-1",
+    )
+
+
+async def test_detaching_one_device_keeps_other_device_online(
+    monkeypatch,
+) -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, player, _ = manager.create_room(
+        "reaction", "反应玩家", "account-1"
+    )
+    manager.start(room, player.id)
+    sessions = {
+        sid: {
+            "account_id": "account-1",
+            "arcade_room_code": room.code,
+            "arcade_player_id": player.id,
+        }
+        for sid in ("phone", "computer")
+    }
+
+    async def get_session(sid: str):
+        return sessions[sid]
+
+    monkeypatch.setattr(arcade_realtime, "rooms", manager)
+    monkeypatch.setattr(
+        arcade_realtime,
+        "active_sids",
+        defaultdict(set, {(room.code, player.id): {"phone", "computer"}}),
+    )
+    monkeypatch.setattr(sio, "get_session", get_session)
+    monkeypatch.setattr(sio, "save_session", AsyncMock())
+    monkeypatch.setattr(sio, "leave_room", AsyncMock())
+    monkeypatch.setattr(arcade_realtime, "broadcast_room", AsyncMock())
+    monkeypatch.setattr(arcade_realtime, "broadcast_lobby", AsyncMock())
+
+    response = await arcade_realtime.detach_room("phone")
+
+    assert response == {"ok": True, "seatPreserved": True}
+    assert arcade_realtime.active_sids[(room.code, player.id)] == {"computer"}
+    assert player.connected is True
+    assert "arcade_room_code" not in sessions["phone"]
+    assert sessions["computer"]["arcade_room_code"] == room.code
+
+
+async def test_second_device_recovers_the_same_account_seat(
+    monkeypatch,
+) -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, player, _ = manager.create_room(
+        "reaction", "反应玩家", "account-1"
+    )
+    manager.start(room, player.id)
+    session = {
+        "account_id": "account-1",
+        "player_name": "反应玩家",
+        "avatar_url": None,
+        "is_guest": False,
+    }
+    get_session = AsyncMock(return_value=session)
+
+    monkeypatch.setattr(arcade_realtime, "rooms", manager)
+    monkeypatch.setattr(arcade_realtime, "active_sids", defaultdict(set))
+    monkeypatch.setattr(sio, "get_session", get_session)
+    monkeypatch.setattr(sio, "save_session", AsyncMock())
+    monkeypatch.setattr(sio, "enter_room", AsyncMock())
+    monkeypatch.setattr(arcade_realtime, "broadcast_room", AsyncMock())
+
+    response = await arcade_realtime.active_room("computer")
+
+    assert response == {
+        "ok": True,
+        "activeRoom": True,
+        "roomCode": room.code,
+        "gameKey": "reaction",
+        "playerId": player.id,
+    }
+    assert len(room.players) == 1
+    assert arcade_realtime.active_sids[(room.code, player.id)] == {"computer"}
+    assert session["arcade_room_code"] == room.code
+
+
+async def test_abandon_notifies_all_account_devices_and_clears_active_sockets(
+    monkeypatch,
+) -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, player, _ = manager.create_room(
+        "reaction", "反应玩家", "account-1"
+    )
+    manager.start(room, player.id)
+    sessions = {
+        "phone": {
+            "account_id": "account-1",
+            "arcade_room_code": room.code,
+            "arcade_player_id": player.id,
+        },
+        "computer": {
+            "account_id": "account-1",
+            "arcade_room_code": room.code,
+            "arcade_player_id": player.id,
+        },
+        "detached": {"account_id": "account-1"},
+    }
+
+    async def get_session(sid: str):
+        return sessions[sid]
+
+    emit = AsyncMock()
+    leave_socket_room = AsyncMock()
+    monkeypatch.setattr(arcade_realtime, "rooms", manager)
+    monkeypatch.setattr(
+        arcade_realtime,
+        "active_sids",
+        defaultdict(set, {(room.code, player.id): {"phone", "computer"}}),
+    )
+    monkeypatch.setattr(
+        arcade_realtime,
+        "account_sids",
+        defaultdict(set, {"account-1": {"phone", "computer", "detached"}}),
+    )
+    monkeypatch.setattr(sio, "get_session", get_session)
+    monkeypatch.setattr(sio, "save_session", AsyncMock())
+    monkeypatch.setattr(sio, "emit", emit)
+    monkeypatch.setattr(sio, "leave_room", leave_socket_room)
+    monkeypatch.setattr(arcade_realtime, "broadcast_lobby", AsyncMock())
+
+    response = await arcade_realtime.abandon_room("phone")
+
+    assert response == {"ok": True, "seatPreserved": False}
+    assert room.code not in manager.rooms
+    assert not arcade_realtime.active_sids
+    assert {call.kwargs["to"] for call in emit.await_args_list} == {
+        "phone",
+        "computer",
+        "detached",
+    }
+    assert leave_socket_room.await_count == 2
+    assert sessions == {
+        "phone": {"account_id": "account-1"},
+        "computer": {"account_id": "account-1"},
+        "detached": {"account_id": "account-1"},
+    }
 
 
 async def test_leaving_avalon_without_room_session_is_idempotent(
@@ -343,6 +494,7 @@ async def test_dissolving_avalon_uses_the_shared_arcade_lifecycle(
     }
     assert payloads["host-socket"]["silent"] is True
     assert payloads["guest-socket"] == {
+        "roomCode": room.code,
         "message": "房主已解散房间",
         "silent": False,
     }

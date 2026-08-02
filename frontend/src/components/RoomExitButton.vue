@@ -1,28 +1,39 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { DoorOpen, X } from '@lucide/vue'
+import { computed, ref } from 'vue'
+import { ArrowLeft, DoorOpen, Flag, X } from '@lucide/vue'
 import BackNavigationButton from './BackNavigationButton.vue'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     description?: string
     busy?: boolean
+    mode?: 'leave' | 'solo-active' | 'multiplayer-active'
   }>(),
   {
     description: '退出后将返回游戏大厅。',
     busy: false,
+    mode: 'leave',
   },
 )
 
 const emit = defineEmits<{
-  confirm: []
+  leave: []
+  detach: []
+  abandon: []
 }>()
 
 const showConfirmation = ref(false)
+const title = computed(() => ({
+  leave: '退出当前房间？',
+  'solo-active': '放弃本次挑战？',
+  'multiplayer-active': '离开当前对局？',
+}[props.mode]))
 
-function confirmExit() {
+function confirm(action: 'leave' | 'detach' | 'abandon') {
   showConfirmation.value = false
-  emit('confirm')
+  if (action === 'leave') emit('leave')
+  else if (action === 'detach') emit('detach')
+  else emit('abandon')
 }
 </script>
 
@@ -43,7 +54,7 @@ function confirmExit() {
       class="modal-card exit-room-modal"
       role="dialog"
       aria-modal="true"
-      aria-label="确认退出房间"
+      :aria-label="title"
     >
       <button
         class="modal-close"
@@ -54,10 +65,11 @@ function confirmExit() {
         <X :size="20" />
       </button>
       <span class="modal-icon"><DoorOpen :size="25" /></span>
-      <h2>退出当前房间？</h2>
+      <h2>{{ title }}</h2>
       <p>{{ description }}</p>
       <div class="exit-room-actions">
         <button
+          v-if="mode !== 'multiplayer-active'"
           type="button"
           class="secondary-button"
           @click="showConfirmation = false"
@@ -65,12 +77,23 @@ function confirmExit() {
           继续游戏
         </button>
         <button
+          v-if="mode === 'multiplayer-active'"
+          type="button"
+          class="secondary-button"
+          :disabled="busy"
+          @click="confirm('detach')"
+        >
+          <ArrowLeft :size="17" /> 暂时返回
+        </button>
+        <button
           type="button"
           class="danger-button"
           :disabled="busy"
-          @click="confirmExit"
+          @click="confirm(mode === 'leave' ? 'leave' : 'abandon')"
         >
-          <DoorOpen :size="17" /> 确认退出
+          <DoorOpen v-if="mode === 'leave'" :size="17" />
+          <Flag v-else :size="17" />
+          {{ mode === 'leave' ? '确认退出' : mode === 'solo-active' ? '放弃并退出' : '认输并退出' }}
         </button>
       </div>
     </section>

@@ -14,14 +14,22 @@ from backend.app.games.registry import build_engine_registry
 from backend.app.logging_config import bind_game_context, reset_game_context
 
 from .models import ArcadeRoom
-from .rooms import ACTION_ERRORS, ArcadeRoomError, ArcadeRoomManager
+from .rooms import (
+    ACTION_ERRORS,
+    ActiveRoomError,
+    ArcadeRoomError,
+    ArcadeRoomManager,
+)
 from .views import build_lobby_view, build_room_view
 
 
 logger = logging.getLogger(__name__)
 INFO_SOCKET_EVENTS = {
+    "arcade:abandon",
+    "arcade:active",
     "arcade:cleanup",
     "arcade:create",
+    "arcade:detach",
     "arcade:dissolve",
     "arcade:join",
     "arcade:kick",
@@ -92,6 +100,14 @@ def error_response(error: Exception) -> dict[str, Any]:
     )
     if isinstance(error, ValidationError):
         return {"ok": False, "error": "提交的数据格式不正确"}
+    if isinstance(error, ActiveRoomError):
+        return {
+            "ok": False,
+            "error": str(error),
+            "roomCode": error.room_code,
+            "gameKey": error.game_key,
+            "activeRoom": True,
+        }
     return {"ok": False, "error": str(error)}
 
 
@@ -100,6 +116,8 @@ class ArcadeRealtime:
         self.engines = build_engine_registry()
         self.rooms = ArcadeRoomManager(self.engines)
         self.active_sids: dict[tuple[str, str], set[str]] = defaultdict(set)
+        self.account_sids: dict[str, set[str]] = defaultdict(set)
+        self.sid_accounts: dict[str, str] = {}
         self.sio: socketio.AsyncServer | None = None
         self.logger = logger
 
@@ -107,8 +125,11 @@ class ArcadeRealtime:
         self.sio = sio
         self._bind_event(sio, "arcade:create", self.create_room)
         self._bind_event(sio, "arcade:join", self.join_room)
+        self._bind_event(sio, "arcade:active", self.active_room)
         self._bind_event(sio, "arcade:resume", self.resume_room)
+        self._bind_event(sio, "arcade:detach", self.detach_room)
         self._bind_event(sio, "arcade:leave", self.leave_room)
+        self._bind_event(sio, "arcade:abandon", self.abandon_room)
         self._bind_event(sio, "arcade:start", self.start_game)
         self._bind_event(sio, "arcade:action", self.game_action)
         self._bind_event(sio, "arcade:restart", self.restart_game)
@@ -203,10 +224,17 @@ class ArcadeRealtime:
             "action": str(action) if action else None,
         }
 
-    async def on_connect(self, sid: str) -> None:
+    async def on_connect(self, sid: str, account_id: str) -> None:
+        self.account_sids[account_id].add(sid)
+        self.sid_accounts[sid] = account_id
         await self._server.emit("arcade:lobby", self.lobby_view(), to=sid)
 
     async def on_disconnect(self, sid: str) -> None:
+        account_id = self.sid_accounts.pop(sid, None)
+        if account_id is not None:
+            self.account_sids[account_id].discard(sid)
+            if not self.account_sids[account_id]:
+                self.account_sids.pop(account_id, None)
         try:
             room, player = await self._context(sid)
         except (ArcadeRoomError, KeyError, TypeError):
@@ -219,6 +247,32 @@ class ArcadeRealtime:
             room.revision += 1
             self.rooms.update_presence(room)
             await self.broadcast_room(room)
+
+    async def active_room(
+        self, sid: str, raw_data: Any = None
+    ) -> dict[str, Any]:
+        try:
+            identity = await self._identity(sid)
+            active = self.rooms.active_room_for_account(identity["id"])
+            if active is None:
+                return {"ok": True, "activeRoom": False}
+            room, player = active
+            async with room.lock:
+                player.name = identity["player_name"]
+                player.avatar_url = identity["avatar_url"]
+                player.is_guest = identity["is_guest"]
+                player.connected = True
+                await self._bind_session(sid, room, player.id)
+            await self.broadcast_room(room)
+            return {
+                "ok": True,
+                "activeRoom": True,
+                "roomCode": room.code,
+                "gameKey": room.game_key,
+                "playerId": player.id,
+            }
+        except ACTION_ERRORS as error:
+            return error_response(error)
 
     async def create_room(self, sid: str, raw_data: Any) -> dict[str, Any]:
         try:
@@ -295,6 +349,28 @@ class ArcadeRealtime:
         except (ValidationError, ArcadeRoomError, KeyError) as error:
             return error_response(error)
 
+    async def detach_room(
+        self, sid: str, raw_data: Any = None
+    ) -> dict[str, Any]:
+        try:
+            room, player = await self._context(sid)
+        except (ArcadeRoomError, KeyError, TypeError):
+            await self._clear_room_session(sid)
+            return {"ok": True, "seatPreserved": True}
+        key = (room.code, player.id)
+        await self._server.leave_room(sid, self._channel(room.code, player.id))
+        self.active_sids[key].discard(sid)
+        if not self.active_sids[key]:
+            self.active_sids.pop(key, None)
+        async with room.lock:
+            player.connected = bool(self.active_sids.get(key))
+            room.revision += 1
+            self.rooms.update_presence(room)
+        await self._clear_room_session(sid)
+        await self.broadcast_room(room)
+        await self.broadcast_lobby()
+        return {"ok": True, "seatPreserved": True}
+
     async def leave_room(
         self, sid: str, raw_data: Any = None
     ) -> dict[str, Any]:
@@ -305,17 +381,47 @@ class ArcadeRealtime:
             return {"ok": True, "seatPreserved": False}
         try:
             async with room.lock:
-                seat_preserved = self.rooms.leave(room, player.id)
-            await self._server.leave_room(sid, self._channel(room.code, player.id))
-            key = (room.code, player.id)
-            self.active_sids[key].discard(sid)
-            if not self.active_sids[key]:
-                self.active_sids.pop(key, None)
-            await self._clear_room_session(sid)
+                self.rooms.leave(room, player.id)
+            await self._eject_player(
+                room.code,
+                player.id,
+                account_id=player.account_id,
+                event="arcade:left",
+                message="你已退出房间",
+                silent=True,
+            )
             if room.code in self.rooms.rooms:
                 await self.broadcast_room(room)
             await self.broadcast_lobby()
-            return {"ok": True, "seatPreserved": seat_preserved}
+            return {"ok": True, "seatPreserved": False}
+        except ACTION_ERRORS as error:
+            return error_response(error)
+
+    async def abandon_room(
+        self, sid: str, raw_data: Any = None
+    ) -> dict[str, Any]:
+        try:
+            room, player = await self._context(sid)
+        except (ArcadeRoomError, KeyError, TypeError):
+            await self._clear_room_session(sid)
+            return {"ok": True, "seatPreserved": False}
+        try:
+            async with room.lock:
+                self.rooms.abandon(room, player.id)
+                if room.phase == "finished":
+                    self._record_room(room)
+            await self._eject_player(
+                room.code,
+                player.id,
+                account_id=player.account_id,
+                event="arcade:left",
+                message="你已退出房间",
+                silent=True,
+            )
+            if room.code in self.rooms.rooms:
+                await self.broadcast_room(room)
+            await self.broadcast_lobby()
+            return {"ok": True, "seatPreserved": False}
         except ACTION_ERRORS as error:
             return error_response(error)
 
@@ -368,6 +474,7 @@ class ArcadeRealtime:
             await self._eject_player(
                 room.code,
                 target.id,
+                account_id=target.account_id,
                 event="arcade:kicked",
                 message="你已被房主移出房间",
             )
@@ -382,13 +489,16 @@ class ArcadeRealtime:
     ) -> dict[str, Any]:
         try:
             room, player = await self._context(sid)
-            player_ids = [member.id for member in room.players]
+            players = [
+                (member.id, member.account_id) for member in room.players
+            ]
             async with room.lock:
                 self.rooms.dissolve(room, player.id)
-            for player_id in player_ids:
+            for player_id, account_id in players:
                 await self._eject_player(
                     room.code,
                     player_id,
+                    account_id=account_id,
                     event="arcade:closed",
                     message="房主已解散房间",
                     silent=player_id == player.id,
@@ -515,18 +625,26 @@ class ArcadeRealtime:
         room_code: str,
         player_id: str,
         *,
+        account_id: str,
         event: str,
         message: str,
         silent: bool = False,
     ) -> None:
         key = (room_code, player_id)
         target_sids = list(self.active_sids.pop(key, set()))
-        for target_sid in target_sids:
+        notification_sids = self.account_sids.get(account_id) or set(target_sids)
+        payload = {
+            "roomCode": room_code,
+            "message": message,
+            "silent": silent,
+        }
+        for target_sid in notification_sids:
             await self._server.emit(
                 event,
-                {"message": message, "silent": silent},
+                payload,
                 to=target_sid,
             )
+        for target_sid in target_sids:
             await self._server.leave_room(
                 target_sid,
                 self._channel(room_code, player_id),

@@ -102,6 +102,7 @@ async def restore_room_state() -> None:
         for player in room.players:
             player.is_bot = getattr(player, "is_bot", False)
             player.is_guest = getattr(player, "is_guest", False)
+            player.left_room = getattr(player, "left_room", False)
             player.disconnected_at = None
             player.disconnect_timeout_handled = getattr(
                 player, "disconnect_timeout_handled", False
@@ -175,7 +176,7 @@ async def connect(sid: str, environ: dict, auth: Any) -> bool | None:
         "Socket connected",
         extra={"account_id": identity.id, "event": "socket.connected"},
     )
-    await arcade_realtime.on_connect(sid)
+    await arcade_realtime.on_connect(sid, identity.id)
     return None
 
 

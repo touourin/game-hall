@@ -24,6 +24,7 @@ class ArcadePlayer:
     disconnected_at: datetime | None = None
     disconnect_timeout_handled: bool = False
     disconnect_forfeited: bool = False
+    left_room: bool = False
 
 
 @dataclass

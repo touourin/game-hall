@@ -11,7 +11,13 @@ interface StoredArcadeSession {
   gameKey: ArcadeGameKey
   roomCode: string
   playerId: string
-  resumeToken: string
+  resumeToken?: string
+}
+
+interface RoomClosurePayload {
+  roomCode?: string
+  message?: string
+  silent?: boolean
 }
 
 const SESSION_KEY = 'game-hall:arcade-session'
@@ -64,7 +70,8 @@ export const useArcadeStore = defineStore('arcade', () => {
     socket.on('connect', async () => {
       connected.value = true
       error.value = null
-      if (session.value) await resume()
+      if (session.value?.resumeToken && await resume()) return
+      await syncActiveRoom()
     })
     socket.on('disconnect', () => {
       connected.value = false
@@ -81,15 +88,14 @@ export const useArcadeStore = defineStore('arcade', () => {
         snapshot.value = next
       }
     })
-    socket.on('arcade:kicked', (payload: { message?: string }) => {
-      snapshot.value = null
-      clearSession()
-      error.value = payload.message ?? '你已被移出房间'
+    socket.on('arcade:kicked', (payload: RoomClosurePayload) => {
+      handleRoomClosure(payload, '你已被移出房间')
     })
-    socket.on('arcade:closed', (payload: { message?: string; silent?: boolean }) => {
-      snapshot.value = null
-      clearSession()
-      error.value = payload.silent ? null : (payload.message ?? '房间已经解散')
+    socket.on('arcade:closed', (payload: RoomClosurePayload) => {
+      handleRoomClosure(payload, '房间已经解散')
+    })
+    socket.on('arcade:left', (payload: RoomClosurePayload) => {
+      handleRoomClosure(payload, '你已退出房间')
     })
   }
 
@@ -155,7 +161,7 @@ export const useArcadeStore = defineStore('arcade', () => {
   }
 
   async function resume() {
-    if (!session.value) return false
+    if (!session.value?.resumeToken) return false
     const response = await perform('arcade:resume', {
       room_code: session.value.roomCode,
       token: session.value.resumeToken,
@@ -169,12 +175,48 @@ export const useArcadeStore = defineStore('arcade', () => {
     return true
   }
 
+  async function syncActiveRoom() {
+    const response = await perform('arcade:active')
+    if (!response) return false
+    if (
+      response.activeRoom
+      && response.roomCode
+      && response.gameKey
+      && response.playerId
+    ) {
+      saveSession({
+        gameKey: response.gameKey as ArcadeGameKey,
+        roomCode: response.roomCode,
+        playerId: response.playerId,
+      })
+      return true
+    }
+    if (!snapshot.value) clearSession()
+    return false
+  }
+
+  async function detachRoom() {
+    const response = await perform('arcade:detach')
+    if (response) snapshot.value = null
+    return Boolean(response)
+  }
+
   async function leaveRoom() {
     const response = await perform('arcade:leave')
     if (response) {
       snapshot.value = null
-      if (!response.seatPreserved) clearSession()
+      clearSession()
     }
+    return Boolean(response)
+  }
+
+  async function abandonRoom() {
+    const response = await perform('arcade:abandon')
+    if (response) {
+      snapshot.value = null
+      clearSession()
+    }
+    return Boolean(response)
   }
 
   async function cleanupRoom(roomCode: string) {
@@ -257,8 +299,8 @@ export const useArcadeStore = defineStore('arcade', () => {
 
   async function returnToRoom() {
     if (snapshot.value) return true
-    if (session.value) return resume()
-    return false
+    if (session.value?.resumeToken && await resume()) return true
+    return syncActiveRoom()
   }
 
   function saveSession(next: StoredArcadeSession) {
@@ -277,6 +319,21 @@ export const useArcadeStore = defineStore('arcade', () => {
 
   function clearError() {
     error.value = null
+  }
+
+  function handleRoomClosure(
+    payload: RoomClosurePayload,
+    fallbackMessage: string,
+  ) {
+    const currentRoomCode = snapshot.value?.roomCode ?? session.value?.roomCode
+    if (
+      payload.roomCode
+      && currentRoomCode
+      && payload.roomCode !== currentRoomCode
+    ) return
+    snapshot.value = null
+    clearSession()
+    error.value = payload.silent ? null : (payload.message ?? fallbackMessage)
   }
 
   function resetForLogout() {
@@ -300,7 +357,10 @@ export const useArcadeStore = defineStore('arcade', () => {
     init,
     createRoom,
     joinRoom,
+    syncActiveRoom,
+    detachRoom,
     leaveRoom,
+    abandonRoom,
     cleanupRoom,
     startGame,
     action,
