@@ -202,21 +202,21 @@ function choose(row: number, column: number) {
 .junqi-status strong, .junqi-status small { display: block; }.junqi-status small { margin-top: 3px; color: var(--muted); }.junqi-status em { color: var(--gold); font-style: normal; font-weight: 800; }
 .junqi-status.active { border-color: color-mix(in srgb, var(--gold) 34%, transparent); }
 .junqi-layout { display: grid; grid-template-columns: minmax(320px, 520px) minmax(200px, 1fr); gap: 18px; align-items: start; justify-content: center; }
-.junqi-board { position: relative; width: 100%; aspect-ratio: 5 / 9.2; padding: 14px; display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(12, 1fr); gap: 5px; border: 2px solid #8d6836; border-radius: 18px; background: linear-gradient(155deg, #c7a96d, #a68148); box-shadow: 0 22px 48px #0007, 0 0 0 1px color-mix(in srgb, var(--gold) 24%, transparent); overflow: hidden; }
-.junqi-board::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 7.5%; transform: translateY(-50%); pointer-events: none; background: #5e795d66; border-top: 1px solid #394f38aa; border-bottom: 1px solid #394f38aa; }
-.river-label { position: absolute; z-index: 1; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #253b2b99; font-family: serif; font-weight: 900; letter-spacing: .8em; white-space: nowrap; pointer-events: none; }
-.junqi-cell { position: relative; z-index: 2; min-width: 0; padding: 2px; display: grid; place-items: center; border: 1px solid #76572e80; border-radius: 7px; color: #47351e; background: #ead29b9c; }
+.junqi-board { position: relative; width: 100%; aspect-ratio: 5 / 9.2; padding: 14px; display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(12, 1fr); gap: 5px; border: 2px solid var(--game-board-frame, #8d6836); border-radius: 18px; background-color: var(--game-board-surface, #b69558); background-image: var(--game-board-texture, linear-gradient(155deg, rgba(255,255,255,.12), rgba(0,0,0,.12))); box-shadow: inset 0 0 0 2px var(--game-board-highlight, rgba(255,226,160,.24)), 0 22px 48px #0007, 0 0 0 1px color-mix(in srgb, var(--gold) 24%, transparent); overflow: hidden; }
+.junqi-board::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 7.5%; transform: translateY(-50%); pointer-events: none; background: color-mix(in srgb, var(--game-board-line, #394f38) 24%, transparent); border-top: 1px solid color-mix(in srgb, var(--game-board-line, #394f38) 72%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--game-board-line, #394f38) 72%, transparent); }
+.river-label { position: absolute; z-index: 1; top: 50%; left: 50%; transform: translate(-50%, -50%); color: color-mix(in srgb, var(--game-board-label, #253b2b) 70%, transparent); font-family: serif; font-weight: 900; letter-spacing: .8em; white-space: nowrap; pointer-events: none; }
+.junqi-cell { position: relative; z-index: 2; min-width: 0; padding: 2px; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--game-board-line, #76572e) 58%, transparent); border-radius: 7px; color: var(--game-board-label, #47351e); background: color-mix(in srgb, var(--game-board-highlight, #ead29b) 42%, transparent); }
 .junqi-cell:disabled { opacity: 1; }
-.junqi-cell.rail { border-width: 2px; border-color: #59401fc0; }
-.junqi-cell.camp { border-radius: 50%; background: #d9c58f; }
+.junqi-cell.rail { border-width: 2px; border-color: color-mix(in srgb, var(--game-board-line, #59401f) 80%, transparent); }
+.junqi-cell.camp { border-radius: 50%; background: color-mix(in srgb, var(--game-board-highlight, #d9c58f) 64%, transparent); }
 .junqi-cell.headquarters { border-style: double; border-width: 3px; }
 .junqi-cell.selected { outline: 3px solid var(--gold); outline-offset: 1px; transform: translateY(-1px); }
 .junqi-cell.latest { box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--gold) 54%, transparent); }
 .terrain-label { font-size: clamp(8px, 1.7vw, 11px); font-weight: 900; opacity: .65; }
-.junqi-piece { width: 90%; height: 88%; display: grid; place-items: center; align-content: center; border: 2px solid currentColor; border-radius: 7px; font-family: serif; font-weight: 900; background: #f3dfae; box-shadow: 0 3px 5px #33230b66; }
+.junqi-piece { width: 90%; height: 88%; display: grid; place-items: center; align-content: center; border: 2px solid currentColor; border-radius: 7px; font-family: serif; font-weight: 900; background: var(--game-piece-surface, #f3dfae); box-shadow: inset 0 0 0 1px var(--game-piece-rim, transparent), 0 3px 5px #0006; }
 .junqi-piece b { font-size: clamp(10px, 2vw, 17px); line-height: 1; white-space: nowrap; }.junqi-piece small { margin-top: 2px; font-size: 8px; }
-.junqi-piece.red { color: #a72e2b; }.junqi-piece.blue { color: #245b81; }.junqi-piece.hidden { color: #403523; background: linear-gradient(145deg, #6e5b3d, #403727); }
-.junqi-piece.concealed { color: #f3db9b; border-color: #c5a85f; }
+.junqi-piece.red { color: #a72e2b; }.junqi-piece.blue { color: #245b81; }.junqi-piece.hidden { color: var(--game-card-back-accent, #f3db9b); background: var(--game-card-back, linear-gradient(145deg, #6e5b3d, #403727)); }
+.junqi-piece.concealed { color: var(--game-card-back-accent, #f3db9b); border-color: var(--game-card-back-accent, #c5a85f); }
 .junqi-side-panel { padding: 18px; display: grid; gap: 15px; }
 .junqi-side-panel > div { padding-bottom: 12px; border-bottom: 1px solid var(--line); }.junqi-side-panel small, .junqi-side-panel strong { display: block; }.junqi-side-panel small { margin-bottom: 4px; color: var(--muted); }.junqi-side-panel strong { font-size: 18px; }.junqi-side-panel strong.red { color: #ec8a83; }.junqi-side-panel strong.blue { color: #82bee9; }
 .junqi-side-panel summary { display: flex; align-items: center; gap: 6px; color: var(--gold); cursor: pointer; font-weight: 800; }.junqi-side-panel p { color: var(--muted); font-size: 13px; line-height: 1.6; }

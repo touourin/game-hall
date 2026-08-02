@@ -382,14 +382,11 @@ function rankLabel(rank: number): string {
   width: 100%;
   min-height: clamp(390px, 49vw, 475px);
   overflow: hidden;
-  border: 7px solid color-mix(in srgb, var(--gold) 34%, #4a2712);
+  border: 7px solid var(--game-felt-border, color-mix(in srgb, var(--gold) 34%, #4a2712));
   border-radius: clamp(34px, 8vw, 92px);
-  background:
-    radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--green) 24%, transparent), transparent 48%),
-    repeating-linear-gradient(117deg, rgba(255,255,255,.018) 0 1px, transparent 1px 5px),
-    color-mix(in srgb, var(--surface-strong) 78%, #073c31);
+  background: var(--game-felt-surface, radial-gradient(circle at 50% 40%, #176348, #073c31));
   box-shadow:
-    inset 0 0 0 2px rgba(255, 230, 171, .13),
+    inset 0 0 0 2px color-mix(in srgb, var(--game-felt-highlight, #ffe6ab) 42%, transparent),
     inset 0 0 80px rgba(0, 0, 0, .35),
     0 20px 54px rgba(0, 0, 0, .42);
 }
@@ -414,7 +411,7 @@ function rankLabel(rank: number): string {
   border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
   border-radius: 18px;
   padding: 10px;
-  background: color-mix(in srgb, var(--surface-strong) 83%, transparent);
+  background: var(--game-seat-surface, color-mix(in srgb, var(--surface-strong) 83%, transparent));
   box-shadow: 0 10px 24px rgba(0,0,0,.24);
   pointer-events: auto;
   transition: border-color .18s, box-shadow .18s, transform .18s;
@@ -463,9 +460,9 @@ function rankLabel(rank: number): string {
 .opponent-card-stack i {
   position: absolute;
   inset: 0;
-  border: 1px solid rgba(237, 218, 180, .5);
+  border: 1px solid color-mix(in srgb, var(--game-card-back-accent, #eddab4) 58%, transparent);
   border-radius: 4px;
-  background: repeating-linear-gradient(45deg, #a43c3c 0 3px, #7b292e 3px 6px);
+  background: var(--game-card-back, repeating-linear-gradient(45deg, #a43c3c 0 3px, #7b292e 3px 6px));
   box-shadow: 0 2px 5px rgba(0,0,0,.34);
 }
 .opponent-card-stack i:nth-child(1) { transform: translateX(-8px) rotate(-7deg); }
@@ -499,10 +496,10 @@ function rankLabel(rank: number): string {
   min-height: 38px;
   display: grid;
   place-items: center;
-  border: 1px solid #cbbda5;
+  border: 1px solid var(--game-card-border, #cbbda5);
   border-radius: 5px;
   color: #20231f;
-  background: linear-gradient(145deg, #fffdf8, #eee2ce);
+  background: var(--game-card-face, linear-gradient(145deg, #fffdf8, #eee2ce));
   box-shadow: 0 3px 7px rgba(0,0,0,.28);
 }
 .table-center {
@@ -530,11 +527,11 @@ function rankLabel(rank: number): string {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  border: 1px solid #c8baa3;
+  border: 1px solid var(--game-card-border, #c8baa3);
   border-radius: 7px;
   padding: 6px;
   color: #20231f;
-  background: linear-gradient(145deg, #fffef9, #eee4d2);
+  background: var(--game-card-face, linear-gradient(145deg, #fffef9, #eee4d2));
   box-shadow: 0 5px 10px rgba(0,0,0,.4);
 }
 .played-cards span:first-child { margin-left: 0; }
@@ -560,7 +557,7 @@ function rankLabel(rank: number): string {
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 8px 11px 8px 8px;
-  background: color-mix(in srgb, var(--surface-strong) 88%, transparent);
+  background: var(--game-seat-surface, color-mix(in srgb, var(--surface-strong) 88%, transparent));
   box-shadow: 0 8px 22px rgba(0,0,0,.25);
 }
 .self-seat > div { display: grid; gap: 4px; }
@@ -669,13 +666,11 @@ function rankLabel(rank: number): string {
   flex-direction: column;
   align-items: flex-start;
   overflow: hidden;
-  border: 1px solid #c8baa3;
+  border: 1px solid var(--game-card-border, #c8baa3);
   border-radius: 9px;
   padding: 8px 5px;
   color: #1d211e;
-  background:
-    linear-gradient(145deg, rgba(255,255,255,.82), transparent 48%),
-    #f3ead9;
+  background: var(--game-card-face, linear-gradient(145deg, #fff, #f3ead9));
   box-shadow: 0 5px 12px rgba(0,0,0,.52), inset 0 0 0 1px rgba(255,255,255,.55);
   transform-origin: bottom center;
   transition: transform .15s ease, border-color .15s, box-shadow .15s, filter .15s;

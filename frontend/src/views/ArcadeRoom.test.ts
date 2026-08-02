@@ -43,6 +43,31 @@ function snapshot(gameKey: ArcadeGameKey): ArcadeSnapshot {
 }
 
 describe('ArcadeRoom', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('offers five local skins for supported multiplayer games', async () => {
+    const wrapper = mount(ArcadeRoom, {
+      props: { snapshot: snapshot('gomoku') },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.get('.game-skin-card').text()).toContain('我的棋盘画风')
+    expect(wrapper.findAll('[data-game-skin-option]')).toHaveLength(5)
+    expect(wrapper.get('.arcade-room').attributes('data-game-skin')).toBe('classic-wood')
+
+    await wrapper.get('[data-game-skin-option="celestial-gold"]').trigger('click')
+
+    expect(wrapper.get('.arcade-room').attributes('data-game-skin')).toBe('celestial-gold')
+    expect(localStorage.getItem('game-hall:game-skin')).toBe('celestial-gold')
+
+    await wrapper.setProps({ snapshot: snapshot('poker') })
+    expect(wrapper.get('.game-skin-card').text()).toContain('我的扑克画风')
+
+    await wrapper.setProps({ snapshot: snapshot('hanoi') })
+    expect(wrapper.find('.game-skin-card').exists()).toBe(false)
+    expect(wrapper.get('.arcade-room').attributes('data-game-skin')).toBeUndefined()
+  })
+
   it('uses the wide desktop layout only for wide table games', async () => {
     const wrapper = shallowMount(ArcadeRoom, {
       props: { snapshot: snapshot('doudizhu') },

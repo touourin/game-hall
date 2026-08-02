@@ -11,6 +11,7 @@ import {
   X,
 } from '@lucide/vue'
 import ArcadeChatPanel from '../components/ArcadeChatPanel.vue'
+import GameSkinPicker from '../components/GameSkinPicker.vue'
 import InviteLinkPanel from '../components/InviteLinkPanel.vue'
 import GameRuleSettings from '../components/GameRuleSettings.vue'
 import HostTransferNotice from '../components/HostTransferNotice.vue'
@@ -22,6 +23,13 @@ import RoomKickButton from '../components/RoomKickButton.vue'
 import { useArcadeStore } from '../stores/arcade'
 import type { ArcadeSnapshot } from '../types/arcade'
 import { gameRuleLabels, withDefaultGameRules } from '../gameRules'
+import {
+  gameSkinCssVariables,
+  gameSkinKind,
+  rememberGameSkin,
+  storedGameSkin,
+  type GameSkinId,
+} from '../gameSkins'
 import DoudizhuTable from '../games/doudizhu/DoudizhuTable.vue'
 import GoBoard from '../games/go/GoBoard.vue'
 import GomokuBoard from '../games/gomoku/GomokuBoard.vue'
@@ -37,6 +45,7 @@ const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
 const ruleEditor = ref<Record<string, unknown> | null>(null)
 const showQr = ref(false)
+const activeGameSkin = ref<GameSkinId>(storedGameSkin())
 const missingPlayers = computed(
   () => Math.max(0, (props.snapshot.minimumPlayers ?? props.snapshot.requiredPlayers) - props.snapshot.players.length),
 )
@@ -54,6 +63,10 @@ const selfRematchReady = computed(() =>
   props.snapshot.rematchReadyPlayerIds.includes(props.snapshot.self.id),
 )
 const isSolo = computed(() => ['reaction', 'schulte', 'minesweeper', 'hanoi'].includes(props.snapshot.gameKey))
+const activeGameSkinKind = computed(() => gameSkinKind(props.snapshot.gameKey))
+const activeGameSkinStyle = computed(() => (
+  activeGameSkinKind.value ? gameSkinCssVariables(activeGameSkin.value) : undefined
+))
 const roomHeaderEyebrow = computed(() => {
   const suffix = props.snapshot.gameKey === 'junqi'
     ? ` · ${props.snapshot.options.mode === 'flip' ? '翻棋军旗' : '暗军旗'}`
@@ -105,12 +118,19 @@ async function saveRules() {
   if (await arcade.updateRules(ruleEditor.value)) ruleEditor.value = null
 }
 
+function selectGameSkin(skin: GameSkinId) {
+  activeGameSkin.value = skin
+  rememberGameSkin(skin)
+}
+
 </script>
 
 <template>
   <main
     class="arcade-room page-container"
     :class="{ 'arcade-room--wide': ['poker', 'doudizhu', 'junqi', 'minesweeper'].includes(snapshot.gameKey) }"
+    :data-game-skin="activeGameSkinKind ? activeGameSkin : undefined"
+    :style="activeGameSkinStyle"
   >
     <RoomPageHeader
       :eyebrow="roomHeaderEyebrow"
@@ -147,7 +167,15 @@ async function saveRules() {
         :key="player.id"
         :class="{ self: player.id === snapshot.self.id }"
       >
-        <span>{{ player.seat + 1 }}</span>
+        <span class="arcade-player-avatar">
+          <img
+            v-if="player.avatarUrl"
+            :src="player.avatarUrl"
+            alt=""
+            draggable="false"
+          />
+          <template v-else>{{ player.seat + 1 }}</template>
+        </span>
         <div>
           <strong>{{ player.name }}</strong>
           <small>
@@ -179,6 +207,13 @@ async function saveRules() {
       </div>
       <button v-if="snapshot.actions.canEditRules" type="button" @click="openRuleEditor">{{ snapshot.phase === 'finished' ? '修改下局规则' : '修改规则' }}</button>
     </section>
+
+    <GameSkinPicker
+      v-if="snapshot.phase === 'lobby' && activeGameSkinKind"
+      :model-value="activeGameSkin"
+      :kind="activeGameSkinKind"
+      @update:model-value="selectGameSkin"
+    />
 
     <section v-if="snapshot.phase === 'lobby'" class="surface arcade-waiting">
       <UsersRound :size="48" />
@@ -318,6 +353,8 @@ async function saveRules() {
 .arcade-player-strip article > div { min-width: 0; flex: 1; }
 .arcade-player-strip article.self { border-color: color-mix(in srgb, var(--gold) 40%, transparent); background: color-mix(in srgb, var(--gold) 7%, transparent); }
 .arcade-player-strip article > span { width: 34px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 10px; color: var(--gold); background: color-mix(in srgb, var(--gold) 13%, transparent); font-weight: 900; }
+.arcade-player-avatar { overflow: hidden; }
+.arcade-player-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .arcade-player-strip strong, .arcade-player-strip small { display: block; }
 .arcade-player-strip small { margin-top: 2px; color: var(--muted); }
 .arcade-player-strip small svg { vertical-align: -2px; color: var(--gold); }
@@ -326,6 +363,7 @@ async function saveRules() {
 .room-rule-bar svg { flex: 0 0 auto; color: var(--gold); }
 .room-rule-bar span { border: 1px solid var(--line); border-radius: 999px; padding: 4px 8px; color: var(--muted); background: rgba(0, 0, 0, .1); font-size: 10px; }
 .room-rule-bar > button { flex: 0 0 auto; min-height: 36px; border: 1px solid color-mix(in srgb, var(--gold) 38%, var(--line)); border-radius: 10px; padding: 0 11px; color: var(--gold); background: color-mix(in srgb, var(--gold) 7%, transparent); font-weight: 850; }
+.game-skin-card + .arcade-waiting { margin-top: 18px; }
 .arcade-waiting { min-height: 390px; display: grid; place-items: center; align-content: center; gap: 12px; text-align: center; }
 .arcade-waiting > svg { color: var(--gold); }
 .arcade-waiting h2, .arcade-waiting p { margin: 0; }
