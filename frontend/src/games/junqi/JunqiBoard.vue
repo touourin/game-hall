@@ -77,6 +77,10 @@ function isLatest(row: number, column: number) {
   const action = game.value.lastAction
   return action?.toRow === row && action?.toColumn === column
 }
+function isLastFrom(row: number, column: number) {
+  const action = game.value.lastAction
+  return action?.fromRow === row && action?.fromColumn === column
+}
 function isRail(row: number, column: number) {
   return [1, 5, 6, 10].includes(row) || ([0, 4].includes(column) && row >= 1 && row <= 10)
 }
@@ -137,46 +141,87 @@ function choose(row: number, column: number) {
 
     <div class="junqi-layout">
       <div class="junqi-board" :class="`viewer-${game.viewerSide ?? 'unknown'}`" aria-label="军旗棋盘">
-        <template v-for="row in displayRows" :key="row">
-          <button
-            v-for="column in displayColumns"
-            :key="key(row, column)"
-            type="button"
-            class="junqi-cell"
-            :disabled="snapshot.phase === 'finished' || (isSetup ? isReady : !isMyTurn)"
-            :class="{
-              camp: campKeys.has(key(row, column)),
-              headquarters: headquartersKeys.has(key(row, column)),
-              rail: isRail(row, column),
-              selected: isSelected(row, column),
-              latest: isLatest(row, column),
-              occupied: game.board[row][column],
-            }"
-            :aria-label="`第 ${row + 1} 行第 ${column + 1} 列`"
-            @click="choose(row, column)"
-          >
-            <span v-if="campKeys.has(key(row, column)) && !game.board[row][column]" class="terrain-label">行营</span>
-            <span v-else-if="headquartersKeys.has(key(row, column)) && !game.board[row][column]" class="terrain-label">大本营</span>
-            <span
-              v-if="game.board[row][column]"
-              class="junqi-piece"
-              :class="[
-                game.board[row][column]?.side ?? 'hidden',
-                { concealed: !game.board[row][column]?.revealed },
-              ]"
+        <div class="territory-label enemy"><span>敌方阵地</span><small>ENEMY SECTOR</small></div>
+
+        <div class="junqi-field">
+          <svg class="junqi-route-map" viewBox="0 0 4 12" preserveAspectRatio="none" aria-hidden="true">
+            <g class="road-network">
+              <path d="M0 0H4 M0 1H4 M0 2H4 M0 3H4 M0 4H4 M0 5H4 M0 7H4 M0 8H4 M0 9H4 M0 10H4 M0 11H4 M0 12H4" />
+              <path d="M0 0V5 M1 0V5 M2 0V5 M3 0V5 M4 0V5 M0 7V12 M1 7V12 M2 7V12 M3 7V12 M4 7V12 M0 5V7 M2 5V7 M4 5V7" />
+              <path d="M1 1L0 0 M1 1L2 0 M1 1L0 2 M1 1L2 2 M3 1L2 0 M3 1L4 0 M3 1L2 2 M3 1L4 2 M2 2L1 3 M2 2L3 3 M1 3L0 2 M1 3L0 4 M1 3L2 4 M3 3L4 2 M3 3L2 4 M3 3L4 4" />
+              <path d="M1 11L0 12 M1 11L2 12 M1 11L0 10 M1 11L2 10 M3 11L2 12 M3 11L4 12 M3 11L2 10 M3 11L4 10 M2 10L1 9 M2 10L3 9 M1 9L0 10 M1 9L0 8 M1 9L2 8 M3 9L4 10 M3 9L2 8 M3 9L4 8" />
+            </g>
+            <g class="rail-network rail-bed">
+              <path d="M0 1H4 M0 5H4 M0 7H4 M0 11H4 M0 1V11 M4 1V11 M2 5V7" />
+            </g>
+            <g class="rail-network rail-core">
+              <path d="M0 1H4 M0 5H4 M0 7H4 M0 11H4 M0 1V11 M4 1V11 M2 5V7" />
+            </g>
+          </svg>
+
+          <div class="junqi-special-space frontline first" aria-hidden="true">前线</div>
+          <div class="junqi-special-space mountain first" aria-hidden="true">山界</div>
+          <div class="junqi-special-space frontline second" aria-hidden="true">前线</div>
+          <div class="junqi-special-space mountain second" aria-hidden="true">山界</div>
+          <div class="junqi-special-space frontline third" aria-hidden="true">前线</div>
+
+          <template v-for="(row, displayRowIndex) in displayRows" :key="row">
+            <button
+              v-for="(column, displayColumnIndex) in displayColumns"
+              :key="key(row, column)"
+              type="button"
+              class="junqi-cell"
+              :style="{
+                gridRow: displayRowIndex < 6 ? displayRowIndex + 1 : displayRowIndex + 2,
+                gridColumn: displayColumnIndex + 1,
+              }"
+              :disabled="snapshot.phase === 'finished' || (isSetup ? isReady : !isMyTurn)"
+              :class="{
+                camp: campKeys.has(key(row, column)),
+                headquarters: headquartersKeys.has(key(row, column)),
+                rail: isRail(row, column),
+                selected: isSelected(row, column),
+                latest: isLatest(row, column),
+                'last-from': isLastFrom(row, column),
+                occupied: game.board[row][column],
+              }"
+              :aria-label="`第 ${row + 1} 行第 ${column + 1} 列${campKeys.has(key(row, column)) ? '，行营' : headquartersKeys.has(key(row, column)) ? '，大本营' : isRail(row, column) ? '，铁路兵站' : '，公路兵站'}`"
+              @click="choose(row, column)"
             >
-              <b>{{ game.board[row][column]?.revealed ? game.board[row][column]?.label : '軍' }}</b>
-              <small v-if="game.board[row][column]?.revealed && game.board[row][column]?.kind === 'flag'">旗</small>
-            </span>
-          </button>
-        </template>
-        <div class="river-label">战 线</div>
+              <span v-if="campKeys.has(key(row, column)) && !game.board[row][column]" class="terrain-label">行营</span>
+              <span v-else-if="headquartersKeys.has(key(row, column)) && !game.board[row][column]" class="terrain-label">大本营</span>
+              <span
+                v-if="game.board[row][column]"
+                class="junqi-piece"
+                :class="[
+                  game.board[row][column]?.side ?? 'hidden',
+                  { concealed: !game.board[row][column]?.revealed },
+                ]"
+              >
+                <b>{{ game.board[row][column]?.revealed ? game.board[row][column]?.label : '軍' }}</b>
+                <small>{{ game.board[row][column]?.revealed && game.board[row][column]?.kind === 'flag' ? '军旗' : game.board[row][column]?.revealed ? '部队' : '密令' }}</small>
+              </span>
+            </button>
+          </template>
+        </div>
+
+        <div class="territory-label self"><span>我方阵地</span><small>YOUR SECTOR</small></div>
       </div>
 
       <aside class="junqi-side-panel surface">
-        <div><small>当前玩法</small><strong>{{ game.modeLabel }}</strong></div>
-        <div><small>你的阵营</small><strong :class="game.viewerSide ?? ''">{{ selfColorLabel }}</strong></div>
-        <div><small>已行动</small><strong>{{ game.moveCount }} 次</strong></div>
+        <header><small>FIELD BRIEFING</small><strong>战场情报</strong></header>
+        <div class="junqi-metrics">
+          <div><small>当前玩法</small><strong>{{ game.modeLabel }}</strong></div>
+          <div><small>你的阵营</small><strong :class="game.viewerSide ?? ''">{{ selfColorLabel }}</strong></div>
+          <div><small>已行动</small><strong>{{ game.moveCount }} 次</strong></div>
+        </div>
+        <section class="terrain-legend" aria-label="棋盘地形图例">
+          <h3>地形图例</h3>
+          <div><i class="legend-line road"></i><span><b>公路线</b><small>每次移动一站</small></span></div>
+          <div><i class="legend-line railway"></i><span><b>铁路线</b><small>可直线快速行军</small></span></div>
+          <div><i class="legend-node camp"></i><span><b>行营</b><small>驻军不会被攻击</small></span></div>
+          <div><i class="legend-node headquarters"></i><span><b>大本营</b><small>进入后不能移动</small></span></div>
+        </section>
         <details>
           <summary><Info :size="16" />玩法提示</summary>
           <p>军旗、地雷不能移动；大本营内棋子不能移动；行营中的棋子不能被攻击。</p>
@@ -196,41 +241,66 @@ function choose(row: number, column: number) {
 </template>
 
 <style scoped>
-.junqi-game { width: min(100%, 980px); margin: 0 auto; display: grid; gap: 16px; }
-.junqi-status { padding: 14px 16px; display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
-.junqi-status > span { width: 42px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 12px; color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); }
+.junqi-game { --junqi-red: #a93631; --junqi-blue: #245d82; width: min(100%, 1040px); margin: 0 auto; display: grid; gap: 16px; }
+.junqi-status { position: relative; overflow: hidden; padding: 14px 16px; display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+.junqi-status::after { content: ''; position: absolute; inset: 0 0 auto; height: 2px; opacity: 0; background: linear-gradient(90deg, transparent, var(--gold), transparent); transition: opacity .2s ease; }
+.junqi-status > span { width: 42px; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--gold) 24%, transparent); border-radius: 9px; color: var(--gold); background: color-mix(in srgb, var(--gold) 9%, transparent); transform: rotate(45deg); }
+.junqi-status > span :deep(svg) { transform: rotate(-45deg); }
 .junqi-status strong, .junqi-status small { display: block; }.junqi-status small { margin-top: 3px; color: var(--muted); }.junqi-status em { color: var(--gold); font-style: normal; font-weight: 800; }
-.junqi-status.active { border-color: color-mix(in srgb, var(--gold) 34%, transparent); }
-.junqi-layout { display: grid; grid-template-columns: minmax(320px, 520px) minmax(200px, 1fr); gap: 18px; align-items: start; justify-content: center; }
-.junqi-board { position: relative; width: 100%; aspect-ratio: 5 / 9.2; padding: 14px; display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(12, 1fr); gap: 5px; border: 2px solid var(--game-board-frame, #8d6836); border-radius: 18px; background-color: var(--game-board-surface, #b69558); background-image: var(--game-board-texture, linear-gradient(155deg, rgba(255,255,255,.12), rgba(0,0,0,.12))); box-shadow: inset 0 0 0 2px var(--game-board-highlight, rgba(255,226,160,.24)), 0 22px 48px #0007, 0 0 0 1px color-mix(in srgb, var(--gold) 24%, transparent); overflow: hidden; }
-.junqi-board::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 7.5%; transform: translateY(-50%); pointer-events: none; background: color-mix(in srgb, var(--game-board-line, #394f38) 24%, transparent); border-top: 1px solid color-mix(in srgb, var(--game-board-line, #394f38) 72%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--game-board-line, #394f38) 72%, transparent); }
-.river-label { position: absolute; z-index: 1; top: 50%; left: 50%; transform: translate(-50%, -50%); color: color-mix(in srgb, var(--game-board-label, #253b2b) 70%, transparent); font-family: serif; font-weight: 900; letter-spacing: .8em; white-space: nowrap; pointer-events: none; }
-.junqi-cell { position: relative; z-index: 2; min-width: 0; padding: 2px; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--game-board-line, #76572e) 58%, transparent); border-radius: 7px; color: var(--game-board-label, #47351e); background: color-mix(in srgb, var(--game-board-highlight, #ead29b) 42%, transparent); }
-.junqi-cell:disabled { opacity: 1; }
-.junqi-cell.rail { border-width: 2px; border-color: color-mix(in srgb, var(--game-board-line, #59401f) 80%, transparent); }
-.junqi-cell.camp { border-radius: 50%; background: color-mix(in srgb, var(--game-board-highlight, #d9c58f) 64%, transparent); }
-.junqi-cell.headquarters { border-style: double; border-width: 3px; }
-.junqi-cell.selected { outline: 3px solid var(--gold); outline-offset: 1px; transform: translateY(-1px); }
-.junqi-cell.latest { box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--gold) 54%, transparent); }
-.terrain-label { font-size: clamp(8px, 1.7vw, 11px); font-weight: 900; opacity: .65; }
-.junqi-piece { width: 90%; height: 88%; display: grid; place-items: center; align-content: center; border: 2px solid currentColor; border-radius: 7px; font-family: serif; font-weight: 900; background: var(--game-piece-surface, #f3dfae); box-shadow: inset 0 0 0 1px var(--game-piece-rim, transparent), 0 3px 5px #0006; }
-.junqi-piece b { font-size: clamp(10px, 2vw, 17px); line-height: 1; white-space: nowrap; }.junqi-piece small { margin-top: 2px; font-size: 8px; }
-.junqi-piece.red { color: #a72e2b; }.junqi-piece.blue { color: #245b81; }.junqi-piece.hidden { color: var(--game-card-back-accent, #f3db9b); background: var(--game-card-back, linear-gradient(145deg, #6e5b3d, #403727)); }
-.junqi-piece.concealed { color: var(--game-card-back-accent, #f3db9b); border-color: var(--game-card-back-accent, #c5a85f); }
-.junqi-side-panel { padding: 18px; display: grid; gap: 15px; }
-.junqi-side-panel > div { padding-bottom: 12px; border-bottom: 1px solid var(--line); }.junqi-side-panel small, .junqi-side-panel strong { display: block; }.junqi-side-panel small { margin-bottom: 4px; color: var(--muted); }.junqi-side-panel strong { font-size: 18px; }.junqi-side-panel strong.red { color: #ec8a83; }.junqi-side-panel strong.blue { color: #82bee9; }
-.junqi-side-panel summary { display: flex; align-items: center; gap: 6px; color: var(--gold); cursor: pointer; font-weight: 800; }.junqi-side-panel p { color: var(--muted); font-size: 13px; line-height: 1.6; }
+.junqi-status.active { border-color: color-mix(in srgb, var(--gold) 34%, transparent); }.junqi-status.active::after { opacity: 1; }
+.junqi-layout { display: grid; grid-template-columns: minmax(340px, 560px) minmax(220px, 1fr); gap: 20px; align-items: start; justify-content: center; }
+
+.junqi-board { position: relative; width: 100%; box-sizing: border-box; overflow: hidden; padding: 12px clamp(12px, 2.4vw, 20px) 16px; border: 3px solid var(--game-board-frame, #765025); border-radius: 10px; background-color: var(--game-board-surface, #c19a58); background-image: linear-gradient(90deg, color-mix(in srgb, var(--game-board-frame, #765025) 9%, transparent) 1px, transparent 1px), linear-gradient(color-mix(in srgb, white 5%, transparent), color-mix(in srgb, black 7%, transparent)), var(--game-board-texture, repeating-linear-gradient(88deg, transparent 0 27px, rgba(83,45,15,.05) 28px)); background-size: 32px 100%, auto, auto; box-shadow: inset 0 0 0 2px var(--game-board-highlight, rgba(255,225,155,.35)), inset 0 0 0 7px color-mix(in srgb, var(--game-board-frame, #765025) 24%, transparent), inset 0 0 38px rgba(24,18,9,.22), 0 22px 50px #0007, 0 0 0 1px color-mix(in srgb, var(--gold) 26%, transparent); }
+.junqi-board::before, .junqi-board::after { content: ''; position: absolute; z-index: 0; top: 10px; bottom: 10px; width: 5px; border-block: 1px solid color-mix(in srgb, var(--game-board-line, #4c3e27) 42%, transparent); opacity: .7; }
+.junqi-board::before { left: 7px; border-left: 2px solid color-mix(in srgb, var(--game-board-line, #4c3e27) 65%, transparent); }.junqi-board::after { right: 7px; border-right: 2px solid color-mix(in srgb, var(--game-board-line, #4c3e27) 65%, transparent); }
+.territory-label { position: relative; z-index: 4; min-height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--game-board-label, #48351e); text-transform: uppercase; }
+.territory-label span { font-family: "Songti SC", "STSong", serif; font-size: 12px; font-weight: 900; letter-spacing: .24em; }.territory-label small { font-size: 8px; font-weight: 800; letter-spacing: .16em; opacity: .62; }
+.territory-label.enemy { border-bottom: 1px solid color-mix(in srgb, var(--game-board-line, #4c3e27) 28%, transparent); }.territory-label.self { border-top: 1px solid color-mix(in srgb, var(--game-board-line, #4c3e27) 28%, transparent); }
+
+.junqi-field { position: relative; isolation: isolate; width: 100%; aspect-ratio: 5 / 8.75; display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(13, 1fr); }
+.junqi-route-map { pointer-events: none; position: absolute; z-index: 1; inset: 3.8462% 10%; width: 80%; height: 92.3076%; overflow: visible; }
+.junqi-route-map path { fill: none; vector-effect: non-scaling-stroke; stroke-linecap: square; stroke-linejoin: round; }
+.road-network path { stroke: color-mix(in srgb, var(--game-board-line, #5e4627) 62%, transparent); stroke-width: 1.5; }
+.rail-network path { stroke: var(--game-board-line, #4d3920); }.rail-bed path { stroke-width: 7; opacity: .82; }.rail-core path { stroke: color-mix(in srgb, var(--game-board-surface, #c19a58) 86%, white); stroke-width: 3; stroke-dasharray: 3 2; }
+.junqi-special-space { position: relative; z-index: 2; grid-row: 7; place-self: center; box-sizing: border-box; display: grid; place-items: center; color: var(--game-board-label, #47351e); background: color-mix(in srgb, var(--game-board-surface, #c19a58) 84%, var(--game-board-highlight, #ead29b)); font-family: "Songti SC", "STSong", serif; font-size: clamp(7px, 1.25vw, 10px); font-weight: 900; pointer-events: none; }
+.junqi-special-space.frontline { width: 43%; aspect-ratio: 1; border: 2px solid color-mix(in srgb, var(--game-board-line, #59401f) 82%, transparent); border-radius: 2px; box-shadow: inset 0 0 0 1px color-mix(in srgb, white 12%, transparent); }.junqi-special-space.mountain { width: 48%; aspect-ratio: 1; border: 4px double color-mix(in srgb, var(--game-board-line, #59401f) 78%, transparent); border-radius: 50%; opacity: .78; }
+.junqi-special-space.first { grid-column: 1; }.junqi-special-space.mountain.first { grid-column: 2; }.junqi-special-space.second { grid-column: 3; }.junqi-special-space.mountain.second { grid-column: 4; }.junqi-special-space.third { grid-column: 5; }
+
+.junqi-cell { position: relative; z-index: 3; min-width: 0; min-height: 0; display: grid; place-items: center; appearance: none; -webkit-appearance: none; touch-action: manipulation; padding: 0; border: 0; color: var(--game-board-label, #47351e); background: transparent; }
+.junqi-cell::before { content: ''; position: absolute; z-index: 0; width: 72%; height: 52%; box-sizing: border-box; border: 1px solid color-mix(in srgb, var(--game-board-line, #59401f) 72%, transparent); border-radius: 2px; background: color-mix(in srgb, var(--game-board-surface, #c19a58) 86%, var(--game-board-highlight, #ead29b)); box-shadow: inset 0 0 0 1px color-mix(in srgb, white 10%, transparent), 0 1px 2px rgba(31,20,7,.16); }
+.junqi-cell:disabled { opacity: 1; }.junqi-cell:not(:disabled) { cursor: pointer; }.junqi-cell:not(:disabled):hover::before { filter: brightness(1.08); }
+.junqi-cell.rail::before { border-width: 2px; border-color: color-mix(in srgb, var(--game-board-line, #59401f) 82%, transparent); }
+.junqi-cell.camp::before { width: 48%; height: auto; aspect-ratio: 1; border: 3px double color-mix(in srgb, var(--game-board-line, #59401f) 78%, transparent); border-radius: 50%; background: color-mix(in srgb, var(--game-board-highlight, #d9c58f) 54%, var(--game-board-surface, #c19a58)); }
+.junqi-cell.headquarters::before { width: 76%; height: 58%; border: 2px solid color-mix(in srgb, var(--game-board-line, #59401f) 88%, #15130f); border-radius: 2px; background: color-mix(in srgb, var(--game-board-line, #59401f) 72%, #17140f); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--game-board-surface, #c19a58) 25%, transparent), 0 2px 3px rgba(0,0,0,.22); clip-path: polygon(12% 18%,50% 0,88% 18%,100% 18%,100% 100%,0 100%,0 18%); }
+.junqi-cell.headquarters .terrain-label { color: color-mix(in srgb, var(--game-board-surface, #c19a58) 72%, white); text-shadow: 0 1px rgba(0,0,0,.4); }
+.junqi-cell.selected::after, .junqi-cell.latest::after, .junqi-cell.last-from::after { content: ''; position: absolute; z-index: 4; width: 88%; height: 75%; border: 3px solid var(--gold); border-radius: 7px; box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 22%, transparent), 0 0 18px color-mix(in srgb, var(--gold) 55%, transparent); pointer-events: none; }
+.junqi-cell.latest::after { width: 80%; height: 64%; border-width: 2px; border-color: #df8637; box-shadow: 0 0 12px rgba(223,134,55,.42); }.junqi-cell.last-from::after { width: 18%; height: auto; aspect-ratio: 1; border: 0; border-radius: 50%; background: #df8637; box-shadow: 0 0 0 3px rgba(223,134,55,.22); }
+.terrain-label { position: relative; z-index: 1; font-family: "Songti SC", "STSong", serif; font-size: clamp(7px, 1.35vw, 10px); font-weight: 900; letter-spacing: .05em; opacity: .76; }
+.junqi-piece { position: relative; z-index: 3; width: 82%; height: 64%; box-sizing: border-box; overflow: hidden; display: grid; place-items: center; align-content: center; border: 2px solid currentColor; border-radius: 5px; font-family: "Songti SC", "STSong", serif; font-weight: 900; background: var(--game-piece-surface, #f3dfae); box-shadow: inset 0 0 0 1px var(--game-piece-rim, transparent), inset 0 -5px 8px rgba(49,27,7,.15), 0 3px 6px #0007; transition: transform .14s ease, filter .14s ease, box-shadow .14s ease; }
+.junqi-piece::before { content: ''; position: absolute; inset: 3px; border: 1px solid currentColor; border-radius: 2px; opacity: .3; pointer-events: none; }.junqi-piece b { position: relative; font-size: clamp(10px, 2vw, 18px); line-height: 1; white-space: nowrap; }.junqi-piece small { position: relative; margin-top: 3px; font-family: system-ui, sans-serif; font-size: clamp(5px, .9vw, 7px); line-height: 1; letter-spacing: .14em; opacity: .62; }
+.junqi-piece.red { color: var(--junqi-red); }.junqi-piece.blue { color: var(--junqi-blue); }.junqi-piece.hidden { color: var(--game-card-back-accent, #f3db9b); background: var(--game-card-back, linear-gradient(145deg, #6e5b3d, #403727)); }.junqi-piece.concealed { color: var(--game-card-back-accent, #f3db9b); border-color: var(--game-card-back-accent, #c5a85f); background: var(--game-card-back, linear-gradient(145deg, #6e5b3d, #403727)); }.junqi-cell.selected .junqi-piece { transform: translateY(-3px) scale(1.04); filter: brightness(1.08); box-shadow: inset 0 0 0 1px var(--game-piece-rim, transparent), 0 8px 12px #0008, 0 0 16px color-mix(in srgb, var(--gold) 48%, transparent); }
+
+.junqi-side-panel { overflow: hidden; padding: 0; display: grid; align-content: start; gap: 0; }
+.junqi-side-panel > header { padding: 18px; border-bottom: 1px solid var(--line); background: linear-gradient(135deg, color-mix(in srgb, var(--gold) 8%, transparent), transparent 58%); }.junqi-side-panel > header small, .junqi-side-panel > header strong { display: block; }.junqi-side-panel > header small { margin-bottom: 5px; color: var(--gold); font-size: 9px; letter-spacing: .18em; }.junqi-side-panel > header strong { font-size: 20px; }
+.junqi-metrics { padding: 16px 18px; display: grid; gap: 12px; }.junqi-metrics > div { padding-bottom: 11px; border-bottom: 1px solid var(--line); }.junqi-metrics > div:last-child { padding-bottom: 0; border-bottom: 0; }.junqi-metrics small, .junqi-metrics strong { display: block; }.junqi-metrics small { margin-bottom: 4px; color: var(--muted); }.junqi-metrics strong { font-size: 17px; }.junqi-metrics strong.red { color: #ec8a83; }.junqi-metrics strong.blue { color: #82bee9; }
+.terrain-legend { padding: 16px 18px; display: grid; gap: 11px; border-block: 1px solid var(--line); background: rgba(0,0,0,.08); }.terrain-legend h3 { margin: 0 0 2px; color: var(--muted); font-size: 11px; letter-spacing: .12em; }.terrain-legend > div { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: center; }.terrain-legend span b, .terrain-legend span small { display: block; }.terrain-legend span b { font-size: 12px; }.terrain-legend span small { margin-top: 2px; color: var(--muted); font-size: 10px; }
+.legend-line { position: relative; display: block; width: 31px; height: 9px; }.legend-line::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; border-top: 1px solid var(--muted); }.legend-line.railway { border-block: 2px solid var(--gold); }.legend-line.railway::before { border-color: transparent; background: repeating-linear-gradient(90deg, var(--gold) 0 2px, transparent 2px 6px); height: 100%; top: 0; }
+.legend-node { justify-self: center; display: block; width: 18px; height: 18px; border: 2px double var(--gold); }.legend-node.camp { border-radius: 50%; }.legend-node.headquarters { width: 25px; height: 17px; border-style: solid; background: color-mix(in srgb, var(--gold) 12%, transparent); clip-path: polygon(12% 22%,50% 0,88% 22%,100% 22%,100% 100%,0 100%,0 22%); }
+.junqi-side-panel details { padding: 15px 18px 18px; }.junqi-side-panel summary { display: flex; align-items: center; gap: 6px; color: var(--gold); cursor: pointer; font-weight: 800; }.junqi-side-panel p { margin-bottom: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
 .junqi-actions { display: flex; justify-content: center; gap: 10px; }.junqi-actions button:not(.arcade-danger-button) { padding: 11px 18px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); background: var(--surface); }.junqi-actions button.primary { color: #08271f; background: var(--green); }.junqi-actions button:disabled { opacity: .4; }
 @media (max-width: 720px) {
   .junqi-layout { grid-template-columns: 1fr; }
-  .junqi-board { width: min(100%, 470px); margin: 0 auto; padding: 8px; gap: 3px; border-radius: 13px; }
-  .junqi-side-panel { grid-template-columns: repeat(3, 1fr); padding: 12px; gap: 8px; }
-  .junqi-side-panel > div { padding: 0 6px 0 0; border-right: 1px solid var(--line); border-bottom: 0; }
-  .junqi-side-panel details { grid-column: 1 / -1; }
+  .junqi-board { width: min(100%, 520px); margin: 0 auto; padding-inline: clamp(9px, 3vw, 16px); }
+  .junqi-side-panel { width: min(100%, 520px); margin: 0 auto; }
+  .junqi-metrics { grid-template-columns: repeat(3, 1fr); gap: 8px; }.junqi-metrics > div { padding: 0 8px 0 0; border-right: 1px solid var(--line); border-bottom: 0; }.junqi-metrics > div:last-child { border-right: 0; }
+  .terrain-legend { grid-template-columns: 1fr 1fr; }.terrain-legend h3 { grid-column: 1 / -1; }
   .junqi-status { grid-template-columns: auto 1fr; }.junqi-status em { grid-column: 2; }
 }
 @media (max-width: 400px) {
-  .junqi-piece { border-width: 1px; }.junqi-piece b { font-size: 11px; }
-  .junqi-side-panel strong { font-size: 14px; }
+  .junqi-board { border-width: 2px; }.territory-label { min-height: 29px; }.territory-label small { display: none; }
+  .junqi-piece { width: 86%; height: 67%; border-width: 1px; }.junqi-piece::before { inset: 2px; }.junqi-piece b { font-size: 10px; }.junqi-piece small { display: none; }
+  .junqi-special-space.frontline { width: 48%; border-width: 1px; }.junqi-special-space.mountain { width: 52%; border-width: 3px; }
+  .junqi-cell.camp::before { width: 52%; border-width: 2px; }.junqi-cell.headquarters::before { width: 80%; border-width: 1px; }
+  .junqi-metrics strong { font-size: 13px; }.terrain-legend { grid-template-columns: 1fr; }.terrain-legend h3 { grid-column: auto; }
 }
 </style>

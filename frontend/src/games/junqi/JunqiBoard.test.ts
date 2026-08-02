@@ -46,12 +46,32 @@ function snapshot(turnPlayerId: string): ArcadeSnapshot {
       setupReady: { p1: true, p2: true },
       lastAction: null,
       moveCount: 0,
-      terrain: { camps: [], headquarters: [] },
+      terrain: {
+        camps: [[1, 1], [1, 3], [2, 2], [3, 1], [3, 3], [8, 1], [8, 3], [9, 2], [10, 1], [10, 3]],
+        headquarters: [[0, 1], [0, 3], [11, 1], [11, 3]],
+      },
     },
   }
 }
 
 describe('JunqiBoard', () => {
+  it('renders a dedicated military board with roads, railways, and battlefield landmarks', () => {
+    const wrapper = mount(JunqiBoard, {
+      props: { snapshot: snapshot('p1') },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.find('.junqi-route-map').exists()).toBe(true)
+    expect(wrapper.findAll('.rail-network')).toHaveLength(2)
+    expect(wrapper.findAll('.junqi-special-space.frontline')).toHaveLength(3)
+    expect(wrapper.findAll('.junqi-special-space.mountain')).toHaveLength(2)
+    expect(wrapper.findAll('.junqi-cell.camp')).toHaveLength(10)
+    expect(wrapper.findAll('.junqi-cell.headquarters')).toHaveLength(4)
+    expect(wrapper.get('.terrain-legend').text()).toContain('铁路线')
+    expect(wrapper.get('.territory-label.enemy').text()).toContain('敌方阵地')
+    expect(wrapper.get('.territory-label.self').text()).toContain('我方阵地')
+  })
+
   it('disables the whole board while waiting for the opponent', async () => {
     const wrapper = mount(JunqiBoard, {
       props: { snapshot: snapshot('p2') },
