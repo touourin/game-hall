@@ -52,7 +52,7 @@ const games: Array<GameCatalogItem & { tone: string; category: string }> = [
           :src="account.avatarUrl"
           :name="account.playerName"
         />
-        <span><small>PRIVATE MEMBER · 私人席位</small><strong>{{ account.playerName }}</strong></span>
+        <strong>{{ account.playerName }}</strong>
       </div>
       <div class="account-bar-actions">
         <button type="button" aria-label="查看战绩" @click="showStats = true"><History :size="16" /><span>战绩</span></button>
@@ -63,11 +63,10 @@ const games: Array<GameCatalogItem & { tone: string; category: string }> = [
 
     <section class="hall-hero">
       <div class="hall-ornament" aria-hidden="true"><i /><Sparkles :size="14" /><i /></div>
-      <p class="eyebrow">PRIVATE GAME SALON</p>
       <h1>游戏大厅</h1>
       <p>今晚玩什么？</p>
       <div class="hall-highlights" aria-label="大厅能力">
-        <span>11 款游戏</span><b>·</b><span>实时联机</span><b>·</b><span>独立战绩</span>
+        <span>实时联机</span><b>·</b><span>独立战绩</span>
       </div>
     </section>
 
@@ -99,7 +98,6 @@ const games: Array<GameCatalogItem & { tone: string; category: string }> = [
           <strong>{{ game.name }}</strong>
           <em>{{ game.description }}</em>
         </span>
-        <span v-if="index === 0" class="featured-label">本周主桌</span>
         <span class="enter-game" aria-hidden="true">›</span>
       </button>
     </section>
@@ -135,7 +133,7 @@ const games: Array<GameCatalogItem & { tone: string; category: string }> = [
 .hall-hero { min-height: 305px; display: grid; justify-items: center; align-content: center; padding: 58px 20px 42px; text-align: center; }
 .hall-ornament { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; color: var(--gold); }.hall-ornament i { width: 72px; height: 1px; background: linear-gradient(90deg, transparent, var(--gold)); }.hall-ornament i:last-child { background: linear-gradient(90deg, var(--gold), transparent); }
 .hall-hero h1 { margin: 11px 0 7px; font-family: "Songti SC", "STSong", serif; font-size: clamp(48px, 7vw, 72px); font-weight: 650; letter-spacing: .08em; line-height: 1; text-shadow: 0 12px 38px color-mix(in srgb, var(--bg) 55%, transparent); }
-.hall-hero > p:nth-of-type(2) { margin: 0; color: var(--muted); font-family: "Songti SC", serif; font-size: 15px; letter-spacing: .25em; }
+.hall-hero > p { margin: 0; color: var(--muted); font-family: "Songti SC", serif; font-size: 15px; letter-spacing: .25em; }
 .hall-highlights { display: flex; align-items: center; gap: 10px; margin-top: 23px; color: var(--text-soft); font-size: 11px; font-weight: 750; letter-spacing: .08em; }.hall-highlights b { color: var(--gold); font-weight: 400; }
 .resume-arcade-card { margin-bottom: 22px; padding: 16px 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .resume-arcade-card > div { display: flex; gap: 12px; align-items: center; color: var(--gold); }
@@ -152,8 +150,7 @@ const games: Array<GameCatalogItem & { tone: string; category: string }> = [
 .game-copy { position: relative; z-index: 2; display: grid; gap: 4px; min-width: 0; padding-right: 19px; }
 .game-copy strong { font-family: "Songti SC", "STSong", serif; font-size: 20px; letter-spacing: .01em; }
 .game-copy em { overflow: hidden; color: var(--text-soft); font-size: 11px; font-style: normal; line-height: 1.4; letter-spacing: .015em; text-overflow: ellipsis; white-space: nowrap; }
-.game-card:first-child .game-copy { align-self: end; max-width: 55%; gap: 10px; padding: 0 0 42px; }.game-card:first-child .game-copy strong { color: #f4efe1; font-size: clamp(38px,5vw,58px); }.game-card:first-child .game-copy em { color: #aab5aa; font-size: 14px; line-height: 1.6; white-space: normal; }
-.featured-label { position: absolute; z-index: 3; left: 32px; bottom: 28px; border: 1px solid rgba(214,183,110,.4); border-radius: 999px; padding: 6px 10px; color: #d6b76e; background: rgba(6,19,16,.58); font-size: 9px; font-weight: 850; letter-spacing: .1em; backdrop-filter: blur(8px); }
+.game-card:first-child .game-copy { align-self: end; max-width: 55%; gap: 10px; padding: 0 0 12px; }.game-card:first-child .game-copy strong { color: #f4efe1; font-size: clamp(38px,5vw,58px); }.game-card:first-child .game-copy em { color: #aab5aa; font-size: 14px; line-height: 1.6; white-space: normal; }
 .enter-game { position: absolute; z-index: 3; right: 13px; bottom: 14px; width: 24px; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--card-tone) 34%, transparent); border-radius: 50%; color: var(--card-tone); font-size: 21px; line-height: 1; }
 .game-card:first-child .enter-game { right: 29px; bottom: 28px; width: 34px; color: #d6b76e; border-color: rgba(214,183,110,.44); }
 .tone-red { --card-tone: #e88a82; }.tone-jade { --card-tone: #72d0ad; }.tone-blue { --card-tone: #86bde4; }.tone-ink { --card-tone: #d7d8d1; }
@@ -163,7 +160,7 @@ const games: Array<GameCatalogItem & { tone: string; category: string }> = [
 :global(:root[data-theme="royal"] .featured-art-emerald) { display: none; }:global(:root[data-theme="royal"] .featured-art-royal) { display: block; }
 :global(:root[data-theme="royal"] .game-card:first-child) { border-color: rgba(165,78,64,.34); }
 :global(:root[data-theme="royal"] .game-card:first-child::before) { background: linear-gradient(90deg, rgba(249,246,237,.98), rgba(249,246,237,.77) 46%, rgba(249,246,237,.08) 78%), linear-gradient(0deg, rgba(249,246,237,.7), transparent 62%); }
-:global(:root[data-theme="royal"] .game-card:first-child .game-card-topline small),:global(:root[data-theme="royal"] .game-card:first-child .game-card-topline em),:global(:root[data-theme="royal"] .game-card:first-child .game-copy strong) { color: #292720; }:global(:root[data-theme="royal"] .game-card:first-child .game-copy em) { color: #716c61; }:global(:root[data-theme="royal"] .featured-label) { border-color: rgba(165,78,64,.32); color: #a54e40; background: rgba(249,246,237,.7); }:global(:root[data-theme="royal"] .game-card:first-child .enter-game) { border-color: rgba(165,78,64,.38); color: #a54e40; }
+:global(:root[data-theme="royal"] .game-card:first-child .game-card-topline small),:global(:root[data-theme="royal"] .game-card:first-child .game-card-topline em),:global(:root[data-theme="royal"] .game-card:first-child .game-copy strong) { color: #292720; }:global(:root[data-theme="royal"] .game-card:first-child .game-copy em) { color: #716c61; }:global(:root[data-theme="royal"] .game-card:first-child .enter-game) { border-color: rgba(165,78,64,.38); color: #a54e40; }
 .mobile-salon-dock { display: none; }
 @media (hover: hover) {
   .game-card:hover { border-color: color-mix(in srgb, var(--card-tone) 48%, var(--line)); box-shadow: 0 24px 60px color-mix(in srgb, var(--bg) 48%, transparent); transform: translateY(-3px); }
@@ -179,16 +176,16 @@ const games: Array<GameCatalogItem & { tone: string; category: string }> = [
   .salon-account-bar .account-bar-actions button { flex: 0 0 38px; width: 38px; height: 38px; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 0; padding: 0; line-height: 0; }
   .salon-account-bar .account-bar-actions button span { display: none; }
   .salon-account-bar .account-bar-actions button :deep(svg) { display: block; flex: 0 0 auto; margin: 0; }
-  .hall-hero { min-height: 216px; padding: 39px 5px 27px; }.hall-ornament { margin-bottom: 7px; }.hall-ornament i { width: 40px; }.hall-hero h1 { margin-top: 8px; font-size: 43px; }.hall-hero > p:nth-of-type(2) { font-size: 12px; }.hall-highlights { gap: 6px; margin-top: 16px; font-size: 8px; }
+  .hall-hero { min-height: 216px; padding: 39px 5px 27px; }.hall-ornament { margin-bottom: 7px; }.hall-ornament i { width: 40px; }.hall-hero h1 { margin-top: 8px; font-size: 43px; }.hall-hero > p { font-size: 12px; }.hall-highlights { gap: 6px; margin-top: 16px; font-size: 8px; }
   .game-grid { grid-template-columns: repeat(2,minmax(0,1fr)); grid-auto-rows: 184px; gap: 8px; }
   .game-card { padding: 36px 9px 10px; gap: 7px; border-radius: 13px; }
   .game-card:first-child { grid-column: 1 / -1; grid-row: auto; padding: 19px; }
   .game-card:first-child::before { background: linear-gradient(90deg, rgba(3,9,8,.94), rgba(4,13,11,.63) 55%, rgba(3,8,7,.1)), linear-gradient(0deg, rgba(3,10,8,.75), transparent 68%); }
   .featured-art { object-position: center; }.game-card:first-child .game-card-topline { top: 16px; right: 17px; left: 17px; }.game-card:first-child .game-card-topline small,.game-card:first-child .game-card-topline em { font-size: 8px; }
   .game-copy strong { font-size: 16px; }.game-copy em { font-size: 8px; }.game-card:not(:first-child) .game-copy em { display: none; }
-  .game-card:first-child .game-copy { max-width: 64%; gap: 5px; padding-bottom: 21px; }.game-card:first-child .game-copy strong { font-size: 29px; }.game-card:first-child .game-copy em { font-size: 10px; line-height: 1.45; }
+  .game-card:first-child .game-copy { max-width: 64%; gap: 5px; padding-bottom: 4px; }.game-card:first-child .game-copy strong { font-size: 29px; }.game-card:first-child .game-copy em { font-size: 10px; line-height: 1.45; }
   .game-card-topline { top: 12px; right: 10px; left: 10px; }.game-card-topline small,.game-card-topline em { font-size: 7px; }
-  .featured-label { left: 19px; bottom: 15px; padding: 4px 7px; font-size: 7px; }.game-card:first-child .enter-game { right: 17px; bottom: 15px; width: 27px; }.enter-game { right: 9px; bottom: 10px; width: 20px; font-size: 17px; }
+  .game-card:first-child .enter-game { right: 17px; bottom: 15px; width: 27px; }.enter-game { right: 9px; bottom: 10px; width: 20px; font-size: 17px; }
   .resume-arcade-card { align-items: stretch; flex-direction: column; }
   .mobile-salon-dock { position: fixed; z-index: 25; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); left: 12px; display: grid; grid-template-columns: repeat(3,1fr); min-height: 62px; padding: 5px; border-radius: 18px; background: color-mix(in srgb,var(--surface-elevated) 92%,transparent); backdrop-filter: blur(20px); }.mobile-salon-dock button { display: grid; justify-items: center; align-content: center; gap: 2px; border: 0; border-radius: 13px; color: var(--muted); background: transparent; font-size: 8px; font-weight: 750; }.mobile-salon-dock button.active { color: var(--gold); background: color-mix(in srgb,var(--gold) 8%,transparent); }
 }

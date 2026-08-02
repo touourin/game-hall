@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ArcadeGameKey } from '../types/arcade'
 import { withDefaultGameRules } from '../gameRules'
+import AvalonModeGuide from './AvalonModeGuide.vue'
 
 const props = defineProps<{
   gameKey: ArcadeGameKey
@@ -40,6 +41,18 @@ function setOption(key: string, value: unknown) {
         </button>
       </div>
     </section>
+
+    <details
+      v-if="gameKey === 'avalon' && option('mode') === 'court_undercurrent'"
+      class="avalon-mode-guide-disclosure"
+      open
+    >
+      <summary>
+        <span><strong>王庭暗流完整说明</strong><small>背景故事 · 异志之臣 · 新模式规则</small></span>
+        <b>展开 / 收起</b>
+      </summary>
+      <AvalonModeGuide />
+    </details>
 
     <section v-if="gameKey === 'avalon'" class="rule-setting-group">
       <header><strong>圆桌规则</strong><small>王庭暗流固定关闭湖中仙女和提前刺杀</small></header>
@@ -228,6 +241,14 @@ function setOption(key: string, value: unknown) {
 .rule-toggle-list small { color: var(--muted); }
 .rule-toggle-list b { min-width: 38px; border-radius: 999px; padding: 5px 8px; color: var(--muted); background: rgba(255, 255, 255, .06); text-align: center; }
 .rule-toggle-list button.active b { color: var(--accent-contrast); background: var(--gold); }
+.avalon-mode-guide-disclosure { margin: 0; border-bottom: 1px solid var(--line); padding: 14px 0 18px; }
+.avalon-mode-guide-disclosure summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid color-mix(in srgb, var(--gold) 30%, var(--line)); border-radius: 13px; padding: 11px 13px; color: var(--text); background: color-mix(in srgb, var(--gold) 7%, var(--surface-inset)); cursor: pointer; list-style: none; }
+.avalon-mode-guide-disclosure summary::-webkit-details-marker { display: none; }
+.avalon-mode-guide-disclosure summary > span { display: grid; gap: 2px; }
+.avalon-mode-guide-disclosure summary strong { color: var(--gold); font-size: 12px; }
+.avalon-mode-guide-disclosure summary small { color: var(--muted); font-size: 10px; }
+.avalon-mode-guide-disclosure summary b { flex: 0 0 auto; color: var(--muted); font-size: 9px; }
+.avalon-mode-guide-disclosure[open] summary { margin-bottom: 11px; }
 @media (hover: hover) {
   .rule-option-grid button:hover:not(:disabled), .rule-toggle-list button:hover { border-color: var(--line-strong); transform: translateY(-1px); }
 }

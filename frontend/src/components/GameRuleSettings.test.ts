@@ -3,6 +3,30 @@ import { defaultGameRules, gameRuleLabels } from '../gameRules'
 import GameRuleSettings from './GameRuleSettings.vue'
 
 describe('GameRuleSettings', () => {
+  it('keeps the court undercurrent story, role, and rules in one guide', async () => {
+    const wrapper = mount(GameRuleSettings, {
+      props: {
+        gameKey: 'avalon',
+        modelValue: defaultGameRules('avalon'),
+      },
+    })
+    const courtUndercurrent = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('王庭暗流'))
+
+    await courtUndercurrent?.trigger('click')
+    const courtRules = wrapper.emitted('update:modelValue')?.[0]?.[0]
+    await wrapper.setProps({ modelValue: courtRules as Record<string, unknown> })
+
+    const disclosure = wrapper.get('.avalon-mode-guide-disclosure')
+    expect(disclosure.attributes('open')).toBeDefined()
+    expect(disclosure.text()).toContain('背景故事 · 异志之臣 · 新模式规则')
+    expect(disclosure.text()).toContain('胜势已成，暗流未息')
+    expect(disclosure.text()).toContain('开局属于好人阵营')
+    expect(disclosure.text()).toContain('新模式终局规则')
+    expect(disclosure.text()).toContain('固定关闭湖中仙女与提前刺杀')
+  })
+
   it('offers the configured Gomoku variants', async () => {
     const wrapper = mount(GameRuleSettings, {
       props: {

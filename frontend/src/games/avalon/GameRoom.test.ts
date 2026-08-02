@@ -297,6 +297,34 @@ describe('GameRoom role reveal', () => {
     expect(action).toHaveBeenCalledWith('add_ai')
   })
 
+  it('opens the complete court guide from the lobby header and mode setting', async () => {
+    const snapshot = roleRevealSnapshot(1)
+    snapshot.phase = 'lobby'
+    snapshot.self.role = null
+    snapshot.settings.mode = 'court_undercurrent'
+    snapshot.settings.ladyEnabled = false
+    snapshot.settings.earlyAssassinationEnabled = false
+    snapshot.courtUndercurrent.enabled = true
+    snapshot.actions.canConfirmRole = false
+
+    const wrapper = mount(GameRoom, {
+      props: { snapshot },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.get('.avalon-mode-note button').text()).toContain(
+      '背景故事 · 异志之臣 · 新模式规则',
+    )
+    await wrapper.get('[aria-label="查看玩法说明"]').trigger('click')
+
+    const guide = wrapper.get('.rules-modal')
+    expect(guide.text()).toContain('王庭暗流 · 玩法说明')
+    expect(guide.text()).toContain('胜势已成，暗流未息')
+    expect(guide.text()).toContain('开局属于好人阵营')
+    expect(guide.text()).toContain('刺客从私密候选中寻找异志之臣')
+    expect(guide.text()).toContain('圆桌通用规则')
+  })
+
   it('uses the shared confirmation before the host dissolves a lobby', async () => {
     const snapshot = roleRevealSnapshot(1)
     snapshot.phase = 'lobby'

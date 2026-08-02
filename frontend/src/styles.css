@@ -1322,6 +1322,41 @@ button:disabled {
   background: rgba(153, 58, 63, 0.11);
 }
 
+.avalon-mode-note > p {
+  margin: 0;
+}
+
+.avalon-mode-note > button {
+  width: 100%;
+  min-height: 47px;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid rgba(225, 188, 104, 0.22);
+  border-radius: 10px;
+  padding: 8px 10px;
+  color: var(--text);
+  background: rgba(225, 188, 104, 0.07);
+  text-align: left;
+}
+
+.avalon-mode-note > button > span {
+  display: grid;
+  gap: 2px;
+}
+
+.avalon-mode-note > button strong {
+  color: var(--gold);
+  font-size: 10px;
+}
+
+.avalon-mode-note > button small {
+  color: var(--muted);
+  font-size: 8px;
+}
+
 .setting-row {
   display: flex;
   align-items: center;
@@ -4101,6 +4136,9 @@ button:disabled {
 }
 
 .rules-modal {
+  width: min(100%, 540px);
+  max-height: min(88vh, 780px);
+  overflow-y: auto;
   text-align: left;
 }
 
@@ -4110,10 +4148,26 @@ button:disabled {
   margin-left: 0;
 }
 
-.rules-modal ul {
+.rules-modal > p {
+  margin-bottom: 14px;
+}
+
+.avalon-core-rules {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.avalon-core-rules h3 {
+  margin: 0;
+  color: var(--gold);
+  font-size: 13px;
+}
+
+.avalon-core-rules ul {
   display: grid;
   gap: 10px;
-  margin: 19px 0 0;
+  margin: 12px 0 0;
   padding-left: 20px;
   color: #c9d9d3;
   font-size: 11px;

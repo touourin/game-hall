@@ -27,6 +27,7 @@ import {
 import MissionTrack from './components/MissionTrack.vue'
 import RoleSkinPicker from './components/RoleSkinPicker.vue'
 import SecretCard from './components/SecretCard.vue'
+import AvalonModeGuide from '../../components/AvalonModeGuide.vue'
 import InviteLinkPanel from '../../components/InviteLinkPanel.vue'
 import HostTransferNotice from '../../components/HostTransferNotice.vue'
 import RoomExitButton from '../../components/RoomExitButton.vue'
@@ -653,25 +654,23 @@ async function updateAvalonOptions(overrides: Record<string, unknown>) {
         >
           <QrCode :size="21" />
         </button>
-        <template v-else>
-          <button
-            v-if="snapshot.self.role && snapshot.phase !== 'game_over'"
-            class="header-action"
-            type="button"
-            aria-label="查看我的身份"
-            @click="showIdentity = true"
-          >
-            <Eye :size="20" />
-          </button>
-          <button
-            class="header-action"
-            type="button"
-            aria-label="查看规则提示"
-            @click="showRules = true"
-          >
-            <CircleHelp :size="21" />
-          </button>
-        </template>
+        <button
+          v-if="snapshot.self.role && snapshot.phase !== 'game_over'"
+          class="header-action"
+          type="button"
+          aria-label="查看我的身份"
+          @click="showIdentity = true"
+        >
+          <Eye :size="20" />
+        </button>
+        <button
+          class="header-action"
+          type="button"
+          aria-label="查看玩法说明"
+          @click="showRules = true"
+        >
+          <CircleHelp :size="21" />
+        </button>
         <RoomDissolveButton
           v-if="snapshot.actions.canDissolve"
           :busy="room.busy"
@@ -846,9 +845,13 @@ async function updateAvalonOptions(overrides: Record<string, unknown>) {
               <small>异志之臣 · 授刃 · 最后议事</small>
             </button>
           </div>
-          <p v-if="snapshot.settings.mode === 'court_undercurrent'" class="avalon-mode-note">
-            胜势已成，暗流未息。本模式自动关闭湖中仙女与提前刺杀。
-          </p>
+          <div v-if="snapshot.settings.mode === 'court_undercurrent'" class="avalon-mode-note">
+            <p>胜势已成，暗流未息。本模式自动关闭湖中仙女与提前刺杀。</p>
+            <button type="button" @click="showRules = true">
+              <span><strong>查看王庭暗流完整说明</strong><small>背景故事 · 异志之臣 · 新模式规则</small></span>
+              <ChevronRight :size="16" />
+            </button>
+          </div>
         </div>
 
         <div class="setting-row">
@@ -2314,21 +2317,20 @@ async function updateAvalonOptions(overrides: Record<string, unknown>) {
           <X :size="20" />
         </button>
         <span class="modal-icon"><CircleHelp :size="25" /></span>
-        <h2>本局提示</h2>
-        <ul>
-          <li>好人只能提交任务成功，坏人可选择成功或失败。</li>
-          <li>队伍表决需要过半赞成，平票视为否决。</li>
-          <li>连续五次组队被否决，坏人直接获胜。</li>
-          <li>部分玩家掉线超过 10 分钟，其所属阵营弃权；全员离线只进入房间清理流程。</li>
-          <li v-if="snapshot.players.length >= 7">第四次任务需要两张失败票才会失败。</li>
-          <li v-if="snapshot.settings.ladyEnabled">仙女只查阵营，持有者可以谎报查验结果。</li>
-          <template v-if="snapshot.settings.mode === 'court_undercurrent'">
-            <li>异志之臣开局属于好人，知道刺客，但只能提交成功任务牌。</li>
-            <li>三次任务成功后，刺客必须从私密候选中寻找异志之臣；选错则好人立即获胜。</li>
-            <li>授刃命中后异志之臣必定转化；除奥伯伦外的邪恶玩家随后互认。</li>
-            <li>最后议事结束于异志之臣确认刺杀目标，刺中梅林才由邪恶方获胜。</li>
-          </template>
-        </ul>
+        <h2>{{ snapshot.settings.mode === 'court_undercurrent' ? '王庭暗流 · 玩法说明' : '标准阿瓦隆 · 玩法说明' }}</h2>
+        <p>{{ snapshot.settings.mode === 'court_undercurrent' ? '背景故事、特殊角色与终局规则集中在这里。' : '本局采用标准阿瓦隆规则。' }}</p>
+        <AvalonModeGuide v-if="snapshot.settings.mode === 'court_undercurrent'" />
+        <section class="avalon-core-rules">
+          <h3>圆桌通用规则</h3>
+          <ul>
+            <li>好人只能提交任务成功，坏人可选择成功或失败。</li>
+            <li>队伍表决需要过半赞成，平票视为否决。</li>
+            <li>连续五次组队被否决，坏人直接获胜。</li>
+            <li>部分玩家掉线超过 10 分钟，其所属阵营弃权；全员离线只进入房间清理流程。</li>
+            <li v-if="snapshot.players.length >= 7">第四次任务需要两张失败票才会失败。</li>
+            <li v-if="snapshot.settings.ladyEnabled">仙女只查阵营，持有者可以谎报查验结果。</li>
+          </ul>
+        </section>
       </section>
     </div>
   </main>
