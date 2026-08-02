@@ -69,6 +69,8 @@ watch(
     await scrollToLatest()
   },
 )
+
+defineExpose({ openChat })
 </script>
 
 <template>
@@ -135,7 +137,7 @@ watch(
   border-radius: 999px;
   padding: 0 15px;
   color: var(--text);
-  background: color-mix(in srgb, var(--surface) 94%, black);
+  background: var(--surface-elevated);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
   font-weight: 850;
 }
@@ -146,7 +148,7 @@ watch(
   display: grid;
   place-items: center;
   border-radius: 999px;
-  color: #18201b;
+  color: var(--accent-contrast);
   background: var(--gold);
   font-size: 9px;
 }
@@ -164,7 +166,7 @@ watch(
   border: 1px solid var(--line);
   border-radius: 18px;
   color: var(--text);
-  background: color-mix(in srgb, var(--surface) 97%, black);
+  background: var(--modal-surface);
   box-shadow: 0 22px 70px rgba(0, 0, 0, 0.44);
 }
 
@@ -217,7 +219,7 @@ watch(
   margin-bottom: 1px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: rgba(0, 0, 0, 0.18);
+  background: var(--surface-inset);
 }
 
 .arcade-chat-bubble {
@@ -236,7 +238,7 @@ watch(
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.035);
+  background: var(--surface-inset);
   text-align: left;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -268,12 +270,12 @@ watch(
   border-radius: 11px;
   padding: 10px 12px;
   color: var(--text);
-  background: rgba(0, 0, 0, 0.16);
+  background: var(--surface-inset);
 }
 
 .arcade-chat-panel form button {
   border-radius: 11px;
-  color: #1b211b;
+  color: var(--accent-contrast);
   background: var(--gold);
 }
 

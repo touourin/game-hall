@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { ArcadeGameKey } from '../types/arcade'
 import { withDefaultGameRules } from '../gameRules'
-import AvalonModeGuide from './AvalonModeGuide.vue'
+import ModeGuide from './ModeGuide.vue'
+import { AVALON_COURT_GUIDE } from '../games/avalon/modeGuide'
 
 const props = defineProps<{
   gameKey: ArcadeGameKey
@@ -51,7 +52,7 @@ function setOption(key: string, value: unknown) {
         <span><strong>王庭暗流完整说明</strong><small>背景故事 · 异志之臣 · 新模式规则</small></span>
         <b>展开 / 收起</b>
       </summary>
-      <AvalonModeGuide />
+      <ModeGuide :content="AVALON_COURT_GUIDE" />
     </details>
 
     <section v-if="gameKey === 'avalon'" class="rule-setting-group">

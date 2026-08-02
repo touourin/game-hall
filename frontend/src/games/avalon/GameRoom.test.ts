@@ -400,15 +400,15 @@ describe('GameRoom role reveal', () => {
       },
     })
 
-    expect(wrapper.get('.role-skin-lobby-card').text()).toContain(
+    expect(wrapper.get('.artwork-skin-card').text()).toContain(
       '开局后锁定',
     )
     await wrapper
-      .get('button[data-role-skin="royal-codex"]')
+      .get('button[data-artwork-skin="royal-codex"]')
       .trigger('click')
     expect(storedRoleSkin()).not.toBe('royal-codex')
 
-    await wrapper.get('.role-skin-use-button').trigger('click')
+    await wrapper.get('.artwork-skin-modal footer button').trigger('click')
 
     expect(storedRoleSkin()).toBe('royal-codex')
     expect(storedRoleSkinLock('TEST')).toBeNull()
@@ -416,11 +416,13 @@ describe('GameRoom role reveal', () => {
     await wrapper.setProps({ snapshot: roleRevealSnapshot(2) })
     await nextTick()
 
-    expect(wrapper.find('.role-skin-lobby-card').exists()).toBe(false)
-    expect(wrapper.get('.secret-card').attributes('data-skin')).toBe(
+    expect(wrapper.find('.artwork-skin-card').exists()).toBe(false)
+    expect(wrapper.get('.press-reveal-art-label').text()).toContain('王庭秘卷')
+    await wrapper.get('.press-reveal-card').trigger('pointerdown')
+    expect(wrapper.get('.press-reveal-art').attributes('src')).toContain(
       'royal-codex',
     )
-    expect(wrapper.get('.role-skin-lock').text()).toContain('王庭秘卷')
+    await wrapper.get('.press-reveal-card').trigger('pointerup')
     expect(storedRoleSkinLock('TEST')).toBe('royal-codex')
 
     const nextLobby = roleRevealSnapshot(3)
@@ -430,7 +432,7 @@ describe('GameRoom role reveal', () => {
     await wrapper.setProps({ snapshot: nextLobby })
     await nextTick()
 
-    expect(wrapper.find('.role-skin-lobby-card').exists()).toBe(true)
+    expect(wrapper.find('.artwork-skin-card').exists()).toBe(true)
     expect(storedRoleSkinLock('TEST')).toBeNull()
   })
 
@@ -465,7 +467,7 @@ describe('GameRoom role reveal', () => {
     const confirmButton = wrapper.get('.primary-button')
     expect(confirmButton.attributes('disabled')).toBeDefined()
 
-    await wrapper.get('.secret-card').trigger('pointerdown')
+    await wrapper.get('.press-reveal-card').trigger('pointerdown')
     expect(confirmButton.attributes('disabled')).toBeUndefined()
 
     await wrapper.setProps({ snapshot: roleRevealSnapshot(2) })
@@ -594,7 +596,7 @@ describe('GameRoom role reveal', () => {
     expect(history).toContain('你看到： 好人阵营')
   })
 
-  it('keeps voting controls available while the bottom chat is open', async () => {
+  it('uses the shared room chat without covering voting controls', async () => {
     const snapshot = roleRevealSnapshot(1)
     snapshot.phase = 'team_voting'
     snapshot.game.selectedTeamIds = ['p1']
@@ -606,91 +608,12 @@ describe('GameRoom role reveal', () => {
       global: { plugins: [createPinia()] },
     })
 
-    await wrapper.get('.chat-dock').trigger('click')
+    await wrapper.get('.arcade-chat-dock').trigger('click')
 
-    expect(wrapper.get('.chat-sheet').attributes('role')).toBe('region')
-    expect(wrapper.find('.chat-backdrop').exists()).toBe(false)
+    expect(wrapper.get('.arcade-chat-panel').attributes('aria-label')).toBe(
+      '房间聊天',
+    )
     expect(wrapper.get('.decision-button.approve').attributes('disabled')).toBeUndefined()
-    expect(wrapper.classes()).toContain('chat-open')
-
-    const initialStyle = wrapper.get('main').attributes('style') ?? ''
-    const initialHeightMatch = initialStyle.match(
-      /--chat-sheet-height:\s*([\d.]+)px/,
-    )
-    expect(initialHeightMatch).not.toBeNull()
-    const initialHeight = Number.parseFloat(initialHeightMatch![1]!)
-    const resizeHandle = wrapper.get('.chat-resize-handle')
-    const pointerDown = new MouseEvent('pointerdown', {
-      bubbles: true,
-      clientY: 500,
-    })
-    Object.defineProperty(pointerDown, 'pointerId', { value: 1 })
-    resizeHandle.element.dispatchEvent(pointerDown)
-    const pointerMove = new MouseEvent('pointermove', {
-      bubbles: true,
-      clientY: 350,
-    })
-    Object.defineProperty(pointerMove, 'pointerId', { value: 1 })
-    resizeHandle.element.dispatchEvent(pointerMove)
-    await nextTick()
-    const resizedStyle = wrapper.get('main').attributes('style') ?? ''
-    const resizedHeightMatch = resizedStyle.match(
-      /--chat-sheet-height:\s*([\d.]+)px/,
-    )
-    expect(resizedHeightMatch).not.toBeNull()
-    const resizedHeight = Number.parseFloat(resizedHeightMatch![1]!)
-    expect(resizedHeight).toBeGreaterThan(initialHeight)
-
-    await wrapper.get('.chat-size-button').trigger('click')
-    expect(wrapper.get('.chat-size-button').attributes('aria-label')).toBe(
-      '还原聊天框',
-    )
-  })
-
-  it('lets desktop users drag the chat window into unused space', async () => {
-    const snapshot = roleRevealSnapshot(1)
-    snapshot.phase = 'team_voting'
-    snapshot.actions.canConfirmRole = false
-    const wrapper = mount(GameRoom, {
-      props: { snapshot },
-      global: { plugins: [createPinia()] },
-    })
-
-    await wrapper.get('.chat-dock').trigger('click')
-    const sheet = wrapper.get('.chat-sheet')
-    Object.defineProperty(sheet.element, 'getBoundingClientRect', {
-      value: () => ({
-        left: 400,
-        top: 160,
-        right: 900,
-        bottom: 660,
-        width: 500,
-        height: 500,
-        x: 400,
-        y: 160,
-        toJSON: () => ({}),
-      }),
-    })
-    const moveHandle = wrapper.get('.chat-move-handle')
-    const pointerDown = new MouseEvent('pointerdown', {
-      bubbles: true,
-      clientX: 500,
-      clientY: 220,
-    })
-    Object.defineProperty(pointerDown, 'pointerId', { value: 2 })
-    moveHandle.element.dispatchEvent(pointerDown)
-    const pointerMove = new MouseEvent('pointermove', {
-      bubbles: true,
-      clientX: 560,
-      clientY: 270,
-    })
-    Object.defineProperty(pointerMove, 'pointerId', { value: 2 })
-    moveHandle.element.dispatchEvent(pointerMove)
-    await nextTick()
-
-    const style = wrapper.get('main').attributes('style') ?? ''
-    expect(style).toContain('--chat-sheet-offset-x: 60px')
-    expect(style).toContain('--chat-sheet-offset-y: 50px')
   })
 
   it('shows the irreversible early assassination confirmation to the assassin', async () => {

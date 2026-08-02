@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   ArrowRight,
   Bot,
@@ -10,13 +10,9 @@ import {
   Eye,
   History,
   Link2,
-  Maximize2,
   MessageCircle,
-  Minimize2,
-  Move,
   QrCode,
   RotateCcw,
-  Send,
   Shield,
   Sparkles,
   Swords,
@@ -24,10 +20,11 @@ import {
   UsersRound,
   X,
 } from '@lucide/vue'
-import MissionTrack from './components/MissionTrack.vue'
-import RoleSkinPicker from './components/RoleSkinPicker.vue'
-import SecretCard from './components/SecretCard.vue'
-import AvalonModeGuide from '../../components/AvalonModeGuide.vue'
+import MissionProgressTrack from '../../components/MissionProgressTrack.vue'
+import ArtworkSkinPicker from '../../components/ArtworkSkinPicker.vue'
+import PressRevealCard from '../../components/PressRevealCard.vue'
+import ModeGuide from '../../components/ModeGuide.vue'
+import ArcadeChatPanel from '../../components/ArcadeChatPanel.vue'
 import InviteLinkPanel from '../../components/InviteLinkPanel.vue'
 import HostTransferNotice from '../../components/HostTransferNotice.vue'
 import RoomExitButton from '../../components/RoomExitButton.vue'
@@ -37,14 +34,25 @@ import RoomInviteModal from '../../components/RoomInviteModal.vue'
 import RoomKickButton from '../../components/RoomKickButton.vue'
 import AvatarImage from '../../components/AvatarImage.vue'
 import {
+  ROLE_SKINS,
   clearRoleSkinLock,
   lockRoleSkin,
   rememberRoleSkin,
+  roleArtwork,
+  roleArtworkFraming,
+  roleSkinName,
+  roleSkinPreviewRoles,
   storedRoleSkin,
   storedRoleSkinLock,
   type RoleSkinId,
 } from './roleSkins'
+import { AVALON_COURT_GUIDE } from './modeGuide'
 import { useArcadeStore } from '../../stores/arcade'
+import type { ArcadeChatMessage } from '../../types/arcade'
+import type {
+  ArtworkSkinOption,
+  MissionProgressItem,
+} from '../../components/uiTypes'
 import type { PlayerView, RoomSnapshot } from './types'
 
 const props = defineProps<{ snapshot: RoomSnapshot }>()
@@ -61,25 +69,14 @@ const ladySeen = ref(false)
 const showQr = ref(false)
 const showIdentity = ref(false)
 const showRules = ref(false)
-const showChat = ref(false)
 const showReplay = ref(false)
 const showPlayerNumbers = ref(false)
 const showLadyHistory = ref(false)
 const showEarlyAssassination = ref(false)
-const chatHeight = ref<number | null>(null)
-const chatRestoreHeight = ref<number | null>(null)
-const chatMaximized = ref(false)
-const chatMoving = ref(false)
-const chatOffset = ref({ x: 0, y: 0 })
-const chatDraft = ref('')
-const chatSheet = ref<HTMLElement | null>(null)
-const chatList = ref<HTMLElement | null>(null)
+const sharedChat = ref<{ openChat: () => Promise<void> } | null>(null)
 const selectedReplayMission = ref<number | null>(null)
 const selectedRoleSkin = ref<RoleSkinId>(storedRoleSkin())
 const lockedRoleSkin = ref<RoleSkinId | null>(null)
-const seenChatIds = ref(
-  new Set(props.snapshot.chat.messages.map((message) => message.id)),
-)
 
 const leader = computed(() =>
   props.snapshot.players.find(
@@ -172,14 +169,6 @@ const phaseTitle = computed(() => {
   }
   return titles[props.snapshot.phase]
 })
-const unreadChatCount = computed(
-  () =>
-    props.snapshot.chat.messages.filter(
-      (message) =>
-        message.senderId !== props.snapshot.self.id &&
-        !seenChatIds.value.has(message.id),
-    ).length,
-)
 const replayMissionNumbers = computed(() => [
   ...new Set(
     props.snapshot.game.proposalHistory.map(
@@ -195,15 +184,6 @@ const replayProposals = computed(() =>
           proposal.missionNumber === selectedReplayMission.value,
       ),
 )
-const chatPanelStyle = computed<Record<string, string>>(() => {
-  const style: Record<string, string> = {}
-  if (chatHeight.value !== null) {
-    style['--chat-sheet-height'] = `${chatHeight.value}px`
-  }
-  style['--chat-sheet-offset-x'] = `${chatOffset.value.x}px`
-  style['--chat-sheet-offset-y'] = `${chatOffset.value.y}px`
-  return style
-})
 const activeRoleSkin = computed(
   () => lockedRoleSkin.value ?? selectedRoleSkin.value,
 )
@@ -213,18 +193,68 @@ const modeName = computed(() =>
     : '阿瓦隆',
 )
 
-let chatResizePointerId: number | null = null
-let chatResizeStartY = 0
-let chatResizeStartHeight = 0
-let chatMovePointerId: number | null = null
-let chatMoveStartX = 0
-let chatMoveStartY = 0
-let chatMoveStartOffsetX = 0
-let chatMoveStartOffsetY = 0
-let chatMoveStartLeft = 0
-let chatMoveStartTop = 0
-let chatMoveWidth = 0
-let chatMoveHeight = 0
+const missionTeamSizes: Record<number, readonly number[]> = {
+  5: [2, 3, 2, 3, 3],
+  6: [2, 3, 4, 3, 4],
+  7: [2, 3, 3, 4, 4],
+  8: [3, 4, 4, 5, 5],
+  9: [3, 4, 4, 5, 5],
+  10: [3, 4, 4, 5, 5],
+}
+
+const missionProgressItems = computed<MissionProgressItem[]>(() =>
+  [1, 2, 3, 4, 5].map((number) => {
+    const record = props.snapshot.game.missionHistory.find(
+      (mission) => mission.number === number,
+    )
+    const requirement =
+      missionTeamSizes[props.snapshot.players.length]?.[number - 1] ?? 0
+    const replayable = replayMissionNumbers.value.includes(number)
+    const status: MissionProgressItem['status'] = record
+      ? record.success
+        ? 'success'
+        : 'failed'
+      : number === props.snapshot.game.missionNumber
+        ? 'current'
+        : 'pending'
+    const outcome = record
+      ? record.success
+        ? '，任务成功'
+        : '，任务失败'
+      : ''
+    return {
+      number,
+      requirement,
+      status,
+      replayable,
+      note:
+        props.snapshot.players.length >= 7 && number === 4
+          ? '双败'
+          : undefined,
+      label: `第 ${number} 轮，需要 ${requirement} 人${outcome}${
+        replayable ? '，点击查看本轮投票复盘' : ''
+      }`,
+    }
+  }),
+)
+
+const roleArtworkOptions: ArtworkSkinOption[] = ROLE_SKINS.map((skin) => ({
+  ...skin,
+  items: roleSkinPreviewRoles(skin.id).map((role) => ({
+    id: role.code,
+    name: role.name,
+    group: role.alignment === 'good' ? '亚瑟阵营' : '莫德雷德阵营',
+    artwork: role.artwork,
+    framing: role.framing,
+  })),
+}))
+
+const sharedChatMessages = computed<ArcadeChatMessage[]>(() =>
+  props.snapshot.chat.messages.map((message) => ({
+    ...message,
+    senderAvatarUrl: playerAvatar(message.senderId),
+  })),
+)
 
 watch(
   () => props.snapshot.phase,
@@ -266,24 +296,17 @@ watch(
     if (phase !== 'lobby') showQr.value = false
   },
 )
-watch(
-  () => props.snapshot.chat.messages.at(-1)?.id,
-  async () => {
-    if (!showChat.value) return
-    markChatRead()
-    await scrollChatToBottom()
-  },
-)
-
 function playerName(playerId: string | null): string {
   const player = props.snapshot.players.find((item) => item.id === playerId)
   return player ? playerDisplayName(player) : '未知玩家'
 }
 
-function selectRoleSkin(skin: RoleSkinId) {
+function selectRoleSkin(skin: string) {
   if (props.snapshot.phase !== 'lobby') return
-  selectedRoleSkin.value = skin
-  rememberRoleSkin(skin)
+  const selected = ROLE_SKINS.find((option) => option.id === skin)?.id
+  if (!selected) return
+  selectedRoleSkin.value = selected
+  rememberRoleSkin(selected)
 }
 
 function playerDisplayName(player: PlayerView): string {
@@ -395,212 +418,20 @@ async function earlyAssassinate() {
   if (response) showEarlyAssassination.value = false
 }
 
-function markChatRead() {
-  seenChatIds.value = new Set(
-    props.snapshot.chat.messages.map((message) => message.id),
+function openSharedChat() {
+  void sharedChat.value?.openChat()
+}
+
+function selfRoleArtwork(): string | null {
+  const roleCode = props.snapshot.self.role?.code
+  return roleCode ? roleArtwork(roleCode, activeRoleSkin.value) : null
+}
+
+function selfRoleArtworkFraming() {
+  return roleArtworkFraming(
+    props.snapshot.self.role?.code ?? '',
+    activeRoleSkin.value,
   )
-}
-
-async function scrollChatToBottom() {
-  await nextTick()
-  if (chatList.value) {
-    chatList.value.scrollTop = chatList.value.scrollHeight
-  }
-}
-
-async function openChat() {
-  if (chatHeight.value === null) {
-    chatHeight.value = defaultChatHeight()
-  }
-  showChat.value = true
-  markChatRead()
-  await scrollChatToBottom()
-}
-
-function closeChat() {
-  showChat.value = false
-  markChatRead()
-}
-
-function viewportHeight(): number {
-  return window.visualViewport?.height ?? window.innerHeight
-}
-
-function desktopChatEnabled(): boolean {
-  return window.innerWidth >= 1000
-}
-
-function chatHeightLimits(): { min: number; max: number } {
-  const edgeSpace = desktopChatEnabled() ? 48 : 12
-  const max = Math.max(220, viewportHeight() - edgeSpace)
-  const preferredMin = desktopChatEnabled() ? 320 : 260
-  return { min: Math.min(preferredMin, max), max }
-}
-
-function clampChatHeight(height: number): number {
-  const { min, max } = chatHeightLimits()
-  return Math.round(Math.min(max, Math.max(min, height)))
-}
-
-function defaultChatHeight(): number {
-  const preferred = desktopChatEnabled()
-    ? Math.min(viewportHeight() * 0.66, 620)
-    : Math.min(viewportHeight() * 0.44, 390)
-  return clampChatHeight(preferred)
-}
-
-function currentChatHeight(): number {
-  return chatHeight.value ?? defaultChatHeight()
-}
-
-function beginChatResize(event: PointerEvent) {
-  chatResizePointerId = event.pointerId
-  chatResizeStartY = event.clientY
-  chatResizeStartHeight = currentChatHeight()
-  chatMaximized.value = false
-  ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
-}
-
-function resizeChat(event: PointerEvent) {
-  if (event.pointerId !== chatResizePointerId) return
-  chatHeight.value = clampChatHeight(
-    chatResizeStartHeight + chatResizeStartY - event.clientY,
-  )
-}
-
-function endChatResize(event: PointerEvent) {
-  if (event.pointerId !== chatResizePointerId) return
-  chatResizePointerId = null
-  ;(event.currentTarget as HTMLElement).releasePointerCapture?.(
-    event.pointerId,
-  )
-  void nextTick(constrainChatOffset)
-}
-
-function resizeChatBy(pixels: number) {
-  chatMaximized.value = false
-  chatHeight.value = clampChatHeight(currentChatHeight() + pixels)
-}
-
-async function toggleChatSize() {
-  if (chatMaximized.value) {
-    chatHeight.value = clampChatHeight(
-      chatRestoreHeight.value ?? defaultChatHeight(),
-    )
-    chatMaximized.value = false
-  } else {
-    chatRestoreHeight.value = currentChatHeight()
-    chatHeight.value = chatHeightLimits().max
-    chatMaximized.value = true
-  }
-  await nextTick()
-  constrainChatOffset()
-  await scrollChatToBottom()
-}
-
-function clampWindowPosition(
-  left: number,
-  top: number,
-  width: number,
-  height: number,
-): { left: number; top: number } {
-  const edge = 12
-  const maxLeft = Math.max(edge, window.innerWidth - width - edge)
-  const maxTop = Math.max(edge, viewportHeight() - height - edge)
-  return {
-    left: Math.min(maxLeft, Math.max(edge, left)),
-    top: Math.min(maxTop, Math.max(edge, top)),
-  }
-}
-
-function beginChatMove(event: PointerEvent) {
-  if (!desktopChatEnabled() || !chatSheet.value) return
-  const rect = chatSheet.value.getBoundingClientRect()
-  chatMovePointerId = event.pointerId
-  chatMoveStartX = event.clientX
-  chatMoveStartY = event.clientY
-  chatMoveStartOffsetX = chatOffset.value.x
-  chatMoveStartOffsetY = chatOffset.value.y
-  chatMoveStartLeft = rect.left
-  chatMoveStartTop = rect.top
-  chatMoveWidth = rect.width
-  chatMoveHeight = rect.height
-  chatMoving.value = true
-  event.preventDefault()
-  ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
-}
-
-function moveChat(event: PointerEvent) {
-  if (event.pointerId !== chatMovePointerId) return
-  const position = clampWindowPosition(
-    chatMoveStartLeft + event.clientX - chatMoveStartX,
-    chatMoveStartTop + event.clientY - chatMoveStartY,
-    chatMoveWidth,
-    chatMoveHeight,
-  )
-  chatOffset.value = {
-    x: chatMoveStartOffsetX + position.left - chatMoveStartLeft,
-    y: chatMoveStartOffsetY + position.top - chatMoveStartTop,
-  }
-}
-
-function endChatMove(event: PointerEvent) {
-  if (event.pointerId !== chatMovePointerId) return
-  chatMovePointerId = null
-  chatMoving.value = false
-  ;(event.currentTarget as HTMLElement).releasePointerCapture?.(
-    event.pointerId,
-  )
-}
-
-function moveChatBy(horizontal: number, vertical: number) {
-  if (!desktopChatEnabled() || !chatSheet.value) return
-  const rect = chatSheet.value.getBoundingClientRect()
-  const position = clampWindowPosition(
-    rect.left + horizontal,
-    rect.top + vertical,
-    rect.width,
-    rect.height,
-  )
-  chatOffset.value = {
-    x: chatOffset.value.x + position.left - rect.left,
-    y: chatOffset.value.y + position.top - rect.top,
-  }
-}
-
-function constrainChatOffset() {
-  if (!desktopChatEnabled() || !chatSheet.value) return
-  const rect = chatSheet.value.getBoundingClientRect()
-  const position = clampWindowPosition(
-    rect.left,
-    rect.top,
-    rect.width,
-    rect.height,
-  )
-  chatOffset.value = {
-    x: chatOffset.value.x + position.left - rect.left,
-    y: chatOffset.value.y + position.top - rect.top,
-  }
-}
-
-function formatMessageTime(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  return new Intl.DateTimeFormat('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(date)
-}
-
-async function sendChat() {
-  const content = chatDraft.value.trim()
-  if (!content) return
-  const response = await room.sendChat(content)
-  if (response) {
-    chatDraft.value = ''
-    await scrollChatToBottom()
-  }
 }
 
 function avalonOptions(overrides: Record<string, unknown> = {}) {
@@ -617,15 +448,10 @@ function avalonOptions(overrides: Record<string, unknown> = {}) {
 async function updateAvalonOptions(overrides: Record<string, unknown>) {
   await room.updateRules(avalonOptions(overrides))
 }
-
 </script>
 
 <template>
-  <main
-    class="game-page page-container"
-    :class="{ 'chat-open': showChat }"
-    :style="chatPanelStyle"
-  >
+  <main class="game-page page-container">
     <RoomPageHeader :eyebrow="`${modeName} · ${phaseTitle}`" :title="`房间 ${snapshot.roomCode}`">
       <template #details>
         <button
@@ -690,13 +516,10 @@ async function updateAvalonOptions(overrides: Record<string, unknown>) {
 
     <HostTransferNotice :transfer-at="snapshot.hostTransferAt" />
 
-    <MissionTrack
+    <MissionProgressTrack
       v-if="snapshot.phase !== 'lobby' && snapshot.phase !== 'role_reveal'"
-      :current-mission="snapshot.game.missionNumber"
-      :history="snapshot.game.missionHistory"
-      :player-count="snapshot.players.length"
-      :replayable-missions="replayMissionNumbers"
-      @select-mission="openReplay"
+      :items="missionProgressItems"
+      @select="openReplay"
     />
     <p
       v-if="snapshot.game.proposalHistory.length"
@@ -945,8 +768,12 @@ async function updateAvalonOptions(overrides: Record<string, unknown>) {
         </div>
       </div>
 
-      <RoleSkinPicker
+      <ArtworkSkinPicker
         :model-value="selectedRoleSkin"
+        :options="roleArtworkOptions"
+        title="我的身份卡画风"
+        description="仅影响你看到的身份卡 · 开局后锁定"
+        item-name="身份"
         @update:model-value="selectRoleSkin"
       />
 
@@ -1044,12 +871,13 @@ async function updateAvalonOptions(overrides: Record<string, unknown>) {
         </div>
       </div>
 
-      <SecretCard
+      <PressRevealCard
         v-if="snapshot.self.role"
         :title="snapshot.self.role.label"
         :subtitle="snapshot.self.role.alignment === 'good' ? '亚瑟阵营' : '莫德雷德阵营'"
-        :role-code="snapshot.self.role.code"
-        :role-skin="activeRoleSkin"
+        :artwork="selfRoleArtwork()"
+        :artwork-label="roleSkinName(activeRoleSkin)"
+        :artwork-framing="selfRoleArtworkFraming()"
         @seen="roleSeen = true"
       >
         <p class="secret-description">{{ snapshot.self.role.description }}</p>
@@ -1062,7 +890,7 @@ async function updateAvalonOptions(overrides: Record<string, unknown>) {
           </span>
         </div>
         <p v-else class="muted-secret">你没有额外可见信息</p>
-      </SecretCard>
+      </PressRevealCard>
 
       <button
         v-if="snapshot.actions.canConfirmRole"
@@ -1393,7 +1221,7 @@ async function updateAvalonOptions(overrides: Record<string, unknown>) {
       </div>
 
       <template v-if="snapshot.actions.canAcknowledgeLady && snapshot.lady.currentResult">
-        <SecretCard
+        <PressRevealCard
           :title="playerLabel(snapshot.lady.currentResult.targetId)"
           :subtitle="
             snapshot.lady.currentResult.alignment === 'good'
@@ -1567,7 +1395,7 @@ async function updateAvalonOptions(overrides: Record<string, unknown>) {
         <strong>所有人仍可发言，梅林必须隐藏到最后</strong>
       </div>
 
-      <button class="surface final-council-chat" type="button" @click="openChat">
+      <button class="surface final-council-chat" type="button" @click="openSharedChat">
         <MessageCircle :size="21" />
         <div>
           <strong>打开最后议事</strong>
@@ -2088,140 +1916,14 @@ async function updateAvalonOptions(overrides: Record<string, unknown>) {
       </section>
     </div>
 
-    <button
-      v-if="!showChat"
-      class="chat-dock"
-      type="button"
-      aria-label="打开文字聊天"
-      @click="openChat"
-    >
-      <MessageCircle :size="20" />
-      <strong>聊天</strong>
-      <span v-if="unreadChatCount" class="unread-badge">
-        {{ unreadChatCount > 9 ? '9+' : unreadChatCount }}
-      </span>
-    </button>
-
-    <section
-      v-if="showChat"
-      ref="chatSheet"
-      class="chat-sheet chat-sheet--docked"
-      :class="{ 'is-moving': chatMoving }"
-      role="region"
-      aria-label="房间文字聊天"
-    >
-        <div
-          class="chat-resize-handle"
-          role="separator"
-          aria-label="拖动调整聊天框高度"
-          aria-orientation="horizontal"
-          :aria-valuemin="chatHeightLimits().min"
-          :aria-valuemax="chatHeightLimits().max"
-          :aria-valuenow="currentChatHeight()"
-          tabindex="0"
-          @pointerdown.prevent="beginChatResize"
-          @pointermove.prevent="resizeChat"
-          @pointerup="endChatResize"
-          @pointercancel="endChatResize"
-          @keydown.up.prevent="resizeChatBy(60)"
-          @keydown.down.prevent="resizeChatBy(-60)"
-          @keydown.home.prevent="chatHeight = chatHeightLimits().min"
-          @keydown.end.prevent="chatHeight = chatHeightLimits().max"
-        >
-          <span />
-        </div>
-        <header class="chat-sheet-header">
-          <div
-            class="chat-move-handle"
-            role="button"
-            tabindex="0"
-            aria-label="拖动聊天窗口，方向键也可移动"
-            @pointerdown="beginChatMove"
-            @pointermove="moveChat"
-            @pointerup="endChatMove"
-            @pointercancel="endChatMove"
-            @keydown.left.prevent="moveChatBy(-30, 0)"
-            @keydown.right.prevent="moveChatBy(30, 0)"
-            @keydown.up.prevent="moveChatBy(0, -30)"
-            @keydown.down.prevent="moveChatBy(0, 30)"
-          >
-            <Move class="chat-move-icon" :size="17" aria-hidden="true" />
-            <span class="chat-online-dot" />
-            <div>
-              <strong>圆桌密谈</strong>
-              <small>{{ snapshot.players.filter((player) => player.connected).length }} 人在线</small>
-            </div>
-          </div>
-          <div class="chat-header-actions">
-            <button
-              class="chat-size-button"
-              type="button"
-              :aria-label="chatMaximized ? '还原聊天框' : '放大聊天框'"
-              @click="toggleChatSize"
-            >
-              <Minimize2 v-if="chatMaximized" :size="19" />
-              <Maximize2 v-else :size="19" />
-            </button>
-            <button class="modal-close" type="button" aria-label="关闭聊天" @click="closeChat">
-              <X :size="20" />
-            </button>
-          </div>
-        </header>
-
-        <div ref="chatList" class="chat-list" aria-live="polite">
-          <div v-if="!snapshot.chat.messages.length" class="chat-empty">
-            <MessageCircle :size="28" />
-            <strong>这里还很安静</strong>
-            <span>发一条消息开始圆桌讨论</span>
-          </div>
-          <article
-            v-for="message in snapshot.chat.messages"
-            :key="message.id"
-            class="chat-message"
-            :class="{ mine: message.senderId === snapshot.self.id }"
-          >
-            <AvatarImage
-              class="chat-avatar"
-              :src="playerAvatar(message.senderId)"
-              :name="message.senderName"
-              :fallback="playerNumber(message.senderId) ?? message.senderName.slice(0, 1)"
-            />
-            <div>
-              <header>
-                <strong>
-                  <template v-if="playerNumber(message.senderId)">
-                    {{ playerNumber(message.senderId) }}号 ·
-                  </template>
-                  {{ message.senderName }}
-                </strong>
-                <time :datetime="message.createdAt">
-                  {{ formatMessageTime(message.createdAt) }}
-                </time>
-              </header>
-              <p>{{ message.content }}</p>
-            </div>
-          </article>
-        </div>
-
-        <form class="chat-composer" @submit.prevent="sendChat">
-          <textarea
-            v-model="chatDraft"
-            rows="1"
-            :maxlength="snapshot.chat.maxLength"
-            placeholder="输入消息…"
-            aria-label="聊天消息"
-            @keydown.enter.exact.prevent="sendChat"
-          />
-          <button
-            type="submit"
-            aria-label="发送消息"
-            :disabled="!chatDraft.trim() || room.busy"
-          >
-            <Send :size="19" />
-          </button>
-          <small>房间内所有玩家可见 · {{ chatDraft.length }}/{{ snapshot.chat.maxLength }}</small>
-        </form>
-    </section>
+    <ArcadeChatPanel
+      ref="sharedChat"
+      :messages="sharedChatMessages"
+      :max-length="snapshot.chat.maxLength"
+      :self-id="snapshot.self.id"
+      :busy="room.busy"
+      :send="room.sendChat"
+    />
 
     <RoomInviteModal
       v-if="showQr && snapshot.phase === 'lobby'"
@@ -2282,11 +1984,12 @@ async function updateAvalonOptions(overrides: Record<string, unknown>) {
         >
           <X :size="20" />
         </button>
-        <SecretCard
+        <PressRevealCard
           :title="snapshot.self.role.label"
           :subtitle="snapshot.self.role.alignment === 'good' ? '亚瑟阵营' : '莫德雷德阵营'"
-          :role-code="snapshot.self.role.code"
-          :role-skin="activeRoleSkin"
+          :artwork="selfRoleArtwork()"
+          :artwork-label="roleSkinName(activeRoleSkin)"
+          :artwork-framing="selfRoleArtworkFraming()"
           hint="按住重新查看身份"
         >
           <p class="secret-description">{{ snapshot.self.role.description }}</p>
@@ -2307,7 +2010,7 @@ async function updateAvalonOptions(overrides: Record<string, unknown>) {
               {{ check.alignment === 'good' ? '好人阵营' : '坏人阵营' }}
             </span>
           </div>
-        </SecretCard>
+        </PressRevealCard>
       </section>
     </div>
 
@@ -2319,7 +2022,10 @@ async function updateAvalonOptions(overrides: Record<string, unknown>) {
         <span class="modal-icon"><CircleHelp :size="25" /></span>
         <h2>{{ snapshot.settings.mode === 'court_undercurrent' ? '王庭暗流 · 玩法说明' : '标准阿瓦隆 · 玩法说明' }}</h2>
         <p>{{ snapshot.settings.mode === 'court_undercurrent' ? '背景故事、特殊角色与终局规则集中在这里。' : '本局采用标准阿瓦隆规则。' }}</p>
-        <AvalonModeGuide v-if="snapshot.settings.mode === 'court_undercurrent'" />
+        <ModeGuide
+          v-if="snapshot.settings.mode === 'court_undercurrent'"
+          :content="AVALON_COURT_GUIDE"
+        />
         <section class="avalon-core-rules">
           <h3>圆桌通用规则</h3>
           <ul>
