@@ -128,7 +128,8 @@ const games = GAME_CATALOG
 .hall-ornament { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; color: var(--gold); }.hall-ornament i { width: 72px; height: 1px; background: linear-gradient(90deg, transparent, var(--gold)); }.hall-ornament i:last-child { background: linear-gradient(90deg, var(--gold), transparent); }
 .hall-hero h1 { margin: 11px 0 7px; font-family: "Songti SC", "STSong", serif; font-size: clamp(48px, 7vw, 72px); font-weight: 650; letter-spacing: .08em; line-height: 1; text-shadow: 0 12px 38px color-mix(in srgb, var(--bg) 55%, transparent); }
 .hall-hero > p { margin: 0; color: var(--muted); font-family: "Songti SC", serif; font-size: 15px; letter-spacing: .25em; }
-.hall-highlights { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 23px; color: var(--text-soft); font-size: 11px; font-weight: 750; }.hall-highlights span { letter-spacing: .08em; text-indent: .08em; }.hall-highlights b { flex: 0 0 auto; color: var(--gold); font-weight: 400; }
+/* The compact sans-serif line lands optically to the right of the large Songti title. */
+.hall-highlights { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 23px; color: var(--text-soft); font-size: 11px; font-weight: 750; transform: translateX(-.7em); }.hall-highlights span { letter-spacing: .08em; text-indent: .08em; }.hall-highlights b { flex: 0 0 auto; color: var(--gold); font-weight: 400; }
 .resume-arcade-card { margin-bottom: 22px; padding: 16px 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .resume-arcade-card > div { display: flex; gap: 12px; align-items: center; color: var(--gold); }
 .resume-arcade-card strong, .resume-arcade-card small { display: block; }
