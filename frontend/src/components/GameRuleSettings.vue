@@ -169,32 +169,48 @@ function setOption(key: string, value: unknown) {
 </template>
 
 <style scoped>
-.game-rule-settings { display: grid; gap: 20px; }
-.rule-setting-group { display: grid; gap: 9px; }
-.rule-setting-group > header { display: grid; gap: 2px; }
-.rule-setting-group > header small { color: var(--muted); line-height: 1.4; }
-.rule-option-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.game-rule-settings { display: grid; gap: 0; }
+.rule-setting-group { display: grid; gap: 11px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+.rule-setting-group:first-child { padding-top: 0; }
+.rule-setting-group:last-child { padding-bottom: 0; border-bottom: 0; }
+.rule-setting-group > header { display: grid; grid-template-columns: minmax(105px, auto) minmax(0, 1fr); align-items: baseline; gap: 10px; }
+.rule-setting-group > header strong { font-size: 15px; letter-spacing: .01em; }
+.rule-setting-group > header small { color: var(--muted); font-size: 12px; line-height: 1.45; text-align: right; }
+.rule-option-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
 .rule-option-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.rule-option-grid button { min-height: 68px; display: grid; align-content: center; gap: 3px; border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; color: var(--text); background: rgba(0, 0, 0, .12); text-align: left; }
-.rule-option-grid small { color: var(--muted); line-height: 1.35; }
-.rule-option-grid button.active, .rule-segmented button.active { border-color: color-mix(in srgb, var(--gold) 65%, var(--line)); background: color-mix(in srgb, var(--gold) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 18%, transparent); }
+.rule-option-grid button { position: relative; min-height: 74px; display: grid; align-content: center; gap: 4px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px; color: var(--text); background: var(--surface-inset); text-align: left; cursor: pointer; }
+.rule-option-grid button::after { position: absolute; top: 11px; right: 11px; width: 7px; aspect-ratio: 1; border: 1px solid var(--line); border-radius: 50%; content: ''; }
+.rule-option-grid button strong { padding-right: 12px; font-size: 13px; }
+.rule-option-grid small { color: var(--muted); font-size: 11px; line-height: 1.4; }
+.rule-option-grid button.active, .rule-segmented button.active { border-color: color-mix(in srgb, var(--gold) 58%, var(--line)); background: color-mix(in srgb, var(--gold) 9%, var(--surface-inset)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 12%, transparent); }
+.rule-option-grid button.active::after { border-color: var(--gold); background: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 11%, transparent); }
 .rule-option-grid button:disabled { cursor: not-allowed; opacity: .48; }
-.rule-segmented { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.rule-segmented { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 3px; overflow: hidden; background: var(--surface-inset); }
 .rule-segmented.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .rule-segmented.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-.rule-segmented button { min-height: 42px; border: 0; border-right: 1px solid var(--line); color: var(--muted); background: rgba(0, 0, 0, .12); font-weight: 850; }
-.rule-segmented button:last-child { border-right: 0; }
-.rule-segmented button.active { color: var(--gold); }
+.rule-segmented button { min-height: 44px; border: 0; border-radius: 7px; color: var(--muted); background: transparent; font-size: 12px; font-weight: 850; cursor: pointer; }
+.rule-segmented button.active { color: var(--gold); background: var(--surface-elevated); box-shadow: 0 4px 12px color-mix(in srgb, var(--bg) 20%, transparent); }
 .rule-toggle-list { display: grid; gap: 8px; }
-.rule-toggle-list button { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line); border-radius: 12px; padding: 9px 12px; color: var(--text); background: rgba(0, 0, 0, .12); text-align: left; }
+.rule-toggle-list button { min-height: 62px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 13px; color: var(--text); background: var(--surface-inset); text-align: left; cursor: pointer; }
 .rule-toggle-list span { display: grid; gap: 2px; }
 .rule-toggle-list small { color: var(--muted); }
 .rule-toggle-list b { min-width: 38px; border-radius: 999px; padding: 5px 8px; color: var(--muted); background: rgba(255, 255, 255, .06); text-align: center; }
-.rule-toggle-list button.active b { color: #15211c; background: var(--gold); }
+.rule-toggle-list button.active b { color: var(--accent-contrast); background: var(--gold); }
+@media (hover: hover) {
+  .rule-option-grid button:hover:not(:disabled), .rule-toggle-list button:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+}
 @media (max-width: 520px) {
-  .rule-option-grid, .rule-option-grid.three { grid-template-columns: 1fr; }
+  .rule-setting-group { padding: 15px 0; }
+  .rule-setting-group > header { grid-template-columns: 1fr; gap: 3px; }
+  .rule-setting-group > header small { text-align: left; }
+  .rule-option-grid, .rule-option-grid.three { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .rule-option-grid button { min-height: 80px; padding: 10px; }
+  .rule-option-grid button strong { font-size: 12px; }.rule-option-grid small { font-size: 10px; }
+  .rule-option-grid.three button:first-child { grid-column: 1 / -1; min-height: 66px; }
   .rule-segmented.six { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .rule-segmented.six button:nth-child(3n) { border-right: 0; }
-  .rule-segmented.six button:nth-child(-n + 3) { border-bottom: 1px solid var(--line); }
+}
+@media (max-width: 350px) {
+  .rule-option-grid, .rule-option-grid.three { grid-template-columns: 1fr; }
+  .rule-option-grid.three button:first-child { grid-column: auto; }
 }
 </style>

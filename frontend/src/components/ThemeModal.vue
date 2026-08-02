@@ -14,21 +14,21 @@ const themes: Array<{
 }> = [
   {
     id: 'emerald',
-    name: '翡翠圆桌',
-    description: '当前经典深绿与鎏金主题',
-    colors: ['#061719', '#123b3a', '#e1bc68'],
+    name: '墨玉会所',
+    description: '黑玉漆面、香槟金与东方纸纹',
+    colors: ['#071412', '#173d35', '#d6b76e'],
   },
   {
     id: 'midnight',
-    name: '午夜圣殿',
-    description: '沉静蓝黑与银蓝强调色',
-    colors: ['#07131f', '#102e42', '#82b9e8'],
+    name: '午夜铬光',
+    description: '石墨蓝黑、冰蓝与微量紫光',
+    colors: ['#070d16', '#172f49', '#75c6e9'],
   },
   {
     id: 'royal',
-    name: '王室秘仪',
-    description: '暗紫背景与柔和紫金强调色',
-    colors: ['#160f1e', '#35233e', '#d5a8e8'],
+    name: '象牙棋院',
+    description: '暖象牙、墨色与朱砂点睛',
+    colors: ['#e9e1d2', '#f7f2e8', '#a54e40'],
   },
 ]
 

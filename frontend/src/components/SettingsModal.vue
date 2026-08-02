@@ -46,11 +46,12 @@ const selectedTheme = ref<ThemeName>(storedTheme())
 const themes: Array<{
   id: ThemeName
   name: string
+  description: string
   colors: string[]
 }> = [
-  { id: 'emerald', name: '翡翠圆桌', colors: ['#061719', '#123b3a', '#e1bc68'] },
-  { id: 'midnight', name: '午夜圣殿', colors: ['#07131f', '#102e42', '#82b9e8'] },
-  { id: 'royal', name: '王室秘仪', colors: ['#160f1e', '#35233e', '#d5a8e8'] },
+  { id: 'emerald', name: '墨玉会所', description: '黑玉漆面、香槟金与东方纸纹', colors: ['#071412', '#173d35', '#d6b76e'] },
+  { id: 'midnight', name: '午夜铬光', description: '石墨蓝黑、冰蓝与微量紫光', colors: ['#070d16', '#172f49', '#75c6e9'] },
+  { id: 'royal', name: '象牙棋院', description: '暖象牙、墨色与朱砂点睛', colors: ['#e9e1d2', '#f7f2e8', '#a54e40'] },
 ]
 
 const nextRenameDate = computed(() => {
@@ -286,7 +287,7 @@ function confirmAvatarCrop(file: File) {
             <span class="theme-swatches">
               <i v-for="color in theme.colors" :key="color" :style="{ background: color }" />
             </span>
-            <strong>{{ theme.name }}</strong>
+            <span class="theme-copy"><strong>{{ theme.name }}</strong><small>{{ theme.description }}</small></span>
             <Check v-if="selectedTheme === theme.id" :size="17" />
           </button>
         </div>
@@ -303,14 +304,15 @@ function confirmAvatarCrop(file: File) {
 
 <style scoped>
 .settings-modal { width: min(660px, calc(100vw - 28px)); max-height: calc(100dvh - 36px); overflow-y: auto; }
-.settings-section { margin-top: 20px; padding: 17px; border: 1px solid var(--line); border-radius: 17px; background: color-mix(in srgb, var(--surface) 82%, transparent); }
+.settings-section { margin-top: 20px; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius-md); background: color-mix(in srgb, var(--surface) 82%, transparent); }
 .settings-section > header { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; color: var(--gold); }
 .settings-section form { display: grid; gap: 11px; }
 .settings-hint { color: var(--muted); line-height: 1.6; }
-.settings-success { margin: 0; color: #8fe0bd; font-size: 10px; font-weight: 700; line-height: 1.55; }
+.settings-success { margin: 0; color: #8fe0bd; font-size: 12px; font-weight: 700; line-height: 1.55; }
 .settings-theme-list { display: grid; gap: 9px; }
-.settings-theme-list button { min-height: 58px; padding: 10px 12px; display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; border: 1px solid var(--line); border-radius: 13px; color: var(--text); background: var(--surface); text-align: left; }
+.settings-theme-list button { min-height: 68px; padding: 11px 13px; display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; border: 1px solid var(--line); border-radius: 13px; color: var(--text); background: var(--surface-inset); text-align: left; cursor: pointer; }
 .settings-theme-list button.selected { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, var(--surface)); }
+.theme-copy { display: grid; gap: 4px; }.theme-copy strong { font-size: 13px; }.theme-copy small { color: var(--muted); font-size: 11px; line-height: 1.35; }
 .theme-swatches { display: flex; }
 .theme-swatches i { width: 18px; height: 30px; display: block; border: 1px solid #ffffff20; }
 .theme-swatches i:first-child { border-radius: 8px 0 0 8px; }
@@ -323,17 +325,17 @@ function confirmAvatarCrop(file: File) {
 .avatar-upload-button { min-height: 40px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(225, 188, 104, .38); border-radius: 11px; padding: 0 12px; color: var(--gold); background: rgba(225, 188, 104, .08); font-weight: 850; }
 .avatar-file-input { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .avatar-preset-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
-.avatar-preset-grid button { position: relative; min-width: 0; display: grid; justify-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 13px; padding: 9px 5px 8px; color: var(--muted); background: rgba(0, 0, 0, .12); font-size: 9px; }
+.avatar-preset-grid button { position: relative; min-width: 0; display: grid; justify-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 13px; padding: 9px 5px 8px; color: var(--muted); background: var(--surface-inset); font-size: 11px; }
 .avatar-preset-grid button.selected { border-color: var(--gold); color: var(--text); background: color-mix(in srgb, var(--gold) 9%, transparent); box-shadow: inset 0 0 0 1px rgba(225, 188, 104, .08); }
 .avatar-preset-grid button > svg { position: absolute; top: 6px; right: 6px; border-radius: 50%; padding: 2px; color: #1d2a22; background: var(--gold); }
 .preset-avatar { width: 58px; height: 58px; border: 2px solid rgba(255, 255, 255, .09); border-radius: 50%; box-shadow: 0 7px 18px rgba(0, 0, 0, .25); }
-.avatar-upload-hint { margin: 11px 0 0; display: flex; align-items: flex-start; gap: 6px; color: var(--muted); font-size: 10px; line-height: 1.55; }
+.avatar-upload-hint { margin: 11px 0 0; display: flex; align-items: flex-start; gap: 6px; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .avatar-upload-hint svg { flex: 0 0 auto; margin-top: 1px; color: var(--gold); }
 @media (max-width: 520px) {
   .current-avatar-row { grid-template-columns: auto minmax(0, 1fr); }
   .avatar-upload-button { grid-column: 1 / -1; justify-content: center; width: 100%; }
   .avatar-preset-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
   .preset-avatar { width: 48px; height: 48px; }
-  .avatar-preset-grid button { font-size: 8px; }
+  .avatar-preset-grid button { font-size: 10px; }
 }
 </style>

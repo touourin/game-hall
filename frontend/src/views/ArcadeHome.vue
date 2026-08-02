@@ -89,7 +89,7 @@ async function chooseRoom(code: string) {
 </script>
 
 <template>
-  <main class="arcade-home page-container">
+  <main class="arcade-home page-container" :class="`game-home-${game.key}`">
     <GameHomeHeader
       :eyebrow="game.players"
       :title="game.name"
@@ -177,8 +177,9 @@ async function chooseRoom(code: string) {
 </template>
 
 <style scoped>
-.arcade-home { padding-bottom: 70px; }
-.arcade-home .room-browser { margin-bottom: 22px; }
+.arcade-home { width: min(100%, 980px); padding-bottom: 80px; }
+.arcade-home .room-browser { margin-bottom: 18px; }
+.arcade-home .join-card { width: min(100%, 760px); margin: 28px auto 0; padding: 10px 26px 26px; }
 .cleanup-room-browser { margin-bottom: 22px; }
 .cleanup-room-browser > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
 .cleanup-room-browser > header > div { display: flex; align-items: center; gap: 10px; }
@@ -186,11 +187,14 @@ async function chooseRoom(code: string) {
 .cleanup-browser-icon { width: 38px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 11px; color: #efaaa7; background: rgba(134, 45, 49, .15); }
 .cleanup-room-list { display: grid; gap: 8px; }
 .cleanup-room-item { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 11px; border: 1px solid rgba(231, 119, 119, .24); border-radius: 13px; padding: 11px 12px; background: rgba(96, 32, 36, .1); }
-.create-rule-settings { margin-bottom: 20px; border: 1px solid var(--line); border-radius: 16px; padding: 16px; background: color-mix(in srgb, var(--surface) 72%, transparent); }
+.create-rule-settings { margin-bottom: 22px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 21px 2px; }
 .solo-game-intro { margin: 4px 0 20px; padding: 14px 4px 4px; display: flex; align-items: center; gap: 12px; }
 .solo-game-mark { width: 46px; aspect-ratio: 1; display: grid; flex: 0 0 auto; place-items: center; border: 1px solid #78d2aa55; border-radius: 14px; color: #8fe0bd; background: #62c69b16; font-size: 22px; }
 .solo-game-intro strong, .solo-game-intro small { display: block; }.solo-game-intro small { margin-top: 4px; color: var(--muted); line-height: 1.5; }
 @media (max-width: 600px) {
+  .arcade-home { padding-right: 12px; padding-left: 12px; }
+  .arcade-home .join-card { margin-top: 18px; padding: 8px 14px 16px; }
+  .create-rule-settings { margin-bottom: 16px; padding: 16px 0; }
   .cleanup-room-item { grid-template-columns: auto minmax(0, 1fr); }.cleanup-room-item :deep(.cleanup-room-button) { grid-column: 1 / -1; width: 100%; }
 }
 </style>

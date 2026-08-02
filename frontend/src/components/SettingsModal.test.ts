@@ -157,4 +157,35 @@ describe('SettingsModal', () => {
     expect(wrapper.find('.avatar-crop-stub').exists()).toBe(false)
     expect(wrapper.emitted('avatarUpload')).toEqual([[cropped]])
   })
+
+  it('offers the three material UI skins and applies the selected one', async () => {
+    const wrapper = mount(SettingsModal, {
+      props: {
+        account: {
+          id: 'account-1',
+          username: 'login_account',
+          playerName: '当前昵称',
+          nextRenameAt: null,
+          avatarType: 'preset',
+          avatarPreset: 'moon-fox',
+          avatarUrl: '/avatars/moon-fox.webp',
+          createdAt: '2026-08-01T00:00:00Z',
+        },
+        busy: false,
+        error: null,
+      },
+    })
+
+    expect(wrapper.text()).toContain('墨玉会所')
+    expect(wrapper.text()).toContain('午夜铬光')
+    expect(wrapper.text()).toContain('象牙棋院')
+
+    const ivory = wrapper
+      .findAll('.settings-theme-list button')
+      .find((button) => button.text().includes('象牙棋院'))
+    await ivory?.trigger('click')
+
+    expect(document.documentElement.dataset.theme).toBe('royal')
+    expect(localStorage.getItem('game-hall:theme')).toBe('royal')
+  })
 })
