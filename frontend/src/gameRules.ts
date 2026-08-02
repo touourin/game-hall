@@ -9,6 +9,14 @@ const NEGOTIATION_GAMES = new Set<ArcadeGameKey>([
 export function defaultGameRules(
   gameKey: ArcadeGameKey,
 ): Record<string, unknown> {
+  if (gameKey === 'avalon') {
+    return {
+      mode: 'standard',
+      ladyEnabled: true,
+      listed: true,
+      earlyAssassinationEnabled: false,
+    }
+  }
   if (gameKey === 'reaction' || gameKey === 'schulte') return {}
   if (gameKey === 'minesweeper') return { difficulty: 'beginner' }
   if (gameKey === 'hanoi') return { discCount: 5 }
@@ -46,6 +54,17 @@ export function gameRuleLabels(
   rawOptions: Record<string, unknown>,
 ): string[] {
   const options = withDefaultGameRules(gameKey, rawOptions)
+  if (gameKey === 'avalon') {
+    const labels = [
+      options.mode === 'court_undercurrent' ? '王庭暗流' : '标准阿瓦隆',
+      options.listed ? '公开房间' : '私密房间',
+    ]
+    if (options.mode !== 'court_undercurrent') {
+      labels.push(options.ladyEnabled ? '启用湖中仙女' : '不启用湖中仙女')
+      if (options.earlyAssassinationEnabled) labels.push('允许提前刺杀')
+    }
+    return labels
+  }
   if (gameKey === 'reaction') return ['三轮测试']
   if (gameKey === 'schulte') return ['5×5 标准挑战', '服务端计时']
   if (gameKey === 'minesweeper') {

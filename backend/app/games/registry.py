@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from backend.app.games.base import GameEngine
+from backend.app.games.avalon.arcade import AvalonEngine
 from backend.app.games.doudizhu import DoudizhuEngine
 from backend.app.games.go import GoEngine
 from backend.app.games.gomoku import GomokuEngine
@@ -15,6 +16,7 @@ from backend.app.games.xiangqi import XiangqiEngine
 
 def build_engine_registry() -> dict[str, GameEngine]:
     engines: list[GameEngine] = [
+        AvalonEngine(),
         GomokuEngine(),
         XiangqiEngine(),
         GoEngine(),

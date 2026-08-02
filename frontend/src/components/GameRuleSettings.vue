@@ -19,12 +19,43 @@ function setOption(key: string, value: unknown) {
   if (props.gameKey === 'gomoku' && key === 'winRule' && value === 'renju') {
     nextValue.openingRule = 'standard'
   }
+  if (props.gameKey === 'avalon' && key === 'mode' && value === 'court_undercurrent') {
+    nextValue.ladyEnabled = false
+    nextValue.earlyAssassinationEnabled = false
+  }
   emit('update:modelValue', nextValue)
 }
 </script>
 
 <template>
   <div class="game-rule-settings">
+    <section v-if="gameKey === 'avalon'" class="rule-setting-group">
+      <header><strong>玩法模式</strong><small>王庭暗流加入异志之臣、黑誓授刃和最后议事</small></header>
+      <div class="rule-option-grid">
+        <button type="button" :class="{ active: option('mode') === 'standard' }" @click="setOption('mode', 'standard')">
+          <strong>标准阿瓦隆</strong><small>经典任务、湖中仙女与刺杀梅林</small>
+        </button>
+        <button type="button" :class="{ active: option('mode') === 'court_undercurrent' }" @click="setOption('mode', 'court_undercurrent')">
+          <strong>王庭暗流</strong><small>异志之臣可能被刺客授刃转化</small>
+        </button>
+      </div>
+    </section>
+
+    <section v-if="gameKey === 'avalon'" class="rule-setting-group">
+      <header><strong>圆桌规则</strong><small>王庭暗流固定关闭湖中仙女和提前刺杀</small></header>
+      <div class="rule-toggle-list">
+        <button type="button" :class="{ active: option('listed') }" @click="setOption('listed', !option('listed'))">
+          <span><strong>公开房间</strong><small>允许其他玩家在大厅房间列表中发现</small></span><b>{{ option('listed') ? '开' : '关' }}</b>
+        </button>
+        <button type="button" :class="{ active: option('ladyEnabled') }" :disabled="option('mode') === 'court_undercurrent'" @click="setOption('ladyEnabled', !option('ladyEnabled'))">
+          <span><strong>湖中仙女</strong><small>从第 2 次任务后开始查验阵营</small></span><b>{{ option('ladyEnabled') ? '开' : '关' }}</b>
+        </button>
+        <button type="button" :class="{ active: option('earlyAssassinationEnabled') }" :disabled="option('mode') === 'court_undercurrent'" @click="setOption('earlyAssassinationEnabled', !option('earlyAssassinationEnabled'))">
+          <span><strong>提前刺杀</strong><small>刺客可在任务期间豪赌梅林，刺错立即失败</small></span><b>{{ option('earlyAssassinationEnabled') ? '开' : '关' }}</b>
+        </button>
+      </div>
+    </section>
+
     <section v-if="gameKey === 'minesweeper'" class="rule-setting-group">
       <header><strong>挑战难度</strong><small>三种经典规格分别记录成绩和排行榜</small></header>
       <div class="rule-option-grid three">
@@ -142,7 +173,7 @@ function setOption(key: string, value: unknown) {
       </div>
     </section>
 
-    <section v-if="!['reaction', 'schulte', 'minesweeper', 'hanoi', 'poker'].includes(gameKey)" class="rule-setting-group">
+    <section v-if="!['avalon', 'reaction', 'schulte', 'minesweeper', 'hanoi', 'poker'].includes(gameKey)" class="rule-setting-group">
       <header><strong>{{ gameKey === 'doudizhu' ? '首叫玩家' : gameKey === 'gomoku' && option('openingRule') === 'swap2' ? '首局摆子者' : '首局先手' }}</strong><small>再来一局时仍会自动轮换</small></header>
       <div class="rule-option-grid">
         <button type="button" :class="{ active: option('firstPlayer') === 'random' }" @click="setOption('firstPlayer', 'random')">
@@ -192,6 +223,7 @@ function setOption(key: string, value: unknown) {
 .rule-segmented button.active { color: var(--gold); background: var(--surface-elevated); box-shadow: 0 4px 12px color-mix(in srgb, var(--bg) 20%, transparent); }
 .rule-toggle-list { display: grid; gap: 8px; }
 .rule-toggle-list button { min-height: 62px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 13px; color: var(--text); background: var(--surface-inset); text-align: left; cursor: pointer; }
+.rule-toggle-list button:disabled { cursor: not-allowed; opacity: .48; }
 .rule-toggle-list span { display: grid; gap: 2px; }
 .rule-toggle-list small { color: var(--muted); }
 .rule-toggle-list b { min-width: 38px; border-radius: 999px; padding: 5px 8px; color: var(--muted); background: rgba(255, 255, 255, .06); text-align: center; }

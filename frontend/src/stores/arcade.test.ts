@@ -15,6 +15,7 @@ import { useArcadeStore } from './arcade'
 
 const SESSION_KEY = 'game-hall:arcade-session'
 const LEGACY_SESSION_KEY = 'gamehall:arcade-session'
+const LEGACY_AVALON_SESSION_KEY = 'avalon:current-session'
 const storedSession = {
   gameKey: 'xiangqi',
   roomCode: 'TEST',
@@ -43,6 +44,28 @@ describe('arcade room store', () => {
     expect(arcade.resumableRoomCode).toBe('TEST')
     expect(localStorage.getItem(SESSION_KEY)).toBe(JSON.stringify(storedSession))
     expect(localStorage.getItem(LEGACY_SESSION_KEY)).toBeNull()
+  })
+
+  it('migrates the former Avalon seat into the unified room session', () => {
+    const legacyAvalon = {
+      roomCode: 'AVLN',
+      playerId: 'arthur',
+      resumeToken: 'resume-token-for-arthur',
+    }
+    localStorage.setItem(
+      LEGACY_AVALON_SESSION_KEY,
+      JSON.stringify(legacyAvalon),
+    )
+
+    const arcade = useArcadeStore()
+
+    expect(arcade.resumableGame).toBe('avalon')
+    expect(arcade.resumableRoomCode).toBe('AVLN')
+    expect(JSON.parse(localStorage.getItem(SESSION_KEY) ?? '{}')).toEqual({
+      ...legacyAvalon,
+      gameKey: 'avalon',
+    })
+    expect(localStorage.getItem(LEGACY_AVALON_SESSION_KEY)).toBeNull()
   })
 
   it('resumes the room after reconnecting even while an old snapshot is visible', async () => {

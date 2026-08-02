@@ -40,9 +40,14 @@ import SchulteGrid from '../games/schulte/SchulteGrid.vue'
 import MinesweeperBoard from '../games/minesweeper/MinesweeperBoard.vue'
 import HanoiGame from '../games/hanoi/HanoiGame.vue'
 import PokerTable from '../games/poker/PokerTable.vue'
+import AvalonGameRoom from '../games/avalon/GameRoom.vue'
+import type { RoomSnapshot as AvalonRoomSnapshot } from '../games/avalon/types'
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
+const avalonSnapshot = computed(
+  () => props.snapshot.game as unknown as AvalonRoomSnapshot,
+)
 const ruleEditor = ref<Record<string, unknown> | null>(null)
 const showQr = ref(false)
 const activeGameSkin = ref<GameSkinId>(storedGameSkin())
@@ -126,7 +131,12 @@ function selectGameSkin(skin: GameSkinId) {
 </script>
 
 <template>
+  <AvalonGameRoom
+    v-if="snapshot.gameKey === 'avalon'"
+    :snapshot="avalonSnapshot"
+  />
   <main
+    v-else
     class="arcade-room page-container"
     :class="{ 'arcade-room--wide': ['poker', 'doudizhu', 'junqi', 'minesweeper'].includes(snapshot.gameKey) }"
     :data-game-skin="activeGameSkinKind ? activeGameSkin : undefined"

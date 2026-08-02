@@ -1,17 +1,15 @@
-from datetime import datetime, timedelta, timezone
-
 from backend.app.games.avalon.engine import GameEngine
 from backend.app.games.avalon.models import (
     Alignment,
     AvalonMode,
+    ChatMessage,
     MissionRecord,
     Phase,
     Role,
 )
-from backend.app.games.avalon.rooms import RoomManager
-from backend.app.games.avalon.views import build_lobby_view, build_player_view
+from backend.app.games.avalon.views import build_player_view
 
-from .test_engine import start_room
+from .test_engine import make_room, start_room
 
 
 def test_player_view_never_exposes_other_roles_during_game():
@@ -118,7 +116,15 @@ def test_chat_history_is_visible_to_every_room_member():
     sender = room.players[0]
     viewer = room.players[1]
 
-    RoomManager().send_chat(room, sender.id, "这支队伍我赞成")
+    room.chat_messages.append(
+        ChatMessage(
+            id="message-1",
+            sender_id=sender.id,
+            sender_name=sender.name,
+            content="这支队伍我赞成",
+            created_at="2026-08-01T00:00:00+00:00",
+        )
+    )
     view = build_player_view(room, viewer, engine)
 
     assert view["chat"]["maxLength"] == 300
@@ -127,25 +133,20 @@ def test_chat_history_is_visible_to_every_room_member():
 
 
 def test_avalon_views_include_account_avatars():
-    manager = RoomManager()
-    room, host, _ = manager.create_room(
-        "亚瑟",
-        account_id="account-1",
-        avatar_url="/avatars/jade-owl.webp",
-    )
+    room = make_room(1)
+    host = room.players[0]
+    host.avatar_url = "/avatars/jade-owl.webp"
 
-    lobby = build_lobby_view([room])
     view = build_player_view(room, host, GameEngine())
 
-    assert lobby[0]["hostAvatarUrl"] == "/avatars/jade-owl.webp"
     assert view["self"]["avatarUrl"] == "/avatars/jade-owl.webp"
     assert view["players"][0]["avatarUrl"] == "/avatars/jade-owl.webp"
 
 
 def test_ai_player_marker_and_add_action_are_in_player_view():
-    manager = RoomManager()
-    room, host, _ = manager.create_room("亚瑟")
-    ai_player = manager.add_ai_player(room, host.id)
+    room = make_room(2)
+    host, ai_player = room.players
+    ai_player.is_bot = True
 
     view = build_player_view(room, host, GameEngine())
     ai_view = next(
@@ -158,76 +159,14 @@ def test_ai_player_marker_and_add_action_are_in_player_view():
 
 
 def test_only_lobby_host_can_dissolve_avalon_room():
-    manager = RoomManager()
-    room, host, _ = manager.create_room("亚瑟")
-    _, guest, _ = manager.join_room(room.code, "兰斯洛特")
+    room = make_room(2)
+    host, guest = room.players
 
     host_view = build_player_view(room, host, GameEngine())
     guest_view = build_player_view(room, guest, GameEngine())
 
     assert host_view["actions"]["canDissolve"] is True
     assert guest_view["actions"]["canDissolve"] is False
-
-
-def test_lobby_view_only_lists_public_joinable_rooms():
-    manager = RoomManager()
-    visible, _, _ = manager.create_room("亚瑟")
-    hidden, hidden_host, _ = manager.create_room("梅林")
-    started, _, _ = manager.create_room("桂妮维亚")
-    manager.set_listed(hidden, hidden_host.id, False)
-    started.phase = Phase.ROLE_REVEAL
-
-    lobby_view = build_lobby_view(manager.rooms.values())
-
-    assert lobby_view == [
-        {
-            "roomCode": visible.code,
-            "hostName": "亚瑟",
-            "hostAvatarUrl": None,
-            "playerCount": 1,
-            "maxPlayers": 10,
-            "ladyEnabled": True,
-            "mode": "standard",
-            "phase": "lobby",
-            "cleanupAvailable": False,
-            "allHumansOffline": False,
-        }
-    ]
-
-
-def test_lobby_view_hides_room_when_every_human_is_offline():
-    manager = RoomManager()
-    room, host, _ = manager.create_room("亚瑟")
-    manager.add_ai_player(room, host.id)
-    host.connected = False
-
-    assert build_lobby_view(manager.rooms.values()) == []
-
-
-def test_cleanup_ready_room_returns_to_lobby_as_non_joinable_cleanup_item():
-    manager = RoomManager()
-    room, host, _ = manager.create_room("亚瑟")
-    disconnected_at = datetime(2026, 8, 1, tzinfo=timezone.utc)
-    room.phase = Phase.ROLE_REVEAL
-    host.connected = False
-    manager.update_human_presence(room, now=disconnected_at)
-    manager.maintain(now=disconnected_at + timedelta(minutes=10))
-
-    assert build_lobby_view(manager.rooms.values()) == [
-        {
-            "roomCode": room.code,
-            "hostName": "亚瑟",
-            "hostAvatarUrl": None,
-            "playerCount": 1,
-            "maxPlayers": 10,
-            "ladyEnabled": True,
-            "mode": "standard",
-            "phase": "role_reveal",
-            "cleanupAvailable": True,
-            "allHumansOffline": True,
-        }
-    ]
-
 
 def test_player_view_contains_public_team_vote_replay():
     engine, room = start_room(5)

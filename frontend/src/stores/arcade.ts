@@ -16,6 +16,7 @@ interface StoredArcadeSession {
 
 const SESSION_KEY = 'game-hall:arcade-session'
 const LEGACY_SESSION_KEY = 'gamehall:arcade-session'
+const LEGACY_AVALON_SESSION_KEY = 'avalon:current-session'
 
 function readSession(): StoredArcadeSession | null {
   try {
@@ -23,11 +24,19 @@ function readSession(): StoredArcadeSession | null {
     if (raw) return JSON.parse(raw) as StoredArcadeSession
 
     const legacyRaw = localStorage.getItem(LEGACY_SESSION_KEY)
-    if (!legacyRaw) return null
+    if (legacyRaw) {
+      const session = JSON.parse(legacyRaw) as StoredArcadeSession
+      localStorage.setItem(SESSION_KEY, legacyRaw)
+      localStorage.removeItem(LEGACY_SESSION_KEY)
+      return session
+    }
 
-    const session = JSON.parse(legacyRaw) as StoredArcadeSession
-    localStorage.setItem(SESSION_KEY, legacyRaw)
-    localStorage.removeItem(LEGACY_SESSION_KEY)
+    const avalonRaw = localStorage.getItem(LEGACY_AVALON_SESSION_KEY)
+    if (!avalonRaw) return null
+    const legacyAvalon = JSON.parse(avalonRaw) as Omit<StoredArcadeSession, 'gameKey'>
+    const session: StoredArcadeSession = { ...legacyAvalon, gameKey: 'avalon' }
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+    localStorage.removeItem(LEGACY_AVALON_SESSION_KEY)
     return session
   } catch {
     return null
@@ -37,6 +46,7 @@ function readSession(): StoredArcadeSession | null {
 export const useArcadeStore = defineStore('arcade', () => {
   const snapshot = ref<ArcadeSnapshot | null>(null)
   const availableRooms = ref<ArcadeLobbyRoom[]>([])
+  const connected = ref(false)
   const busy = ref(false)
   const error = ref<string | null>(null)
   const session = ref<StoredArcadeSession | null>(readSession())
@@ -52,8 +62,18 @@ export const useArcadeStore = defineStore('arcade', () => {
   function init() {
     if (initialized) return
     initialized = true
+    connected.value = socket.connected
     socket.on('connect', async () => {
+      connected.value = true
+      error.value = null
       if (session.value) await resume()
+    })
+    socket.on('disconnect', () => {
+      connected.value = false
+    })
+    socket.on('connect_error', () => {
+      connected.value = false
+      error.value = '暂时连接不到游戏服务器'
     })
     socket.on('arcade:lobby', (rooms: ArcadeLobbyRoom[]) => {
       availableRooms.value = rooms
@@ -177,6 +197,13 @@ export const useArcadeStore = defineStore('arcade', () => {
     await perform('arcade:action', { action: actionName, payload })
   }
 
+  async function actionWithResult(
+    actionName: string,
+    payload: Record<string, unknown> = {},
+  ) {
+    return Boolean(await perform('arcade:action', { action: actionName, payload }))
+  }
+
   async function rapidAction(
     actionName: string,
     payload: Record<string, unknown> = {},
@@ -234,12 +261,14 @@ export const useArcadeStore = defineStore('arcade', () => {
     session.value = next
     localStorage.setItem(SESSION_KEY, JSON.stringify(next))
     localStorage.removeItem(LEGACY_SESSION_KEY)
+    localStorage.removeItem(LEGACY_AVALON_SESSION_KEY)
   }
 
   function clearSession() {
     session.value = null
     localStorage.removeItem(SESSION_KEY)
     localStorage.removeItem(LEGACY_SESSION_KEY)
+    localStorage.removeItem(LEGACY_AVALON_SESSION_KEY)
   }
 
   function clearError() {
@@ -248,6 +277,7 @@ export const useArcadeStore = defineStore('arcade', () => {
 
   function resetForLogout() {
     snapshot.value = null
+    connected.value = false
     busy.value = false
     error.value = null
     clearSession()
@@ -256,6 +286,7 @@ export const useArcadeStore = defineStore('arcade', () => {
   return {
     snapshot,
     availableRooms,
+    connected,
     busy,
     error,
     resumableGame,
@@ -267,6 +298,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     cleanupRoom,
     startGame,
     action,
+    actionWithResult,
     rapidAction,
     restartGame,
     kickPlayer,

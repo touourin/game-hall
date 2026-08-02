@@ -43,11 +43,11 @@ import {
   storedRoleSkinLock,
   type RoleSkinId,
 } from './roleSkins'
-import { useRoomStore } from './store'
+import { useArcadeStore } from '../../stores/arcade'
 import type { PlayerView, RoomSnapshot } from './types'
 
 const props = defineProps<{ snapshot: RoomSnapshot }>()
-const room = useRoomStore()
+const room = useArcadeStore()
 
 const selectedTeamIds = ref<string[]>([])
 const ladyTargetId = ref<string | null>(null)
@@ -353,42 +353,42 @@ function revealedAlignment(playerId: string) {
 }
 
 async function proposeTeam() {
-  await room.perform('game:propose-team', {
+  await room.action('propose_team', {
     team_ids: selectedTeamIds.value,
   })
 }
 
 async function inspectWithLady() {
   if (!ladyTargetId.value) return
-  await room.perform('game:lady-inspect', {
+  await room.action('lady_inspect', {
     target_id: ladyTargetId.value,
   })
 }
 
 async function assassinate() {
   if (!assassinTargetId.value) return
-  await room.perform('game:assassinate', {
+  await room.action('assassinate', {
     target_id: assassinTargetId.value,
   })
 }
 
 async function grantDagger() {
   if (!daggerTargetId.value) return
-  await room.perform('game:grant-dagger', {
+  await room.action('grant_dagger', {
     target_id: daggerTargetId.value,
   })
 }
 
 async function dissentingAssassinate() {
   if (!dissentingTargetId.value) return
-  await room.perform('game:dissenting-assassinate', {
+  await room.action('dissenting_assassinate', {
     target_id: dissentingTargetId.value,
   })
 }
 
 async function earlyAssassinate() {
   if (!earlyAssassinTargetId.value) return
-  const response = await room.perform('game:early-assassinate', {
+  const response = await room.actionWithResult('early_assassinate', {
     target_id: earlyAssassinTargetId.value,
   })
   if (response) showEarlyAssassination.value = false
@@ -595,11 +595,26 @@ function formatMessageTime(value: string): string {
 async function sendChat() {
   const content = chatDraft.value.trim()
   if (!content) return
-  const response = await room.perform('chat:send', { content })
+  const response = await room.sendChat(content)
   if (response) {
     chatDraft.value = ''
     await scrollChatToBottom()
   }
+}
+
+function avalonOptions(overrides: Record<string, unknown> = {}) {
+  return {
+    mode: props.snapshot.settings.mode,
+    ladyEnabled: props.snapshot.settings.ladyEnabled,
+    listed: props.snapshot.settings.listed,
+    earlyAssassinationEnabled:
+      props.snapshot.settings.earlyAssassinationEnabled,
+    ...overrides,
+  }
+}
+
+async function updateAvalonOptions(overrides: Record<string, unknown>) {
+  await room.updateRules(avalonOptions(overrides))
 }
 
 </script>
@@ -756,7 +771,7 @@ async function sendChat() {
             class="text-button add-ai-button"
             type="button"
             :disabled="room.busy"
-            @click="room.perform('room:add-ai-player')"
+            @click="room.action('add_ai')"
           >
             <Bot :size="16" /> 添加 AI
           </button>
@@ -799,7 +814,7 @@ async function sendChat() {
               v-if="snapshot.self.isHost && !player.isHost"
               :player-name="player.name"
               :busy="room.busy"
-              @confirm="room.perform('room:kick', { target_id: player.id })"
+              @confirm="room.kickPlayer(player.id)"
             />
           </div>
         </div>
@@ -816,7 +831,7 @@ async function sendChat() {
               type="button"
               :class="{ active: snapshot.settings.mode === 'standard' }"
               :disabled="!snapshot.actions.canUpdateSettings"
-              @click="room.perform('room:set-mode', { mode: 'standard' })"
+              @click="updateAvalonOptions({ mode: 'standard' })"
             >
               <strong>标准模式</strong>
               <small>湖中仙女与刺客终局</small>
@@ -825,7 +840,7 @@ async function sendChat() {
               type="button"
               :class="{ active: snapshot.settings.mode === 'court_undercurrent' }"
               :disabled="!snapshot.actions.canUpdateSettings"
-              @click="room.perform('room:set-mode', { mode: 'court_undercurrent' })"
+              @click="updateAvalonOptions({ mode: 'court_undercurrent' })"
             >
               <strong>王庭暗流</strong>
               <small>异志之臣 · 授刃 · 最后议事</small>
@@ -848,7 +863,7 @@ async function sendChat() {
               :checked="snapshot.settings.listed"
               :disabled="!snapshot.actions.canUpdateSettings"
               @change="
-                room.perform('room:set-listed', {
+                updateAvalonOptions({
                   listed: ($event.target as HTMLInputElement).checked,
                 })
               "
@@ -875,8 +890,8 @@ async function sendChat() {
                 snapshot.settings.mode === 'court_undercurrent'
               "
               @change="
-                room.perform('room:set-lady', {
-                  enabled: ($event.target as HTMLInputElement).checked,
+                updateAvalonOptions({
+                  ladyEnabled: ($event.target as HTMLInputElement).checked,
                 })
               "
             />
@@ -904,8 +919,8 @@ async function sendChat() {
                 snapshot.settings.mode === 'court_undercurrent'
               "
               @change="
-                room.perform('room:set-early-assassination', {
-                  enabled: ($event.target as HTMLInputElement).checked,
+                updateAvalonOptions({
+                  earlyAssassinationEnabled: ($event.target as HTMLInputElement).checked,
                 })
               "
             />
@@ -937,7 +952,7 @@ async function sendChat() {
         class="primary-button wide-button"
         type="button"
         :disabled="!snapshot.actions.canStart"
-        @click="room.perform('game:start')"
+        @click="room.startGame"
       >
         <Swords :size="19" />
         {{ snapshot.players.length < 5 ? `还需 ${5 - snapshot.players.length} 人` : '开始游戏' }}
@@ -1051,7 +1066,7 @@ async function sendChat() {
         class="primary-button wide-button"
         type="button"
         :disabled="!roleSeen"
-        @click="room.perform('game:confirm-role')"
+        @click="room.action('confirm_role')"
       >
         <Check :size="19" /> 我已记住身份
       </button>
@@ -1175,7 +1190,7 @@ async function sendChat() {
         <button
           class="decision-button reject"
           type="button"
-          @click="room.perform('game:vote-team', { approve: false })"
+          @click="room.action('vote_team', { approve: false })"
         >
           <X :size="25" />
           <strong>反对</strong>
@@ -1184,7 +1199,7 @@ async function sendChat() {
         <button
           class="decision-button approve"
           type="button"
-          @click="room.perform('game:vote-team', { approve: true })"
+          @click="room.action('vote_team', { approve: true })"
         >
           <Check :size="25" />
           <strong>赞成</strong>
@@ -1233,7 +1248,7 @@ async function sendChat() {
           <button
             class="mission-card success-card"
             type="button"
-            @click="room.perform('game:vote-mission', { success: true })"
+            @click="room.action('vote_mission', { success: true })"
           >
             <Check :size="28" />
             <strong>任务成功</strong>
@@ -1243,7 +1258,7 @@ async function sendChat() {
             v-if="snapshot.actions.canMissionFail"
             class="mission-card fail-card"
             type="button"
-            @click="room.perform('game:vote-mission', { success: false })"
+            @click="room.action('vote_mission', { success: false })"
           >
             <X :size="28" />
             <strong>任务失败</strong>
@@ -1299,7 +1314,7 @@ async function sendChat() {
         v-if="snapshot.actions.canContinueRound"
         class="primary-button wide-button"
         type="button"
-        @click="room.perform('game:continue')"
+        @click="room.action('continue_round')"
       >
         继续结算 <ArrowRight :size="19" />
       </button>
@@ -1390,7 +1405,7 @@ async function sendChat() {
           class="primary-button wide-button"
           type="button"
           :disabled="!ladySeen"
-          @click="room.perform('game:lady-acknowledge')"
+          @click="room.action('lady_acknowledge')"
         >
           我已记住结果 <Check :size="19" />
         </button>
@@ -1799,7 +1814,7 @@ async function sendChat() {
         v-if="snapshot.actions.canRestart"
         class="primary-button wide-button"
         type="button"
-        @click="room.perform('game:restart')"
+        @click="room.restartGame"
       >
         <RotateCcw :size="18" /> 返回大厅再来一局
       </button>

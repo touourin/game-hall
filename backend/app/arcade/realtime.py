@@ -305,6 +305,10 @@ class ArcadeRealtime:
     ) -> dict[str, Any]:
         try:
             room, player = await self._context(sid)
+        except (ArcadeRoomError, KeyError, TypeError):
+            await self._clear_room_session(sid)
+            return {"ok": True, "seatPreserved": False}
+        try:
             async with room.lock:
                 seat_preserved = self.rooms.leave(room, player.id)
             await self._server.leave_room(sid, self._channel(room.code, player.id))
@@ -561,6 +565,25 @@ class ArcadeRealtime:
         ):
             return
         engine = self.engines[room.game_key]
+        match_persister = getattr(engine, "persist_match", None)
+        if match_persister is not None:
+            try:
+                room.recorded = bool(match_persister(room, account_store()))
+                if room.recorded:
+                    self.logger.info(
+                        "Arcade match persisted",
+                        extra={
+                            "event": "match.persisted",
+                            "game_id": room.game_id,
+                            "game_key": room.game_key,
+                            "room_code": room.code,
+                        },
+                    )
+            except Exception:
+                self.logger.exception(
+                    "Failed to persist %s match", room.game_key
+                )
+            return
         players = []
         score_reader = getattr(engine, "player_score", None)
         for player in room.players:

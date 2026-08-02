@@ -5,10 +5,11 @@ from unittest.mock import AsyncMock
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from backend.app import realtime
 from backend.app.access import access_token, verify_access_token, verify_password
 from backend.app.accounts import account_store
-from backend.app.games.avalon.rooms import RoomManager
+from backend.app.arcade.realtime import arcade_realtime
+from backend.app.arcade.rooms import ArcadeRoomManager
+from backend.app.games.registry import build_engine_registry
 from backend.app.main import api, game_hall_access_header
 from backend.app.realtime import connect, sio
 
@@ -222,52 +223,44 @@ async def test_socket_connection_requires_both_tokens(
         {"token": access_token(), "accountToken": account_token},
     ) is None
     save_session.assert_awaited_once()
-    assert emit.await_count == 2
-    assert {call.args[0] for call in emit.await_args_list} == {
-        "lobby:rooms",
-        "arcade:lobby",
-    }
+    emit.assert_awaited_once()
+    assert emit.await_args.args[0] == "arcade:lobby"
 
 
-async def test_leaving_avalon_preserves_socket_account_identity(
+async def test_leaving_avalon_through_arcade_preserves_account_identity(
     monkeypatch,
 ) -> None:
-    manager = RoomManager()
-    room, player, _ = manager.create_room("亚瑟", account_id="account-1")
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, player, _ = manager.create_room(
+        "avalon", "亚瑟", "account-1"
+    )
     session = {
         "account_id": "account-1",
-        "room_code": room.code,
-        "player_id": player.id,
-        "arcade_room_code": "GMKU",
-        "arcade_player_id": "arcade-player",
+        "arcade_room_code": room.code,
+        "arcade_player_id": player.id,
     }
     get_session = AsyncMock(return_value=session)
     save_session = AsyncMock()
     leave_socket_room = AsyncMock()
     broadcast_lobby = AsyncMock()
-    monkeypatch.setattr(realtime, "avalon_rooms", manager)
+    monkeypatch.setattr(arcade_realtime, "rooms", manager)
     monkeypatch.setattr(
-        realtime,
-        "avalon_active_sids",
+        arcade_realtime,
+        "active_sids",
         defaultdict(set, {(room.code, player.id): {"socket-1"}}),
     )
     monkeypatch.setattr(sio, "get_session", get_session)
     monkeypatch.setattr(sio, "save_session", save_session)
     monkeypatch.setattr(sio, "leave_room", leave_socket_room)
-    monkeypatch.setattr(
-        realtime, "broadcast_avalon_lobby", broadcast_lobby
-    )
+    monkeypatch.setattr(arcade_realtime, "broadcast_lobby", broadcast_lobby)
+    monkeypatch.setattr(arcade_realtime, "broadcast_room", AsyncMock())
 
-    response = await realtime.leave_room("socket-1")
+    response = await arcade_realtime.leave_room("socket-1")
 
     assert response == {"ok": True, "seatPreserved": False}
     save_session.assert_awaited_once_with(
         "socket-1",
-        {
-            "account_id": "account-1",
-            "arcade_room_code": "GMKU",
-            "arcade_player_id": "arcade-player",
-        },
+        {"account_id": "account-1"},
     )
 
 
@@ -280,11 +273,9 @@ async def test_leaving_avalon_without_room_session_is_idempotent(
     broadcast_lobby = AsyncMock()
     monkeypatch.setattr(sio, "get_session", get_session)
     monkeypatch.setattr(sio, "save_session", save_session)
-    monkeypatch.setattr(
-        realtime, "broadcast_avalon_lobby", broadcast_lobby
-    )
+    monkeypatch.setattr(arcade_realtime, "broadcast_lobby", broadcast_lobby)
 
-    response = await realtime.leave_room("socket-without-room")
+    response = await arcade_realtime.leave_room("socket-without-room")
 
     assert response == {"ok": True, "seatPreserved": False}
     save_session.assert_awaited_once_with(
@@ -293,24 +284,26 @@ async def test_leaving_avalon_without_room_session_is_idempotent(
     )
 
 
-async def test_dissolving_avalon_ejects_every_player_and_clears_sessions(
+async def test_dissolving_avalon_uses_the_shared_arcade_lifecycle(
     monkeypatch,
 ) -> None:
-    manager = RoomManager()
-    room, host, _ = manager.create_room("亚瑟", account_id="account-1")
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, host, _ = manager.create_room(
+        "avalon", "亚瑟", "account-1"
+    )
     _, guest, _ = manager.join_room(
-        room.code, "兰斯洛特", account_id="account-2"
+        room.code, "avalon", "兰斯洛特", "account-2"
     )
     sessions = {
         "host-socket": {
             "account_id": "account-1",
-            "room_code": room.code,
-            "player_id": host.id,
+            "arcade_room_code": room.code,
+            "arcade_player_id": host.id,
         },
         "guest-socket": {
             "account_id": "account-2",
-            "room_code": room.code,
-            "player_id": guest.id,
+            "arcade_room_code": room.code,
+            "arcade_player_id": guest.id,
         },
     }
 
@@ -321,11 +314,10 @@ async def test_dissolving_avalon_ejects_every_player_and_clears_sessions(
     save_session = AsyncMock()
     leave_socket_room = AsyncMock()
     broadcast_lobby = AsyncMock()
-    persist_state = AsyncMock()
-    monkeypatch.setattr(realtime, "avalon_rooms", manager)
+    monkeypatch.setattr(arcade_realtime, "rooms", manager)
     monkeypatch.setattr(
-        realtime,
-        "avalon_active_sids",
+        arcade_realtime,
+        "active_sids",
         defaultdict(
             set,
             {
@@ -338,17 +330,14 @@ async def test_dissolving_avalon_ejects_every_player_and_clears_sessions(
     monkeypatch.setattr(sio, "emit", emit)
     monkeypatch.setattr(sio, "save_session", save_session)
     monkeypatch.setattr(sio, "leave_room", leave_socket_room)
-    monkeypatch.setattr(
-        realtime, "broadcast_avalon_lobby", broadcast_lobby
-    )
-    monkeypatch.setattr(realtime, "persist_room_state", persist_state)
+    monkeypatch.setattr(arcade_realtime, "broadcast_lobby", broadcast_lobby)
 
-    response = await realtime.dissolve_room("host-socket")
+    response = await arcade_realtime.dissolve_room("host-socket")
 
     assert response == {"ok": True}
     assert room.code not in manager.rooms
     assert emit.await_count == 2
-    assert all(call.args[0] == "room:closed" for call in emit.await_args_list)
+    assert all(call.args[0] == "arcade:closed" for call in emit.await_args_list)
     payloads = {
         call.kwargs["to"]: call.args[1] for call in emit.await_args_list
     }
@@ -362,6 +351,5 @@ async def test_dissolving_avalon_ejects_every_player_and_clears_sessions(
         "host-socket": {"account_id": "account-1"},
         "guest-socket": {"account_id": "account-2"},
     }
-    assert not realtime.avalon_active_sids
+    assert not arcade_realtime.active_sids
     broadcast_lobby.assert_awaited_once()
-    persist_state.assert_awaited_once()

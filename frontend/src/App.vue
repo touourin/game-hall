@@ -27,18 +27,14 @@ import {
   setSocketAccountToken,
   socket,
 } from './socket'
-import { useRoomStore } from './games/avalon/store'
 import { useArcadeStore } from './stores/arcade'
 import type { GameCatalogItem } from './types/arcade'
 import AccessGate from './views/AccessGate.vue'
 import AccountGate from './views/AccountGate.vue'
-import AvalonHomeView from './views/AvalonHomeView.vue'
-import GameRoom from './games/avalon/GameRoom.vue'
 import GameHall from './views/GameHall.vue'
 import ArcadeHome from './views/ArcadeHome.vue'
 import ArcadeRoom from './views/ArcadeRoom.vue'
 
-const room = useRoomStore()
 const arcade = useArcadeStore()
 const accessState = ref<'checking' | 'locked' | 'unlocked'>('checking')
 const accessBusy = ref(false)
@@ -77,7 +73,6 @@ function enterGame(profile: AccountProfile, token: string) {
   rememberAccountToken(token)
   setSocketAccountToken(token)
   document.title = '游戏大厅'
-  room.init()
   arcade.init()
   if (!socket.connected) socket.connect()
 }
@@ -227,7 +222,6 @@ async function logout() {
   clearAccountToken()
   setSocketAccountToken('')
   socket.disconnect()
-  room.resetForLogout()
   arcade.resetForLogout()
   account.value = null
   accountError.value = null
@@ -264,13 +258,12 @@ onMounted(async () => {
     />
 
     <template v-else-if="account">
-    <div v-if="!room.connected" class="connection-banner">
+    <div v-if="!arcade.connected" class="connection-banner">
       <WifiOff :size="16" />
       正在重新连接游戏服务器…
     </div>
 
-    <GameRoom v-if="room.snapshot" :snapshot="room.snapshot" />
-    <ArcadeRoom v-else-if="arcade.snapshot" :snapshot="arcade.snapshot" />
+    <ArcadeRoom v-if="arcade.snapshot" :snapshot="arcade.snapshot" />
     <GameHall
       v-else-if="!selectedGame"
       :account="account"
@@ -282,11 +275,6 @@ onMounted(async () => {
       @avatar-upload="changeCustomAvatar"
       @select="selectedGame = $event"
     />
-    <AvalonHomeView
-      v-else-if="selectedGame.key === 'avalon'"
-      :account="account"
-      @back="selectedGame = null"
-    />
     <ArcadeHome
       v-else
       :account="account"
@@ -294,14 +282,14 @@ onMounted(async () => {
       @back="selectedGame = null"
     />
 
-    <div v-if="room.error || arcade.error" class="toast" role="alert">
-      <span>{{ room.error || arcade.error }}</span>
-      <button class="icon-button" aria-label="关闭提示" @click="room.clearError(); arcade.clearError()">
+    <div v-if="arcade.error" class="toast" role="alert">
+      <span>{{ arcade.error }}</span>
+      <button class="icon-button" aria-label="关闭提示" @click="arcade.clearError()">
         <X :size="18" />
       </button>
     </div>
 
-    <div v-if="room.busy || arcade.busy" class="busy-indicator" aria-label="正在处理">
+    <div v-if="arcade.busy" class="busy-indicator" aria-label="正在处理">
       <span />
       <span />
       <span />

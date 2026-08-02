@@ -3,7 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { beforeEach, vi } from 'vitest'
 import * as clipboard from '../../clipboard'
-import { useRoomStore } from './store'
+import { useArcadeStore } from '../../stores/arcade'
 import {
   storedRoleSkin,
   storedRoleSkinLock,
@@ -283,8 +283,8 @@ describe('GameRoom role reveal', () => {
       isSelected: false,
     })
     const pinia = createPinia()
-    const room = useRoomStore(pinia)
-    const perform = vi.spyOn(room, 'perform').mockResolvedValue({ ok: true })
+    const room = useArcadeStore(pinia)
+    const action = vi.spyOn(room, 'action').mockResolvedValue()
     const wrapper = mount(GameRoom, {
       props: { snapshot },
       global: { plugins: [pinia] },
@@ -294,7 +294,7 @@ describe('GameRoom role reveal', () => {
     expect(wrapper.get('.ai-player-badge').text()).toBe('AI')
     await wrapper.get('.add-ai-button').trigger('click')
 
-    expect(perform).toHaveBeenCalledWith('room:add-ai-player')
+    expect(action).toHaveBeenCalledWith('add_ai')
   })
 
   it('uses the shared confirmation before the host dissolves a lobby', async () => {
@@ -304,7 +304,7 @@ describe('GameRoom role reveal', () => {
     snapshot.actions.canConfirmRole = false
     snapshot.actions.canDissolve = true
     const pinia = createPinia()
-    const room = useRoomStore(pinia)
+    const room = useArcadeStore(pinia)
     const dissolveRoom = vi.spyOn(room, 'dissolveRoom').mockResolvedValue(true)
     const wrapper = mount(GameRoom, {
       props: { snapshot },
@@ -339,8 +339,8 @@ describe('GameRoom role reveal', () => {
       isSelected: false,
     })
     const pinia = createPinia()
-    const room = useRoomStore(pinia)
-    const perform = vi.spyOn(room, 'perform').mockResolvedValue({ ok: true })
+    const room = useArcadeStore(pinia)
+    const kickPlayer = vi.spyOn(room, 'kickPlayer').mockResolvedValue(true)
     const wrapper = mount(GameRoom, {
       props: { snapshot },
       global: { plugins: [pinia] },
@@ -348,12 +348,12 @@ describe('GameRoom role reveal', () => {
 
     await wrapper.get('[aria-label="移除第二位玩家"]').trigger('click')
     expect(wrapper.get('.kick-player-modal').text()).toContain('移除第二位玩家？')
-    expect(perform).not.toHaveBeenCalled()
+    expect(kickPlayer).not.toHaveBeenCalled()
 
     await wrapper.get('.kick-player-actions .danger').trigger('click')
     await flushPromises()
 
-    expect(perform).toHaveBeenCalledWith('room:kick', { target_id: 'p2' })
+    expect(kickPlayer).toHaveBeenCalledWith('p2')
   })
 
   it('chooses a personal skin in the lobby and locks it for the game', async () => {
@@ -814,8 +814,8 @@ describe('GameRoom role reveal', () => {
       },
     )
     const pinia = createPinia()
-    const room = useRoomStore(pinia)
-    const perform = vi.spyOn(room, 'perform').mockResolvedValue({ ok: true })
+    const room = useArcadeStore(pinia)
+    const action = vi.spyOn(room, 'action').mockResolvedValue()
     const wrapper = mount(GameRoom, {
       props: { snapshot },
       global: { plugins: [pinia] },
@@ -828,7 +828,7 @@ describe('GameRoom role reveal', () => {
     await wrapper.findAll('.player-grid .player-tile')[0]!.trigger('click')
     await wrapper.get('.danger-button').trigger('click')
 
-    expect(perform).toHaveBeenCalledWith('game:grant-dagger', {
+    expect(action).toHaveBeenCalledWith('grant_dagger', {
       target_id: 'p2',
     })
   })
@@ -872,8 +872,8 @@ describe('GameRoom role reveal', () => {
       },
     )
     const pinia = createPinia()
-    const room = useRoomStore(pinia)
-    const perform = vi.spyOn(room, 'perform').mockResolvedValue({ ok: true })
+    const room = useArcadeStore(pinia)
+    const action = vi.spyOn(room, 'action').mockResolvedValue()
     const wrapper = mount(GameRoom, {
       props: { snapshot },
       global: { plugins: [pinia] },
@@ -884,7 +884,7 @@ describe('GameRoom role reveal', () => {
     await wrapper.findAll('.player-grid .player-tile')[1]!.trigger('click')
     await wrapper.get('.danger-button').trigger('click')
 
-    expect(perform).toHaveBeenCalledWith('game:dissenting-assassinate', {
+    expect(action).toHaveBeenCalledWith('dissenting_assassinate', {
       target_id: 'p3',
     })
   })
@@ -892,7 +892,7 @@ describe('GameRoom role reveal', () => {
   it('asks for confirmation before exiting an active game', async () => {
     const snapshot = roleRevealSnapshot(1)
     const pinia = createPinia()
-    const room = useRoomStore(pinia)
+    const room = useArcadeStore(pinia)
     const leaveRoom = vi.spyOn(room, 'leaveRoom').mockResolvedValue()
     const wrapper = mount(GameRoom, {
       props: { snapshot },

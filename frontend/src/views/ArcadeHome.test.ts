@@ -48,6 +48,44 @@ describe('ArcadeHome', () => {
     expect(createRoom.mock.calls[0]?.[1]).not.toHaveProperty('boardSize')
   })
 
+  it('creates Avalon with the unchanged mode-specific rule combination', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const createRoom = vi.spyOn(arcade, 'createRoom').mockResolvedValue(false)
+    const wrapper = mount(ArcadeHome, {
+      props: {
+        game: {
+          key: 'avalon',
+          name: '阿瓦隆',
+          players: '5–10 人',
+          description: '身份推理与团队博弈',
+        },
+        account: {
+          id: 'account-1',
+          username: 'tester',
+          playerName: '测试玩家',
+          nextRenameAt: null,
+          createdAt: '2026-08-01T00:00:00Z',
+        },
+      },
+      global: { plugins: [pinia] },
+    })
+    const courtUndercurrent = wrapper
+      .findAll('.game-rule-settings button')
+      .find((button) => button.text().includes('王庭暗流'))
+
+    await courtUndercurrent?.trigger('click')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(createRoom).toHaveBeenCalledWith('avalon', {
+      mode: 'court_undercurrent',
+      ladyEnabled: false,
+      listed: true,
+      earlyAssassinationEnabled: false,
+    })
+  })
+
   it('starts a solo Hanoi challenge with the selected difficulty', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)

@@ -85,8 +85,9 @@ async function newClient(index, accessToken, accountToken) {
     auth: { token: accessToken, accountToken },
     transports: ['websocket'],
   })
-  client.on('room:snapshot', (snapshot) => {
-    snapshots[index] = snapshot
+  client.on('arcade:snapshot', (snapshot) => {
+    if (snapshot.gameKey !== 'avalon') return
+    snapshots[index] = snapshot.game
     processWaiters()
   })
   clients[index] = client
@@ -101,8 +102,16 @@ async function newClient(index, accessToken, accountToken) {
 try {
   const { accessToken, accounts } = await registerAccounts()
   const host = await newClient(0, accessToken, accounts[0].token)
-  const created = await emitAck(host, 'room:create')
-  const lobbyBeforeStart = await emitAck(host, 'lobby:list')
+  const created = await emitAck(host, 'arcade:create', {
+    game_key: 'avalon',
+    options: {
+      mode: 'standard',
+      ladyEnabled: true,
+      listed: true,
+      earlyAssassinationEnabled: false,
+    },
+  })
+  const lobbyBeforeStart = await emitAck(host, 'arcade:list')
   if (
     !lobbyBeforeStart.rooms?.some(
       (room) => room.roomCode === created.roomCode,
@@ -113,7 +122,8 @@ try {
 
   for (let index = 1; index < 5; index += 1) {
     const client = await newClient(index, accessToken, accounts[index].token)
-    await emitAck(client, 'room:join', {
+    await emitAck(client, 'arcade:join', {
+      game_key: 'avalon',
       room_code: created.roomCode,
     })
   }
@@ -122,7 +132,7 @@ try {
     () => snapshots.length === 5 && snapshots.every(Boolean),
     '五名玩家进入大厅',
   )
-  await emitAck(clients[1], 'chat:send', { content: '第一轮我赞成' })
+  await emitAck(clients[1], 'arcade:chat', { content: '第一轮我赞成' })
   await waitUntil(
     () =>
       snapshots.every(
@@ -131,14 +141,14 @@ try {
       ),
     '聊天消息同步',
   )
-  await emitAck(host, 'game:start')
+  await emitAck(host, 'arcade:start')
   await waitUntil(
     () => snapshots.every((snapshot) => snapshot.phase === 'role_reveal'),
     '身份分配',
   )
 
   for (const client of clients) {
-    await emitAck(client, 'game:confirm-role')
+    await emitAck(client, 'arcade:action', { action: 'confirm_role' })
   }
   await waitUntil(
     () => snapshots.every((snapshot) => snapshot.phase === 'team_building'),
@@ -154,11 +164,15 @@ try {
     .slice(0, required)
     .map((player) => player.id)
 
-  await emitAck(clients[leaderIndex], 'game:propose-team', {
-    team_ids: teamIds,
+  await emitAck(clients[leaderIndex], 'arcade:action', {
+    action: 'propose_team',
+    payload: { team_ids: teamIds },
   })
   for (const client of clients) {
-    await emitAck(client, 'game:vote-team', { approve: true })
+    await emitAck(client, 'arcade:action', {
+      action: 'vote_team',
+      payload: { approve: true },
+    })
   }
   await waitUntil(
     () => snapshots.every((snapshot) => snapshot.phase === 'mission_voting'),
@@ -171,7 +185,7 @@ try {
       ),
     '记录组队投票复盘',
   )
-  const lobbyAfterStart = await emitAck(host, 'lobby:list')
+  const lobbyAfterStart = await emitAck(host, 'arcade:list')
   if (
     lobbyAfterStart.rooms?.some(
       (room) => room.roomCode === created.roomCode,
@@ -184,8 +198,9 @@ try {
     const clientIndex = snapshots.findIndex(
       (snapshot) => snapshot.self.id === playerId,
     )
-    await emitAck(clients[clientIndex], 'game:vote-mission', {
-      success: true,
+    await emitAck(clients[clientIndex], 'arcade:action', {
+      action: 'vote_mission',
+      payload: { success: true },
     })
   }
   await waitUntil(
@@ -193,7 +208,7 @@ try {
     '任务结算',
   )
 
-  await emitAck(host, 'game:continue')
+  await emitAck(host, 'arcade:action', { action: 'continue_round' })
   await waitUntil(
     () => snapshots.every((snapshot) => snapshot.phase === 'team_building'),
     '进入下一次任务',

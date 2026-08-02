@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
 from typing import Any
+
+from backend.app.arcade.rooms import (
+    DISCONNECT_FORFEIT_GRACE,
+    HOST_TRANSFER_GRACE,
+)
 
 from .engine import EARLY_ASSASSINATION_PHASES, GameEngine
 from .models import Alignment, AvalonMode, Phase, Player, Role, Room
@@ -11,7 +15,6 @@ from .rules import (
     mission_team_size,
     roles_for_player_count,
 )
-from .rooms import DISCONNECT_FORFEIT_GRACE, HOST_TRANSFER_GRACE
 
 
 ROLE_LABELS = {
@@ -40,41 +43,6 @@ ROLE_DESCRIPTIONS = {
     Role.OBERON: "邪恶阵营。你与其他邪恶玩家互相不可见。",
     Role.MINION: "邪恶阵营。隐藏身份并破坏三次任务。",
 }
-
-
-def build_lobby_view(all_rooms: Iterable[Room]) -> list[dict[str, Any]]:
-    visible_rooms = [
-        room
-        for room in all_rooms
-        if room.cleanup_ready
-        or (
-            room.phase == Phase.LOBBY
-            and room.settings.listed
-            and len(room.players) < 10
-            and any(
-                not player.is_bot and player.connected
-                for player in room.players
-            )
-        )
-    ]
-    return [
-        {
-            "roomCode": room.code,
-            "hostName": room.player(room.host_id).name,
-            "hostAvatarUrl": getattr(
-                room.player(room.host_id), "avatar_url", None
-            ),
-            "playerCount": len(room.players),
-            "maxPlayers": 10,
-            "ladyEnabled": room.settings.lady_enabled,
-            "mode": room.settings.mode.value,
-            "phase": room.phase.value,
-            "cleanupAvailable": room.cleanup_ready,
-            "allHumansOffline": room.all_humans_offline_since is not None,
-        }
-        for room in reversed(visible_rooms)
-    ]
-
 
 def build_player_view(
     room: Room, viewer: Player, engine: GameEngine

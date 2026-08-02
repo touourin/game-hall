@@ -18,6 +18,7 @@ class ArcadePlayer:
     token_hash: str
     seat: int
     avatar_url: str | None = None
+    is_bot: bool = False
     connected: bool = True
     disconnected_at: datetime | None = None
     disconnect_timeout_handled: bool = False

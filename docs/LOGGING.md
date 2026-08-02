@@ -27,6 +27,8 @@
 
 日志不会写入访问密码、账号密码、登录 Token、请求正文或聊天内容。
 
+所有游戏（包括阿瓦隆）共用 `arcade:*` 实时协议。因此阿瓦隆创建、开局和玩法操作会分别记录为 `arcade:create`、`arcade:start`、`arcade:action`，具体动作写入 `action` 字段；旧的 `room:*`、`game:*` 和 `lobby:*` 事件不再产生。
+
 ## 常用命令
 
 查看应用实时输出：

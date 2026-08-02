@@ -1,4 +1,5 @@
 export type ArcadeGameKey =
+  | 'avalon'
   | 'gomoku'
   | 'xiangqi'
   | 'go'
@@ -11,7 +12,7 @@ export type ArcadeGameKey =
   | 'hanoi'
 
 export interface GameCatalogItem {
-  key: 'avalon' | ArcadeGameKey
+  key: ArcadeGameKey
   name: string
   players: string
   description: string
@@ -26,7 +27,7 @@ export interface ArcadeLobbyRoom {
   playerCount: number
   maxPlayers: number
   options: Record<string, unknown>
-  phase?: 'lobby' | 'setup' | 'bidding' | 'playing' | 'scoring' | 'finished'
+  phase?: ArcadePhase
   cleanupAvailable?: boolean
   allHumansOffline?: boolean
 }
@@ -35,6 +36,7 @@ export interface ArcadePlayer {
   id: string
   name: string
   avatarUrl?: string | null
+  isBot?: boolean
   seat: number
   connected: boolean
   disconnectForfeitAt?: string | null
@@ -63,7 +65,7 @@ export interface ArcadeSnapshot {
   roomCode: string
   gameKey: ArcadeGameKey
   gameName: string
-  phase: 'lobby' | 'setup' | 'bidding' | 'playing' | 'scoring' | 'finished'
+  phase: ArcadePhase
   hostTransferAt?: string | null
   options: Record<string, unknown>
   hostId: string
@@ -94,3 +96,21 @@ export interface ArcadeSnapshot {
   }
   game: Record<string, unknown>
 }
+
+export type ArcadePhase =
+  | 'lobby'
+  | 'setup'
+  | 'bidding'
+  | 'playing'
+  | 'scoring'
+  | 'finished'
+  | 'role_reveal'
+  | 'team_building'
+  | 'team_voting'
+  | 'mission_voting'
+  | 'round_result'
+  | 'lady_select'
+  | 'lady_reveal'
+  | 'assassination'
+  | 'dagger_grant'
+  | 'final_council'

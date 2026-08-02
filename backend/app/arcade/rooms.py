@@ -91,7 +91,9 @@ class ArcadeRoomManager:
             players=[player],
             state=engine.initial_state(),
             options=normalized_options,
-            listed=getattr(engine, "public_rooms", True),
+            listed=normalized_options.get(
+                "listed", getattr(engine, "public_rooms", True)
+            ),
         )
         self.rooms[code] = room
         return room, player, token
@@ -110,11 +112,16 @@ class ArcadeRoomManager:
             raise ArcadeRoomError("房间所属游戏不正确")
         if room.phase != "lobby":
             raise ArcadeRoomError("游戏已经开始，不能加入新玩家")
-        if not any(player.connected for player in room.players):
+        if not any(
+            player.connected and not player.is_bot for player in room.players
+        ):
             raise ArcadeRoomError("房间成员暂时都不在线，请等待原成员恢复房间")
         if len(room.players) >= engine.max_players:
             raise ArcadeRoomError("房间已经满员")
-        if any(player.account_id == account_id for player in room.players):
+        if any(
+            not player.is_bot and player.account_id == account_id
+            for player in room.players
+        ):
             raise ArcadeRoomError("你的账号已经在这个房间中")
         name = self._normalize_name(player_name)
         if any(player.name.casefold() == name.casefold() for player in room.players):
@@ -151,7 +158,14 @@ class ArcadeRoomManager:
         raise ArcadeRoomError("恢复凭证无效，请重新加入房间")
 
     def leave(self, room: ArcadeRoom, player_id: str) -> bool:
-        if room.phase in {"setup", "playing", "bidding", "scoring"}:
+        engine = self.engine(room.game_key)
+        seat_preserver = getattr(engine, "preserve_seat_on_leave", None)
+        if seat_preserver is not None and seat_preserver(room):
+            room.player(player_id).connected = False
+            room.revision += 1
+            self.update_presence(room)
+            return True
+        if self._is_active(room):
             room.player(player_id).connected = False
             room.revision += 1
             self.update_presence(room)
@@ -164,7 +178,9 @@ class ArcadeRoomManager:
                 self.rooms.pop(room.code, None)
             return False
         self._remove_player(room, player_id)
-        if not room.players:
+        if not room.players or not any(
+            not player.is_bot for player in room.players
+        ):
             self.rooms.pop(room.code, None)
             return False
         room.revision += 1
@@ -194,14 +210,21 @@ class ArcadeRoomManager:
         actor_id: str,
         options: dict[str, Any],
     ) -> None:
+        engine = self.engine(room.game_key)
+        option_guard = getattr(engine, "can_update_options", None)
+        if option_guard is not None and not option_guard(room):
+            raise ArcadeRoomError("只能在等待房间修改规则")
         if room.phase not in {"lobby", "finished"}:
             raise ArcadeRoomError("对局进行中不能修改规则")
         if room.host_id != actor_id:
             raise ArcadeRoomError("只有房主可以修改规则")
-        normalized = self._room_options(self.engine(room.game_key), options)
+        normalized = self._room_options(engine, options)
         if room.phase == "finished":
             self._prepare_lobby(room)
         room.options = normalized
+        room.listed = normalized.get(
+            "listed", getattr(engine, "public_rooms", True)
+        )
         room.revision += 1
 
     def start(self, room: ArcadeRoom, actor_id: str) -> None:
@@ -226,12 +249,13 @@ class ArcadeRoomManager:
         action: str,
         payload: dict[str, Any],
     ) -> None:
-        if room.phase not in {"setup", "playing", "bidding", "scoring"}:
+        engine = self.engine(room.game_key)
+        allowed_phases = getattr(engine, "action_phases", ACTIVE_GAME_PHASES)
+        if room.phase not in allowed_phases:
             raise ArcadeRoomError("当前不能进行这个操作")
         if room.pending_request is not None and action != "resign":
             raise ArcadeRoomError("请先处理当前申请")
         player = room.player(player_id)
-        engine = self.engine(room.game_key)
         should_track_undo = (
             room.game_key in UNDO_GAMES
             and action in UNDOABLE_ACTIONS[room.game_key]
@@ -251,12 +275,18 @@ class ArcadeRoomManager:
     def restart(self, room: ArcadeRoom, actor_id: str) -> None:
         if room.phase != "finished":
             raise ArcadeRoomError("本局尚未结束")
-        room.player(actor_id)
+        player = room.player(actor_id)
+        engine = self.engine(room.game_key)
+        restart_handler = getattr(engine, "restart", None)
+        if restart_handler is not None:
+            restart_handler(room, player)
+            room.revision += 1
+            return
         room.rematch_ready_ids.add(actor_id)
         if room.rematch_ready_ids == {player.id for player in room.players}:
             self._start_round(
                 room,
-                self.engine(room.game_key),
+                engine,
                 first_round=False,
             )
         room.revision += 1
@@ -356,14 +386,18 @@ class ArcadeRoomManager:
                 player.disconnect_forfeited = False
             if not hasattr(player, "disconnect_timeout_handled"):
                 player.disconnect_timeout_handled = False
-        connected_players = [player for player in room.players if player.connected]
+        connected_players = [
+            player
+            for player in room.players
+            if player.connected and not player.is_bot
+        ]
         if connected_players:
             room.all_humans_offline_since = None
             room.cleanup_ready = False
             for player in room.players:
                 if player.connected:
                     player.disconnected_at = None
-                elif not player.disconnect_timeout_handled and (
+                elif not player.is_bot and not player.disconnect_timeout_handled and (
                     was_all_offline or player.disconnected_at is None
                 ):
                     # When someone returns to a fully offline room, every
@@ -420,14 +454,15 @@ class ArcadeRoomManager:
 
             if (
                 offline_since is None
-                and room.phase in ACTIVE_GAME_PHASES
-                and len(room.players) > 1
+                and self._is_active(room)
+                and len([player for player in room.players if not player.is_bot]) > 1
             ):
                 expired_players = sorted(
                     (
                         player
                         for player in room.players
-                        if not player.connected
+                        if not player.is_bot
+                        and not player.connected
                         and not player.disconnect_timeout_handled
                         and player.disconnected_at is not None
                         and current - player.disconnected_at >= disconnect_grace
@@ -435,7 +470,7 @@ class ArcadeRoomManager:
                     key=lambda player: (player.disconnected_at, player.seat),
                 )
                 for player in expired_players:
-                    if room.phase not in ACTIVE_GAME_PHASES:
+                    if not self._is_active(room):
                         break
                     self._forfeit_disconnected_player(room, player)
                     if room not in changed:
@@ -450,7 +485,9 @@ class ArcadeRoomManager:
                     (
                         player
                         for player in room.players
-                        if player.connected and player.id != room.host_id
+                        if not player.is_bot
+                        and player.connected
+                        and player.id != room.host_id
                     ),
                     key=lambda player: player.seat,
                 )
@@ -472,7 +509,9 @@ class ArcadeRoomManager:
         current = now or datetime.now(timezone.utc)
         room = self.get_room(code)
         self.update_presence(room, now=current)
-        if any(player.connected for player in room.players):
+        if any(
+            player.connected and not player.is_bot for player in room.players
+        ):
             raise ArcadeRoomError("已有玩家重新连接，不能清理这个房间")
         offline_since = room.all_humans_offline_since
         if offline_since is None or current - offline_since < grace:
@@ -487,7 +526,7 @@ class ArcadeRoomManager:
         *,
         first_round: bool,
     ) -> None:
-        if len(room.players) > 1:
+        if len(room.players) > 1 and not getattr(engine, "manages_seating", False):
             if first_round:
                 if room.options.get("firstPlayer", "random") == "host":
                     room.players.sort(
@@ -535,6 +574,13 @@ class ArcadeRoomManager:
             player.disconnect_timeout_handled = False
             player.disconnect_forfeited = False
         room.revision += 1
+
+    def _is_active(self, room: ArcadeRoom) -> bool:
+        engine = self.engine(room.game_key)
+        checker = getattr(engine, "is_active_phase", None)
+        if checker is not None:
+            return bool(checker(room.phase))
+        return room.phase in ACTIVE_GAME_PHASES
 
     def _forfeit_disconnected_player(
         self,
@@ -617,7 +663,7 @@ class ArcadeRoomManager:
         engine: GameEngine, options: dict[str, Any]
     ) -> dict[str, Any]:
         normalized: dict[str, Any] = {}
-        if engine.max_players > 1:
+        if engine.max_players > 1 and getattr(engine, "uses_first_player", True):
             first_player = options.get("firstPlayer", "random")
             if first_player not in FIRST_PLAYER_MODES:
                 raise ArcadeRoomError("请选择随机先手或房主先手")

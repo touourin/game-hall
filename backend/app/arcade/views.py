@@ -48,6 +48,19 @@ def build_room_view(
         if pending_request is not None
         else None
     )
+    active_phase_checker = getattr(engine, "is_active_phase", None)
+    is_active_phase = (
+        bool(active_phase_checker(room.phase))
+        if active_phase_checker is not None
+        else room.phase in ACTIVE_GAME_PHASES
+    )
+    restart_checker = getattr(engine, "can_restart", None)
+    can_restart = (
+        bool(restart_checker(room, viewer))
+        if restart_checker is not None
+        else room.phase == "finished"
+        and viewer.id not in room.rematch_ready_ids
+    )
     return {
         "revision": room.revision,
         "roomCode": room.code,
@@ -72,13 +85,14 @@ def build_room_view(
                 "id": player.id,
                 "name": player.name,
                 "avatarUrl": getattr(player, "avatar_url", None),
+                "isBot": player.is_bot,
                 "seat": player.seat,
                 "connected": player.connected,
                 "disconnectForfeitAt": (
                     (
                         player.disconnected_at + DISCONNECT_FORFEIT_GRACE
                     ).isoformat()
-                    if room.phase in ACTIVE_GAME_PHASES
+                    if is_active_phase
                     and room.all_humans_offline_since is None
                     and not player.connected
                     and not player.disconnect_forfeited
@@ -102,11 +116,8 @@ def build_room_view(
                 and viewer.id == room.host_id
                 and engine.min_players <= len(room.players) <= engine.max_players
             ),
-            "canRestart": (
-                room.phase == "finished"
-                and viewer.id not in room.rematch_ready_ids
-            ),
-            "canAct": room.phase in {"setup", "playing", "bidding", "scoring"},
+            "canRestart": can_restart,
+            "canAct": is_active_phase,
             "canKickPlayers": room.phase == "lobby" and viewer.id == room.host_id,
             "canDissolve": room.phase == "lobby" and viewer.id == room.host_id,
             "canEditRules": (
