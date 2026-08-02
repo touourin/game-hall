@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { Gamepad2, History, LogOut, RotateCcw, Settings, Sparkles } from '@lucide/vue'
-import type { AccountProfile, AvatarPresetId } from '../account'
+import type { AccountProfile } from '../account'
 import type { GameCatalogItem } from '../types/arcade'
 import { useArcadeStore } from '../stores/arcade'
 import { GAME_CATALOG } from '../gameCatalog'
 import StatsModal from '../components/StatsModal.vue'
-import SettingsModal from '../components/SettingsModal.vue'
 import AvatarImage from '../components/AvatarImage.vue'
 import GameCardArtwork from '../components/GameCardArtwork.vue'
 import avalonRoundTable from '../assets/game-hall/avalon-round-table.webp'
@@ -15,20 +14,15 @@ import avalonIvoryTable from '../assets/game-hall/avalon-ivory-table.webp'
 
 defineProps<{
   account: AccountProfile
-  busy: boolean
-  error: string | null
 }>()
 const emit = defineEmits<{
   logout: []
+  settings: []
   select: [game: GameCatalogItem]
   resumeRoom: []
-  rename: [playerName: string]
-  avatarPreset: [preset: AvatarPresetId]
-  avatarUpload: [file: File]
 }>()
 const arcade = useArcadeStore()
 const showStats = ref(false)
-const showSettings = ref(false)
 
 const games = GAME_CATALOG
 </script>
@@ -49,7 +43,7 @@ const games = GAME_CATALOG
       </div>
       <div class="account-bar-actions">
         <button type="button" aria-label="查看全部战绩" @click="showStats = true"><History :size="16" /><span>全部战绩</span></button>
-        <button type="button" aria-label="打开设置" @click="showSettings = true"><Settings :size="16" /><span>设置</span></button>
+        <button type="button" aria-label="打开设置" @click="emit('settings')"><Settings :size="16" /><span>设置</span></button>
         <button type="button" aria-label="退出登录" @click="emit('logout')"><LogOut :size="16" /><span>退出</span></button>
       </div>
     </section>
@@ -98,20 +92,10 @@ const games = GAME_CATALOG
     <nav class="mobile-salon-dock surface" aria-label="大厅快捷导航">
       <button type="button" class="active"><Gamepad2 :size="20" /><span>大厅</span></button>
       <button type="button" aria-label="查看全部战绩" @click="showStats = true"><History :size="20" /><span>全部战绩</span></button>
-      <button type="button" @click="showSettings = true"><Settings :size="20" /><span>设置</span></button>
+      <button type="button" aria-label="打开设置" @click="emit('settings')"><Settings :size="20" /><span>设置</span></button>
     </nav>
 
     <StatsModal v-if="showStats" @close="showStats = false" />
-    <SettingsModal
-      v-if="showSettings"
-      :account="account"
-      :busy="busy"
-      :error="error"
-      @close="showSettings = false"
-      @rename="emit('rename', $event)"
-      @avatar-preset="emit('avatarPreset', $event)"
-      @avatar-upload="emit('avatarUpload', $event)"
-    />
   </main>
 </template>
 

@@ -270,6 +270,8 @@ describe('ArcadeRoom', () => {
 
     expect(wrapper.get('[aria-label="查看我的战绩"]').text()).toContain('我的战绩')
     expect(wrapper.get('[aria-label="查看排行榜"]').text()).toContain('排行榜')
+    await wrapper.get('[aria-label="打开设置"]').trigger('click')
+    expect(wrapper.emitted('settings')).toHaveLength(1)
 
     await wrapper.get('[aria-label="查看玩法说明"]').trigger('click')
     expect(wrapper.get('.rules-modal').text()).toContain('胜势已成，暗流未息')
@@ -278,6 +280,7 @@ describe('ArcadeRoom', () => {
     await wrapper.setProps({ snapshot: avalonSnapshot('role_reveal') })
     expect(wrapper.find('[aria-label="查看我的战绩"]').exists()).toBe(true)
     expect(wrapper.find('[aria-label="查看排行榜"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="打开设置"]').exists()).toBe(true)
     expect(wrapper.get('.avalon-table').text()).toContain('只让自己看到')
     expect(wrapper.get('.arcade-player-strip').text()).toContain('玩家一')
     await wrapper.get('[aria-label="查看我的身份"]').trigger('click')

@@ -119,7 +119,7 @@ defineEmits<{
   .game-home-actions {
     grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
     width: 100%;
   }
 

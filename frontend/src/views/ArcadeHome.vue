@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import { ChevronRight, History, LogIn, Plus, Trophy, UsersRound } from '@lucide/vue'
+import { ChevronRight, History, LogIn, Plus, Settings, Trophy, UsersRound } from '@lucide/vue'
 import type { AccountProfile } from '../account'
 import type { ArcadeGameKey, GameCatalogItem } from '../types/arcade'
 import { useArcadeStore } from '../stores/arcade'
@@ -19,6 +19,7 @@ const props = withDefaults(defineProps<{
 }>(), { invitedRoom: '' })
 const emit = defineEmits<{
   back: []
+  settings: []
   roomEntered: [payload: { gameKey: ArcadeGameKey; roomCode: string }]
   resumeRoom: []
 }>()
@@ -122,6 +123,7 @@ async function chooseRoom(code: string) {
       <template #actions>
         <button type="button" @click="showStats = true"><History :size="17" />我的战绩</button>
         <button type="button" @click="showLeaderboard = true"><Trophy :size="17" />排行榜</button>
+        <button type="button" aria-label="打开设置" @click="emit('settings')"><Settings :size="17" />设置</button>
       </template>
     </GameHomeHeader>
 

@@ -13,8 +13,6 @@ describe('GameHall', () => {
           nextRenameAt: null,
           createdAt: '2026-08-01T00:00:00Z',
         },
-        busy: false,
-        error: null,
       },
       global: { plugins: [createPinia()] },
     })
@@ -31,6 +29,8 @@ describe('GameHall', () => {
     expect(wrapper.get('.mobile-salon-dock [aria-label="查看全部战绩"]').text()).toContain('全部战绩')
     expect(wrapper.get('[aria-label="退出登录"]').text()).toContain('退出')
     expect(wrapper.get('[aria-label="打开设置"]').attributes('aria-label')).toBe('打开设置')
+    await wrapper.get('.account-bar-actions [aria-label="打开设置"]').trigger('click')
+    expect(wrapper.emitted('settings')).toHaveLength(1)
     expect(wrapper.get('.account-identity-copy').text()).toContain('玩家账号 · tester')
     expect(wrapper.get('.hall-highlights').text()).toBe('实时联机·独立战绩')
     expect(wrapper.text()).not.toContain('PRIVATE')

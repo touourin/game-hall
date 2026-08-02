@@ -172,7 +172,7 @@ function confirmAvatarCrop(file: File) {
         <X :size="20" />
       </button>
       <span class="modal-icon"><Settings :size="25" /></span>
-      <h2>大厅设置</h2>
+      <h2>设置</h2>
       <p>账号名用于登录；游戏昵称用于大厅、对局、聊天和排行榜。</p>
 
       <section class="settings-section avatar-settings-section">

@@ -69,6 +69,7 @@ import PokerTable from '../games/poker/PokerTable.vue'
 import AvalonTable from '../games/avalon/AvalonTable.vue'
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
+const emit = defineEmits<{ settings: [] }>()
 const arcade = useArcadeStore()
 const avalonSnapshot = computed(
   () => isAvalonArcadeSnapshot(props.snapshot) ? props.snapshot.game : null,
@@ -284,6 +285,14 @@ function openSharedChat() {
           :game-name="snapshot.gameName"
           :game-mode="roomStatsMode"
         />
+        <button
+          type="button"
+          class="header-action"
+          aria-label="打开设置"
+          @click="emit('settings')"
+        >
+          <Settings2 :size="20" />
+        </button>
         <button
           v-if="snapshot.phase === 'lobby' && !isSolo"
           type="button"

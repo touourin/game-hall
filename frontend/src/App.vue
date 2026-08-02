@@ -34,6 +34,7 @@ import type { ArcadeGameKey, GameCatalogItem } from './types/arcade'
 import AccessGate from './views/AccessGate.vue'
 import AccountGate from './views/AccountGate.vue'
 import ArcadeHome from './views/ArcadeHome.vue'
+import SettingsModal from './components/SettingsModal.vue'
 
 const arcade = useArcadeStore()
 const route = useRoute()
@@ -46,6 +47,7 @@ const accountState = ref<'checking' | 'locked' | 'authenticated'>('checking')
 const accountBusy = ref(false)
 const accountError = ref<string | null>(null)
 const account = ref<AccountProfile | null>(null)
+const showSettings = ref(false)
 const selectedGame = computed(() => gameCatalogItem(route.params.gameKey))
 const invitedRoomCode = computed(() => (
   route.name === 'room' && typeof route.params.roomCode === 'string'
@@ -273,6 +275,7 @@ async function logout() {
   socket.disconnect()
   arcade.resetForLogout()
   account.value = null
+  showSettings.value = false
   accountError.value = null
   accountState.value = 'locked'
   await router.replace({ name: 'hall' })
@@ -318,12 +321,8 @@ onMounted(async () => {
         :is="Component"
         v-if="route.name === 'hall'"
         :account="account"
-        :busy="accountBusy"
-        :error="accountError"
         @logout="logout"
-        @rename="changePlayerName"
-        @avatar-preset="changeAvatarPreset"
-        @avatar-upload="changeCustomAvatar"
+        @settings="showSettings = true"
         @select="openGame"
         @resume-room="resumeRoom"
       />
@@ -333,6 +332,7 @@ onMounted(async () => {
         :account="account"
         :game="selectedGame"
         @back="openHall"
+        @settings="showSettings = true"
         @room-entered="openRoom"
         @resume-room="resumeRoom"
       />
@@ -340,6 +340,7 @@ onMounted(async () => {
         :is="Component"
         v-else-if="routedRoomSnapshot"
         :snapshot="routedRoomSnapshot"
+        @settings="showSettings = true"
       />
       <ArcadeHome
         v-else-if="route.name === 'room' && selectedGame"
@@ -347,10 +348,22 @@ onMounted(async () => {
         :game="selectedGame"
         :invited-room="invitedRoomCode"
         @back="openHall"
+        @settings="showSettings = true"
         @room-entered="openRoom"
         @resume-room="resumeRoom"
       />
     </RouterView>
+
+    <SettingsModal
+      v-if="showSettings"
+      :account="account"
+      :busy="accountBusy"
+      :error="accountError"
+      @close="showSettings = false"
+      @rename="changePlayerName"
+      @avatar-preset="changeAvatarPreset"
+      @avatar-upload="changeCustomAvatar"
+    />
 
     <div v-if="arcade.error" class="toast" role="alert">
       <span>{{ arcade.error }}</span>

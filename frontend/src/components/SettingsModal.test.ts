@@ -31,6 +31,7 @@ describe('SettingsModal', () => {
       '.settings-section form input',
     )
 
+    expect(wrapper.get('h2').text()).toBe('设置')
     expect(inputs[0]!.element.value).toBe('login_account')
     expect(inputs[0]!.attributes('disabled')).toBeDefined()
     await inputs[1]!.setValue('新昵称')

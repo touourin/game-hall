@@ -83,7 +83,7 @@ defineProps<{ content: ModeGuideContent }>()
 </template>
 
 <style scoped>
-.mode-guide { display: grid; gap: 12px; color: var(--text); text-align: left; }
+.mode-guide { container-type: inline-size; display: grid; gap: 12px; color: var(--text); text-align: left; }
 .mode-guide > header { border: 1px solid color-mix(in srgb, var(--gold) 24%, var(--line)); border-radius: 15px; padding: 15px; background: radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--gold) 12%, transparent), transparent 40%), rgba(var(--surface-deep-rgb), .72); }
 .mode-guide > header small, .mode-guide-feature small { color: var(--gold); font-size: 9px; font-weight: 850; letter-spacing: .12em; }
 .mode-guide h3 { margin: 7px 0 8px; font-family: "Songti SC", "STSong", serif; font-size: 20px; letter-spacing: .04em; }
@@ -123,6 +123,11 @@ defineProps<{ content: ModeGuideContent }>()
 .mode-guide-background > p { color: var(--text-soft); font-size: 10.5px; line-height: 1.82; text-indent: 2em; }
 .mode-guide-background > p + p { margin-top: 9px; }
 .mode-guide footer { border-radius: 11px; padding: 10px 12px; color: var(--muted); background: color-mix(in srgb, var(--gold) 6%, transparent); font-size: 10px; line-height: 1.55; }
+@container (min-width: 760px) {
+  .mode-guide-quick-start ol, .mode-guide-flow ol { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; row-gap: 10px; }
+  .mode-guide-quick-start li, .mode-guide-flow li { min-height: 42px; align-items: center; border-radius: 10px; padding: 8px 10px; background: color-mix(in srgb, var(--surface-inset) 42%, transparent); }
+  .mode-guide-quick-start li:last-child:nth-child(odd) { grid-column: 1 / -1; width: calc(50% - 14px); justify-self: center; }
+}
 @media (max-width: 480px) {
   .mode-guide > header, .mode-guide-quick-start, .mode-guide-feature, .mode-guide-flow, .mode-guide-complete-rules > section, .mode-guide-background { padding: 12px; }
   .mode-guide h3 { font-size: 18px; }

@@ -7,6 +7,31 @@ import ArcadeHome from './ArcadeHome.vue'
 describe('ArcadeHome', () => {
   beforeEach(() => localStorage.clear())
 
+  it('keeps account settings available from every game home', async () => {
+    const wrapper = mount(ArcadeHome, {
+      props: {
+        game: {
+          key: 'xiangqi',
+          name: '中国象棋',
+          players: '2 人',
+          description: '测试',
+        },
+        account: {
+          id: 'account-1',
+          username: 'tester',
+          playerName: '测试玩家',
+          nextRenameAt: null,
+          createdAt: '2026-08-01T00:00:00Z',
+        },
+      },
+      global: { plugins: [createPinia()] },
+    })
+
+    await wrapper.get('[aria-label="打开设置"]').trigger('click')
+
+    expect(wrapper.emitted('settings')).toHaveLength(1)
+  })
+
   it('opens a routed invitation in join mode with its room code', () => {
     const wrapper = mount(ArcadeHome, {
       props: {
