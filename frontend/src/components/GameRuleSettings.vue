@@ -15,7 +15,11 @@ function option(key: string): unknown {
 }
 
 function setOption(key: string, value: unknown) {
-  emit('update:modelValue', { ...props.modelValue, [key]: value })
+  const nextValue = { ...props.modelValue, [key]: value }
+  if (props.gameKey === 'gomoku' && key === 'winRule' && value === 'renju') {
+    nextValue.openingRule = 'standard'
+  }
+  emit('update:modelValue', nextValue)
 }
 </script>
 
@@ -81,8 +85,13 @@ function setOption(key: string, value: unknown) {
     <section v-if="gameKey === 'gomoku'" class="rule-setting-group">
       <header><strong>开局规则</strong><small>Swap2 通过摆子和交换选色降低先手优势</small></header>
       <div class="rule-option-grid">
-        <button type="button" :class="{ active: option('openingRule') === 'swap2' }" @click="setOption('openingRule', 'swap2')">
-          <strong>Swap2 公平开局</strong><small>两黑一白后由对手选色或再摆两子</small>
+        <button
+          type="button"
+          :class="{ active: option('openingRule') === 'swap2' }"
+          :disabled="option('winRule') === 'renju'"
+          @click="setOption('openingRule', 'swap2')"
+        >
+          <strong>Swap2 公平开局</strong><small>{{ option('winRule') === 'renju' ? '有禁手连珠不适用 Swap2' : '两黑一白后由对手选色或再摆两子' }}</small>
         </button>
         <button type="button" :class="{ active: option('openingRule') === 'standard' }" @click="setOption('openingRule', 'standard')">
           <strong>标准开局</strong><small>执黑玩家直接先行</small>
@@ -169,6 +178,7 @@ function setOption(key: string, value: unknown) {
 .rule-option-grid button { min-height: 68px; display: grid; align-content: center; gap: 3px; border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; color: var(--text); background: rgba(0, 0, 0, .12); text-align: left; }
 .rule-option-grid small { color: var(--muted); line-height: 1.35; }
 .rule-option-grid button.active, .rule-segmented button.active { border-color: color-mix(in srgb, var(--gold) 65%, var(--line)); background: color-mix(in srgb, var(--gold) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 18%, transparent); }
+.rule-option-grid button:disabled { cursor: not-allowed; opacity: .48; }
 .rule-segmented { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .rule-segmented.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .rule-segmented.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }

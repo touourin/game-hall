@@ -52,6 +52,8 @@ class GomokuEngine:
         opening_rule = options.get("openingRule", "standard")
         if opening_rule not in OPENING_RULES:
             raise GameRuleError("请选择标准开局或 Swap2 开局")
+        if win_rule == RENJU_RULE and opening_rule == SWAP2_RULE:
+            raise GameRuleError("有禁手连珠不能使用 Swap2，请选择标准开局")
         return {
             "winRule": win_rule,
             "openingRule": opening_rule,

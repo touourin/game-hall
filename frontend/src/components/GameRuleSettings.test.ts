@@ -16,22 +16,26 @@ describe('GameRuleSettings', () => {
     const renju = wrapper
       .findAll('button')
       .find((button) => button.text().includes('有禁手连珠'))
-    const standardOpening = wrapper
+    const swap2Opening = wrapper
       .findAll('button')
-      .find((button) => button.text().includes('标准开局'))
-    await exactFive?.trigger('click')
-    await renju?.trigger('click')
-    await standardOpening?.trigger('click')
+      .find((button) => button.text().includes('Swap2 公平开局'))
 
-    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toMatchObject({
+    expect(defaultGameRules('gomoku')).toMatchObject({
       winRule: 'exact_five',
+      openingRule: 'swap2',
     })
-    expect(wrapper.emitted('update:modelValue')?.[1]?.[0]).toMatchObject({
+    expect(exactFive?.classes()).toContain('active')
+    await renju?.trigger('click')
+    const renjuRules = wrapper.emitted('update:modelValue')?.[0]?.[0]
+    expect(renjuRules).toMatchObject({
       winRule: 'renju',
-    })
-    expect(wrapper.emitted('update:modelValue')?.[2]?.[0]).toMatchObject({
       openingRule: 'standard',
     })
+    await wrapper.setProps({ modelValue: renjuRules as Record<string, unknown> })
+    expect(swap2Opening?.attributes('disabled')).toBeDefined()
+    expect(swap2Opening?.text()).toContain('有禁手连珠不适用 Swap2')
+    await swap2Opening?.trigger('click')
+    expect(wrapper.emitted('update:modelValue')).toHaveLength(1)
     expect(wrapper.text()).not.toContain('19 路')
     expect(wrapper.text()).toContain('正好五子')
     expect(wrapper.text()).toContain('有禁手连珠')
@@ -41,6 +45,7 @@ describe('GameRuleSettings', () => {
 
   it('builds readable labels with defaults and selected Go rules', () => {
     expect(gameRuleLabels('gomoku', {})).toContain('Swap2 开局')
+    expect(gameRuleLabels('gomoku', {})).toContain('正好五子')
     expect(gameRuleLabels('xiangqi', {})).toEqual([
       '随机先手',
       '允许悔棋',

@@ -22,7 +22,7 @@ export function defaultGameRules(
     options.allowDraw = true
   }
   if (gameKey === 'gomoku') {
-    options.winRule = 'freestyle'
+    options.winRule = 'exact_five'
     options.openingRule = 'swap2'
   }
   if (gameKey === 'doudizhu') options.variant = 'classic'

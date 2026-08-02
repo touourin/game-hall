@@ -42,7 +42,7 @@ describe('ArcadeHome', () => {
       expect.objectContaining({
         winRule: 'renju',
         firstPlayer: 'random',
-        openingRule: 'swap2',
+        openingRule: 'standard',
       }),
     )
     expect(createRoom.mock.calls[0]?.[1]).not.toHaveProperty('boardSize')

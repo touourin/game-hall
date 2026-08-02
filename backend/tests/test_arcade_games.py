@@ -345,32 +345,16 @@ def test_gomoku_swap2_can_add_two_stones_before_first_player_chooses() -> None:
     assert room.state.turn_seat == second.seat
 
 
-def test_swap2_and_renju_still_require_the_first_black_stone_at_center() -> None:
+def test_gomoku_rejects_swap2_with_renju() -> None:
     engine = GomokuEngine()
-    room = make_room(
-        engine,
-        2,
-        {
-            "winRule": "renju",
-            "openingRule": "swap2",
-        },
-    )
 
-    with pytest.raises(GameRuleError, match="天元"):
-        engine.act(
-            room,
-            room.players[0],
-            "place",
-            {"row": 0, "column": 0},
+    assert engine.room_options(
+        {"winRule": "renju", "openingRule": "standard"}
+    ) == {"winRule": "renju", "openingRule": "standard"}
+    with pytest.raises(GameRuleError, match="有禁手连珠不能使用 Swap2"):
+        engine.room_options(
+            {"winRule": "renju", "openingRule": "swap2"}
         )
-
-    engine.act(
-        room,
-        room.players[0],
-        "place",
-        {"row": 7, "column": 7},
-    )
-    assert room.state.board[7][7] == 1
 
 
 def test_gomoku_two_consecutive_passes_draw_and_a_move_resets_passes() -> None:
