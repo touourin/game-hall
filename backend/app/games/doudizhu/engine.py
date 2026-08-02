@@ -341,18 +341,18 @@ class DoudizhuEngine:
     def start(self, room: ArcadeRoom) -> None:
         previous = room.state if isinstance(room.state, DoudizhuState) else None
         variant = room.options.get("variant", "classic")
-        deck = (
-            list(previous.next_deck)
-            if variant == "no_shuffle"
-            and previous is not None
-            and previous.next_deck is not None
-            else create_deck()
-        )
-        if previous is None or previous.next_deck is None or variant != "no_shuffle":
+        if variant == "no_shuffle":
+            deck = (
+                list(previous.next_deck)
+                if previous is not None and previous.next_deck is not None
+                else self._initial_no_shuffle_deck()
+            )
+            if deck:
+                cut = self.rng.randrange(len(deck))
+                deck = deck[cut:] + deck[:cut]
+        else:
+            deck = create_deck()
             self.rng.shuffle(deck)
-        elif deck:
-            cut = self.rng.randrange(len(deck))
-            deck = deck[cut:] + deck[:cut]
         state = DoudizhuState(
             hands={
                 seat: self._sort_hand(deck[seat * 17 : (seat + 1) * 17])
@@ -363,6 +363,18 @@ class DoudizhuEngine:
         )
         room.state = state
         room.phase = "bidding"
+
+    def _initial_no_shuffle_deck(self) -> list[Card]:
+        """Build a first-deal deck shaped like three sorted hands were gathered."""
+        deck = create_deck()
+        self.rng.shuffle(deck)
+        gathered = [
+            card
+            for seat in range(3)
+            for card in self._sort_hand(deck[seat * 17 : (seat + 1) * 17])
+        ]
+        gathered.extend(self._sort_hand(deck[51:]))
+        return gathered
 
     def act(
         self,

@@ -836,6 +836,18 @@ def test_doudizhu_all_pass_redeals_and_bidding_exit_cancels() -> None:
     assert "本局取消" in room.win_reason
 
 
+def test_doudizhu_initial_no_shuffle_deck_simulates_collected_hands() -> None:
+    engine = DoudizhuEngine(random.Random(19))
+
+    deck = engine._initial_no_shuffle_deck()
+
+    assert len(deck) == 54
+    assert len({card.id for card in deck}) == 54
+    for start, end in ((0, 17), (17, 34), (34, 51), (51, 54)):
+        ranks = [card.rank for card in deck[start:end]]
+        assert ranks == sorted(ranks)
+
+
 def test_doudizhu_laizi_and_no_shuffle_variants_are_applied() -> None:
     laizi_engine = DoudizhuEngine(random.Random(2))
     laizi_room = make_room(laizi_engine, 3, {"variant": "laizi"})
@@ -859,14 +871,34 @@ def test_doudizhu_laizi_and_no_shuffle_variants_are_applied() -> None:
     )
     assert 3 <= laizi_room.state.wild_rank <= 15
 
-    no_shuffle_engine = DoudizhuEngine(random.Random(0))
+    class TrackingRandom(random.Random):
+        def __init__(self, seed: int) -> None:
+            super().__init__(seed)
+            self.shuffle_calls = 0
+            self.cut_calls = 0
+
+        def shuffle(self, sequence) -> None:
+            self.shuffle_calls += 1
+            super().shuffle(sequence)
+
+        def randrange(self, *args, **kwargs) -> int:
+            self.cut_calls += 1
+            return super().randrange(*args, **kwargs)
+
+    no_shuffle_rng = TrackingRandom(0)
+    no_shuffle_engine = DoudizhuEngine(no_shuffle_rng)
     no_shuffle_room = make_room(
         no_shuffle_engine,
         3,
         {"variant": "no_shuffle"},
     )
+    assert no_shuffle_rng.shuffle_calls == 1
+    assert no_shuffle_rng.cut_calls == 1
+
     no_shuffle_room.state.next_deck = create_deck()
     no_shuffle_engine.start(no_shuffle_room)
+    assert no_shuffle_rng.shuffle_calls == 1
+    assert no_shuffle_rng.cut_calls == 2
     dealt_ids = {
         card.id
         for hand in no_shuffle_room.state.hands.values()
