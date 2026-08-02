@@ -182,6 +182,7 @@ export interface RoomSnapshot {
     endingRoute: string | null
     assassinTargetId: string | null
     assassinationWasEarly: boolean
+    eligibleTargetIds: string[]
   }
   courtUndercurrent: {
     enabled: boolean

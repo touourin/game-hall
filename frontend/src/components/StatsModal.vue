@@ -26,7 +26,7 @@ const roleLabels: Record<string, string> = {
   merlin: '梅林',
   percival: '派西维尔',
   loyal_servant: '亚瑟的忠臣',
-  dissenting_courtier: '异志之臣',
+  dissenting_courtier: '心怀异念之臣',
   assassin: '刺客',
   morgana: '莫甘娜',
   mordred: '莫德雷德',
@@ -296,7 +296,7 @@ watch(activeGameMode, loadStats)
             <div
               v-if="selectedMatch.details.courtUndercurrent.assassinationTargetId"
             >
-              <strong>异志之臣刺杀</strong>
+              <strong>心怀异念之臣刺杀</strong>
               <span>
                 {{
                   playerLabel(
@@ -494,7 +494,7 @@ watch(activeGameMode, loadStats)
                   )
                 }}
               </strong>
-              <span>异志刺杀命中</span>
+              <span>心怀异念之臣刺杀命中</span>
             </div>
           </div>
           <div v-if="['gomoku', 'xiangqi', 'go'].includes(props.gameKey ?? '')" class="match-result-summary">

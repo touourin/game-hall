@@ -125,6 +125,7 @@ function avalonSnapshot(
       endingRoute: null,
       assassinTargetId: null,
       assassinationWasEarly: false,
+      eligibleTargetIds: [],
     },
     courtUndercurrent: {
       enabled: false,
@@ -256,6 +257,30 @@ describe('ArcadeRoom', () => {
     expect(action).toHaveBeenCalledWith('add_ai')
   })
 
+  it('balances a seven-player Avalon lobby instead of leaving one orphan card', () => {
+    const room = avalonSnapshot()
+    room.players = Array.from({ length: 7 }, (_, index) => ({
+      id: `p${index + 1}`,
+      name: index === 0 ? '玩家一' : `AI玩家 ${index}`,
+      seat: index,
+      connected: true,
+      isBot: index > 0,
+      isHost: index === 0,
+    }))
+    const wrapper = shallowMount(ArcadeRoom, {
+      props: { snapshot: room },
+      global: { plugins: [createPinia()] },
+    })
+
+    const playerStrip = wrapper.get('.arcade-player-strip')
+    const playerCards = playerStrip.findAll('article')
+    expect(playerStrip.attributes('data-player-columns')).toBe('4')
+    expect(playerStrip.attributes('style')).toContain(
+      '--player-card-width: calc(25% - 7.5px)',
+    )
+    expect(playerCards).toHaveLength(7)
+  })
+
   it('keeps Avalon rules, identity, table and chat in the shared room page', async () => {
     const lobby = avalonSnapshot()
     const lobbyGame = lobby.game
@@ -275,7 +300,7 @@ describe('ArcadeRoom', () => {
 
     await wrapper.get('[aria-label="查看玩法说明"]').trigger('click')
     expect(wrapper.get('.rules-modal').text()).toContain('胜势已成，暗流未息')
-    expect(wrapper.get('.rules-modal').text()).toContain('异志之臣')
+    expect(wrapper.get('.rules-modal').text()).toContain('心怀异念之臣')
 
     await wrapper.setProps({ snapshot: avalonSnapshot('role_reveal') })
     expect(wrapper.find('[aria-label="查看我的战绩"]').exists()).toBe(true)

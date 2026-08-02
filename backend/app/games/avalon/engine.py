@@ -36,6 +36,13 @@ EARLY_ASSASSINATION_PHASES = {
     Phase.LADY_REVEAL,
 }
 
+KNOWN_EVIL_ROLES = {
+    Role.ASSASSIN,
+    Role.MORGANA,
+    Role.MORDRED,
+    Role.MINION,
+}
+
 
 class GameEngine:
     def __init__(self, rng: random.Random | random.SystemRandom | None = None):
@@ -273,7 +280,7 @@ class GameEngine:
             self._finish(
                 room,
                 Alignment.GOOD,
-                "刺客未能找出异志之臣，授刃失败",
+                "刺客未能找出心怀异念之臣，授刃失败",
                 ending_route="dagger_miss",
             )
         else:
@@ -292,9 +299,9 @@ class GameEngine:
             or room.transformed_player_id != actor.id
             or actor.alignment != Alignment.EVIL
         ):
-            raise GameRuleError("只有转化后的异志之臣可以执行刺杀")
+            raise GameRuleError("只有转化后的心怀异念之臣可以执行刺杀")
         if target_id not in self.eligible_dissenting_targets(room):
-            raise GameRuleError("该玩家不能成为异志之臣的刺杀目标")
+            raise GameRuleError("该玩家不能成为心怀异念之臣的刺杀目标")
 
         target = self._require_player(room, target_id)
         room.dissenting_assassination_target_id = target.id
@@ -302,14 +309,14 @@ class GameEngine:
             self._finish(
                 room,
                 Alignment.EVIL,
-                "异志之臣成功刺杀了梅林",
+                "心怀异念之臣成功刺杀了梅林",
                 ending_route="dissenting_assassination",
             )
         else:
             self._finish(
                 room,
                 Alignment.GOOD,
-                "异志之臣未能找出梅林",
+                "心怀异念之臣未能找出梅林",
                 ending_route="dissenting_assassination",
             )
         self._touch(room)
@@ -333,6 +340,8 @@ class GameEngine:
         target = self._require_player(room, target_id)
         if target.id == assassin.id:
             raise GameRuleError("刺客不能选择自己")
+        if target.id not in self.eligible_assassination_targets(room):
+            raise GameRuleError("刺客不能选择已知的邪恶同伴")
 
         room.assassin_target_id = target_id
         room.assassination_was_early = early
@@ -408,20 +417,21 @@ class GameEngine:
             and player.id not in room.lady_used_by_ids
         ]
 
+    def eligible_assassination_targets(self, room: Room) -> list[str]:
+        return [
+            player.id
+            for player in room.players
+            if player.role not in KNOWN_EVIL_ROLES
+        ]
+
     def eligible_dissenting_targets(self, room: Room) -> list[str]:
         if room.transformed_player_id is None:
             return []
-        known_evil_roles = {
-            Role.ASSASSIN,
-            Role.MORGANA,
-            Role.MORDRED,
-            Role.MINION,
-        }
         return [
             player.id
             for player in room.players
             if player.id != room.transformed_player_id
-            and player.role not in known_evil_roles
+            and player.role not in KNOWN_EVIL_ROLES
         ]
 
     def _start_dagger_grant(self, room: Room) -> None:
@@ -434,7 +444,7 @@ class GameEngine:
             None,
         )
         if dissenting is None:
-            raise GameRuleError("王庭暗流缺少异志之臣")
+            raise GameRuleError("王庭暗流缺少心怀异念之臣")
         decoys = [
             player
             for player in room.players

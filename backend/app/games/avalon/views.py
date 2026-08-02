@@ -21,7 +21,7 @@ ROLE_LABELS = {
     Role.MERLIN: "梅林",
     Role.PERCIVAL: "派西维尔",
     Role.LOYAL_SERVANT: "亚瑟的忠臣",
-    Role.DISSENTING_COURTIER: "异志之臣",
+    Role.DISSENTING_COURTIER: "心怀异念之臣",
     Role.ASSASSIN: "刺客",
     Role.MORGANA: "莫甘娜",
     Role.MORDRED: "莫德雷德",
@@ -106,14 +106,14 @@ def build_player_view(
             and viewer.role == Role.MERLIN
         ):
             role_description += (
-                " 你还知道异志之臣是谁，必须同时向他隐藏身份。"
+                " 你还知道心怀异念之臣是谁，必须同时向他隐藏身份。"
             )
         if (
             room.settings.mode == AvalonMode.COURT_UNDERCURRENT
             and viewer.role == Role.ASSASSIN
         ):
             role_description = (
-                "邪恶阵营。你知道场上存在异志之臣，但不知道是谁。"
+                "邪恶阵营。你知道场上存在心怀异念之臣，但不知道是谁。"
                 "好人完成三次任务后，你必须从私密候选中向他授刃。"
             )
         if (
@@ -315,6 +315,12 @@ def build_player_view(
             "endingRoute": room.ending_route,
             "assassinTargetId": room.assassin_target_id,
             "assassinationWasEarly": room.assassination_was_early,
+            "eligibleTargetIds": (
+                engine.eligible_assassination_targets(room)
+                if actions["canAssassinate"]
+                or actions["canEarlyAssassinate"]
+                else []
+            ),
         },
         "courtUndercurrent": {
             "enabled": (
@@ -404,7 +410,7 @@ def _knowledge_for_player(room: Room, viewer: Player) -> list[dict[str, str]]:
                         "playerId": dissenting.id,
                         "playerName": dissenting.name,
                         "kind": "dissenting_courtier",
-                        "label": "你察觉到的异志之臣",
+                        "label": "你察觉到的心怀异念之臣",
                     }
                 )
     elif viewer.role == Role.PERCIVAL:

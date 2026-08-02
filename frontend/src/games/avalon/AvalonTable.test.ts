@@ -77,6 +77,7 @@ function roleRevealSnapshot(revision: number): RoomSnapshot {
       endingRoute: null,
       assassinTargetId: null,
       assassinationWasEarly: false,
+      eligibleTargetIds: [],
     },
     courtUndercurrent: {
       enabled: false,
@@ -381,10 +382,21 @@ describe('AvalonTable role reveal', () => {
       description: '可以提前刺杀梅林。',
       knowledge: [],
     }
+    snapshot.result.eligibleTargetIds = ['p2']
     snapshot.players.push({
       id: 'p2',
       name: '梅林候选人',
       seat: 1,
+      connected: true,
+      isBot: false,
+      isHost: false,
+      isLeader: false,
+      isSelected: false,
+    })
+    snapshot.players.push({
+      id: 'p3',
+      name: '已知的莫甘娜',
+      seat: 2,
       connected: true,
       isBot: false,
       isHost: false,
@@ -403,6 +415,7 @@ describe('AvalonTable role reveal', () => {
     expect(modal.text()).toContain('刺中梅林，坏人立即获胜')
     expect(modal.text()).toContain('刺错，好人立即获胜')
     expect(modal.text()).toContain('梅林候选人')
+    expect(modal.text()).not.toContain('已知的莫甘娜')
     expect(modal.get('.danger-button').attributes('disabled')).toBeDefined()
 
     await modal.get('.player-tile').trigger('click')
@@ -424,6 +437,7 @@ describe('AvalonTable role reveal', () => {
     }
     snapshot.settings.rolePreset = [{ code: 'oberon', label: '奥伯伦' }]
     snapshot.players[0]!.alignment = 'evil'
+    snapshot.result.eligibleTargetIds = ['p2', 'p3']
     snapshot.players.push(
       {
         id: 'p2',
@@ -444,6 +458,17 @@ describe('AvalonTable role reveal', () => {
         isHost: false,
         isLeader: false,
         isSelected: false,
+      },
+      {
+        id: 'p4',
+        name: '已知的莫甘娜',
+        seat: 3,
+        connected: true,
+        isBot: false,
+        isHost: false,
+        isLeader: false,
+        isSelected: false,
+        alignment: 'evil',
       },
     )
 
@@ -467,6 +492,7 @@ describe('AvalonTable role reveal', () => {
     const assassinationCandidates = wrapper.get('.player-grid').text()
     expect(assassinationCandidates).toContain('梅林候选')
     expect(assassinationCandidates).toContain('奥伯伦')
+    expect(assassinationCandidates).not.toContain('已知的莫甘娜')
   })
 
   it('shows only the private dagger candidates to the assassin', async () => {
@@ -481,7 +507,7 @@ describe('AvalonTable role reveal', () => {
       code: 'assassin',
       label: '刺客',
       alignment: 'evil',
-      description: '寻找异志之臣。',
+      description: '寻找心怀异念之臣。',
       knowledge: [],
     }
     snapshot.players.push(
@@ -547,7 +573,7 @@ describe('AvalonTable role reveal', () => {
     snapshot.actions.canDissentingAssassinate = true
     snapshot.self.role = {
       code: 'dissenting_courtier',
-      label: '异志之臣',
+      label: '心怀异念之臣',
       alignment: 'evil',
       description: '你已被强制转化。',
       knowledge: [],
@@ -602,6 +628,7 @@ describe('AvalonTable role reveal', () => {
       endingRoute: 'standard_assassination',
       assassinTargetId: 'p2',
       assassinationWasEarly: true,
+      eligibleTargetIds: [],
     }
     snapshot.players[0] = {
       ...snapshot.players[0],

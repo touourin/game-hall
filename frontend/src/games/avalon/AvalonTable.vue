@@ -97,6 +97,14 @@ const assassinTarget = computed(() =>
 const assassinationHit = computed(
   () => assassinTarget.value?.role === 'merlin',
 )
+const assassinationCandidates = computed(() => {
+  const eligibleTargetIds = new Set(
+    props.snapshot.result.eligibleTargetIds,
+  )
+  return props.snapshot.players.filter((player) =>
+    eligibleTargetIds.has(player.id),
+  )
+})
 const dissentingPlayer = computed(() =>
   props.snapshot.players.find(
     (player) => player.role === 'dissenting_courtier',
@@ -881,9 +889,7 @@ function selfRoleArtworkFraming() {
         </div>
         <div class="player-grid">
           <button
-            v-for="player in snapshot.players.filter(
-              (item) => item.alignment !== 'evil',
-            )"
+            v-for="player in assassinationCandidates"
             :key="player.id"
             type="button"
             class="player-tile"
@@ -921,7 +927,7 @@ function selfRoleArtworkFraming() {
         <span><Swords :size="29" /></span>
         <p>亚瑟一方已完成三次任务</p>
         <h2>刺客最后的授刃</h2>
-        <strong>找出异志之臣，将黑誓之刃交到他手中</strong>
+        <strong>找出心怀异念之臣，将黑誓之刃交到他手中</strong>
       </div>
 
       <template v-if="snapshot.actions.canGrantDagger">
@@ -929,7 +935,7 @@ function selfRoleArtworkFraming() {
           <Eye :size="19" />
           <div>
             <strong>以下名单仅你可见</strong>
-            <small>其中一人是异志之臣；选错则好人立即获胜</small>
+            <small>其中一人是心怀异念之臣；选错则好人立即获胜</small>
           </div>
         </div>
         <div class="selection-counter">
@@ -968,7 +974,7 @@ function selfRoleArtworkFraming() {
       </template>
       <div v-else class="waiting-card tall">
         <span class="pulse-dot danger-dot" />
-        <strong>刺客正在寻找异志之臣</strong>
+        <strong>刺客正在寻找心怀异念之臣</strong>
         <small>候选名单与选择过程保持私密</small>
       </div>
     </section>
@@ -1034,7 +1040,7 @@ function selfRoleArtworkFraming() {
       </template>
       <div v-else class="waiting-card tall">
         <span class="pulse-dot danger-dot" />
-        <strong>异志之臣正在判断梅林</strong>
+        <strong>心怀异念之臣正在判断梅林</strong>
         <small>他的身份仍未向好人公开，所有人都可以继续发言</small>
       </div>
     </section>
@@ -1069,7 +1075,7 @@ function selfRoleArtworkFraming() {
             <small>
               {{
                 snapshot.courtUndercurrent.daggerHit
-                  ? '授刃命中，异志之臣被强制转化'
+                  ? '授刃命中，心怀异念之臣被强制转化'
                   : '刺客选中了诱饵，授刃失败'
               }}
             </small>
@@ -1131,7 +1137,7 @@ function selfRoleArtworkFraming() {
         </div>
 
         <p v-if="snapshot.courtUndercurrent.daggerHit && dissentingAssassinationTarget">
-          刺客向 {{ playerLabel(daggerTarget.id) }} 成功授刃；异志之臣随后选择
+          刺客向 {{ playerLabel(daggerTarget.id) }} 成功授刃；心怀异念之臣随后选择
           {{ playerLabel(dissentingAssassinationTarget.id) }}，其真实身份为
           <strong>{{ dissentingAssassinationTarget.roleLabel }}</strong>。
         </p>
@@ -1268,9 +1274,7 @@ function selfRoleArtworkFraming() {
 
         <div class="player-grid early-assassination-targets">
           <button
-            v-for="player in snapshot.players.filter(
-              (item) => item.id !== snapshot.self.id,
-            )"
+            v-for="player in assassinationCandidates"
             :key="player.id"
             type="button"
             class="player-tile"

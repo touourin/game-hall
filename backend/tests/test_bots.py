@@ -84,7 +84,15 @@ def test_ai_assassin_resolves_final_assassination_but_not_early():
     advance_ai_players(room, engine)
 
     assert room.phase == Phase.GAME_OVER
-    assert room.assassin_target_id != assassin.id
+    assert room.assassin_target_id in engine.eligible_assassination_targets(
+        room
+    )
+    assert room.player(room.assassin_target_id).role not in {
+        Role.ASSASSIN,
+        Role.MORGANA,
+        Role.MORDRED,
+        Role.MINION,
+    }
     assert room.assassination_was_early is False
 
 

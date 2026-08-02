@@ -89,6 +89,20 @@ const missingPlayers = computed(
 const availableSeats = computed(
   () => Math.max(0, props.snapshot.requiredPlayers - props.snapshot.players.length),
 )
+const playerStripColumns = computed(() => {
+  const playerCount = props.snapshot.players.length
+  if (playerCount <= 5) return Math.max(1, playerCount)
+  if (playerCount === 6) return 3
+  return Math.ceil(playerCount / 2)
+})
+const playerStripStyle = computed(() => {
+  const columns = playerStripColumns.value
+  const widthPercent = Number((100 / columns).toFixed(6))
+  const gapCorrection = Number((10 * (columns - 1) / columns).toFixed(3))
+  return {
+    '--player-card-width': `calc(${widthPercent}% - ${gapCorrection}px)`,
+  }
+})
 const inviteUrl = computed(() => {
   const url = new URL(window.location.href)
   url.pathname = `/games/${props.snapshot.gameKey}/rooms/${props.snapshot.roomCode}`
@@ -335,7 +349,13 @@ function openSharedChat() {
 
     <HostTransferNotice :transfer-at="snapshot.hostTransferAt" />
 
-    <section v-if="!isSolo" class="surface arcade-player-strip" aria-label="房间玩家">
+    <section
+      v-if="!isSolo"
+      class="surface arcade-player-strip"
+      :data-player-columns="playerStripColumns"
+      :style="playerStripStyle"
+      aria-label="房间玩家"
+    >
       <article
         v-for="player in snapshot.players"
         :key="player.id"
@@ -626,14 +646,14 @@ function openSharedChat() {
 
 <style scoped>
 .arcade-room { padding-bottom: 70px; }
-.arcade-player-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px; margin-bottom: 24px; padding: 14px; }
-.arcade-player-strip article { display: flex; gap: 10px; align-items: center; padding: 10px; border: 1px solid transparent; border-radius: 12px; }
+.arcade-player-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 24px; padding: 14px; }
+.arcade-player-strip article { display: flex; flex: 0 0 var(--player-card-width); gap: 10px; align-items: center; min-width: 0; min-height: 68px; padding: 10px; border: 1px solid color-mix(in srgb, var(--line) 72%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--surface-elevated) 42%, transparent); }
 .arcade-player-strip article > div { min-width: 0; flex: 1; }
 .arcade-player-strip article.self { border-color: color-mix(in srgb, var(--gold) 40%, transparent); background: color-mix(in srgb, var(--gold) 7%, transparent); }
 .arcade-player-strip article > span { width: 34px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 10px; color: var(--gold); background: color-mix(in srgb, var(--gold) 13%, transparent); font-weight: 900; }
 .arcade-player-avatar { overflow: hidden; }
 .arcade-player-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.arcade-player-strip strong, .arcade-player-strip small { display: block; }
+.arcade-player-strip strong, .arcade-player-strip small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .arcade-player-strip small { margin-top: 2px; color: var(--muted); }
 .arcade-player-strip small svg { vertical-align: -2px; color: var(--gold); }
 .room-rule-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -12px 0 24px; padding: 11px 13px; }
@@ -669,13 +689,20 @@ function openSharedChat() {
 .rule-editor-modal { width: min(94vw, 620px); max-height: min(88vh, 820px); overflow-y: auto; }
 .rule-editor-modal > p { margin: -4px 0 20px; color: var(--muted); }
 .rule-editor-modal > .wide-button { margin-top: 22px; }
-@media (max-width: 600px) {
+@media (max-width: 860px) {
+  .arcade-player-strip article { flex-basis: calc(33.333333% - 6.667px); }
+}
+@media (max-width: 620px) {
+  .arcade-player-strip article { flex-basis: calc(50% - 5px); }
   .match-request-panel { align-items: stretch; flex-direction: column; }
   .match-request-panel > div { display: grid; grid-template-columns: 1fr 1fr; }
   .match-request-panel button { justify-content: center; }
   .room-rule-bar { align-items: stretch; flex-direction: column; }
   .room-rule-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
   .room-rule-actions button { width: 100%; }
+}
+@media (max-width: 430px) {
+  .arcade-player-strip article { flex-basis: 100%; }
 }
 @media (min-width: 860px) {
   .arcade-room.arcade-room--wide { width: min(100%, 1080px); }

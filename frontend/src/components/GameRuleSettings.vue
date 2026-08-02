@@ -32,13 +32,13 @@ function setOption(key: string, value: unknown) {
 <template>
   <div class="game-rule-settings">
     <section v-if="gameKey === 'avalon'" class="rule-setting-group">
-      <header><strong>玩法模式</strong><small>王庭暗流加入异志之臣、黑誓授刃和最后议事</small></header>
+      <header><strong>玩法模式</strong><small>王庭暗流加入心怀异念之臣、黑誓授刃和最后议事</small></header>
       <div class="rule-option-grid">
         <button type="button" :class="{ active: option('mode') === 'standard' }" @click="setOption('mode', 'standard')">
           <strong>标准阿瓦隆</strong><small>经典任务、湖中仙女与刺杀梅林</small>
         </button>
         <button type="button" :class="{ active: option('mode') === 'court_undercurrent' }" @click="setOption('mode', 'court_undercurrent')">
-          <strong>王庭暗流</strong><small>异志之臣可能被刺客授刃转化</small>
+          <strong>王庭暗流</strong><small>心怀异念之臣可能被刺客授刃转化</small>
         </button>
       </div>
     </section>

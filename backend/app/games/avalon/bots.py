@@ -110,11 +110,9 @@ def advance_ai_players(room: Room, engine: GameEngine) -> None:
             )
             if assassin is None or not assassin.is_bot:
                 return
-            targets = [
-                player for player in room.players if player.id != assassin.id
-            ]
+            target_ids = engine.eligible_assassination_targets(room)
             engine.assassinate(
-                room, assassin.id, engine.rng.choice(targets).id
+                room, assassin.id, engine.rng.choice(target_ids)
             )
             continue
 

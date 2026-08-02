@@ -202,12 +202,41 @@ def test_final_assassination_can_miss_by_targeting_hidden_oberon():
     )
     room.phase = Phase.ASSASSINATION
 
+    assert oberon.id in engine.eligible_assassination_targets(room)
     engine.assassinate(room, assassin.id, oberon.id)
 
     assert room.phase == Phase.GAME_OVER
     assert room.winner == Alignment.GOOD
     assert room.assassin_target_id == oberon.id
     assert room.assassination_was_early is False
+
+
+@pytest.mark.parametrize(
+    ("player_count", "known_evil_role"),
+    [
+        (5, Role.MORGANA),
+        (8, Role.MINION),
+        (9, Role.MORDRED),
+    ],
+)
+def test_assassin_cannot_target_a_known_evil_teammate(
+    player_count: int, known_evil_role: Role
+):
+    engine, room = start_room(player_count)
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    teammate = next(
+        player for player in room.players if player.role == known_evil_role
+    )
+    room.phase = Phase.ASSASSINATION
+
+    assert teammate.id not in engine.eligible_assassination_targets(room)
+    with pytest.raises(GameRuleError, match="已知的邪恶同伴"):
+        engine.assassinate(room, assassin.id, teammate.id)
+
+    assert room.phase == Phase.ASSASSINATION
+    assert room.assassin_target_id is None
 
 
 def test_assassin_can_win_with_enabled_early_assassination():
@@ -236,9 +265,9 @@ def test_wrong_early_assassination_immediately_gives_good_the_win():
         player for player in room.players if player.role == Role.ASSASSIN
     )
     non_merlin = next(
-        player
-        for player in room.players
-        if player.id != assassin.id and player.role != Role.MERLIN
+        room.player(player_id)
+        for player_id in engine.eligible_assassination_targets(room)
+        if room.player(player_id).role != Role.MERLIN
     )
 
     engine.early_assassinate(room, assassin.id, non_merlin.id)

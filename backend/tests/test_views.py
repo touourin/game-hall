@@ -27,6 +27,9 @@ def test_final_assassination_keeps_oberon_alignment_and_all_roles_private():
     room.phase = Phase.ASSASSINATION
 
     view = build_player_view(room, room.players[0], engine)
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
 
     oberon = next(
         player for player in room.players if player.role == Role.OBERON
@@ -53,6 +56,18 @@ def test_final_assassination_keeps_oberon_alignment_and_all_roles_private():
         player for player in view["players"] if player["id"] == oberon.id
     )
     assert "alignment" not in oberon_view
+    assassin_view = build_player_view(room, assassin, engine)
+    assert set(assassin_view["result"]["eligibleTargetIds"]) == {
+        player.id
+        for player in room.players
+        if player.alignment == Alignment.GOOD or player.role == Role.OBERON
+    }
+    non_assassin = next(
+        player for player in room.players if player.id != assassin.id
+    )
+    assert build_player_view(room, non_assassin, engine)["result"][
+        "eligibleTargetIds"
+    ] == []
 
 
 def test_game_over_reveals_oberon_alignment_and_role():
@@ -206,6 +221,12 @@ def test_only_assassin_can_see_early_assassination_action():
     assert assassin_view["actions"]["canEarlyAssassinate"] is True
     assert other_view["actions"]["canEarlyAssassinate"] is False
     assert assassin_view["settings"]["earlyAssassinationEnabled"] is True
+    assert set(assassin_view["result"]["eligibleTargetIds"]) == {
+        player.id
+        for player in room.players
+        if player.alignment == Alignment.GOOD
+    }
+    assert other_view["result"]["eligibleTargetIds"] == []
 
 
 def test_court_undercurrent_initial_knowledge_is_private():
