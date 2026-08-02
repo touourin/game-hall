@@ -12,6 +12,7 @@ export interface RevealArtworkFraming {
   originXPercent: number
   originYPercent: number
   preserveFrame?: boolean
+  treatment?: 'codex-ink-wash'
 }
 
 export interface ArtworkSkinPreviewItem {

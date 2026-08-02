@@ -68,7 +68,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
           <button type="button" aria-label="关闭画风大图预览" @click="closePreview"><X :size="20" /></button>
         </header>
         <div class="artwork-skin-gallery">
-          <article v-for="item in preview.items" :key="item.id">
+          <article
+            v-for="item in preview.items"
+            :key="item.id"
+            :data-artwork-treatment="item.framing.treatment"
+          >
             <img
               class="artwork-skin-art"
               :class="{ 'preserves-frame': item.framing.preserveFrame }"
@@ -138,6 +142,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
 .artwork-skin-art.preserves-frame { transform: none; }
 .artwork-skin-inner-art { position: absolute; z-index: 1; inset: 0; pointer-events: none; transform: scale(var(--artwork-scale, 1)); transform-origin: var(--artwork-origin, 50% 50%); -webkit-mask-image: radial-gradient(ellipse 38% 42% at 50% 42%, #000 0 75%, rgba(0,0,0,.76) 84%, transparent 100%); mask-image: radial-gradient(ellipse 38% 42% at 50% 42%, #000 0 75%, rgba(0,0,0,.76) 84%, transparent 100%); }
 .artwork-skin-gallery article > div { position: absolute; z-index: 2; inset: auto 0 0; display: grid; justify-items: center; gap: 3px; min-height: 30%; align-content: end; padding: 34px 9px 13px; color: #f3f2e8; background: linear-gradient(transparent, rgba(2,9,10,.93) 50%, #02090a); text-align: center; }
+.artwork-skin-gallery article[data-artwork-treatment="codex-ink-wash"] > div { min-height: 44%; padding-top: 58px; background: linear-gradient(180deg, transparent 0%, rgba(7,18,27,.72) 14%, #07121b 28%, #02090a 100%); }
 .artwork-skin-gallery article small { color: #b9ccc7; font-size: 8px; font-weight: 800; letter-spacing: .1em; }
 .artwork-skin-gallery article strong { font-family: "Songti SC", "STSong", serif; font-size: clamp(15px, 1.8vw, 22px); }
 .artwork-skin-modal > footer { border-top: 1px solid var(--line); }

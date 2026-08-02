@@ -20,13 +20,14 @@ describe('PressRevealCard', () => {
         title: '隐藏身份',
         artwork: '/role.webp',
         artworkLabel: '王庭秘卷',
-        artworkFraming: { scale: 1.16, originXPercent: 50, originYPercent: 29, preserveFrame: true },
+        artworkFraming: { scale: 1.16, originXPercent: 50, originYPercent: 29, preserveFrame: true, treatment: 'codex-ink-wash' },
       },
     })
 
     expect(wrapper.get('.press-reveal-art-label').text()).toContain('王庭秘卷')
     await wrapper.get('.press-reveal-card').trigger('pointerdown')
     expect(wrapper.get('.press-reveal-art').attributes('style')).toContain('--reveal-art-scale: 1.16')
+    expect(wrapper.get('.press-reveal-card').attributes('data-artwork-treatment')).toBe('codex-ink-wash')
     expect(wrapper.find('.press-reveal-inner-art').exists()).toBe(true)
   })
 })

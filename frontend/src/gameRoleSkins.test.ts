@@ -31,8 +31,12 @@ describe('Avalon role skin artwork framing', () => {
       originXPercent: 50,
       originYPercent: 50,
       preserveFrame: true,
+      treatment: 'codex-ink-wash',
     })
-    expect(roleArtworkFraming('percival', 'royal-codex').scale).toBe(1)
+    expect(roleArtworkFraming('percival', 'royal-codex')).toMatchObject({
+      scale: 1,
+      treatment: 'codex-ink-wash',
+    })
   })
 
   it('keeps the established ultimate heroes unchanged and corrects the oversized Assassin', () => {

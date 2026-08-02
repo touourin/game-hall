@@ -79,6 +79,7 @@ export interface RoleArtworkFraming {
   originXPercent: number
   originYPercent: number
   preserveFrame?: boolean
+  treatment?: 'codex-ink-wash'
 }
 
 export const ROLE_SKIN_STORAGE_KEY = 'avalon:role-skin'
@@ -291,8 +292,11 @@ export function roleArtworkFraming(
   if (!Object.prototype.hasOwnProperty.call(ROLE_ART[skin], roleCode)) {
     return DEFAULT_ROLE_ARTWORK_FRAMING
   }
-  return ROLE_ARTWORK_FRAMING[skin]?.[roleCode as AvalonRoleCode]
+  const framing = ROLE_ARTWORK_FRAMING[skin]?.[roleCode as AvalonRoleCode]
     ?? DEFAULT_ROLE_ARTWORK_FRAMING
+  return skin === 'royal-codex'
+    ? { ...framing, treatment: 'codex-ink-wash' }
+    : framing
 }
 
 export function roleArtwork(
