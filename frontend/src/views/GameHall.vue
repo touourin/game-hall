@@ -55,9 +55,9 @@ const games: Array<GameCatalogItem & { tone: string; category: string }> = [
         <span><small>PRIVATE MEMBER · 私人席位</small><strong>{{ account.playerName }}</strong></span>
       </div>
       <div class="account-bar-actions">
-        <button type="button" class="account-bar-secondary" aria-label="查看战绩" @click="showStats = true"><History :size="16" /><span>战绩</span></button>
-        <button type="button" class="account-bar-secondary" aria-label="打开设置" @click="showSettings = true"><Settings :size="16" /><span>设置</span></button>
-        <button type="button" class="account-logout" aria-label="退出登录" @click="emit('logout')"><LogOut :size="16" /><span>退出</span></button>
+        <button type="button" aria-label="查看战绩" @click="showStats = true"><History :size="16" /><span>战绩</span></button>
+        <button type="button" aria-label="打开设置" @click="showSettings = true"><Settings :size="16" /><span>设置</span></button>
+        <button type="button" aria-label="退出登录" @click="emit('logout')"><LogOut :size="16" /><span>退出</span></button>
       </div>
     </section>
 
@@ -175,7 +175,10 @@ const games: Array<GameCatalogItem & { tone: string; category: string }> = [
 @media (max-width: 680px) {
   .game-hall { padding-right: 11px; padding-bottom: calc(106px + env(safe-area-inset-bottom)); padding-left: 11px; }
   .salon-account-bar { top: calc(7px + env(safe-area-inset-top)); min-height: 62px; border-radius: 15px; padding: 8px 9px; }.account-avatar { width: 38px; height: 38px; }.salon-account-bar small { max-width: 140px; overflow: hidden; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
-  .salon-account-bar .account-bar-actions { display: flex; width: auto; }.salon-account-bar .account-bar-secondary { display: none; }.salon-account-bar .account-logout { width: auto; min-width: 60px; min-height: 40px; padding: 0 11px; }.salon-account-bar .account-logout span { display: inline; }
+  .salon-account-bar .account-bar-actions { display: flex; width: auto; }
+  .salon-account-bar .account-bar-actions button { flex: 0 0 38px; width: 38px; height: 38px; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 0; padding: 0; line-height: 0; }
+  .salon-account-bar .account-bar-actions button span { display: none; }
+  .salon-account-bar .account-bar-actions button :deep(svg) { display: block; flex: 0 0 auto; margin: 0; }
   .hall-hero { min-height: 216px; padding: 39px 5px 27px; }.hall-ornament { margin-bottom: 7px; }.hall-ornament i { width: 40px; }.hall-hero h1 { margin-top: 8px; font-size: 43px; }.hall-hero > p:nth-of-type(2) { font-size: 12px; }.hall-highlights { gap: 6px; margin-top: 16px; font-size: 8px; }
   .game-grid { grid-template-columns: repeat(2,minmax(0,1fr)); grid-auto-rows: 184px; gap: 8px; }
   .game-card { padding: 36px 9px 10px; gap: 7px; border-radius: 13px; }
