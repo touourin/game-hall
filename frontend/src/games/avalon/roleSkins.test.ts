@@ -4,13 +4,38 @@ import {
 } from './roleSkins'
 
 describe('Avalon role skin artwork framing', () => {
-  it('keeps the established ultimate-skin hero cards unchanged', () => {
+  it('brings the smaller classic Merlin portrait up to the base-set scale', () => {
+    expect(roleArtworkFraming('merlin', 'classic-tabletop')).toEqual({
+      scale: 1.1,
+      originXPercent: 50,
+      originYPercent: 36,
+    })
+    expect(roleArtworkFraming('percival', 'classic-tabletop').scale).toBe(1)
+  })
+
+  it('finishes the restrained royal-codex Merlin composition correction', () => {
+    expect(roleArtworkFraming('merlin', 'royal-codex')).toEqual({
+      scale: 1.16,
+      originXPercent: 50,
+      originYPercent: 50,
+      preserveFrame: true,
+    })
+    expect(roleArtworkFraming('percival', 'royal-codex').scale).toBe(1)
+  })
+
+  it('keeps the established ultimate heroes unchanged and corrects the oversized Assassin', () => {
     expect(roleArtworkFraming('merlin', 'grail-myth')).toEqual({
       scale: 1,
       originXPercent: 50,
       originYPercent: 50,
     })
-    expect(roleArtworkFraming('assassin', 'grail-myth').scale).toBe(1)
+    expect(roleArtworkFraming('percival', 'grail-myth').scale).toBe(1)
+    expect(roleArtworkFraming('loyal-servant', 'grail-myth').scale).toBe(1)
+    expect(roleArtworkFraming('assassin', 'grail-myth')).toEqual({
+      scale: 1.18,
+      originXPercent: 50,
+      originYPercent: 60,
+    })
   })
 
   it('brings the more distant ultimate-skin portraits closer', () => {

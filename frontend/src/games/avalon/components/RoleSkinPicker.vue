@@ -136,6 +136,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
             :data-alignment="role.alignment"
           >
             <img
+              class="role-skin-artwork"
+              :class="{ 'preserves-frame': role.framing.preserveFrame }"
               :src="role.artwork"
               :alt="`${previewSkin.name}中的${role.name}`"
               :style="{
@@ -143,6 +145,19 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
                 '--role-art-hover-scale': role.framing.scale * 1.025,
                 '--role-art-origin': `${role.framing.originXPercent}% ${role.framing.originYPercent}%`,
               }"
+              draggable="false"
+            />
+            <img
+              v-if="role.framing.preserveFrame"
+              class="role-skin-inner-artwork"
+              :src="role.artwork"
+              :style="{
+                '--role-art-scale': role.framing.scale,
+                '--role-art-hover-scale': role.framing.scale * 1.025,
+                '--role-art-origin': `${role.framing.originXPercent}% ${role.framing.originYPercent}%`,
+              }"
+              alt=""
+              aria-hidden="true"
               draggable="false"
             />
             <div class="role-skin-identity">
@@ -535,22 +550,66 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
     0 0 23px rgba(114, 151, 255, 0.08);
 }
 
-.role-skin-portrait img {
+.role-skin-artwork,
+.role-skin-inner-artwork {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: filter 260ms ease;
+}
+
+.role-skin-artwork {
   transform: scale(var(--role-art-scale, 1));
   transform-origin: var(--role-art-origin, 50% 50%);
   transition: transform 260ms ease, filter 260ms ease;
 }
 
-.role-skin-portrait:hover img {
+.role-skin-artwork.preserves-frame {
+  transform: none;
+}
+
+.role-skin-inner-artwork {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+  transform: scale(var(--role-art-scale, 1));
+  transform-origin: var(--role-art-origin, 50% 50%);
+  -webkit-mask-image: radial-gradient(
+    ellipse 38% 42% at 50% 42%,
+    #000 0 75%,
+    rgba(0, 0, 0, 0.76) 84%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    ellipse 38% 42% at 50% 42%,
+    #000 0 75%,
+    rgba(0, 0, 0, 0.76) 84%,
+    transparent 100%
+  );
+  transition: transform 260ms ease, filter 260ms ease;
+}
+
+.role-skin-portrait:hover .role-skin-artwork,
+.role-skin-portrait:hover .role-skin-inner-artwork {
   filter: brightness(1.06);
+}
+
+.role-skin-portrait:hover .role-skin-artwork {
+  transform: scale(var(--role-art-hover-scale, 1.025));
+}
+
+.role-skin-portrait:hover .role-skin-artwork.preserves-frame {
+  transform: none;
+}
+
+.role-skin-portrait:hover .role-skin-inner-artwork {
   transform: scale(var(--role-art-hover-scale, 1.025));
 }
 
 .role-skin-identity {
   position: absolute;
+  z-index: 2;
   inset: auto 0 0;
   display: grid;
   justify-items: center;

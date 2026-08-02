@@ -59,4 +59,22 @@ describe('SecretCard', () => {
     expect(artwork.attributes('style')).toContain('--role-art-scale: 1.1')
     expect(artwork.attributes('style')).toContain('--role-art-origin: 50% 29%')
   })
+
+  it('preserves an ornate card frame while correcting the inner artwork scale', async () => {
+    const wrapper = mount(SecretCard, {
+      props: {
+        title: '梅林',
+        subtitle: '亚瑟阵营',
+        roleCode: 'merlin',
+        roleSkin: 'royal-codex',
+      },
+    })
+
+    await wrapper.get('.secret-card').trigger('pointerdown')
+
+    expect(wrapper.get('.secret-card__art').attributes('style')).toContain(
+      '--role-art-scale: 1.16',
+    )
+    expect(wrapper.find('.secret-card__inner-art').exists()).toBe(true)
+  })
 })

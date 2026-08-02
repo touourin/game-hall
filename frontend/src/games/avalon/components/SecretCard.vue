@@ -75,6 +75,18 @@ function hide() {
         <img
           v-if="artwork"
           class="secret-card__art"
+          :class="{ 'preserves-frame': artworkFraming.preserveFrame }"
+          :src="artwork"
+          :style="{
+            '--role-art-scale': artworkFraming.scale,
+            '--role-art-origin': `${artworkFraming.originXPercent}% ${artworkFraming.originYPercent}%`,
+          }"
+          alt=""
+          aria-hidden="true"
+        />
+        <img
+          v-if="artwork && artworkFraming.preserveFrame"
+          class="secret-card__inner-art"
           :src="artwork"
           :style="{
             '--role-art-scale': artworkFraming.scale,
@@ -138,6 +150,7 @@ function hide() {
 }
 
 .secret-card__art,
+.secret-card__inner-art,
 .secret-card__shade {
   position: absolute;
   inset: 0;
@@ -150,6 +163,30 @@ function hide() {
   object-fit: cover;
   transform: scale(var(--role-art-scale, 1));
   transform-origin: var(--role-art-origin, 50% 50%);
+}
+
+.secret-card__art.preserves-frame {
+  transform: none;
+}
+
+.secret-card__inner-art {
+  z-index: 0;
+  object-fit: cover;
+  pointer-events: none;
+  transform: scale(var(--role-art-scale, 1));
+  transform-origin: var(--role-art-origin, 50% 50%);
+  -webkit-mask-image: radial-gradient(
+    ellipse 38% 42% at 50% 42%,
+    #000 0 75%,
+    rgba(0, 0, 0, 0.76) 84%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    ellipse 38% 42% at 50% 42%,
+    #000 0 75%,
+    rgba(0, 0, 0, 0.76) 84%,
+    transparent 100%
+  );
 }
 
 .secret-card__shade {

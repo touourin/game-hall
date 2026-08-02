@@ -41,10 +41,31 @@ describe('RoleSkinPicker', () => {
     expect(
       modal.get('[data-role="morgana"] img').attributes('style'),
     ).toContain('--role-art-scale: 1.1')
+    expect(
+      modal.get('[data-role="assassin"] img').attributes('style'),
+    ).toContain('--role-art-scale: 1.18')
 
     await modal.get('.role-skin-use-button').trigger('click')
 
     expect(wrapper.emitted('update:modelValue')).toEqual([['grail-myth']])
     expect(wrapper.find('.role-skin-modal').exists()).toBe(false)
+  })
+
+  it('keeps the royal-codex frame intact while scaling Merlin inside it', async () => {
+    const wrapper = mount(RoleSkinPicker, {
+      props: { modelValue: 'classic-tabletop' },
+      global: { stubs: { Teleport: true } },
+    })
+
+    await wrapper
+      .get('button[data-role-skin="royal-codex"]')
+      .trigger('click')
+
+    const merlin = wrapper.get('[data-role="merlin"]')
+    expect(merlin.find('.role-skin-artwork.preserves-frame').exists()).toBe(true)
+    expect(merlin.find('.role-skin-inner-artwork').exists()).toBe(true)
+    expect(
+      merlin.get('.role-skin-inner-artwork').attributes('style'),
+    ).toContain('--role-art-scale: 1.16')
   })
 })

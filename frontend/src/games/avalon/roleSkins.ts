@@ -77,6 +77,7 @@ export interface RoleArtworkFraming {
   scale: number
   originXPercent: number
   originYPercent: number
+  preserveFrame?: boolean
 }
 
 export const ROLE_SKIN_STORAGE_KEY = 'avalon:role-skin'
@@ -188,7 +189,19 @@ const DEFAULT_ROLE_ARTWORK_FRAMING: RoleArtworkFraming = {
 const ROLE_ARTWORK_FRAMING: Partial<
   Record<RoleSkinId, Partial<Record<AvalonRoleCode, RoleArtworkFraming>>>
 > = {
+  'classic-tabletop': {
+    merlin: { scale: 1.1, originXPercent: 50, originYPercent: 36 },
+  },
+  'royal-codex': {
+    merlin: {
+      scale: 1.16,
+      originXPercent: 50,
+      originYPercent: 50,
+      preserveFrame: true,
+    },
+  },
   'grail-myth': {
+    assassin: { scale: 1.18, originXPercent: 50, originYPercent: 60 },
     morgana: { scale: 1.1, originXPercent: 50, originYPercent: 29 },
     mordred: { scale: 1.1, originXPercent: 50, originYPercent: 27 },
     oberon: { scale: 1.08, originXPercent: 50, originYPercent: 28 },
