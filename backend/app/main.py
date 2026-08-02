@@ -13,6 +13,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, 
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
 from .access import access_password, access_token, verify_access_token, verify_password
 from .accounts import AccountError, GAME_NAMES, account_store
@@ -33,6 +34,7 @@ from .realtime import (
     close_room_state_store,
     maintain_game_rooms,
     persist_room_state,
+    replace_account_session_connections,
     restore_room_state,
     sio,
 )
@@ -286,20 +288,35 @@ def register_account(
 
 
 @api.post("/api/auth/login")
-def login_account(
+async def login_account(
     payload: LoginRequest,
     game_hall_access: str | None = Depends(game_hall_access_header),
 ) -> dict:
     require_front_door(game_hall_access)
     try:
-        account, token = account_store().login(
-            payload.username, payload.password
+        account, token = await run_in_threadpool(
+            account_store().login,
+            payload.username,
+            payload.password,
         )
     except AccountError as error:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(error),
         ) from error
+    try:
+        await replace_account_session_connections(account.id)
+    except Exception:
+        # The database token has already been replaced, so stale sockets will
+        # still be rejected by per-event validation. A transient notification
+        # failure must not hide the new valid token from the player.
+        logger.exception(
+            "Failed to notify previous account login connections",
+            extra={
+                "account_id": account.id,
+                "event": "account.session_notification_failed",
+            },
+        )
     return {"ok": True, "token": token, "account": account.as_dict()}
 
 

@@ -26,6 +26,10 @@
 - `room.cleanup_ready`：所有真人离线满 10 分钟，房间进入可清理状态；该事件不代表产生胜负。
 - `room.abandoned`：玩家主动放弃单人挑战，或认输并退出多人对局。
 - `account.active_room_conflict`：同一账号已占用一个房间时，又尝试创建或加入其他房间。
+- `account.session_replaced`：注册账号产生新登录会话，数据库中的旧会话已失效。
+- `account.session_connections_revoked`：新登录已通知并断开旧会话仍然在线的 Socket；`connection_count` 表示断开的连接数。
+- `account.session_notification_failed`：新令牌已经生效，但旧连接的即时下线通知发生异常；旧连接后续操作仍会被会话校验拒绝。
+- `account.stale_session_rejected`：旧会话未及时断开并继续提交实时操作，服务端拒绝该操作并强制下线。
 - `guest.created`：通过访问密码后创建了临时游客身份；只记录游客标识，不记录游客 Token。
 - `match.skipped_guest`：完成的对局包含游客，因此整局未写入 MySQL 战绩。
 

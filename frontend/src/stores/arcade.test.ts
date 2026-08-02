@@ -112,7 +112,7 @@ describe('arcade room store', () => {
     expect(arcade.activeRoomCode).toBe('A1B2')
   })
 
-  it('discovers an active room from another device after connecting', async () => {
+  it('discovers the existing room after a new login connects', async () => {
     socketMocks.emitWithAck.mockResolvedValue({
       ok: true,
       activeRoom: true,
@@ -144,7 +144,7 @@ describe('arcade room store', () => {
     expect(localStorage.getItem(SESSION_KEY)).toBeNull()
   })
 
-  it('clears a detached device when another device exits the room', () => {
+  it('clears a detached tab when another tab exits the room', () => {
     localStorage.setItem(SESSION_KEY, JSON.stringify(storedSession))
     const arcade = useArcadeStore()
     arcade.init()

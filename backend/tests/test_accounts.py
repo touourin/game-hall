@@ -26,6 +26,30 @@ def test_username_stays_stable_when_game_nickname_changes(tmp_path):
     assert logged_in.player_name == "王五玩家"
 
 
+def test_new_login_replaces_the_previous_account_session(tmp_path):
+    store = AccountStore(tmp_path / "single-session.sqlite3")
+    account, first_token = store.register(
+        "single_login", "secret123", "单点玩家"
+    )
+
+    logged_in, second_token = store.login("single_login", "secret123")
+    restored = store.account_for_token(second_token)
+
+    assert logged_in.id == account.id
+    assert first_token != second_token
+    assert store.account_for_token(first_token) is None
+    assert restored is not None
+    assert restored.id == account.id
+    assert store.session_is_active(
+        account.id,
+        store.session_fingerprint(first_token),
+    ) is False
+    assert store.session_is_active(
+        account.id,
+        store.session_fingerprint(second_token),
+    ) is True
+
+
 def test_account_avatar_can_switch_between_preset_and_custom(tmp_path):
     store = AccountStore(tmp_path / "avatars.sqlite3")
     account, _ = store.register("avatar_user", "secret123", "头像玩家")

@@ -86,7 +86,11 @@ account_sessions = Table(
     Column("expires_at", DateTime(), nullable=False),
     Column("created_at", DateTime(), nullable=False),
 )
-Index("ix_account_sessions_account_id", account_sessions.c.account_id)
+Index(
+    "ux_account_sessions_account_id",
+    account_sessions.c.account_id,
+    unique=True,
+)
 
 games = Table(
     "games",

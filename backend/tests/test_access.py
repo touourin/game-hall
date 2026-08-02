@@ -119,6 +119,20 @@ def test_account_registration_login_and_session(monkeypatch, tmp_path) -> None:
             headers=access_header,
             json={"username": "round_player", "password": "secret123"},
         )
+        replaced_profile = client.get(
+            "/api/auth/me",
+            headers={
+                **access_header,
+                "Authorization": f"Bearer {token}",
+            },
+        )
+        current_profile = client.get(
+            "/api/auth/me",
+            headers={
+                **access_header,
+                "Authorization": f"Bearer {login.json()['token']}",
+            },
+        )
 
     assert registered.status_code == 200
     assert registered.json()["account"]["username"] == "round_player"
@@ -130,6 +144,32 @@ def test_account_registration_login_and_session(monkeypatch, tmp_path) -> None:
     assert renamed.json()["account"]["playerName"] == "新游戏昵称"
     assert bad_login.status_code == 401
     assert login.status_code == 200
+    assert replaced_profile.status_code == 401
+    assert current_profile.status_code == 200
+
+
+def test_login_still_returns_new_token_when_old_socket_notice_fails(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv("GAME_HALL_DB_PATH", str(tmp_path / "notice.sqlite3"))
+    account_store().register("notice_user", "secret123", "通知玩家")
+    failed_notice = AsyncMock(side_effect=RuntimeError("socket unavailable"))
+    monkeypatch.setattr(
+        "backend.app.main.replace_account_session_connections",
+        failed_notice,
+    )
+
+    with TestClient(api) as client:
+        response = client.post(
+            "/api/auth/login",
+            headers={"X-Game-Hall-Access": access_token()},
+            json={"username": "notice_user", "password": "secret123"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["token"]
+    failed_notice.assert_awaited_once()
 
 
 def test_account_avatar_endpoints_normalize_serve_and_log_safely(
@@ -223,8 +263,87 @@ async def test_socket_connection_requires_both_tokens(
         {"token": access_token(), "accountToken": account_token},
     ) is None
     save_session.assert_awaited_once()
+    saved = save_session.await_args.args[1]
+    assert saved["account_session_hash"] == account_store().session_fingerprint(
+        account_token
+    )
     emit.assert_awaited_once()
     assert emit.await_args.args[0] == "arcade:lobby"
+
+
+async def test_new_login_disconnects_existing_account_sockets(monkeypatch) -> None:
+    emit = AsyncMock()
+    disconnect_socket = AsyncMock()
+    monkeypatch.setattr(
+        arcade_realtime,
+        "account_sids",
+        defaultdict(set, {"account-1": {"old-phone", "old-computer"}}),
+    )
+    monkeypatch.setattr(sio, "emit", emit)
+    monkeypatch.setattr(sio, "disconnect", disconnect_socket)
+
+    count = await arcade_realtime.replace_account_session("account-1")
+
+    assert count == 2
+    assert {call.kwargs["to"] for call in emit.await_args_list} == {
+        "old-phone",
+        "old-computer",
+    }
+    assert all(
+        call.args[:2]
+        == (
+            "account:replaced",
+            {"message": "账号已在其他设备登录，请重新登录"},
+        )
+        for call in emit.await_args_list
+    )
+    assert {call.args[0] for call in disconnect_socket.await_args_list} == {
+        "old-phone",
+        "old-computer",
+    }
+
+
+async def test_stale_socket_session_cannot_submit_arcade_events(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv("GAME_HALL_DB_PATH", str(tmp_path / "stale.sqlite3"))
+    store = account_store()
+    account, old_token = store.register(
+        "stale_socket", "secret123", "旧连接玩家"
+    )
+    store.login("stale_socket", "secret123")
+    session = {
+        "account_id": account.id,
+        "account_session_hash": store.session_fingerprint(old_token),
+        "player_name": account.player_name,
+        "avatar_url": account.avatar_url,
+        "is_guest": False,
+    }
+    emit = AsyncMock()
+    disconnect_socket = AsyncMock()
+    monkeypatch.setattr(sio, "get_session", AsyncMock(return_value=session))
+    monkeypatch.setattr(sio, "emit", emit)
+    monkeypatch.setattr(sio, "disconnect", disconnect_socket)
+    monkeypatch.setattr(
+        arcade_realtime,
+        "sid_accounts",
+        {"stale-socket": account.id},
+    )
+
+    response = await sio.handlers["/"]["arcade:list"]("stale-socket", {})
+
+    assert response == {
+        "ok": False,
+        "error": "账号登录状态已失效，请重新登录",
+        "sessionReplaced": True,
+    }
+    emit.assert_awaited_once_with(
+        "account:replaced",
+        {"message": "账号登录状态已失效，请重新登录"},
+        to="stale-socket",
+    )
+    disconnect_socket.assert_awaited_once_with("stale-socket")
 
 
 async def test_leaving_avalon_through_arcade_preserves_account_identity(
@@ -275,7 +394,7 @@ async def test_leaving_avalon_through_arcade_preserves_account_identity(
     )
 
 
-async def test_detaching_one_device_keeps_other_device_online(
+async def test_detaching_one_tab_keeps_another_tab_online(
     monkeypatch,
 ) -> None:
     manager = ArcadeRoomManager(build_engine_registry())
@@ -316,7 +435,7 @@ async def test_detaching_one_device_keeps_other_device_online(
     assert sessions["computer"]["arcade_room_code"] == room.code
 
 
-async def test_second_device_recovers_the_same_account_seat(
+async def test_current_login_recovers_the_existing_account_seat(
     monkeypatch,
 ) -> None:
     manager = ArcadeRoomManager(build_engine_registry())
@@ -353,7 +472,7 @@ async def test_second_device_recovers_the_same_account_seat(
     assert session["arcade_room_code"] == room.code
 
 
-async def test_abandon_notifies_all_account_devices_and_clears_active_sockets(
+async def test_abandon_notifies_all_current_session_tabs_and_clears_sockets(
     monkeypatch,
 ) -> None:
     manager = ArcadeRoomManager(build_engine_registry())

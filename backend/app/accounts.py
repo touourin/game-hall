@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import secrets
 from collections.abc import Mapping
@@ -28,6 +29,7 @@ from .database import (
 from .games.avalon.models import ROLE_ALIGNMENT, Room, Role
 
 
+logger = logging.getLogger(__name__)
 SESSION_LIFETIME = timedelta(days=30)
 PLAYER_NAME_CHANGE_INTERVAL = timedelta(days=30)
 GAME_KEY = "avalon"
@@ -435,6 +437,20 @@ class AccountStore:
                     account_sessions.c.token_hash == self._token_hash(token)
                 )
             )
+
+    def session_is_active(self, account_id: str, token_hash: str) -> bool:
+        if not account_id or not token_hash:
+            return False
+        self.initialize()
+        now = self._now()
+        with self.engine.connect() as connection:
+            return connection.execute(
+                select(account_sessions.c.token_hash).where(
+                    account_sessions.c.account_id == account_id,
+                    account_sessions.c.token_hash == token_hash,
+                    account_sessions.c.expires_at > now,
+                )
+            ).first() is not None
 
     def record_match(self, room: Room) -> bool:
         if (
@@ -1020,7 +1036,21 @@ class AccountStore:
     def _create_session(self, account_id: str) -> str:
         token = secrets.token_urlsafe(32)
         now = self._now()
+        replaced_existing = False
         with self.engine.begin() as connection:
+            # Serialize simultaneous logins for the same account. The unique
+            # account index is the final database-level invariant.
+            connection.execute(
+                select(users.c.id)
+                .where(users.c.id == account_id)
+                .with_for_update()
+            ).scalar_one()
+            deleted = connection.execute(
+                delete(account_sessions).where(
+                    account_sessions.c.account_id == account_id
+                )
+            )
+            replaced_existing = bool(deleted.rowcount)
             connection.execute(
                 insert(account_sessions).values(
                     token_hash=self._token_hash(token),
@@ -1028,6 +1058,14 @@ class AccountStore:
                     expires_at=now + SESSION_LIFETIME,
                     created_at=now,
                 )
+            )
+        if replaced_existing:
+            logger.info(
+                "Previous account login session replaced",
+                extra={
+                    "account_id": account_id,
+                    "event": "account.session_replaced",
+                },
             )
         return token
 
@@ -1221,6 +1259,10 @@ class AccountStore:
     @staticmethod
     def _token_hash(token: str) -> str:
         return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+    @classmethod
+    def session_fingerprint(cls, token: str) -> str:
+        return cls._token_hash(token)
 
     @staticmethod
     def _now() -> datetime:

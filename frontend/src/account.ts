@@ -62,6 +62,12 @@ export function clearAccountToken(): void {
   localStorage.removeItem(LEGACY_ACCOUNT_TOKEN_KEY)
 }
 
+export function clearAccountTokenIfCurrent(expectedToken: string): boolean {
+  if (!expectedToken || storedAccountToken() !== expectedToken) return false
+  clearAccountToken()
+  return true
+}
+
 async function authFetch(
   path: string,
   accessToken: string,

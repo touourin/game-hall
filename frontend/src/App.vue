@@ -4,6 +4,7 @@ import { RouterView, useRoute, useRouter } from 'vue-router'
 import { WifiOff, X } from '@lucide/vue'
 import {
   clearAccountToken,
+  clearAccountTokenIfCurrent,
   createGuestSession,
   loginAccount,
   logoutAccount,
@@ -44,6 +45,7 @@ const accessState = ref<'checking' | 'locked' | 'unlocked'>('checking')
 const accessBusy = ref(false)
 const accessError = ref<string | null>(null)
 const activeAccessToken = ref('')
+const activeAccountToken = ref('')
 const accountState = ref<'checking' | 'locked' | 'authenticated'>('checking')
 const accountBusy = ref(false)
 const accountError = ref<string | null>(null)
@@ -116,12 +118,30 @@ document.title = '游戏大厅'
 
 function enterGame(profile: AccountProfile, token: string) {
   account.value = profile
+  activeAccountToken.value = token
   accountState.value = 'authenticated'
   rememberAccountToken(token)
   setSocketAccountToken(token)
   arcade.init()
   if (!socket.connected) socket.connect()
 }
+
+function handleAccountReplacement(payload?: { message?: string }) {
+  const replacedToken = activeAccountToken.value
+  clearAccountTokenIfCurrent(replacedToken)
+  activeAccountToken.value = ''
+  setSocketAccountToken('')
+  socket.disconnect()
+  arcade.resetForLogout()
+  account.value = null
+  showSettings.value = false
+  accountState.value = 'locked'
+  accountError.value = payload?.message
+    ?? '账号已在其他设备登录，请重新登录'
+  void router.replace({ name: 'hall' })
+}
+
+socket.on('account:replaced', handleAccountReplacement)
 
 async function continueAfterAccess(token: string) {
   activeAccessToken.value = token
@@ -142,6 +162,7 @@ async function continueAfterAccess(token: string) {
     }
   }
   clearAccountToken()
+  activeAccountToken.value = ''
   accountState.value = 'locked'
 }
 
@@ -283,6 +304,7 @@ async function logout() {
     }
   }
   clearAccountToken()
+  activeAccountToken.value = ''
   setSocketAccountToken('')
   socket.disconnect()
   arcade.resetForLogout()

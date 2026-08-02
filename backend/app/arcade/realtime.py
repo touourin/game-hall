@@ -162,6 +162,8 @@ class ArcadeRealtime:
                 action=context["action"],
             )
             try:
+                if not await self._session_is_current(sid):
+                    return await self._reject_stale_session(sid)
                 response = await handler(sid, *args)
                 if isinstance(response, dict) and response.get("ok"):
                     room_code = response.get("roomCode") or context[
@@ -228,6 +230,32 @@ class ArcadeRealtime:
         self.account_sids[account_id].add(sid)
         self.sid_accounts[sid] = account_id
         await self._server.emit("arcade:lobby", self.lobby_view(), to=sid)
+
+    async def replace_account_session(self, account_id: str) -> int:
+        """Invalidate every socket from the account's previous login."""
+        target_sids = list(self.account_sids.get(account_id, set()))
+        if not target_sids:
+            return 0
+        payload = {
+            "message": "账号已在其他设备登录，请重新登录",
+        }
+        for target_sid in target_sids:
+            await self._server.emit(
+                "account:replaced",
+                payload,
+                to=target_sid,
+            )
+        for target_sid in target_sids:
+            await self._server.disconnect(target_sid)
+        self.logger.info(
+            "Previous account socket session disconnected",
+            extra={
+                "account_id": account_id,
+                "connection_count": len(target_sids),
+                "event": "account.session_connections_revoked",
+            },
+        )
+        return len(target_sids)
 
     async def on_disconnect(self, sid: str) -> None:
         account_id = self.sid_accounts.pop(sid, None)
@@ -632,7 +660,9 @@ class ArcadeRealtime:
     ) -> None:
         key = (room_code, player_id)
         target_sids = list(self.active_sids.pop(key, set()))
-        notification_sids = self.account_sids.get(account_id) or set(target_sids)
+        notification_sids = list(
+            self.account_sids.get(account_id) or set(target_sids)
+        )
         payload = {
             "roomCode": room_code,
             "message": message,
@@ -650,6 +680,40 @@ class ArcadeRealtime:
                 self._channel(room_code, player_id),
             )
             await self._clear_room_session(target_sid)
+
+    async def _session_is_current(self, sid: str) -> bool:
+        try:
+            session = await self._server.get_session(sid)
+        except KeyError:
+            return False
+        if bool(session.get("is_guest", False)):
+            return True
+        account_id = session.get("account_id")
+        token_hash = session.get("account_session_hash")
+        if not isinstance(account_id, str) or not isinstance(token_hash, str):
+            return False
+        return account_store().session_is_active(account_id, token_hash)
+
+    async def _reject_stale_session(self, sid: str) -> dict[str, Any]:
+        account_id = self.sid_accounts.get(sid)
+        self.logger.warning(
+            "Stale account socket session rejected",
+            extra={
+                "account_id": account_id,
+                "event": "account.stale_session_rejected",
+            },
+        )
+        await self._server.emit(
+            "account:replaced",
+            {"message": "账号登录状态已失效，请重新登录"},
+            to=sid,
+        )
+        await self._server.disconnect(sid)
+        return {
+            "ok": False,
+            "error": "账号登录状态已失效，请重新登录",
+            "sessionReplaced": True,
+        }
 
     async def _context(self, sid: str):
         try:

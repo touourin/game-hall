@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   clearAccountToken,
+  clearAccountTokenIfCurrent,
   createGuestSession,
   loginAccount,
   rememberAccountToken,
@@ -29,6 +30,15 @@ describe('account service', () => {
     expect(storedAccountToken()).toBe('legacy-account-token')
     expect(localStorage.getItem('game-hall:account-token')).toBe('legacy-account-token')
     expect(localStorage.getItem('avalon:account-token')).toBeNull()
+  })
+
+  it('only clears the login token that was actually replaced', () => {
+    rememberAccountToken('new-login-token')
+
+    expect(clearAccountTokenIfCurrent('old-login-token')).toBe(false)
+    expect(storedAccountToken()).toBe('new-login-token')
+    expect(clearAccountTokenIfCurrent('new-login-token')).toBe(true)
+    expect(storedAccountToken()).toBeNull()
   })
 
   it('sends both the front-door token and login credentials', async () => {

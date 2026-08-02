@@ -167,6 +167,11 @@ async def connect(sid: str, environ: dict, auth: Any) -> bool | None:
         sid,
         {
             "account_id": identity.id,
+            "account_session_hash": (
+                None
+                if is_guest
+                else account_store().session_fingerprint(str(account_token))
+            ),
             "player_name": identity.player_name,
             "avatar_url": identity.avatar_url,
             "is_guest": is_guest,
@@ -183,3 +188,7 @@ async def connect(sid: str, environ: dict, auth: Any) -> bool | None:
 @sio.event
 async def disconnect(sid: str, reason: str) -> None:
     await arcade_realtime.on_disconnect(sid)
+
+
+async def replace_account_session_connections(account_id: str) -> int:
+    return await arcade_realtime.replace_account_session(account_id)

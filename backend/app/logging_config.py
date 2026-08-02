@@ -19,6 +19,7 @@ LOG_RECORD_FIELDS = {
     "action",
     "avatar_preset",
     "client_ip",
+    "connection_count",
     "duration_ms",
     "error_type",
     "event",
