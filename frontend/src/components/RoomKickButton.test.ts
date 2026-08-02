@@ -4,15 +4,20 @@ import RoomKickButton from './RoomKickButton.vue'
 describe('RoomKickButton', () => {
   it('requires confirmation before removing a player', async () => {
     const wrapper = mount(RoomKickButton, {
-      props: { playerName: '玩家二' },
+      props: { playerName: 'AI玩家 6' },
     })
 
-    await wrapper.get('[aria-label="移除玩家二"]').trigger('click')
-    expect(wrapper.get('.kick-player-modal').text()).toContain('移除玩家二？')
+    await wrapper.get('[aria-label="移除AI玩家 6"]').trigger('click')
+    const modal = document.body.querySelector('.kick-player-modal')
+    expect(modal?.textContent).toContain('移除AI玩家 6？')
+    expect(modal?.parentElement?.parentElement).toBe(document.body)
     expect(wrapper.emitted('confirm')).toBeUndefined()
 
-    await wrapper.get('.kick-player-actions .danger').trigger('click')
+    document.body.querySelector<HTMLButtonElement>('.kick-player-actions .danger')?.click()
+    await wrapper.vm.$nextTick()
     expect(wrapper.emitted('confirm')).toHaveLength(1)
-    expect(wrapper.find('.kick-player-modal').exists()).toBe(false)
+    expect(document.body.querySelector('.kick-player-modal')).toBeNull()
+
+    wrapper.unmount()
   })
 })

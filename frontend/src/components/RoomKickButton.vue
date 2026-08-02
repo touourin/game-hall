@@ -35,41 +35,43 @@ function confirmKick() {
     <UserMinus :size="16" />
   </button>
 
-  <div
-    v-if="showConfirmation"
-    class="modal-backdrop"
-    @click.self="showConfirmation = false"
-  >
-    <section
-      class="modal-card kick-player-modal"
-      role="dialog"
-      aria-modal="true"
-      :aria-label="`确认移除${playerName}`"
+  <Teleport to="body">
+    <div
+      v-if="showConfirmation"
+      class="modal-backdrop kick-player-backdrop"
+      @click.self="showConfirmation = false"
     >
-      <button
-        class="modal-close"
-        type="button"
-        aria-label="取消移除"
-        @click="showConfirmation = false"
+      <section
+        class="modal-card kick-player-modal"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="`确认移除${playerName}`"
       >
-        <X :size="20" />
-      </button>
-      <UserMinus :size="28" />
-      <h2>移除{{ playerName }}？</h2>
-      <p>对方会立即离开当前房间。</p>
-      <div class="kick-player-actions">
-        <button type="button" @click="showConfirmation = false">取消</button>
         <button
+          class="modal-close"
           type="button"
-          class="danger"
-          :disabled="busy"
-          @click="confirmKick"
+          aria-label="取消移除"
+          @click="showConfirmation = false"
         >
-          确认移除
+          <X :size="20" />
         </button>
-      </div>
-    </section>
-  </div>
+        <UserMinus :size="28" />
+        <h2>移除{{ playerName }}？</h2>
+        <p>该玩家会立即离开当前房间。</p>
+        <div class="kick-player-actions">
+          <button type="button" @click="showConfirmation = false">取消</button>
+          <button
+            type="button"
+            class="danger"
+            :disabled="busy"
+            @click="confirmKick"
+          >
+            确认移除
+          </button>
+        </div>
+      </section>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -83,6 +85,10 @@ function confirmKick() {
   border-radius: 10px;
   color: #efaaa7;
   background: rgba(133, 47, 52, .12);
+}
+
+.kick-player-backdrop {
+  z-index: 90;
 }
 
 .kick-player-modal {
