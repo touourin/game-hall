@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Gamepad2, History, LogOut, RotateCcw, Settings, Sparkles } from '@lucide/vue'
+import { History, LogOut, RotateCcw, Settings, Sparkles } from '@lucide/vue'
 import type { AccountProfile } from '../account'
 import type { GameCatalogItem } from '../types/arcade'
 import { useArcadeStore } from '../stores/arcade'
@@ -89,12 +89,6 @@ const games = GAME_CATALOG
       </button>
     </section>
 
-    <nav class="mobile-salon-dock surface" :class="{ 'guest-dock': account.isGuest }" aria-label="大厅快捷导航">
-      <button type="button" class="active"><Gamepad2 :size="20" /><span>大厅</span></button>
-      <button v-if="!account.isGuest" type="button" aria-label="查看全部战绩" @click="showStats = true"><History :size="20" /><span>全部战绩</span></button>
-      <button type="button" aria-label="打开设置" @click="emit('settings')"><Settings :size="20" /><span>设置</span></button>
-    </nav>
-
     <StatsModal v-if="showStats && !account.isGuest" @close="showStats = false" />
   </main>
 </template>
@@ -139,7 +133,6 @@ const games = GAME_CATALOG
 :global(:root[data-theme="royal"] .game-card:first-child) { border-color: rgba(165,78,64,.34); }
 :global(:root[data-theme="royal"] .game-card:first-child::before) { background: linear-gradient(90deg, rgba(249,246,237,.98), rgba(249,246,237,.77) 46%, rgba(249,246,237,.08) 78%), linear-gradient(0deg, rgba(249,246,237,.7), transparent 62%); }
 :global(:root[data-theme="royal"] .game-card:first-child .game-card-topline small),:global(:root[data-theme="royal"] .game-card:first-child .game-card-topline em),:global(:root[data-theme="royal"] .game-card:first-child .game-copy strong) { color: #292720; }:global(:root[data-theme="royal"] .game-card:first-child .game-copy em) { color: #716c61; }:global(:root[data-theme="royal"] .game-card:first-child .enter-game) { border-color: rgba(165,78,64,.38); color: #a54e40; }
-.mobile-salon-dock { display: none; }
 @media (hover: hover) {
   .game-card:hover { border-color: color-mix(in srgb, var(--card-tone) 48%, var(--line)); box-shadow: 0 24px 60px color-mix(in srgb, var(--bg) 48%, transparent); transform: translateY(-3px); }
   .game-card:hover .featured-art { transform: scale(1.035); }.game-card:hover .enter-game { color: var(--accent-contrast); background: var(--card-tone); }
@@ -148,7 +141,7 @@ const games = GAME_CATALOG
   .game-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
 }
 @media (max-width: 680px) {
-  .game-hall { padding-right: 11px; padding-bottom: calc(106px + env(safe-area-inset-bottom)); padding-left: 11px; }
+  .game-hall { padding-right: 11px; padding-bottom: calc(36px + env(safe-area-inset-bottom)); padding-left: 11px; }
   .salon-account-bar { top: calc(7px + env(safe-area-inset-top)); min-height: 62px; border-radius: 15px; padding: 8px 9px; }.account-avatar { width: 38px; height: 38px; }.account-identity-copy { max-width: min(36vw, 140px); }.salon-account-bar small { overflow: hidden; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
   .salon-account-bar .account-bar-actions { display: flex; width: auto; }
   .salon-account-bar .account-bar-actions button { flex: 0 0 38px; width: 38px; height: 38px; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 0; padding: 0; line-height: 0; }
@@ -165,8 +158,6 @@ const games = GAME_CATALOG
   .game-card-topline { top: 12px; right: 10px; left: 10px; }.game-card-topline small,.game-card-topline em { font-size: 7px; }
   .game-card:first-child .enter-game { right: 17px; bottom: 15px; width: 27px; }.enter-game { right: 9px; bottom: 10px; width: 20px; font-size: 17px; }
   .resume-arcade-card { align-items: stretch; flex-direction: column; }
-  .mobile-salon-dock { position: fixed; z-index: 25; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); left: 12px; display: grid; grid-template-columns: repeat(3,1fr); min-height: 62px; padding: 5px; border-radius: 18px; background: color-mix(in srgb,var(--surface-elevated) 92%,transparent); backdrop-filter: blur(20px); }.mobile-salon-dock button { display: grid; justify-items: center; align-content: center; gap: 2px; border: 0; border-radius: 13px; color: var(--muted); background: transparent; font-size: 8px; font-weight: 750; }.mobile-salon-dock button.active { color: var(--gold); background: color-mix(in srgb,var(--gold) 8%,transparent); }
-  .mobile-salon-dock.guest-dock { grid-template-columns: repeat(2,1fr); }
 }
 @media (max-width: 370px) {
   .game-grid { grid-auto-rows: 175px; }
