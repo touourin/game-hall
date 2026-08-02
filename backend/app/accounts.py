@@ -81,7 +81,7 @@ class Account:
             return f"/api/avatars/{self.avatar_token}"
         return f"/avatars/{self.avatar_preset}.webp"
 
-    def as_dict(self) -> dict[str, str | None]:
+    def as_dict(self) -> dict[str, str | bool | None]:
         next_rename_at = None
         if self.player_name_changed_at is not None:
             changed_at = datetime.fromisoformat(self.player_name_changed_at)
@@ -97,6 +97,7 @@ class Account:
             "avatarPreset": self.avatar_preset,
             "avatarUrl": self.avatar_url,
             "createdAt": self.created_at,
+            "isGuest": False,
         }
 
 

@@ -223,16 +223,14 @@ class ArcadeRealtime:
     async def create_room(self, sid: str, raw_data: Any) -> dict[str, Any]:
         try:
             payload = CreatePayload.model_validate(raw_data or {})
-            account_id = await self._account_id(sid)
-            account = account_store().account_for_id(account_id)
-            if account is None:
-                raise ArcadeRoomError("登录状态无效，请重新登录")
+            identity = await self._identity(sid)
             room, player, token = self.rooms.create_room(
                 payload.game_key,
-                account.player_name,
-                account_id,
+                identity["player_name"],
+                identity["id"],
                 payload.options,
-                account.avatar_url,
+                identity["avatar_url"],
+                is_guest=identity["is_guest"],
             )
             await self._bind_session(sid, room, player.id)
             await self.broadcast_room(room)
@@ -244,16 +242,14 @@ class ArcadeRealtime:
     async def join_room(self, sid: str, raw_data: Any) -> dict[str, Any]:
         try:
             payload = JoinPayload.model_validate(raw_data or {})
-            account_id = await self._account_id(sid)
-            account = account_store().account_for_id(account_id)
-            if account is None:
-                raise ArcadeRoomError("登录状态无效，请重新登录")
+            identity = await self._identity(sid)
             room, player, token = self.rooms.join_room(
                 payload.room_code,
                 payload.game_key,
-                account.player_name,
-                account_id,
-                account.avatar_url,
+                identity["player_name"],
+                identity["id"],
+                identity["avatar_url"],
+                is_guest=identity["is_guest"],
             )
             await self._bind_session(sid, room, player.id)
             await self.broadcast_room(room)
@@ -265,16 +261,15 @@ class ArcadeRealtime:
     async def resume_room(self, sid: str, raw_data: Any) -> dict[str, Any]:
         try:
             payload = ResumePayload.model_validate(raw_data or {})
-            account_id = await self._account_id(sid)
-            account = account_store().account_for_id(account_id)
-            if account is None:
-                raise ArcadeRoomError("登录状态无效，请重新登录")
+            identity = await self._identity(sid)
             room = self.rooms.get_room(payload.room_code)
             async with room.lock:
                 room, player = self.rooms.resume(
-                    payload.room_code, payload.token, account_id
+                    payload.room_code, payload.token, identity["id"]
                 )
-                player.avatar_url = account.avatar_url
+                player.name = identity["player_name"]
+                player.avatar_url = identity["avatar_url"]
+                player.is_guest = identity["is_guest"]
             await self._bind_session(sid, room, player.id)
             await self.broadcast_room(room)
             return {
@@ -291,7 +286,7 @@ class ArcadeRealtime:
     ) -> dict[str, Any]:
         try:
             payload = RoomCodePayload.model_validate(raw_data or {})
-            await self._account_id(sid)
+            await self._identity(sid)
             room = self.rooms.get_room(payload.room_code)
             async with room.lock:
                 self.rooms.cleanup_room(room.code)
@@ -547,10 +542,31 @@ class ArcadeRealtime:
         except (KeyError, TypeError) as exc:
             raise ArcadeRoomError("连接还没有加入这个游戏房间") from exc
 
-    async def _account_id(self, sid: str) -> str:
+    async def _identity(self, sid: str) -> dict[str, Any]:
         try:
             session = await self._server.get_session(sid)
-            return session["account_id"]
+            identity_id = str(session["account_id"])
+            player_name = session.get("player_name")
+            avatar_url = session.get("avatar_url")
+            is_guest = bool(session.get("is_guest", False))
+            if isinstance(player_name, str) and player_name:
+                return {
+                    "id": identity_id,
+                    "player_name": player_name,
+                    "avatar_url": (
+                        str(avatar_url) if avatar_url is not None else None
+                    ),
+                    "is_guest": is_guest,
+                }
+            account = account_store().account_for_id(identity_id)
+            if account is None:
+                raise KeyError(identity_id)
+            return {
+                "id": account.id,
+                "player_name": account.player_name,
+                "avatar_url": account.avatar_url,
+                "is_guest": False,
+            }
         except (KeyError, TypeError) as exc:
             raise ArcadeRoomError("登录状态无效，请重新登录") from exc
 
@@ -563,6 +579,18 @@ class ArcadeRealtime:
             or room.winner is None
             or room.win_reason is None
         ):
+            return
+        if not room.stats_eligible:
+            room.recorded = True
+            self.logger.info(
+                "Arcade match skipped because the round included a guest",
+                extra={
+                    "event": "match.skipped_guest",
+                    "game_id": room.game_id,
+                    "game_key": room.game_key,
+                    "room_code": room.code,
+                },
+            )
             return
         engine = self.engines[room.game_key]
         match_persister = getattr(engine, "persist_match", None)

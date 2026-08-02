@@ -31,6 +31,17 @@ async function register(accessToken, index) {
   return { ...result, username }
 }
 
+async function createGuest(accessToken) {
+  return jsonRequest('/api/auth/guest', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Game-Hall-Access': accessToken,
+    },
+    body: JSON.stringify({ player_name: '冒烟游客' }),
+  })
+}
+
 function connectClient(accessToken, accountToken) {
   return new Promise((resolve, reject) => {
     const socket = io(baseUrl, {
@@ -159,6 +170,13 @@ try {
   rooms.reaction = await playReaction(sockets[0])
   rooms.hanoi = await playHanoi(sockets[0])
 
+  const guest = await createGuest(access.token)
+  const guestSocket = await connectClient(access.token, guest.token)
+  sockets.push(guestSocket)
+  rooms.guestGomoku = await playToResignation(
+    'gomoku', [sockets[0], guestSocket], { allowGuests: true },
+  )
+
   const headers = {
     Authorization: `Bearer ${accounts[0].token}`,
     'X-Game-Hall-Access': access.token,
@@ -182,6 +200,16 @@ try {
   const hanoiStats = await jsonRequest('/api/stats/me?game=hanoi', { headers })
   if (hanoiStats.summary.games !== 1 || hanoiStats.history[0]?.gameKey !== 'hanoi') {
     throw new Error('汉诺塔成绩没有正确保存')
+  }
+
+  const guestStatsResponse = await fetch(`${baseUrl}/api/stats/me?game=gomoku`, {
+    headers: {
+      Authorization: `Bearer ${guest.token}`,
+      'X-Game-Hall-Access': access.token,
+    },
+  })
+  if (guestStatsResponse.status !== 401) {
+    throw new Error('游客不应拥有个人战绩接口')
   }
 
   process.stdout.write(`${JSON.stringify({ ok: true, prefix, rooms })}\n`)

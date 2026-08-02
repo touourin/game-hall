@@ -24,8 +24,10 @@
 - `room.disconnect_forfeit`：仍有真人在线时，某位玩家掉线超过 10 分钟并被判定弃权。
 - `room.disconnect_timeout_resolved`：德州扑克玩家已经弃牌或全押，掉线保护到期但不需要额外动作。
 - `room.cleanup_ready`：所有真人离线满 10 分钟，房间进入可清理状态；该事件不代表产生胜负。
+- `guest.created`：通过访问密码后创建了临时游客身份；只记录游客标识，不记录游客 Token。
+- `match.skipped_guest`：完成的对局包含游客，因此整局未写入 MySQL 战绩。
 
-日志不会写入访问密码、账号密码、登录 Token、请求正文或聊天内容。
+日志不会写入访问密码、账号密码、登录或游客 Token、请求正文或聊天内容。游客的 `account_id` 使用 `guest:` 前缀，便于排查连接和房间生命周期，但不能用于恢复游客凭证。
 
 所有游戏（包括阿瓦隆）共用 `arcade:*` 实时协议。因此阿瓦隆创建、开局和玩法操作会分别记录为 `arcade:create`、`arcade:start`、`arcade:action`，具体动作写入 `action` 字段；旧的 `room:*`、`game:*` 和 `lobby:*` 事件不再产生。
 

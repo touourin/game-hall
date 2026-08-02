@@ -271,6 +271,7 @@ class AvalonEngine:
         return domain
 
     def _sync_outer(self, room: ArcadeRoom, domain: Room) -> None:
+        allow_guests = room.options.get("allowGuests", True)
         room.state = domain
         room.host_id = domain.host_id
         room.phase = (
@@ -290,6 +291,7 @@ class AvalonEngine:
                 ),
             }
         )
+        room.options["allowGuests"] = allow_guests
         room.listed = domain.settings.listed
         if domain.phase == Phase.GAME_OVER and domain.winner is not None:
             room.winner = domain.winner.value

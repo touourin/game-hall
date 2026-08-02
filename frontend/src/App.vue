@@ -4,6 +4,7 @@ import { RouterView, useRoute, useRouter } from 'vue-router'
 import { WifiOff, X } from '@lucide/vue'
 import {
   clearAccountToken,
+  createGuestSession,
   loginAccount,
   logoutAccount,
   renamePlayer,
@@ -204,6 +205,23 @@ async function register(payload: {
   }
 }
 
+async function enterAsGuest(payload: { playerName: string }) {
+  accountBusy.value = true
+  accountError.value = null
+  try {
+    const response = await createGuestSession(
+      activeAccessToken.value,
+      payload.playerName,
+    )
+    enterGame(response.account, response.token)
+  } catch (caught) {
+    accountError.value =
+      caught instanceof Error ? caught.message : '游客入席失败，请稍后重试'
+  } finally {
+    accountBusy.value = false
+  }
+}
+
 async function changePlayerName(playerName: string) {
   const token = storedAccountToken()
   if (!token) return
@@ -308,6 +326,7 @@ onMounted(async () => {
       :error="accountError"
       @login="login"
       @register="register"
+      @guest="enterAsGuest"
     />
 
     <template v-else-if="account">

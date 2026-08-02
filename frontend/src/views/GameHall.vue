@@ -37,14 +37,14 @@ const games = GAME_CATALOG
           :name="account.playerName"
         />
         <span class="account-identity-copy">
-          <small>玩家账号 · {{ account.username }}</small>
+          <small>{{ account.isGuest ? '游客席位 · 对局不计战绩' : `玩家账号 · ${account.username}` }}</small>
           <strong>{{ account.playerName }}</strong>
         </span>
       </div>
       <div class="account-bar-actions">
-        <button type="button" aria-label="查看全部战绩" @click="showStats = true"><History :size="16" /><span>全部战绩</span></button>
+        <button v-if="!account.isGuest" type="button" aria-label="查看全部战绩" @click="showStats = true"><History :size="16" /><span>全部战绩</span></button>
         <button type="button" aria-label="打开设置" @click="emit('settings')"><Settings :size="16" /><span>设置</span></button>
-        <button type="button" aria-label="退出登录" @click="emit('logout')"><LogOut :size="16" /><span>退出</span></button>
+        <button type="button" :aria-label="account.isGuest ? '退出游客模式' : '退出登录'" @click="emit('logout')"><LogOut :size="16" /><span>退出</span></button>
       </div>
     </section>
 
@@ -53,7 +53,7 @@ const games = GAME_CATALOG
       <h1>游戏大厅</h1>
       <p>今晚玩什么？</p>
       <div class="hall-highlights" aria-label="大厅能力">
-        <span>实时联机</span><b aria-hidden="true">·</b><span>独立战绩</span>
+        <span>实时联机</span><b aria-hidden="true">·</b><span>{{ account.isGuest ? '休闲对局' : '独立战绩' }}</span>
       </div>
     </section>
 
@@ -89,13 +89,13 @@ const games = GAME_CATALOG
       </button>
     </section>
 
-    <nav class="mobile-salon-dock surface" aria-label="大厅快捷导航">
+    <nav class="mobile-salon-dock surface" :class="{ 'guest-dock': account.isGuest }" aria-label="大厅快捷导航">
       <button type="button" class="active"><Gamepad2 :size="20" /><span>大厅</span></button>
-      <button type="button" aria-label="查看全部战绩" @click="showStats = true"><History :size="20" /><span>全部战绩</span></button>
+      <button v-if="!account.isGuest" type="button" aria-label="查看全部战绩" @click="showStats = true"><History :size="20" /><span>全部战绩</span></button>
       <button type="button" aria-label="打开设置" @click="emit('settings')"><Settings :size="20" /><span>设置</span></button>
     </nav>
 
-    <StatsModal v-if="showStats" @close="showStats = false" />
+    <StatsModal v-if="showStats && !account.isGuest" @close="showStats = false" />
   </main>
 </template>
 
@@ -166,6 +166,7 @@ const games = GAME_CATALOG
   .game-card:first-child .enter-game { right: 17px; bottom: 15px; width: 27px; }.enter-game { right: 9px; bottom: 10px; width: 20px; font-size: 17px; }
   .resume-arcade-card { align-items: stretch; flex-direction: column; }
   .mobile-salon-dock { position: fixed; z-index: 25; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); left: 12px; display: grid; grid-template-columns: repeat(3,1fr); min-height: 62px; padding: 5px; border-radius: 18px; background: color-mix(in srgb,var(--surface-elevated) 92%,transparent); backdrop-filter: blur(20px); }.mobile-salon-dock button { display: grid; justify-items: center; align-content: center; gap: 2px; border: 0; border-radius: 13px; color: var(--muted); background: transparent; font-size: 8px; font-weight: 750; }.mobile-salon-dock button.active { color: var(--gold); background: color-mix(in srgb,var(--gold) 8%,transparent); }
+  .mobile-salon-dock.guest-dock { grid-template-columns: repeat(2,1fr); }
 }
 @media (max-width: 370px) {
   .game-grid { grid-auto-rows: 175px; }

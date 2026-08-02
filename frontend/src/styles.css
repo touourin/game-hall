@@ -259,6 +259,13 @@ button:disabled {
   text-align: left;
 }
 
+.guest-account-note {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+  text-align: center;
+}
+
 .account-error {
   margin: 0;
   border: 1px solid rgba(225, 114, 114, 0.24);
@@ -734,6 +741,11 @@ button:disabled {
 .room-code-input {
   text-transform: uppercase;
   letter-spacing: 0.2em;
+}
+
+.available-room:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .primary-button,

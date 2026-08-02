@@ -90,7 +90,7 @@ async function chooseRoom(code: string) {
       @back="$emit('back')"
     >
       <template #actions>
-        <button type="button" @click="showStats = true"><History :size="17" />我的战绩</button>
+        <button v-if="!account.isGuest" type="button" @click="showStats = true"><History :size="17" />我的战绩</button>
         <button type="button" @click="showLeaderboard = true"><Trophy :size="17" />排行榜</button>
         <button type="button" aria-label="打开设置" @click="emit('settings')"><Settings :size="17" />设置</button>
       </template>
@@ -110,9 +110,16 @@ async function chooseRoom(code: string) {
         <span>{{ rooms.length }} 间</span>
       </header>
       <div v-if="rooms.length" class="available-room-list">
-        <button v-for="room in rooms" :key="room.roomCode" type="button" class="available-room" @click="chooseRoom(room.roomCode)">
+        <button
+          v-for="room in rooms"
+          :key="room.roomCode"
+          type="button"
+          class="available-room"
+          :disabled="account.isGuest && room.allowsGuests === false"
+          @click="chooseRoom(room.roomCode)"
+        >
           <AvatarImage class="avatar" :src="room.hostAvatarUrl" :name="room.hostName" />
-          <span class="available-room-copy"><strong>{{ room.hostName }} 的房间</strong><small>房间 {{ room.roomCode }} · {{ room.playerCount }}/{{ room.maxPlayers }} 人<br>{{ gameRuleSummary(room.gameKey, room.options) }}</small></span>
+          <span class="available-room-copy"><strong>{{ room.hostName }} 的房间</strong><small>房间 {{ room.roomCode }} · {{ room.playerCount }}/{{ room.maxPlayers }} 人<br>{{ gameRuleSummary(room.gameKey, room.options) }}{{ room.statsEligible === false ? ' · 休闲局不计战绩' : '' }}</small></span>
           <ChevronRight :size="18" />
         </button>
       </div>
@@ -152,6 +159,7 @@ async function chooseRoom(code: string) {
           v-if="mode === 'create'"
           v-model="rules"
           :game-key="gameKey"
+          :guest-mode="account.isGuest"
           class="create-rule-settings"
         />
         <label v-if="mode === 'join'" class="field"><span>房间代码</span><input v-model="roomCode" maxlength="8" class="room-code-input" @input="roomCode = roomCode.toUpperCase()" /></label>
@@ -164,7 +172,7 @@ async function chooseRoom(code: string) {
     </section>
 
     <StatsModal
-      v-if="showStats"
+      v-if="showStats && !account.isGuest"
       :game-key="game.key"
       :game-name="game.name"
       :game-mode="game.key === 'minesweeper' ? String(rules.difficulty) : undefined"

@@ -90,6 +90,7 @@ def test_court_undercurrent_keeps_its_original_fixed_rule_constraints() -> None:
     )
 
     assert room.options == {
+        "allowGuests": True,
         "mode": "court_undercurrent",
         "ladyEnabled": False,
         "listed": False,

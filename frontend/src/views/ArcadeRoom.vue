@@ -298,6 +298,7 @@ function openSharedChat() {
           :game-key="snapshot.gameKey"
           :game-name="snapshot.gameName"
           :game-mode="roomStatsMode"
+          :guest="snapshot.self.isGuest"
         />
         <button
           type="button"
@@ -350,6 +351,15 @@ function openSharedChat() {
     <HostTransferNotice :transfer-at="snapshot.hostTransferAt" />
 
     <section
+      v-if="snapshot.statsEligible === false || (snapshot.phase === 'lobby' && snapshot.options.allowGuests)"
+      class="surface guest-match-notice"
+      role="status"
+    >
+      <strong>{{ snapshot.statsEligible !== false ? '本房间允许游客加入' : '休闲局 · 本局不计战绩' }}</strong>
+      <span>{{ snapshot.statsEligible !== false ? '目前尚无游客；若游客加入并参与开局，整局不会计入任何玩家战绩。' : '本局阵容包含游客，所有玩家的场次、胜负、历史和排行榜成绩均不会记录。' }}</span>
+    </section>
+
+    <section
       v-if="!isSolo"
       class="surface arcade-player-strip"
       :data-player-columns="playerStripColumns"
@@ -374,7 +384,7 @@ function openSharedChat() {
           <strong>{{ player.name }}</strong>
           <small>
             <Crown v-if="player.isHost" :size="13" />
-            {{ player.isHost ? '房主' : '玩家' }}
+            {{ player.isHost ? '房主' : '玩家' }}{{ player.isGuest ? ' · 游客' : '' }}
             {{ player.connected
               ? '· 在线'
               : player.disconnectForfeited
@@ -560,7 +570,7 @@ function openSharedChat() {
         <span class="modal-icon"><Settings2 :size="25" /></span>
         <h2>房间规则</h2>
         <p>{{ snapshot.phase === 'finished' ? '保存后所有玩家会返回等待阶段，新规则从下一局生效。' : '保存后会同步给房间中的所有玩家，开局后不可修改。' }}</p>
-        <GameRuleSettings v-model="ruleEditor" :game-key="snapshot.gameKey" />
+        <GameRuleSettings v-model="ruleEditor" :game-key="snapshot.gameKey" :guest-mode="snapshot.self.isGuest" />
         <button type="button" class="primary-button wide-button" :disabled="arcade.busy" @click="saveRules">保存规则</button>
       </section>
     </div>
@@ -646,6 +656,8 @@ function openSharedChat() {
 
 <style scoped>
 .arcade-room { padding-bottom: 70px; }
+.guest-match-notice { margin: 0 0 18px; padding: 12px 15px; border-color: color-mix(in srgb, var(--gold) 35%, var(--line)); background: color-mix(in srgb, var(--gold) 7%, var(--surface)); }
+.guest-match-notice strong,.guest-match-notice span { display: block; }.guest-match-notice strong { color: var(--gold); font-size: 13px; }.guest-match-notice span { margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .arcade-player-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 24px; padding: 14px; }
 .arcade-player-strip article { display: flex; flex: 0 0 var(--player-card-width); gap: 10px; align-items: center; min-width: 0; min-height: 68px; padding: 10px; border: 1px solid color-mix(in srgb, var(--line) 72%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--surface-elevated) 42%, transparent); }
 .arcade-player-strip article > div { min-width: 0; flex: 1; }

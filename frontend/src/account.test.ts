@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   clearAccountToken,
+  createGuestSession,
   loginAccount,
   rememberAccountToken,
   selectAvatarPreset,
@@ -88,6 +89,43 @@ describe('account service', () => {
     await expect(
       validateAccountToken('access-token', 'account-token'),
     ).resolves.toMatchObject({ username: 'player', playerName: '玩家昵称' })
+  })
+
+  it('creates a temporary guest session through the front door', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          token: 'guest-token',
+          account: {
+            id: 'guest:1',
+            username: '',
+            playerName: '临时骑士',
+            nextRenameAt: null,
+            avatarType: 'preset',
+            avatarPreset: 'moon-fox',
+            avatarUrl: '/avatars/moon-fox.webp',
+            createdAt: '2026-08-02T00:00:00+00:00',
+            isGuest: true,
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await createGuestSession('access-token', '临时骑士')
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/auth/guest',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'X-Game-Hall-Access': 'access-token',
+        }),
+        body: JSON.stringify({ player_name: '临时骑士' }),
+      }),
+    )
   })
 
   it('selects a built-in avatar with the authenticated account', async () => {

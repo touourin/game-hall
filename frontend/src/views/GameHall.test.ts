@@ -56,4 +56,25 @@ describe('GameHall', () => {
       name: '五子棋',
     })
   })
+
+  it('shows a guest seat without personal-record actions', () => {
+    const wrapper = mount(GameHall, {
+      props: {
+        account: {
+          id: 'guest:1',
+          username: '',
+          playerName: '临时骑士',
+          nextRenameAt: null,
+          createdAt: '2026-08-02T00:00:00Z',
+          isGuest: true,
+        },
+      },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.text()).toContain('游客席位 · 对局不计战绩')
+    expect(wrapper.find('[aria-label="查看全部战绩"]').exists()).toBe(false)
+    expect(wrapper.find('[aria-label="退出游客模式"]').exists()).toBe(true)
+    expect(wrapper.get('.mobile-salon-dock').classes()).toContain('guest-dock')
+  })
 })

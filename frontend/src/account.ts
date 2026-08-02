@@ -10,6 +10,7 @@ export interface AccountProfile {
   avatarPreset?: AvatarPresetId
   avatarUrl?: string
   createdAt: string
+  isGuest?: boolean
 }
 
 export const AVATAR_PRESETS = [
@@ -109,6 +110,19 @@ export async function loginAccount(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+  })
+  if (!response.ok) throw await responseError(response)
+  return (await response.json()) as AuthResponse
+}
+
+export async function createGuestSession(
+  accessToken: string,
+  playerName: string,
+): Promise<AuthResponse> {
+  const response = await authFetch('/api/auth/guest', accessToken, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ player_name: playerName }),
   })
   if (!response.ok) throw await responseError(response)
   return (await response.json()) as AuthResponse

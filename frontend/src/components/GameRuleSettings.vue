@@ -7,6 +7,7 @@ import { AVALON_COURT_GUIDE } from '../gameModeGuides'
 const props = defineProps<{
   gameKey: ArcadeGameKey
   modelValue: Record<string, unknown>
+  guestMode?: boolean
 }>()
 const emit = defineEmits<{
   'update:modelValue': [value: Record<string, unknown>]
@@ -207,6 +208,18 @@ function setOption(key: string, value: unknown) {
         </button>
         <button type="button" :class="{ active: option('allowDraw') }" @click="setOption('allowDraw', !option('allowDraw'))">
           <span><strong>允许和棋</strong><small>可以向对手发起和棋申请</small></span><b>{{ option('allowDraw') ? '开' : '关' }}</b>
+        </button>
+      </div>
+    </section>
+
+    <section v-if="!['reaction', 'schulte', 'minesweeper', 'hanoi'].includes(gameKey)" class="rule-setting-group guest-access-rules">
+      <header><strong>游客准入</strong><small>包含游客的整局不会写入任何玩家的个人战绩或排行榜</small></header>
+      <div class="rule-option-grid">
+        <button type="button" :class="{ active: option('allowGuests') }" @click="setOption('allowGuests', true)">
+          <strong>允许游客</strong><small>游客可以加入；有人以游客身份开局后自动成为休闲局</small>
+        </button>
+        <button type="button" :class="{ active: !option('allowGuests') }" :disabled="guestMode" @click="setOption('allowGuests', false)">
+          <strong>仅登录玩家</strong><small>{{ guestMode ? '游客只能创建允许游客加入的休闲房间' : '拒绝游客加入，正常记录战绩' }}</small>
         </button>
       </div>
     </section>

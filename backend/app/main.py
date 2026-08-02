@@ -22,6 +22,7 @@ from .avatars import (
     process_avatar_upload,
 )
 from .games.registry import GAME_CATALOG
+from .guests import GuestSessionError, guest_for_token, issue_guest_session
 from .infrastructure import redis_status
 from .logging_config import (
     bind_request_context,
@@ -155,6 +156,10 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=6, max_length=128)
 
 
+class GuestRequest(BaseModel):
+    player_name: str = Field(min_length=2, max_length=12)
+
+
 class RenamePlayerRequest(BaseModel):
     player_name: str = Field(min_length=2, max_length=12)
 
@@ -203,6 +208,20 @@ def require_account_session(
             detail="登录状态已失效",
         )
     return account
+
+
+def require_identity_session(
+    authorization: str | None, access_header: str | None
+):
+    require_front_door(access_header)
+    token = bearer_token(authorization)
+    identity = account_store().account_for_token(token) or guest_for_token(token)
+    if identity is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="登录状态已失效",
+        )
+    return identity
 
 
 @api.get("/api/health")
@@ -284,13 +303,33 @@ def login_account(
     return {"ok": True, "token": token, "account": account.as_dict()}
 
 
+@api.post("/api/auth/guest")
+def create_guest_session(
+    payload: GuestRequest,
+    game_hall_access: str | None = Depends(game_hall_access_header),
+) -> dict:
+    require_front_door(game_hall_access)
+    try:
+        guest, token = issue_guest_session(payload.player_name)
+    except GuestSessionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+    logger.info(
+        "Guest session created",
+        extra={"account_id": guest.id, "event": "guest.created"},
+    )
+    return {"ok": True, "token": token, "account": guest.as_dict()}
+
+
 @api.get("/api/auth/me")
 def current_account(
     authorization: str | None = Header(default=None),
     game_hall_access: str | None = Depends(game_hall_access_header),
 ) -> dict:
-    account = require_account_session(authorization, game_hall_access)
-    return {"ok": True, "account": account.as_dict()}
+    identity = require_identity_session(authorization, game_hall_access)
+    return {"ok": True, "account": identity.as_dict()}
 
 
 @api.patch("/api/auth/me")
@@ -480,7 +519,7 @@ def leaderboard(
     authorization: str | None = Header(default=None),
     game_hall_access: str | None = Depends(game_hall_access_header),
 ) -> dict:
-    require_account_session(authorization, game_hall_access)
+    require_identity_session(authorization, game_hall_access)
     if game not in GAME_NAMES:
         raise HTTPException(status_code=404, detail="没有找到这个游戏")
     valid_modes = {
@@ -502,7 +541,7 @@ def game_catalog(
     authorization: str | None = Header(default=None),
     game_hall_access: str | None = Depends(game_hall_access_header),
 ) -> dict:
-    require_account_session(authorization, game_hall_access)
+    require_identity_session(authorization, game_hall_access)
     return {"ok": True, "games": GAME_CATALOG}
 
 

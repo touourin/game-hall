@@ -28,6 +28,8 @@ def build_lobby_view(
             "playerCount": len(room.players),
             "maxPlayers": engines[room.game_key].max_players,
             "options": room.options,
+            "allowsGuests": room.options.get("allowGuests", True),
+            "statsEligible": room.stats_eligible,
             "phase": room.phase,
             "cleanupAvailable": room.cleanup_ready,
             "allHumansOffline": room.all_humans_offline_since is not None,
@@ -68,6 +70,7 @@ def build_room_view(
         "gameName": engine.name,
         "options": room.options,
         "phase": room.phase,
+        "statsEligible": room.stats_eligible,
         "hostTransferAt": (
             (room.host_offline_since + HOST_TRANSFER_GRACE).isoformat()
             if room.host_offline_since is not None
@@ -80,6 +83,7 @@ def build_room_view(
             "name": viewer.name,
             "seat": viewer.seat,
             "avatarUrl": getattr(viewer, "avatar_url", None),
+            "isGuest": viewer.is_guest,
         },
         "players": [
             {
@@ -87,6 +91,7 @@ def build_room_view(
                 "name": player.name,
                 "avatarUrl": getattr(player, "avatar_url", None),
                 "isBot": player.is_bot,
+                "isGuest": player.is_guest,
                 "seat": player.seat,
                 "connected": player.connected,
                 "disconnectForfeitAt": (

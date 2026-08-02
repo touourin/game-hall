@@ -83,6 +83,7 @@ describe('GameRuleSettings', () => {
       '随机先手',
       '允许悔棋',
       '允许和棋',
+      '允许游客',
     ])
     expect(
       gameRuleLabels('go', {
@@ -92,7 +93,7 @@ describe('GameRuleSettings', () => {
         allowUndo: false,
         allowDraw: true,
       }),
-    ).toEqual(['9 路棋盘', '房主先手', '禁止悔棋', '允许和棋', '贴目 0'])
+    ).toEqual(['9 路棋盘', '房主先手', '禁止悔棋', '允许和棋', '贴目 0', '允许游客'])
   })
 
   it('offers classic, laizi, and no-shuffle Doudizhu modes', async () => {
@@ -130,7 +131,7 @@ describe('GameRuleSettings', () => {
 
     expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toMatchObject({ startingChips: 2000 })
     expect(wrapper.emitted('update:modelValue')?.[1]?.[0]).toMatchObject({ smallBlind: 20 })
-    expect(gameRuleLabels('poker', {})).toEqual(['2–8 人', '起始 1000 筹码', '盲注 10/20'])
+    expect(gameRuleLabels('poker', {})).toEqual(['2–8 人', '起始 1000 筹码', '盲注 10/20', '允许游客'])
     expect(wrapper.text()).not.toContain('首局先手')
   })
 
@@ -154,6 +155,22 @@ describe('GameRuleSettings', () => {
       '理论最少 255 步',
     ])
     expect(wrapper.text()).not.toContain('首局先手')
+  })
+
+  it('keeps guest-created multiplayer rooms in casual mode', () => {
+    const wrapper = mount(GameRuleSettings, {
+      props: {
+        gameKey: 'xiangqi',
+        modelValue: defaultGameRules('xiangqi'),
+        guestMode: true,
+      },
+    })
+    const registeredOnly = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('仅登录玩家'))
+
+    expect(registeredOnly?.attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('整局不会写入任何玩家的个人战绩')
   })
 
   it('offers all three classic Minesweeper difficulties', async () => {

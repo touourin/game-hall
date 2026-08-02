@@ -9,6 +9,7 @@ const props = defineProps<{
   gameKey: string
   gameName: string
   gameMode?: string
+  guest?: boolean
 }>()
 
 const showStats = ref(false)
@@ -17,6 +18,7 @@ const showLeaderboard = ref(false)
 
 <template>
   <button
+    v-if="!props.guest"
     type="button"
     class="header-action room-record-action"
     aria-label="查看我的战绩"
@@ -36,7 +38,7 @@ const showLeaderboard = ref(false)
   </button>
 
   <StatsModal
-    v-if="showStats"
+    v-if="showStats && !props.guest"
     :game-key="props.gameKey"
     :game-name="props.gameName"
     :game-mode="props.gameMode"

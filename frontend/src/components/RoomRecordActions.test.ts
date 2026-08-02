@@ -30,4 +30,18 @@ describe('RoomRecordActions', () => {
     await wrapper.getComponent(LeaderboardModal).vm.$emit('close')
     expect(wrapper.findComponent(LeaderboardModal).exists()).toBe(false)
   })
+
+  it('lets guests view the leaderboard without exposing personal stats', () => {
+    const wrapper = shallowMount(RoomRecordActions, {
+      props: {
+        accountId: 'guest:1',
+        gameKey: 'gomoku',
+        gameName: '五子棋',
+        guest: true,
+      },
+    })
+
+    expect(wrapper.find('[aria-label="查看我的战绩"]').exists()).toBe(false)
+    expect(wrapper.find('[aria-label="查看排行榜"]').exists()).toBe(true)
+  })
 })

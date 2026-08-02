@@ -173,9 +173,9 @@ function confirmAvatarCrop(file: File) {
       </button>
       <span class="modal-icon"><Settings :size="25" /></span>
       <h2>设置</h2>
-      <p>账号名用于登录；游戏昵称用于大厅、对局、聊天和排行榜。</p>
+      <p>{{ account.isGuest ? '游客可以调整本机界面主题；游客昵称和头像在本次身份期间保持不变。' : '账号名用于登录；游戏昵称用于大厅、对局、聊天和排行榜。' }}</p>
 
-      <section class="settings-section avatar-settings-section">
+      <section v-if="!account.isGuest" class="settings-section avatar-settings-section">
         <header><UserRound :size="18" /><strong>个人头像</strong></header>
         <div class="current-avatar-row">
           <AvatarImage
@@ -243,7 +243,7 @@ function confirmAvatarCrop(file: File) {
         </p>
       </section>
 
-      <section class="settings-section">
+      <section v-if="!account.isGuest" class="settings-section">
         <header><UserRoundPen :size="18" /><strong>账号与游戏昵称</strong></header>
         <form @submit.prevent="submitRename">
           <label class="field">
@@ -272,6 +272,14 @@ function confirmAvatarCrop(file: File) {
             <UserRoundPen :size="17" />{{ busy ? '正在保存…' : '修改游戏昵称' }}
           </button>
         </form>
+      </section>
+
+      <section v-if="account.isGuest" class="settings-section guest-settings-section">
+        <header><UserRound :size="18" /><strong>游客席位</strong></header>
+        <div class="current-avatar-row">
+          <AvatarImage class="current-avatar" :src="account.avatarUrl" :name="account.playerName" />
+          <div><strong>{{ account.playerName }}</strong><small>游客参与的整局不会写入任何玩家的个人战绩或排行榜</small></div>
+        </div>
       </section>
 
       <section class="settings-section">

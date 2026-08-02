@@ -13,6 +13,7 @@ from .arcade.models import ArcadeRoom
 from .arcade.realtime import arcade_realtime
 from .games.avalon.arcade import AvalonEngine
 from .games.avalon.models import AvalonMode, Room
+from .guests import guest_for_token
 from .infrastructure import redis_url
 from .room_state import RedisRoomStateStore
 
@@ -89,6 +90,7 @@ async def restore_room_state() -> None:
     for room in restored.values():
         room.lock = asyncio.Lock()
         room.cleanup_ready = getattr(room, "cleanup_ready", False)
+        room.stats_eligible = getattr(room, "stats_eligible", True)
         room.host_offline_since = None
         if room.game_key == "avalon" and isinstance(room.state, Room):
             _repair_avalon_domain(room.state)
@@ -99,6 +101,7 @@ async def restore_room_state() -> None:
         )
         for player in room.players:
             player.is_bot = getattr(player, "is_bot", False)
+            player.is_guest = getattr(player, "is_guest", False)
             player.disconnected_at = None
             player.disconnect_timeout_handled = getattr(
                 player, "disconnect_timeout_handled", False
@@ -107,6 +110,8 @@ async def restore_room_state() -> None:
                 player, "disconnect_forfeited", False
             )
             player.connected = player.is_bot
+        if any(player.is_guest for player in room.players):
+            room.stats_eligible = False
         if had_connected_human:
             room.all_humans_offline_since = restored_at
             room.cleanup_ready = False
@@ -146,17 +151,29 @@ async def connect(sid: str, environ: dict, auth: Any) -> bool | None:
     account_token = (
         auth.get("accountToken") if isinstance(auth, dict) else None
     )
-    account = account_store().account_for_token(account_token)
-    if account is None:
+    identity = account_store().account_for_token(account_token)
+    is_guest = False
+    if identity is None:
+        identity = guest_for_token(account_token)
+        is_guest = identity is not None
+    if identity is None:
         logger.warning(
             "Socket connection rejected by account verification",
             extra={"event": "socket.connect_rejected"},
         )
         return False
-    await sio.save_session(sid, {"account_id": account.id})
+    await sio.save_session(
+        sid,
+        {
+            "account_id": identity.id,
+            "player_name": identity.player_name,
+            "avatar_url": identity.avatar_url,
+            "is_guest": is_guest,
+        },
+    )
     logger.debug(
         "Socket connected",
-        extra={"account_id": account.id, "event": "socket.connected"},
+        extra={"account_id": identity.id, "event": "socket.connected"},
     )
     await arcade_realtime.on_connect(sid)
     return None

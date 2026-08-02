@@ -41,6 +41,21 @@ describe('AccountGate', () => {
     ])
   })
 
+  it('enters with only a temporary guest nickname', async () => {
+    const wrapper = mount(AccountGate, {
+      props: { busy: false, error: null },
+    })
+    await wrapper.findAll('.account-mode button')[2]!.trigger('click')
+
+    await wrapper.get('input').setValue('临时骑士')
+    await wrapper.get('form').trigger('submit')
+
+    expect(wrapper.emitted('guest')).toEqual([
+      [{ playerName: '临时骑士' }],
+    ])
+    expect(wrapper.text()).toContain('不会计入任何玩家战绩')
+  })
+
   it('shows server errors and blocks submission while busy', () => {
     const wrapper = mount(AccountGate, {
       props: { busy: true, error: '账号或密码不正确' },

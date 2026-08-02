@@ -19,6 +19,7 @@ class ArcadePlayer:
     seat: int
     avatar_url: str | None = None
     is_bot: bool = False
+    is_guest: bool = False
     connected: bool = True
     disconnected_at: datetime | None = None
     disconnect_timeout_handled: bool = False
@@ -58,6 +59,7 @@ class ArcadeRoom:
     winner_player_ids: list[str] = field(default_factory=list)
     win_reason: str | None = None
     recorded: bool = False
+    stats_eligible: bool = True
     round_number: int = 0
     rematch_ready_ids: set[str] = field(default_factory=set)
     pending_request: ArcadeGameRequest | None = None

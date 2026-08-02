@@ -132,6 +132,7 @@ describe('ArcadeHome', () => {
       mode: 'court_undercurrent',
       ladyEnabled: false,
       listed: true,
+      allowGuests: true,
       earlyAssassinationEnabled: false,
     })
   })

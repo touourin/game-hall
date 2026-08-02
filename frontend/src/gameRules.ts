@@ -14,13 +14,17 @@ export function defaultGameRules(
       mode: 'standard',
       ladyEnabled: true,
       listed: true,
+      allowGuests: true,
       earlyAssassinationEnabled: false,
     }
   }
   if (gameKey === 'reaction' || gameKey === 'schulte') return {}
   if (gameKey === 'minesweeper') return { difficulty: 'beginner' }
   if (gameKey === 'hanoi') return { discCount: 5 }
-  const options: Record<string, unknown> = { firstPlayer: 'random' }
+  const options: Record<string, unknown> = {
+    firstPlayer: 'random',
+    allowGuests: true,
+  }
   if (gameKey === 'poker') {
     options.startingChips = 1000
     options.smallBlind = 10
@@ -58,6 +62,7 @@ export function gameRuleLabels(
     const labels = [
       options.mode === 'court_undercurrent' ? '王庭暗流' : '标准阿瓦隆',
       options.listed ? '公开房间' : '私密房间',
+      options.allowGuests ? '允许游客' : '仅登录玩家',
     ]
     if (options.mode !== 'court_undercurrent') {
       labels.push(options.ladyEnabled ? '启用湖中仙女' : '不启用湖中仙女')
@@ -83,6 +88,7 @@ export function gameRuleLabels(
       '2–8 人',
       `起始 ${Number(options.startingChips)} 筹码`,
       `盲注 ${smallBlind}/${smallBlind * 2}`,
+      options.allowGuests ? '允许游客' : '仅登录玩家',
     ]
   }
   const swap2 = gameKey === 'gomoku' && options.openingRule === 'swap2'
@@ -123,6 +129,7 @@ export function gameRuleLabels(
     )
     labels.push('叫地主／抢地主')
   }
+  labels.push(options.allowGuests ? '允许游客' : '仅登录玩家')
   return labels
 }
 

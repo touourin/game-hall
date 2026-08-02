@@ -27,6 +27,8 @@ export interface ArcadeLobbyRoom {
   playerCount: number
   maxPlayers: number
   options: Record<string, unknown>
+  allowsGuests?: boolean
+  statsEligible?: boolean
   phase?: ArcadePhase
   cleanupAvailable?: boolean
   allHumansOffline?: boolean
@@ -37,6 +39,7 @@ export interface ArcadePlayer {
   name: string
   avatarUrl?: string | null
   isBot?: boolean
+  isGuest?: boolean
   seat: number
   connected: boolean
   disconnectForfeitAt?: string | null
@@ -66,10 +69,11 @@ export interface ArcadeSnapshot {
   gameKey: ArcadeGameKey
   gameName: string
   phase: ArcadePhase
+  statsEligible?: boolean
   hostTransferAt?: string | null
   options: Record<string, unknown>
   hostId: string
-  self: { id: string; accountId?: string; name: string; seat: number; avatarUrl?: string | null }
+  self: { id: string; accountId?: string; name: string; seat: number; avatarUrl?: string | null; isGuest?: boolean }
   players: ArcadePlayer[]
   requiredPlayers: number
   minimumPlayers?: number

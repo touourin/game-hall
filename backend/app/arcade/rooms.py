@@ -70,9 +70,13 @@ class ArcadeRoomManager:
         account_id: str,
         options: dict[str, Any] | None = None,
         avatar_url: str | None = None,
+        *,
+        is_guest: bool = False,
     ) -> tuple[ArcadeRoom, ArcadePlayer, str]:
         engine = self.engine(game_key)
         normalized_options = self._room_options(engine, options or {})
+        if is_guest and normalized_options.get("allowGuests") is False:
+            raise ArcadeRoomError("游客只能创建允许游客加入的休闲房间")
         name = self._normalize_name(player_name)
         code = self._new_code()
         token = secrets.token_urlsafe(32)
@@ -83,6 +87,7 @@ class ArcadeRoomManager:
             token_hash=hash_token(token),
             seat=0,
             avatar_url=avatar_url,
+            is_guest=is_guest,
         )
         room = ArcadeRoom(
             code=code,
@@ -94,6 +99,7 @@ class ArcadeRoomManager:
             listed=normalized_options.get(
                 "listed", getattr(engine, "public_rooms", True)
             ),
+            stats_eligible=not is_guest,
         )
         self.rooms[code] = room
         return room, player, token
@@ -105,6 +111,8 @@ class ArcadeRoomManager:
         player_name: str,
         account_id: str,
         avatar_url: str | None = None,
+        *,
+        is_guest: bool = False,
     ) -> tuple[ArcadeRoom, ArcadePlayer, str]:
         room = self.get_room(code)
         engine = self.engine(room.game_key)
@@ -112,6 +120,8 @@ class ArcadeRoomManager:
             raise ArcadeRoomError("房间所属游戏不正确")
         if room.phase != "lobby":
             raise ArcadeRoomError("游戏已经开始，不能加入新玩家")
+        if is_guest and not room.options.get("allowGuests", True):
+            raise ArcadeRoomError("这个房间仅允许登录玩家加入")
         if not any(
             player.connected and not player.is_bot for player in room.players
         ):
@@ -134,8 +144,10 @@ class ArcadeRoomManager:
             token_hash=hash_token(token),
             seat=len(room.players),
             avatar_url=avatar_url,
+            is_guest=is_guest,
         )
         room.players.append(player)
+        room.stats_eligible = not any(member.is_guest for member in room.players)
         room.revision += 1
         return room, player, token
 
@@ -219,6 +231,10 @@ class ArcadeRoomManager:
         if room.host_id != actor_id:
             raise ArcadeRoomError("只有房主可以修改规则")
         normalized = self._room_options(engine, options)
+        if not normalized.get("allowGuests", True) and any(
+            player.is_guest for player in room.players
+        ):
+            raise ArcadeRoomError("房间中已有游客，不能关闭游客准入")
         if room.phase == "finished":
             self._prepare_lobby(room)
         room.options = normalized
@@ -279,6 +295,9 @@ class ArcadeRoomManager:
         engine = self.engine(room.game_key)
         restart_handler = getattr(engine, "restart", None)
         if restart_handler is not None:
+            room.stats_eligible = not any(
+                member.is_guest for member in room.players
+            )
             restart_handler(room, player)
             room.revision += 1
             return
@@ -545,6 +564,9 @@ class ArcadeRoomManager:
         room.winner_player_ids = []
         room.win_reason = None
         room.recorded = False
+        room.stats_eligible = not any(
+            player.is_guest for player in room.players
+        )
         room.round_number += 1
         room.rematch_ready_ids.clear()
         room.pending_request = None
@@ -565,6 +587,9 @@ class ArcadeRoomManager:
         room.winner_player_ids = []
         room.win_reason = None
         room.recorded = False
+        room.stats_eligible = not any(
+            player.is_guest for player in room.players
+        )
         room.round_number = 0
         room.rematch_ready_ids.clear()
         room.pending_request = None
@@ -641,6 +666,10 @@ class ArcadeRoomManager:
             player.seat = index
         if room.players and room.host_id == player_id:
             room.host_id = room.players[0].id
+        if room.phase in {"lobby", "finished"}:
+            room.stats_eligible = not any(
+                player.is_guest for player in room.players
+            )
 
     def _new_code(self) -> str:
         for _ in range(100):
@@ -663,6 +692,11 @@ class ArcadeRoomManager:
         engine: GameEngine, options: dict[str, Any]
     ) -> dict[str, Any]:
         normalized: dict[str, Any] = {}
+        if engine.max_players > 1:
+            allow_guests = options.get("allowGuests", True)
+            if not isinstance(allow_guests, bool):
+                raise ArcadeRoomError("游客准入设置格式不正确")
+            normalized["allowGuests"] = allow_guests
         if engine.max_players > 1 and getattr(engine, "uses_first_player", True):
             first_player = options.get("firstPlayer", "random")
             if first_player not in FIRST_PLAYER_MODES:
