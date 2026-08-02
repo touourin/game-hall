@@ -42,4 +42,21 @@ describe('SecretCard', () => {
     await card.trigger('pointerup')
     expect(wrapper.find('.secret-card__art').exists()).toBe(false)
   })
+
+  it('uses the same calibrated framing as the skin preview', async () => {
+    const wrapper = mount(SecretCard, {
+      props: {
+        title: '莫甘娜',
+        subtitle: '莫德雷德阵营',
+        roleCode: 'morgana',
+        roleSkin: 'grail-myth',
+      },
+    })
+
+    await wrapper.get('.secret-card').trigger('pointerdown')
+
+    const artwork = wrapper.get('.secret-card__art')
+    expect(artwork.attributes('style')).toContain('--role-art-scale: 1.1')
+    expect(artwork.attributes('style')).toContain('--role-art-origin: 50% 29%')
+  })
 })

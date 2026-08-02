@@ -35,6 +35,12 @@ describe('RoleSkinPicker', () => {
     expect(modal.text()).toContain('莫德雷德')
     expect(modal.text()).toContain('奥伯伦')
     expect(modal.text()).toContain('莫德雷德的爪牙')
+    expect(
+      modal.get('[data-role="merlin"] img').attributes('style'),
+    ).toContain('--role-art-scale: 1')
+    expect(
+      modal.get('[data-role="morgana"] img').attributes('style'),
+    ).toContain('--role-art-scale: 1.1')
 
     await modal.get('.role-skin-use-button').trigger('click')
 

@@ -70,6 +70,13 @@ export interface RoleSkinPreviewRole {
   name: string
   alignment: AvalonRoleAlignment
   artwork: string
+  framing: RoleArtworkFraming
+}
+
+export interface RoleArtworkFraming {
+  scale: number
+  originXPercent: number
+  originYPercent: number
 }
 
 export const ROLE_SKIN_STORAGE_KEY = 'avalon:role-skin'
@@ -172,8 +179,25 @@ const ROLE_ART: Record<RoleSkinId, Record<AvalonRoleCode, string>> = {
   },
 }
 
+const DEFAULT_ROLE_ARTWORK_FRAMING: RoleArtworkFraming = {
+  scale: 1,
+  originXPercent: 50,
+  originYPercent: 50,
+}
+
+const ROLE_ARTWORK_FRAMING: Partial<
+  Record<RoleSkinId, Partial<Record<AvalonRoleCode, RoleArtworkFraming>>>
+> = {
+  'grail-myth': {
+    morgana: { scale: 1.1, originXPercent: 50, originYPercent: 29 },
+    mordred: { scale: 1.1, originXPercent: 50, originYPercent: 27 },
+    oberon: { scale: 1.08, originXPercent: 50, originYPercent: 28 },
+    minion: { scale: 1.1, originXPercent: 50, originYPercent: 27 },
+  },
+}
+
 const ROLE_PREVIEW_DEFINITIONS: Array<
-  Omit<RoleSkinPreviewRole, 'artwork'>
+  Omit<RoleSkinPreviewRole, 'artwork' | 'framing'>
 > = [
   { code: 'merlin', name: '梅林', alignment: 'good' },
   { code: 'percival', name: '派西维尔', alignment: 'good' },
@@ -229,7 +253,19 @@ export function roleSkinPreviewRoles(
   return ROLE_PREVIEW_DEFINITIONS.map((role) => ({
     ...role,
     artwork: ROLE_ART[skin][role.code],
+    framing: roleArtworkFraming(role.code, skin),
   }))
+}
+
+export function roleArtworkFraming(
+  roleCode: string,
+  skin: RoleSkinId,
+): RoleArtworkFraming {
+  if (!Object.prototype.hasOwnProperty.call(ROLE_ART[skin], roleCode)) {
+    return DEFAULT_ROLE_ARTWORK_FRAMING
+  }
+  return ROLE_ARTWORK_FRAMING[skin]?.[roleCode as AvalonRoleCode]
+    ?? DEFAULT_ROLE_ARTWORK_FRAMING
 }
 
 export function roleArtwork(

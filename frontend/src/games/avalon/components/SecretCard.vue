@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { Eye, EyeOff, Lock } from '@lucide/vue'
 import {
   roleArtwork,
+  roleArtworkFraming,
   roleSkinName,
   type RoleSkinId,
 } from '../roleSkins'
@@ -28,6 +29,9 @@ const pressed = ref(false)
 const hasSeen = ref(false)
 const artwork = computed(() =>
   props.roleCode ? roleArtwork(props.roleCode, props.roleSkin) : null,
+)
+const artworkFraming = computed(() =>
+  roleArtworkFraming(props.roleCode, props.roleSkin),
 )
 const activeSkinName = computed(() => roleSkinName(props.roleSkin))
 
@@ -72,6 +76,10 @@ function hide() {
           v-if="artwork"
           class="secret-card__art"
           :src="artwork"
+          :style="{
+            '--role-art-scale': artworkFraming.scale,
+            '--role-art-origin': `${artworkFraming.originXPercent}% ${artworkFraming.originYPercent}%`,
+          }"
           alt=""
           aria-hidden="true"
         />
@@ -140,6 +148,8 @@ function hide() {
 .secret-card__art {
   z-index: 0;
   object-fit: cover;
+  transform: scale(var(--role-art-scale, 1));
+  transform-origin: var(--role-art-origin, 50% 50%);
 }
 
 .secret-card__shade {

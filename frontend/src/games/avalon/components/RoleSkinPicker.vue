@@ -138,6 +138,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
             <img
               :src="role.artwork"
               :alt="`${previewSkin.name}中的${role.name}`"
+              :style="{
+                '--role-art-scale': role.framing.scale,
+                '--role-art-hover-scale': role.framing.scale * 1.025,
+                '--role-art-origin': `${role.framing.originXPercent}% ${role.framing.originYPercent}%`,
+              }"
               draggable="false"
             />
             <div class="role-skin-identity">
@@ -534,12 +539,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transform: scale(var(--role-art-scale, 1));
+  transform-origin: var(--role-art-origin, 50% 50%);
   transition: transform 260ms ease, filter 260ms ease;
 }
 
 .role-skin-portrait:hover img {
   filter: brightness(1.06);
-  transform: scale(1.025);
+  transform: scale(var(--role-art-hover-scale, 1.025));
 }
 
 .role-skin-identity {
