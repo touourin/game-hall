@@ -1,5 +1,13 @@
 import { mount } from '@vue/test-utils'
+import { defineComponent, nextTick } from 'vue'
 import SettingsModal from './SettingsModal.vue'
+
+const AvatarCropStub = defineComponent({
+  name: 'AvatarCropModal',
+  props: ['file'],
+  emits: ['close', 'confirm'],
+  template: '<div class="avatar-crop-stub" />',
+})
 
 describe('SettingsModal', () => {
   it('keeps the account name fixed and submits a new game nickname', async () => {
@@ -12,7 +20,7 @@ describe('SettingsModal', () => {
           nextRenameAt: null,
           avatarType: 'preset',
           avatarPreset: 'moon-fox',
-          avatarUrl: '/avatars/moon-fox.svg',
+          avatarUrl: '/avatars/moon-fox.webp',
           createdAt: '2026-08-01T00:00:00Z',
         },
         busy: false,
@@ -41,7 +49,7 @@ describe('SettingsModal', () => {
           nextRenameAt: '2099-01-01T00:00:00Z',
           avatarType: 'preset',
           avatarPreset: 'moon-fox',
-          avatarUrl: '/avatars/moon-fox.svg',
+          avatarUrl: '/avatars/moon-fox.webp',
           createdAt: '2026-08-01T00:00:00Z',
         },
         busy: false,
@@ -65,7 +73,7 @@ describe('SettingsModal', () => {
           nextRenameAt: null,
           avatarType: 'preset',
           avatarPreset: 'moon-fox',
-          avatarUrl: '/avatars/moon-fox.svg',
+          avatarUrl: '/avatars/moon-fox.webp',
           createdAt: '2026-08-01T00:00:00Z',
         },
         busy: false,
@@ -89,7 +97,7 @@ describe('SettingsModal', () => {
           nextRenameAt: null,
           avatarType: 'preset',
           avatarPreset: 'moon-fox',
-          avatarUrl: '/avatars/moon-fox.svg',
+          avatarUrl: '/avatars/moon-fox.webp',
           createdAt: '2026-08-01T00:00:00Z',
         },
         busy: false,
@@ -106,5 +114,47 @@ describe('SettingsModal', () => {
 
     expect(wrapper.text()).toContain('仅支持 JPEG、PNG、WebP 或 GIF')
     expect(wrapper.emitted('avatarUpload')).toBeUndefined()
+  })
+
+  it('opens the crop step and only uploads the confirmed result', async () => {
+    const wrapper = mount(SettingsModal, {
+      props: {
+        account: {
+          id: 'account-1',
+          username: 'login_account',
+          playerName: '当前昵称',
+          nextRenameAt: null,
+          avatarType: 'preset',
+          avatarPreset: 'moon-fox',
+          avatarUrl: '/avatars/moon-fox.webp',
+          createdAt: '2026-08-01T00:00:00Z',
+        },
+        busy: false,
+        error: null,
+      },
+      global: {
+        stubs: { AvatarCropModal: AvatarCropStub },
+      },
+    })
+    const source = new File(['image'], 'portrait.png', { type: 'image/png' })
+    const input = wrapper.get<HTMLInputElement>('.avatar-file-input')
+    Object.defineProperty(input.element, 'files', {
+      configurable: true,
+      value: [source],
+    })
+
+    await input.trigger('change')
+
+    expect(wrapper.find('.avatar-crop-stub').exists()).toBe(true)
+    expect(wrapper.emitted('avatarUpload')).toBeUndefined()
+
+    const cropped = new File(['cropped'], 'portrait-avatar.webp', {
+      type: 'image/webp',
+    })
+    wrapper.getComponent(AvatarCropStub).vm.$emit('confirm', cropped)
+    await nextTick()
+
+    expect(wrapper.find('.avatar-crop-stub').exists()).toBe(false)
+    expect(wrapper.emitted('avatarUpload')).toEqual([[cropped]])
   })
 })

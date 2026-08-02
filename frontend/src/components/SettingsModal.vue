@@ -18,6 +18,7 @@ import {
   type AvatarPresetId,
 } from '../account'
 import { applyTheme, storedTheme, type ThemeName } from '../theme'
+import AvatarCropModal from './AvatarCropModal.vue'
 import AvatarImage from './AvatarImage.vue'
 
 const props = defineProps<{
@@ -37,6 +38,7 @@ const playerName = ref(props.account.playerName)
 const submittedName = ref<string | null>(null)
 const savedMessage = ref<string | null>(null)
 const avatarInput = ref<HTMLInputElement | null>(null)
+const pendingAvatarFile = ref<File | null>(null)
 const avatarMessage = ref<string | null>(null)
 const localAvatarError = ref<string | null>(null)
 const awaitingAvatarUpdate = ref(false)
@@ -152,6 +154,11 @@ function selectAvatarFile(event: Event) {
     localAvatarError.value = '头像图片不能超过 8 MB。'
     return
   }
+  pendingAvatarFile.value = file
+}
+
+function confirmAvatarCrop(file: File) {
+  pendingAvatarFile.value = null
   awaitingAvatarUpdate.value = true
   emit('avatarUpload', file)
 }
@@ -225,7 +232,7 @@ function selectAvatarFile(event: Event) {
           </button>
         </div>
         <p class="avatar-upload-hint">
-          <ImagePlus :size="14" /> JPEG、PNG、WebP 或 GIF，最大 8 MB；服务器会自动裁剪、压缩并移除照片元数据。
+          <ImagePlus :size="14" /> JPEG、PNG、WebP 或 GIF，最大 8 MB；上传前可拖动选框精确裁剪，服务器会压缩并移除照片元数据。
         </p>
         <p v-if="localAvatarError" class="account-error" role="alert">
           {{ localAvatarError }}
@@ -286,6 +293,12 @@ function selectAvatarFile(event: Event) {
       </section>
     </section>
   </div>
+  <AvatarCropModal
+    v-if="pendingAvatarFile"
+    :file="pendingAvatarFile"
+    @close="pendingAvatarFile = null"
+    @confirm="confirmAvatarCrop"
+  />
 </template>
 
 <style scoped>
@@ -303,24 +316,24 @@ function selectAvatarFile(event: Event) {
 .theme-swatches i:first-child { border-radius: 8px 0 0 8px; }
 .theme-swatches i:last-child { border-radius: 0 8px 8px 0; }
 .current-avatar-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }
-.current-avatar { width: 68px; height: 68px; border: 1px solid rgba(225, 188, 104, .5); border-radius: 20px; background: rgba(0, 0, 0, .2); box-shadow: 0 9px 24px rgba(0, 0, 0, .24); }
+.current-avatar { width: 68px; height: 68px; border: 2px solid rgba(225, 188, 104, .54); border-radius: 50%; background: rgba(0, 0, 0, .2); box-shadow: 0 9px 24px rgba(0, 0, 0, .24); }
 .current-avatar-row > div { min-width: 0; }
 .current-avatar-row > div strong, .current-avatar-row > div small { display: block; }
 .current-avatar-row > div small { margin-top: 4px; color: var(--muted); line-height: 1.45; }
 .avatar-upload-button { min-height: 40px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(225, 188, 104, .38); border-radius: 11px; padding: 0 12px; color: var(--gold); background: rgba(225, 188, 104, .08); font-weight: 850; }
 .avatar-file-input { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .avatar-preset-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
-.avatar-preset-grid button { position: relative; min-width: 0; display: grid; justify-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 13px; padding: 8px 5px; color: var(--muted); background: rgba(0, 0, 0, .12); font-size: 9px; }
+.avatar-preset-grid button { position: relative; min-width: 0; display: grid; justify-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 13px; padding: 9px 5px 8px; color: var(--muted); background: rgba(0, 0, 0, .12); font-size: 9px; }
 .avatar-preset-grid button.selected { border-color: var(--gold); color: var(--text); background: color-mix(in srgb, var(--gold) 9%, transparent); box-shadow: inset 0 0 0 1px rgba(225, 188, 104, .08); }
 .avatar-preset-grid button > svg { position: absolute; top: 6px; right: 6px; border-radius: 50%; padding: 2px; color: #1d2a22; background: var(--gold); }
-.preset-avatar { width: 54px; height: 54px; border-radius: 16px; }
+.preset-avatar { width: 58px; height: 58px; border: 2px solid rgba(255, 255, 255, .09); border-radius: 50%; box-shadow: 0 7px 18px rgba(0, 0, 0, .25); }
 .avatar-upload-hint { margin: 11px 0 0; display: flex; align-items: flex-start; gap: 6px; color: var(--muted); font-size: 10px; line-height: 1.55; }
 .avatar-upload-hint svg { flex: 0 0 auto; margin-top: 1px; color: var(--gold); }
 @media (max-width: 520px) {
   .current-avatar-row { grid-template-columns: auto minmax(0, 1fr); }
   .avatar-upload-button { grid-column: 1 / -1; justify-content: center; width: 100%; }
   .avatar-preset-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-  .preset-avatar { width: 46px; height: 46px; border-radius: 13px; }
+  .preset-avatar { width: 48px; height: 48px; }
   .avatar-preset-grid button { font-size: 8px; }
 }
 </style>

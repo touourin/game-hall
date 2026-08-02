@@ -125,15 +125,15 @@ def test_avalon_views_include_account_avatars():
     room, host, _ = manager.create_room(
         "亚瑟",
         account_id="account-1",
-        avatar_url="/avatars/jade-owl.svg",
+        avatar_url="/avatars/jade-owl.webp",
     )
 
     lobby = build_lobby_view([room])
     view = build_player_view(room, host, GameEngine())
 
-    assert lobby[0]["hostAvatarUrl"] == "/avatars/jade-owl.svg"
-    assert view["self"]["avatarUrl"] == "/avatars/jade-owl.svg"
-    assert view["players"][0]["avatarUrl"] == "/avatars/jade-owl.svg"
+    assert lobby[0]["hostAvatarUrl"] == "/avatars/jade-owl.webp"
+    assert view["self"]["avatarUrl"] == "/avatars/jade-owl.webp"
+    assert view["players"][0]["avatarUrl"] == "/avatars/jade-owl.webp"
 
 
 def test_ai_player_marker_and_add_action_are_in_player_view():

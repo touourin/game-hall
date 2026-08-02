@@ -13,14 +13,14 @@ export interface AccountProfile {
 }
 
 export const AVATAR_PRESETS = [
-  { id: 'moon-fox', name: '月影灵狐', url: '/avatars/moon-fox.svg' },
-  { id: 'jade-owl', name: '翡翠夜鸮', url: '/avatars/jade-owl.svg' },
-  { id: 'sun-lion', name: '曜日金狮', url: '/avatars/sun-lion.svg' },
-  { id: 'cloud-rabbit', name: '流云玉兔', url: '/avatars/cloud-rabbit.svg' },
-  { id: 'ember-cat', name: '余烬灵猫', url: '/avatars/ember-cat.svg' },
-  { id: 'frost-wolf', name: '霜原银狼', url: '/avatars/frost-wolf.svg' },
-  { id: 'star-deer', name: '星林白鹿', url: '/avatars/star-deer.svg' },
-  { id: 'ink-dragon', name: '玄墨游龙', url: '/avatars/ink-dragon.svg' },
+  { id: 'moon-fox', name: '月影游侠', url: '/avatars/moon-fox.webp' },
+  { id: 'jade-owl', name: '翡翠先知', url: '/avatars/jade-owl.webp' },
+  { id: 'sun-lion', name: '曜日骑士', url: '/avatars/sun-lion.webp' },
+  { id: 'cloud-rabbit', name: '流云乐师', url: '/avatars/cloud-rabbit.webp' },
+  { id: 'ember-cat', name: '余烬剑士', url: '/avatars/ember-cat.webp' },
+  { id: 'frost-wolf', name: '霜原守望', url: '/avatars/frost-wolf.webp' },
+  { id: 'star-deer', name: '星林祭司', url: '/avatars/star-deer.webp' },
+  { id: 'ink-dragon', name: '玄墨术士', url: '/avatars/ink-dragon.webp' },
 ] as const
 
 export type AvatarPresetId = (typeof AVATAR_PRESETS)[number]['id']

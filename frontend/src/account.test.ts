@@ -102,7 +102,7 @@ describe('account service', () => {
             nextRenameAt: null,
             avatarType: 'preset',
             avatarPreset: 'jade-owl',
-            avatarUrl: '/avatars/jade-owl.svg',
+            avatarUrl: '/avatars/jade-owl.webp',
             createdAt: '2026-08-01T00:00:00+00:00',
           },
         }),

@@ -79,7 +79,7 @@ class Account:
     def avatar_url(self) -> str:
         if self.avatar_token is not None:
             return f"/api/avatars/{self.avatar_token}"
-        return f"/avatars/{self.avatar_preset}.svg"
+        return f"/avatars/{self.avatar_preset}.webp"
 
     def as_dict(self) -> dict[str, str | None]:
         next_rename_at = None
@@ -1068,7 +1068,7 @@ class AccountStore:
         avatar_token = row.get("avatar_token")
         if avatar_token:
             return f"/api/avatars/{avatar_token}"
-        return f"/avatars/{row['avatar_preset']}.svg"
+        return f"/avatars/{row['avatar_preset']}.webp"
 
     @staticmethod
     def _normalize_username(username: str) -> tuple[str, str]:

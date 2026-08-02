@@ -1423,7 +1423,7 @@ def test_arcade_chat_is_shared_and_bounded() -> None:
         "gomoku",
         "甲",
         "account-1",
-        avatar_url="/avatars/jade-owl.svg",
+        avatar_url="/avatars/jade-owl.webp",
     )
     message = manager.send_chat(room, host.id, "  准备好了吗  ")
 
@@ -1431,12 +1431,12 @@ def test_arcade_chat_is_shared_and_bounded() -> None:
     assert room.chat_messages[-1].sender_id == host.id
     lobby = build_arcade_lobby_view([room], manager.engines)
     view = build_arcade_room_view(room, host, manager.engines["gomoku"])
-    assert lobby[0]["hostAvatarUrl"] == "/avatars/jade-owl.svg"
-    assert view["self"]["avatarUrl"] == "/avatars/jade-owl.svg"
-    assert view["players"][0]["avatarUrl"] == "/avatars/jade-owl.svg"
+    assert lobby[0]["hostAvatarUrl"] == "/avatars/jade-owl.webp"
+    assert view["self"]["avatarUrl"] == "/avatars/jade-owl.webp"
+    assert view["players"][0]["avatarUrl"] == "/avatars/jade-owl.webp"
     assert (
         view["chat"]["messages"][-1]["senderAvatarUrl"]
-        == "/avatars/jade-owl.svg"
+        == "/avatars/jade-owl.webp"
     )
 
     for index in range(101):

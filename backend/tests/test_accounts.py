@@ -32,7 +32,7 @@ def test_account_avatar_can_switch_between_preset_and_custom(tmp_path):
 
     assert account.avatar_preset in AVATAR_PRESET_IDS
     assert account.avatar_type == "preset"
-    assert account.avatar_url == f"/avatars/{account.avatar_preset}.svg"
+    assert account.avatar_url == f"/avatars/{account.avatar_preset}.webp"
 
     custom = store.set_custom_avatar(account.id, b"webp-avatar", "image/webp")
     assert custom.avatar_type == "custom"
@@ -44,7 +44,7 @@ def test_account_avatar_can_switch_between_preset_and_custom(tmp_path):
 
     preset = store.set_avatar_preset(account.id, "jade-owl")
     assert preset.avatar_type == "preset"
-    assert preset.avatar_url == "/avatars/jade-owl.svg"
+    assert preset.avatar_url == "/avatars/jade-owl.webp"
     assert store.custom_avatar(custom.avatar_token or "") is None
 
 

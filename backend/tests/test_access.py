@@ -176,7 +176,7 @@ def test_account_avatar_endpoints_normalize_serve_and_log_safely(
         )
 
     assert selected.status_code == 200
-    assert selected.json()["account"]["avatarUrl"] == "/avatars/jade-owl.svg"
+    assert selected.json()["account"]["avatarUrl"] == "/avatars/jade-owl.webp"
     assert uploaded.status_code == 200
     assert uploaded.json()["account"]["avatarType"] == "custom"
     assert served.status_code == 200
