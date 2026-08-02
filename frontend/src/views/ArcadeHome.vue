@@ -10,6 +10,7 @@ import GameRuleSettings from '../components/GameRuleSettings.vue'
 import CleanupRoomButton from '../components/CleanupRoomButton.vue'
 import GameHomeHeader from '../components/GameHomeHeader.vue'
 import { defaultGameRules, gameRuleSummary } from '../gameRules'
+import AvatarImage from '../components/AvatarImage.vue'
 
 const props = defineProps<{ game: GameCatalogItem; account: AccountProfile }>()
 defineEmits<{ back: [] }>()
@@ -108,7 +109,7 @@ async function chooseRoom(code: string) {
       </header>
       <div v-if="rooms.length" class="available-room-list">
         <button v-for="room in rooms" :key="room.roomCode" type="button" class="available-room" @click="chooseRoom(room.roomCode)">
-          <span class="avatar">{{ room.hostName.slice(0, 1) }}</span>
+          <AvatarImage class="avatar" :src="room.hostAvatarUrl" :name="room.hostName" />
           <span class="available-room-copy"><strong>{{ room.hostName }} 的房间</strong><small>房间 {{ room.roomCode }} · {{ room.playerCount }}/{{ room.maxPlayers }} 人<br>{{ gameRuleSummary(room.gameKey, room.options) }}</small></span>
           <ChevronRight :size="18" />
         </button>
@@ -123,7 +124,7 @@ async function chooseRoom(code: string) {
       </header>
       <div class="cleanup-room-list">
         <article v-for="room in cleanupRooms" :key="room.roomCode" class="cleanup-room-item">
-          <span class="avatar">{{ room.hostName.slice(0, 1) }}</span>
+          <AvatarImage class="avatar" :src="room.hostAvatarUrl" :name="room.hostName" />
           <span class="available-room-copy"><strong>{{ room.hostName }} 的房间</strong><small>房间 {{ room.roomCode }} · {{ room.phase === 'lobby' ? '等待阶段' : '未完成对局' }}</small></span>
           <CleanupRoomButton :room-code="room.roomCode" :busy="arcade.busy" @confirm="arcade.cleanupRoom(room.roomCode)" />
         </article>

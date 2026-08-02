@@ -6,10 +6,13 @@ import {
   loginAccount,
   logoutAccount,
   renamePlayer,
+  selectAvatarPreset,
   registerAccount,
   rememberAccountToken,
   storedAccountToken,
   validateAccountToken,
+  uploadAvatar,
+  type AvatarPresetId,
   type AccountProfile,
 } from './account'
 import {
@@ -174,6 +177,44 @@ async function changePlayerName(playerName: string) {
   }
 }
 
+async function changeAvatarPreset(preset: AvatarPresetId) {
+  const token = storedAccountToken()
+  if (!token) return
+  accountBusy.value = true
+  accountError.value = null
+  try {
+    account.value = await selectAvatarPreset(
+      activeAccessToken.value,
+      token,
+      preset,
+    )
+  } catch (caught) {
+    accountError.value =
+      caught instanceof Error ? caught.message : '修改头像失败'
+  } finally {
+    accountBusy.value = false
+  }
+}
+
+async function changeCustomAvatar(file: File) {
+  const token = storedAccountToken()
+  if (!token) return
+  accountBusy.value = true
+  accountError.value = null
+  try {
+    account.value = await uploadAvatar(
+      activeAccessToken.value,
+      token,
+      file,
+    )
+  } catch (caught) {
+    accountError.value =
+      caught instanceof Error ? caught.message : '上传头像失败'
+  } finally {
+    accountBusy.value = false
+  }
+}
+
 async function logout() {
   const token = storedAccountToken()
   if (token) {
@@ -237,6 +278,8 @@ onMounted(async () => {
       :error="accountError"
       @logout="logout"
       @rename="changePlayerName"
+      @avatar-preset="changeAvatarPreset"
+      @avatar-upload="changeCustomAvatar"
       @select="selectedGame = $event"
     />
     <AvalonHomeView

@@ -1403,11 +1403,25 @@ def test_swap2_opening_choices_are_not_treated_as_undoable_moves() -> None:
 
 def test_arcade_chat_is_shared_and_bounded() -> None:
     manager = ArcadeRoomManager(build_engine_registry())
-    room, host, _ = manager.create_room("gomoku", "甲", "account-1")
+    room, host, _ = manager.create_room(
+        "gomoku",
+        "甲",
+        "account-1",
+        avatar_url="/avatars/jade-owl.svg",
+    )
     message = manager.send_chat(room, host.id, "  准备好了吗  ")
 
     assert message.content == "准备好了吗"
     assert room.chat_messages[-1].sender_id == host.id
+    lobby = build_arcade_lobby_view([room], manager.engines)
+    view = build_arcade_room_view(room, host, manager.engines["gomoku"])
+    assert lobby[0]["hostAvatarUrl"] == "/avatars/jade-owl.svg"
+    assert view["self"]["avatarUrl"] == "/avatars/jade-owl.svg"
+    assert view["players"][0]["avatarUrl"] == "/avatars/jade-owl.svg"
+    assert (
+        view["chat"]["messages"][-1]["senderAvatarUrl"]
+        == "/avatars/jade-owl.svg"
+    )
 
     for index in range(101):
         manager.send_chat(room, host.id, f"消息 {index}")

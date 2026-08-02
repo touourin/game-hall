@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { LoaderCircle, Trophy, X } from '@lucide/vue'
 import { loadLeaderboard, type LeaderboardEntry } from '../stats'
+import AvatarImage from './AvatarImage.vue'
 
 const props = defineProps<{ accountId: string; gameKey: string; gameName: string; gameMode?: string }>()
 defineEmits<{ close: [] }>()
@@ -55,6 +56,11 @@ onMounted(async () => {
           :class="{ self: player.accountId === props.accountId }"
         >
           <b :class="`rank-${player.rank}`">{{ player.rank }}</b>
+          <AvatarImage
+            class="leaderboard-avatar"
+            :src="player.avatarUrl"
+            :name="player.playerName"
+          />
           <span>
             <strong>{{ player.playerName }}</strong>
             <small v-if="props.gameKey === 'reaction'">{{ player.games }} 次测试 · 总平均 {{ player.averageMs }} ms</small>
@@ -74,3 +80,17 @@ onMounted(async () => {
     </section>
   </div>
 </template>
+
+<style scoped>
+.leaderboard-list > div {
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+}
+
+.leaderboard-avatar {
+  width: 39px;
+  height: 39px;
+  border: 1px solid color-mix(in srgb, var(--gold) 30%, var(--line));
+  border-radius: 12px;
+  background: rgba(0, 0, 0, .16);
+}
+</style>

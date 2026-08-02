@@ -120,6 +120,22 @@ def test_chat_history_is_visible_to_every_room_member():
     assert view["chat"]["messages"][-1]["content"] == "这支队伍我赞成"
 
 
+def test_avalon_views_include_account_avatars():
+    manager = RoomManager()
+    room, host, _ = manager.create_room(
+        "亚瑟",
+        account_id="account-1",
+        avatar_url="/avatars/jade-owl.svg",
+    )
+
+    lobby = build_lobby_view([room])
+    view = build_player_view(room, host, GameEngine())
+
+    assert lobby[0]["hostAvatarUrl"] == "/avatars/jade-owl.svg"
+    assert view["self"]["avatarUrl"] == "/avatars/jade-owl.svg"
+    assert view["players"][0]["avatarUrl"] == "/avatars/jade-owl.svg"
+
+
 def test_ai_player_marker_and_add_action_are_in_player_view():
     manager = RoomManager()
     room, host, _ = manager.create_room("亚瑟")
@@ -161,6 +177,7 @@ def test_lobby_view_only_lists_public_joinable_rooms():
         {
             "roomCode": visible.code,
             "hostName": "亚瑟",
+            "hostAvatarUrl": None,
             "playerCount": 1,
             "maxPlayers": 10,
             "ladyEnabled": True,
@@ -193,6 +210,7 @@ def test_cleanup_ready_room_returns_to_lobby_as_non_joinable_cleanup_item():
         {
             "roomCode": room.code,
             "hostName": "亚瑟",
+            "hostAvatarUrl": None,
             "playerCount": 1,
             "maxPlayers": 10,
             "ladyEnabled": True,

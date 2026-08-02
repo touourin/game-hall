@@ -24,6 +24,7 @@ def build_lobby_view(
             "gameKey": room.game_key,
             "gameName": engines[room.game_key].name,
             "hostName": room.host.name,
+            "hostAvatarUrl": getattr(room.host, "avatar_url", None),
             "playerCount": len(room.players),
             "maxPlayers": engines[room.game_key].max_players,
             "options": room.options,
@@ -64,11 +65,13 @@ def build_room_view(
             "id": viewer.id,
             "name": viewer.name,
             "seat": viewer.seat,
+            "avatarUrl": getattr(viewer, "avatar_url", None),
         },
         "players": [
             {
                 "id": player.id,
                 "name": player.name,
+                "avatarUrl": getattr(player, "avatar_url", None),
                 "seat": player.seat,
                 "connected": player.connected,
                 "disconnectForfeitAt": (
@@ -146,6 +149,9 @@ def build_room_view(
                     "id": message.id,
                     "senderId": message.sender_id,
                     "senderName": message.sender_name,
+                    "senderAvatarUrl": _player_avatar_url(
+                        room, message.sender_id
+                    ),
                     "content": message.content,
                     "createdAt": message.created_at,
                 }
@@ -154,3 +160,8 @@ def build_room_view(
         },
         "game": engine.view(room, viewer),
     }
+
+
+def _player_avatar_url(room: ArcadeRoom, player_id: str) -> str | None:
+    player = next((item for item in room.players if item.id == player_id), None)
+    return getattr(player, "avatar_url", None)

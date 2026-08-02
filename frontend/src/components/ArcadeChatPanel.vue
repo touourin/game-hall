@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { MessageCircle, Send, X } from '@lucide/vue'
 import type { ArcadeChatMessage } from '../types/arcade'
+import AvatarImage from './AvatarImage.vue'
 
 const props = defineProps<{
   messages: ArcadeChatMessage[]
@@ -95,8 +96,15 @@ watch(
         :key="message.id"
         :class="{ mine: message.senderId === selfId }"
       >
-        <small>{{ message.senderName }} · {{ formatTime(message.createdAt) }}</small>
-        <p>{{ message.content }}</p>
+        <AvatarImage
+          class="arcade-chat-avatar"
+          :src="message.senderAvatarUrl"
+          :name="message.senderName"
+        />
+        <div class="arcade-chat-bubble">
+          <small>{{ message.senderName }} · {{ formatTime(message.createdAt) }}</small>
+          <p>{{ message.content }}</p>
+        </div>
       </article>
     </div>
     <form @submit.prevent="submit">
@@ -188,14 +196,32 @@ watch(
 }
 
 .arcade-chat-list article {
+  display: flex;
+  align-items: flex-end;
+  gap: 7px;
   width: fit-content;
   max-width: 86%;
   margin-bottom: 10px;
 }
 
 .arcade-chat-list article.mine {
+  flex-direction: row-reverse;
   margin-left: auto;
   text-align: right;
+}
+
+.arcade-chat-avatar {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  margin-bottom: 1px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.arcade-chat-bubble {
+  min-width: 0;
 }
 
 .arcade-chat-list small {

@@ -54,6 +54,7 @@ class Player:
     token_hash: str
     seat: int
     account_id: str | None = None
+    avatar_url: str | None = None
     connected: bool = True
     disconnected_at: datetime | None = None
     disconnect_forfeited: bool = False

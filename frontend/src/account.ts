@@ -6,8 +6,32 @@ export interface AccountProfile {
   username: string
   playerName: string
   nextRenameAt: string | null
+  avatarType?: 'preset' | 'custom'
+  avatarPreset?: AvatarPresetId
+  avatarUrl?: string
   createdAt: string
 }
+
+export const AVATAR_PRESETS = [
+  { id: 'moon-fox', name: '月影灵狐', url: '/avatars/moon-fox.svg' },
+  { id: 'jade-owl', name: '翡翠夜鸮', url: '/avatars/jade-owl.svg' },
+  { id: 'sun-lion', name: '曜日金狮', url: '/avatars/sun-lion.svg' },
+  { id: 'cloud-rabbit', name: '流云玉兔', url: '/avatars/cloud-rabbit.svg' },
+  { id: 'ember-cat', name: '余烬灵猫', url: '/avatars/ember-cat.svg' },
+  { id: 'frost-wolf', name: '霜原银狼', url: '/avatars/frost-wolf.svg' },
+  { id: 'star-deer', name: '星林白鹿', url: '/avatars/star-deer.svg' },
+  { id: 'ink-dragon', name: '玄墨游龙', url: '/avatars/ink-dragon.svg' },
+] as const
+
+export type AvatarPresetId = (typeof AVATAR_PRESETS)[number]['id']
+
+export const MAX_AVATAR_UPLOAD_BYTES = 8 * 1024 * 1024
+export const ACCEPTED_AVATAR_TYPES = [
+  'image/gif',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+]
 
 interface AuthResponse {
   ok: boolean
@@ -128,6 +152,54 @@ export async function renamePlayer(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ player_name: playerName }),
+  })
+  if (!response.ok) throw await responseError(response)
+  const data = (await response.json()) as {
+    ok: boolean
+    account: AccountProfile
+  }
+  return data.account
+}
+
+export async function selectAvatarPreset(
+  accessToken: string,
+  token: string,
+  preset: AvatarPresetId,
+): Promise<AccountProfile> {
+  const response = await authFetch('/api/auth/me/avatar', accessToken, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ preset }),
+  })
+  if (!response.ok) throw await responseError(response)
+  const data = (await response.json()) as {
+    ok: boolean
+    account: AccountProfile
+  }
+  return data.account
+}
+
+export async function uploadAvatar(
+  accessToken: string,
+  token: string,
+  file: File,
+): Promise<AccountProfile> {
+  if (!ACCEPTED_AVATAR_TYPES.includes(file.type)) {
+    throw new Error('仅支持 JPEG、PNG、WebP 或 GIF 图片')
+  }
+  if (file.size > MAX_AVATAR_UPLOAD_BYTES) {
+    throw new Error('头像图片不能超过 8 MB')
+  }
+  const response = await authFetch('/api/auth/me/avatar', accessToken, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': file.type,
+    },
+    body: file,
   })
   if (!response.ok) throw await responseError(response)
   const data = (await response.json()) as {

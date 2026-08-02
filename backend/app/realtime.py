@@ -465,7 +465,9 @@ async def create_room(sid: str, raw_data: Any) -> dict[str, Any]:
         if account is None:
             raise RoomError("登录状态无效，请重新登录")
         room, player, token = avalon_rooms.create_room(
-            account.player_name, account_id
+            account.player_name,
+            account_id,
+            account.avatar_url,
         )
         await bind_session(sid, room, player.id)
         await broadcast_avalon_room(room)
@@ -489,7 +491,10 @@ async def join_room(sid: str, raw_data: Any) -> dict[str, Any]:
         if account is None:
             raise RoomError("登录状态无效，请重新登录")
         room, player, token = avalon_rooms.join_room(
-            payload.room_code, account.player_name, account_id
+            payload.room_code,
+            account.player_name,
+            account_id,
+            account.avatar_url,
         )
         await bind_session(sid, room, player.id)
         await broadcast_avalon_room(room)
@@ -509,11 +514,15 @@ async def resume_room(sid: str, raw_data: Any) -> dict[str, Any]:
     try:
         payload = ResumePayload.model_validate(raw_data or {})
         account_id = await account_id_for_sid(sid)
+        account = account_store().account_for_id(account_id)
+        if account is None:
+            raise RoomError("登录状态无效，请重新登录")
         room = avalon_rooms.get_room(payload.room_code)
         async with room.lock:
             room, player = avalon_rooms.resume(
                 payload.room_code, payload.token, account_id
             )
+            player.avatar_url = account.avatar_url
         await bind_session(sid, room, player.id)
         await broadcast_avalon_room(room)
         return {

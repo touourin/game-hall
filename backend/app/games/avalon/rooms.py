@@ -37,7 +37,10 @@ class RoomManager:
         self.rooms: dict[str, Room] = {}
 
     def create_room(
-        self, player_name: str, account_id: str | None = None
+        self,
+        player_name: str,
+        account_id: str | None = None,
+        avatar_url: str | None = None,
     ) -> tuple[Room, Player, str]:
         name = self._normalize_name(player_name)
         code = self._new_code()
@@ -48,6 +51,7 @@ class RoomManager:
             token_hash=hash_token(token),
             seat=0,
             account_id=account_id,
+            avatar_url=avatar_url,
         )
         room = Room(
             code=code,
@@ -63,6 +67,7 @@ class RoomManager:
         code: str,
         player_name: str,
         account_id: str | None = None,
+        avatar_url: str | None = None,
     ) -> tuple[Room, Player, str]:
         room = self.get_room(code)
         if room.phase != Phase.LOBBY:
@@ -91,6 +96,7 @@ class RoomManager:
             token_hash=hash_token(token),
             seat=len(room.players),
             account_id=account_id,
+            avatar_url=avatar_url,
         )
         room.players.append(player)
         room.revision += 1

@@ -22,6 +22,7 @@ export interface ArcadeLobbyRoom {
   gameKey: ArcadeGameKey
   gameName: string
   hostName: string
+  hostAvatarUrl?: string | null
   playerCount: number
   maxPlayers: number
   options: Record<string, unknown>
@@ -33,6 +34,7 @@ export interface ArcadeLobbyRoom {
 export interface ArcadePlayer {
   id: string
   name: string
+  avatarUrl?: string | null
   seat: number
   connected: boolean
   disconnectForfeitAt?: string | null
@@ -44,6 +46,7 @@ export interface ArcadeChatMessage {
   id: string
   senderId: string
   senderName: string
+  senderAvatarUrl?: string | null
   content: string
   createdAt: string
 }
@@ -64,7 +67,7 @@ export interface ArcadeSnapshot {
   hostTransferAt?: string | null
   options: Record<string, unknown>
   hostId: string
-  self: { id: string; name: string; seat: number }
+  self: { id: string; name: string; seat: number; avatarUrl?: string | null }
   players: ArcadePlayer[]
   requiredPlayers: number
   minimumPlayers?: number

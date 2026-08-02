@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { History, LogOut, RotateCcw, Settings } from '@lucide/vue'
-import type { AccountProfile } from '../account'
+import type { AccountProfile, AvatarPresetId } from '../account'
 import type { GameCatalogItem } from '../types/arcade'
 import { useArcadeStore } from '../stores/arcade'
 import StatsModal from '../components/StatsModal.vue'
 import SettingsModal from '../components/SettingsModal.vue'
+import AvatarImage from '../components/AvatarImage.vue'
 
 defineProps<{
   account: AccountProfile
@@ -16,6 +17,8 @@ const emit = defineEmits<{
   logout: []
   select: [game: GameCatalogItem]
   rename: [playerName: string]
+  avatarPreset: [preset: AvatarPresetId]
+  avatarUpload: [file: File]
 }>()
 const arcade = useArcadeStore()
 const showStats = ref(false)
@@ -40,7 +43,11 @@ const games: Array<GameCatalogItem & { symbol: string; tone: string }> = [
   <main class="game-hall page-container">
     <section class="account-bar" aria-label="当前登录账号">
       <div>
-        <span class="avatar">{{ account.playerName.slice(0, 1) }}</span>
+        <AvatarImage
+          class="avatar account-avatar"
+          :src="account.avatarUrl"
+          :name="account.playerName"
+        />
         <span><small>游戏大厅</small><strong>{{ account.playerName }}</strong></span>
       </div>
       <div class="account-bar-actions">
@@ -91,12 +98,15 @@ const games: Array<GameCatalogItem & { symbol: string; tone: string }> = [
       :error="error"
       @close="showSettings = false"
       @rename="emit('rename', $event)"
+      @avatar-preset="emit('avatarPreset', $event)"
+      @avatar-upload="emit('avatarUpload', $event)"
     />
   </main>
 </template>
 
 <style scoped>
 .game-hall { padding-bottom: 80px; }
+.account-avatar { border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent); }
 .hall-hero { padding: clamp(36px, 7vw, 78px) 0 32px; text-align: center; }
 .hall-hero h1 { margin: 8px 0; font-family: serif; font-size: clamp(38px, 7vw, 72px); }
 .hall-hero p:last-child { color: var(--muted); }

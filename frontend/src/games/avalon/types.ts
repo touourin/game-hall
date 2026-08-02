@@ -30,6 +30,7 @@ export interface PrivateRole {
 export interface PlayerView {
   id: string
   name: string
+  avatarUrl?: string | null
   seat: number
   connected: boolean
   disconnectForfeitAt?: string | null
@@ -70,6 +71,7 @@ export interface ChatMessage {
 export interface LobbyRoom {
   roomCode: string
   hostName: string
+  hostAvatarUrl?: string | null
   playerCount: number
   maxPlayers: number
   ladyEnabled: boolean
@@ -105,6 +107,7 @@ export interface RoomSnapshot {
   self: {
     id: string
     name: string
+    avatarUrl?: string | null
     isHost: boolean
     role: PrivateRole | null
   }

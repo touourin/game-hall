@@ -9,13 +9,18 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import socketio
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .access import access_password, access_token, verify_access_token, verify_password
 from .accounts import AccountError, GAME_NAMES, account_store
+from .avatars import (
+    MAX_AVATAR_UPLOAD_BYTES,
+    AvatarValidationError,
+    process_avatar_upload,
+)
 from .games.registry import GAME_CATALOG
 from .infrastructure import redis_status
 from .logging_config import (
@@ -81,7 +86,12 @@ api = FastAPI(title="Game Hall", version="0.2.0", lifespan=lifespan)
 @api.middleware("http")
 async def log_http_request(request: Request, call_next):
     request_id = secrets.token_hex(8)
-    path = request.url.path
+    raw_path = request.url.path
+    path = (
+        "/api/avatars/:token"
+        if raw_path.startswith("/api/avatars/")
+        else raw_path
+    )
     tokens = bind_request_context(request_id, request.method, path)
     started_at = time.perf_counter()
     client_ip = request.client.host if request.client else None
@@ -147,6 +157,10 @@ class LoginRequest(BaseModel):
 
 class RenamePlayerRequest(BaseModel):
     player_name: str = Field(min_length=2, max_length=12)
+
+
+class AvatarPresetRequest(BaseModel):
+    preset: str = Field(min_length=2, max_length=32)
 
 
 def bearer_token(authorization: str | None) -> str | None:
@@ -296,6 +310,130 @@ def rename_current_account(
             detail=str(error),
         ) from error
     return {"ok": True, "account": renamed.as_dict()}
+
+
+@api.patch("/api/auth/me/avatar")
+def select_current_avatar_preset(
+    payload: AvatarPresetRequest,
+    authorization: str | None = Header(default=None),
+    game_hall_access: str | None = Depends(game_hall_access_header),
+) -> dict:
+    account = require_account_session(authorization, game_hall_access)
+    try:
+        updated = account_store().set_avatar_preset(
+            account.id,
+            payload.preset,
+        )
+    except AccountError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+    logger.info(
+        "Account avatar preset changed",
+        extra={
+            "account_id": account.id,
+            "avatar_preset": payload.preset,
+            "event": "account.avatar.preset_changed",
+        },
+    )
+    return {"ok": True, "account": updated.as_dict()}
+
+
+@api.put("/api/auth/me/avatar")
+async def upload_current_avatar(
+    request: Request,
+    authorization: str | None = Header(default=None),
+    game_hall_access: str | None = Depends(game_hall_access_header),
+) -> dict:
+    account = require_account_session(authorization, game_hall_access)
+    declared_length = request.headers.get("content-length")
+    if declared_length is not None:
+        try:
+            if int(declared_length) > MAX_AVATAR_UPLOAD_BYTES:
+                raise AvatarValidationError(
+                    "头像图片不能超过 8 MB",
+                    reason="too_large",
+                )
+        except AvatarValidationError as error:
+            logger.warning(
+                "Account avatar upload rejected",
+                extra={
+                    "account_id": account.id,
+                    "event": "account.avatar.upload_rejected",
+                    "reason": error.reason,
+                },
+            )
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=str(error),
+            ) from error
+        except ValueError:
+            pass
+
+    payload = await request.body()
+    try:
+        avatar_data, mime_type = process_avatar_upload(payload)
+    except AvatarValidationError as error:
+        logger.warning(
+            "Account avatar upload rejected",
+            extra={
+                "account_id": account.id,
+                "event": "account.avatar.upload_rejected",
+                "reason": error.reason,
+                "upload_bytes": len(payload),
+            },
+        )
+        raise HTTPException(
+            status_code=(
+                status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+                if error.reason == "too_large"
+                else status.HTTP_400_BAD_REQUEST
+            ),
+            detail=str(error),
+        ) from error
+
+    try:
+        updated = account_store().set_custom_avatar(
+            account.id,
+            avatar_data,
+            mime_type,
+        )
+    except AccountError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+    logger.info(
+        "Account avatar uploaded",
+        extra={
+            "account_id": account.id,
+            "event": "account.avatar.uploaded",
+            "mime_type": mime_type,
+            "stored_bytes": len(avatar_data),
+            "upload_bytes": len(payload),
+        },
+    )
+    return {"ok": True, "account": updated.as_dict()}
+
+
+@api.get("/api/avatars/{avatar_token}")
+def custom_avatar(avatar_token: str) -> Response:
+    avatar = account_store().custom_avatar(avatar_token)
+    if avatar is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="头像不存在",
+        )
+    data, mime_type = avatar
+    return Response(
+        content=data,
+        media_type=mime_type,
+        headers={
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @api.post("/api/auth/logout")

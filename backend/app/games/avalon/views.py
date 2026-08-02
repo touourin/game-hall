@@ -56,6 +56,9 @@ def build_lobby_view(all_rooms: Iterable[Room]) -> list[dict[str, Any]]:
         {
             "roomCode": room.code,
             "hostName": room.player(room.host_id).name,
+            "hostAvatarUrl": getattr(
+                room.player(room.host_id), "avatar_url", None
+            ),
             "playerCount": len(room.players),
             "maxPlayers": 10,
             "ladyEnabled": room.settings.lady_enabled,
@@ -88,6 +91,7 @@ def build_player_view(
         item: dict[str, Any] = {
             "id": player.id,
             "name": player.name,
+            "avatarUrl": getattr(player, "avatar_url", None),
             "seat": player.seat,
             "connected": player.connected,
             "disconnectForfeitAt": (
@@ -217,6 +221,7 @@ def build_player_view(
         "self": {
             "id": viewer.id,
             "name": viewer.name,
+            "avatarUrl": getattr(viewer, "avatar_url", None),
             "isHost": viewer.id == room.host_id,
             "role": private_role,
         },

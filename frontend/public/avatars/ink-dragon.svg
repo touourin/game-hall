@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs><radialGradient id="g" cx="38%" cy="22%"><stop stop-color="#6e4d89"/><stop offset="1" stop-color="#21152d"/></radialGradient></defs>
+  <rect width="256" height="256" rx="64" fill="url(#g)"/><circle cx="128" cy="128" r="96" fill="#160e23" fill-opacity=".4" stroke="#d8b6ed" stroke-width="3"/><path d="M45 105c19-54 64-75 102-54 31 17 37 48 21 69 37-11 57 13 40 40-15 25-51 38-86 17-31-19-48-51-77-72Z" fill="none" stroke="#c99be5" stroke-width="8" stroke-linecap="round"/><text x="128" y="164" text-anchor="middle" fill="#f6e4ff" font-family="serif" font-size="88" font-weight="700">龙</text>
+</svg>

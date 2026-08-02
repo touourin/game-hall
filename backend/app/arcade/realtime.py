@@ -232,6 +232,7 @@ class ArcadeRealtime:
                 account.player_name,
                 account_id,
                 payload.options,
+                account.avatar_url,
             )
             await self._bind_session(sid, room, player.id)
             await self.broadcast_room(room)
@@ -252,6 +253,7 @@ class ArcadeRealtime:
                 payload.game_key,
                 account.player_name,
                 account_id,
+                account.avatar_url,
             )
             await self._bind_session(sid, room, player.id)
             await self.broadcast_room(room)
@@ -264,11 +266,15 @@ class ArcadeRealtime:
         try:
             payload = ResumePayload.model_validate(raw_data or {})
             account_id = await self._account_id(sid)
+            account = account_store().account_for_id(account_id)
+            if account is None:
+                raise ArcadeRoomError("登录状态无效，请重新登录")
             room = self.rooms.get_room(payload.room_code)
             async with room.lock:
                 room, player = self.rooms.resume(
                     payload.room_code, payload.token, account_id
                 )
+                player.avatar_url = account.avatar_url
             await self._bind_session(sid, room, player.id)
             await self.broadcast_room(room)
             return {

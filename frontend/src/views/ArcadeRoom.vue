@@ -167,7 +167,15 @@ function selectGameSkin(skin: GameSkinId) {
         :key="player.id"
         :class="{ self: player.id === snapshot.self.id }"
       >
-        <span>{{ player.seat + 1 }}</span>
+        <span class="arcade-player-avatar">
+          <img
+            v-if="player.avatarUrl"
+            :src="player.avatarUrl"
+            alt=""
+            draggable="false"
+          />
+          <template v-else>{{ player.seat + 1 }}</template>
+        </span>
         <div>
           <strong>{{ player.name }}</strong>
           <small>
@@ -345,6 +353,8 @@ function selectGameSkin(skin: GameSkinId) {
 .arcade-player-strip article > div { min-width: 0; flex: 1; }
 .arcade-player-strip article.self { border-color: color-mix(in srgb, var(--gold) 40%, transparent); background: color-mix(in srgb, var(--gold) 7%, transparent); }
 .arcade-player-strip article > span { width: 34px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 10px; color: var(--gold); background: color-mix(in srgb, var(--gold) 13%, transparent); font-weight: 900; }
+.arcade-player-avatar { overflow: hidden; }
+.arcade-player-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .arcade-player-strip strong, .arcade-player-strip small { display: block; }
 .arcade-player-strip small { margin-top: 2px; color: var(--muted); }
 .arcade-player-strip small svg { vertical-align: -2px; color: var(--gold); }

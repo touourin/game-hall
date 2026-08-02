@@ -69,6 +69,7 @@ class ArcadeRoomManager:
         player_name: str,
         account_id: str,
         options: dict[str, Any] | None = None,
+        avatar_url: str | None = None,
     ) -> tuple[ArcadeRoom, ArcadePlayer, str]:
         engine = self.engine(game_key)
         normalized_options = self._room_options(engine, options or {})
@@ -81,6 +82,7 @@ class ArcadeRoomManager:
             name=name,
             token_hash=hash_token(token),
             seat=0,
+            avatar_url=avatar_url,
         )
         room = ArcadeRoom(
             code=code,
@@ -100,6 +102,7 @@ class ArcadeRoomManager:
         game_key: str,
         player_name: str,
         account_id: str,
+        avatar_url: str | None = None,
     ) -> tuple[ArcadeRoom, ArcadePlayer, str]:
         room = self.get_room(code)
         engine = self.engine(room.game_key)
@@ -123,6 +126,7 @@ class ArcadeRoomManager:
             name=name,
             token_hash=hash_token(token),
             seat=len(room.players),
+            avatar_url=avatar_url,
         )
         room.players.append(player)
         room.revision += 1

@@ -15,6 +15,7 @@ import LeaderboardModal from '../components/LeaderboardModal.vue'
 import StatsModal from '../components/StatsModal.vue'
 import CleanupRoomButton from '../components/CleanupRoomButton.vue'
 import GameHomeHeader from '../components/GameHomeHeader.vue'
+import AvatarImage from '../components/AvatarImage.vue'
 
 defineProps<{ account: AccountProfile }>()
 defineEmits<{ back: [] }>()
@@ -110,7 +111,11 @@ async function chooseRoom(code: string) {
           class="available-room"
           @click="chooseRoom(availableRoom.roomCode)"
         >
-          <span class="avatar">{{ availableRoom.hostName.slice(0, 1) }}</span>
+          <AvatarImage
+            class="avatar"
+            :src="availableRoom.hostAvatarUrl"
+            :name="availableRoom.hostName"
+          />
           <span class="available-room-copy">
             <strong>{{ availableRoom.hostName }} 的圆桌</strong>
             <small>
@@ -137,7 +142,11 @@ async function chooseRoom(code: string) {
       </header>
       <div class="cleanup-room-list">
         <article v-for="availableRoom in cleanupRooms" :key="availableRoom.roomCode" class="cleanup-room-item">
-          <span class="avatar">{{ availableRoom.hostName.slice(0, 1) }}</span>
+          <AvatarImage
+            class="avatar"
+            :src="availableRoom.hostAvatarUrl"
+            :name="availableRoom.hostName"
+          />
           <span class="available-room-copy">
             <strong>{{ availableRoom.hostName }} 的圆桌</strong>
             <small>房间 {{ availableRoom.roomCode }} · {{ availableRoom.phase === 'lobby' ? '等待阶段' : '未完成对局' }}</small>

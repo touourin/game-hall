@@ -1,6 +1,6 @@
 import pytest
 
-from backend.app.accounts import AccountError, AccountStore
+from backend.app.accounts import AVATAR_PRESET_IDS, AccountError, AccountStore
 from backend.app.games.avalon.models import Alignment, Phase, Role
 
 from .test_engine import start_room
@@ -24,6 +24,36 @@ def test_username_stays_stable_when_game_nickname_changes(tmp_path):
     assert renamed.username == "zhangsan"
     assert renamed.player_name == "王五玩家"
     assert logged_in.player_name == "王五玩家"
+
+
+def test_account_avatar_can_switch_between_preset_and_custom(tmp_path):
+    store = AccountStore(tmp_path / "avatars.sqlite3")
+    account, _ = store.register("avatar_user", "secret123", "头像玩家")
+
+    assert account.avatar_preset in AVATAR_PRESET_IDS
+    assert account.avatar_type == "preset"
+    assert account.avatar_url == f"/avatars/{account.avatar_preset}.svg"
+
+    custom = store.set_custom_avatar(account.id, b"webp-avatar", "image/webp")
+    assert custom.avatar_type == "custom"
+    assert custom.avatar_url.startswith("/api/avatars/")
+    assert store.custom_avatar(custom.avatar_token or "") == (
+        b"webp-avatar",
+        "image/webp",
+    )
+
+    preset = store.set_avatar_preset(account.id, "jade-owl")
+    assert preset.avatar_type == "preset"
+    assert preset.avatar_url == "/avatars/jade-owl.svg"
+    assert store.custom_avatar(custom.avatar_token or "") is None
+
+
+def test_account_rejects_unknown_avatar_preset(tmp_path):
+    store = AccountStore(tmp_path / "invalid-avatar.sqlite3")
+    account, _ = store.register("avatar_user", "secret123", "头像玩家")
+
+    with pytest.raises(AccountError, match="有效的内置头像"):
+        store.set_avatar_preset(account.id, "not-a-real-avatar")
 
 
 def test_old_game_nickname_remains_reserved_for_its_account(tmp_path):

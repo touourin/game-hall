@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from contextvars import ContextVar, Token
 from datetime import datetime, timezone
 from logging.handlers import TimedRotatingFileHandler
@@ -12,9 +13,11 @@ from typing import Any
 
 DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_RETENTION_DAYS = 30
+AVATAR_PATH_PATTERN = re.compile(r"(/api/avatars/)[A-Za-z0-9_-]+")
 LOG_RECORD_FIELDS = {
     "account_id",
     "action",
+    "avatar_preset",
     "client_ip",
     "duration_ms",
     "error_type",
@@ -23,11 +26,15 @@ LOG_RECORD_FIELDS = {
     "game_key",
     "log_dir",
     "method",
+    "mime_type",
     "path",
     "player_id",
+    "reason",
     "room_code",
     "socket_event",
     "status_code",
+    "stored_bytes",
+    "upload_bytes",
 }
 
 request_id_context: ContextVar[str] = ContextVar(
@@ -92,7 +99,10 @@ class JsonFormatter(logging.Formatter):
             ).astimezone().isoformat(timespec="milliseconds"),
             "level": record.levelname,
             "logger": record.name,
-            "message": record.getMessage(),
+            "message": AVATAR_PATH_PATTERN.sub(
+                r"\1:token",
+                record.getMessage(),
+            ),
             "request_id": getattr(record, "request_id", "-"),
         }
         for field in LOG_RECORD_FIELDS:

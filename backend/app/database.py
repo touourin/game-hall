@@ -18,6 +18,7 @@ from sqlalchemy import (
     create_engine,
     event,
 )
+from sqlalchemy.dialects.mysql import MEDIUMBLOB
 from sqlalchemy.engine import Engine
 from sqlalchemy.pool import StaticPool
 
@@ -42,6 +43,19 @@ users = Table(
     Column("password_salt", LargeBinary(32), nullable=False),
     Column("password_hash", LargeBinary(64), nullable=False),
     Column("player_name_changed_at", DateTime(), nullable=True),
+    Column(
+        "avatar_preset",
+        String(32),
+        nullable=False,
+        server_default="moon-fox",
+    ),
+    Column("avatar_token", String(48), nullable=True, unique=True),
+    Column("avatar_mime", String(32), nullable=True),
+    Column(
+        "avatar_data",
+        LargeBinary().with_variant(MEDIUMBLOB(), "mysql"),
+        nullable=True,
+    ),
     Column("created_at", DateTime(), nullable=False),
 )
 

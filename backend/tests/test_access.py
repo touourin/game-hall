@@ -1,7 +1,9 @@
 from collections import defaultdict
+from io import BytesIO
 from unittest.mock import AsyncMock
 
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from backend.app import realtime
 from backend.app.access import access_token, verify_access_token, verify_password
@@ -127,6 +129,74 @@ def test_account_registration_login_and_session(monkeypatch, tmp_path) -> None:
     assert renamed.json()["account"]["playerName"] == "新游戏昵称"
     assert bad_login.status_code == 401
     assert login.status_code == 200
+
+
+def test_account_avatar_endpoints_normalize_serve_and_log_safely(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv("GAME_HALL_ACCESS_PASSWORD", "test-secret")
+    monkeypatch.setenv("GAME_HALL_DB_PATH", str(tmp_path / "avatars.sqlite3"))
+    monkeypatch.setenv("LOG_DIR", str(tmp_path / "logs"))
+    access_header = {"X-Game-Hall-Access": access_token()}
+    source = BytesIO()
+    Image.new("RGB", (640, 400), "#d8ae5c").save(source, format="PNG")
+
+    with TestClient(api) as client:
+        registered = client.post(
+            "/api/auth/register",
+            headers=access_header,
+            json={
+                "username": "avatar_player",
+                "password": "secret123",
+                "player_name": "头像玩家",
+            },
+        )
+        token = registered.json()["token"]
+        authenticated = {
+            **access_header,
+            "Authorization": f"Bearer {token}",
+        }
+        selected = client.patch(
+            "/api/auth/me/avatar",
+            headers=authenticated,
+            json={"preset": "jade-owl"},
+        )
+        uploaded = client.put(
+            "/api/auth/me/avatar",
+            headers={**authenticated, "Content-Type": "image/png"},
+            content=source.getvalue(),
+        )
+        avatar_url = uploaded.json()["account"]["avatarUrl"]
+        served = client.get(avatar_url)
+        rejected = client.put(
+            "/api/auth/me/avatar",
+            headers={**authenticated, "Content-Type": "image/png"},
+            content=b"not-an-image",
+        )
+
+    assert selected.status_code == 200
+    assert selected.json()["account"]["avatarUrl"] == "/avatars/jade-owl.svg"
+    assert uploaded.status_code == 200
+    assert uploaded.json()["account"]["avatarType"] == "custom"
+    assert served.status_code == 200
+    assert served.headers["content-type"] == "image/webp"
+    assert served.headers["cache-control"].endswith("immutable")
+    with Image.open(BytesIO(served.content)) as avatar:
+        assert avatar.format == "WEBP"
+        assert avatar.size == (512, 512)
+    assert rejected.status_code == 400
+
+    application_log = (tmp_path / "logs" / "app.log").read_text(
+        encoding="utf-8"
+    )
+    assert '"event": "account.avatar.preset_changed"' in application_log
+    assert '"event": "account.avatar.uploaded"' in application_log
+    assert '"event": "account.avatar.upload_rejected"' in application_log
+    assert '"reason": "invalid_image"' in application_log
+    assert '"path": "/api/avatars/:token"' in application_log
+    assert avatar_url.removeprefix("/api/avatars/") not in application_log
+    assert "not-an-image" not in application_log
 
 
 async def test_socket_connection_requires_both_tokens(

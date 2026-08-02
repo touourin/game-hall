@@ -1,8 +1,24 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Check, Palette, Settings, UserRoundPen, X } from '@lucide/vue'
-import type { AccountProfile } from '../account'
+import {
+  Check,
+  ImagePlus,
+  Palette,
+  Settings,
+  Upload,
+  UserRound,
+  UserRoundPen,
+  X,
+} from '@lucide/vue'
+import {
+  ACCEPTED_AVATAR_TYPES,
+  AVATAR_PRESETS,
+  MAX_AVATAR_UPLOAD_BYTES,
+  type AccountProfile,
+  type AvatarPresetId,
+} from '../account'
 import { applyTheme, storedTheme, type ThemeName } from '../theme'
+import AvatarImage from './AvatarImage.vue'
 
 const props = defineProps<{
   account: AccountProfile
@@ -13,11 +29,17 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
   rename: [playerName: string]
+  avatarPreset: [preset: AvatarPresetId]
+  avatarUpload: [file: File]
 }>()
 
 const playerName = ref(props.account.playerName)
 const submittedName = ref<string | null>(null)
 const savedMessage = ref<string | null>(null)
+const avatarInput = ref<HTMLInputElement | null>(null)
+const avatarMessage = ref<string | null>(null)
+const localAvatarError = ref<string | null>(null)
+const awaitingAvatarUpdate = ref(false)
 const selectedTheme = ref<ThemeName>(storedTheme())
 const themes: Array<{
   id: ThemeName
@@ -66,6 +88,24 @@ watch(
   },
 )
 
+watch(
+  () => props.account.avatarUrl,
+  () => {
+    if (!awaitingAvatarUpdate.value) return
+    awaitingAvatarUpdate.value = false
+    avatarMessage.value = '头像已更新，新建或重连房间时会同步给其他玩家。'
+  },
+)
+
+watch(
+  () => props.error,
+  (currentError) => {
+    if (!currentError || !awaitingAvatarUpdate.value) return
+    awaitingAvatarUpdate.value = false
+    localAvatarError.value = currentError
+  },
+)
+
 function submitRename() {
   if (!canRename.value || props.busy) return
   const normalized = playerName.value.trim()
@@ -78,6 +118,43 @@ function chooseTheme(theme: ThemeName) {
   selectedTheme.value = theme
   applyTheme(theme)
 }
+
+function chooseAvatar(preset: AvatarPresetId) {
+  if (
+    props.busy
+    || (
+      props.account.avatarType === 'preset'
+      && props.account.avatarPreset === preset
+    )
+  ) return
+  localAvatarError.value = null
+  avatarMessage.value = null
+  awaitingAvatarUpdate.value = true
+  emit('avatarPreset', preset)
+}
+
+function openAvatarUpload() {
+  if (!props.busy) avatarInput.value?.click()
+}
+
+function selectAvatarFile(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  localAvatarError.value = null
+  avatarMessage.value = null
+  if (!ACCEPTED_AVATAR_TYPES.includes(file.type)) {
+    localAvatarError.value = '仅支持 JPEG、PNG、WebP 或 GIF 图片。'
+    return
+  }
+  if (file.size > MAX_AVATAR_UPLOAD_BYTES) {
+    localAvatarError.value = '头像图片不能超过 8 MB。'
+    return
+  }
+  awaitingAvatarUpdate.value = true
+  emit('avatarUpload', file)
+}
 </script>
 
 <template>
@@ -89,6 +166,74 @@ function chooseTheme(theme: ThemeName) {
       <span class="modal-icon"><Settings :size="25" /></span>
       <h2>大厅设置</h2>
       <p>账号名用于登录；游戏昵称用于大厅、对局、聊天和排行榜。</p>
+
+      <section class="settings-section avatar-settings-section">
+        <header><UserRound :size="18" /><strong>个人头像</strong></header>
+        <div class="current-avatar-row">
+          <AvatarImage
+            class="current-avatar"
+            :src="account.avatarUrl"
+            :name="account.playerName"
+          />
+          <div>
+            <strong>{{ account.avatarType === 'custom' ? '自定义头像' : '内置头像' }}</strong>
+            <small>用于大厅、房间、对局和排行榜展示</small>
+          </div>
+          <button
+            type="button"
+            class="avatar-upload-button"
+            :disabled="busy"
+            @click="openAvatarUpload"
+          >
+            <Upload :size="16" />
+            {{ busy ? '正在保存…' : '上传图片' }}
+          </button>
+          <input
+            ref="avatarInput"
+            class="avatar-file-input"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            @change="selectAvatarFile"
+          />
+        </div>
+
+        <div class="avatar-preset-grid" role="group" aria-label="选择内置头像">
+          <button
+            v-for="preset in AVATAR_PRESETS"
+            :key="preset.id"
+            type="button"
+            :class="{
+              selected: account.avatarType === 'preset'
+                && account.avatarPreset === preset.id,
+            }"
+            :aria-pressed="account.avatarType === 'preset'
+              && account.avatarPreset === preset.id"
+            :disabled="busy"
+            @click="chooseAvatar(preset.id)"
+          >
+            <AvatarImage
+              class="preset-avatar"
+              :src="preset.url"
+              :name="preset.name"
+            />
+            <span>{{ preset.name }}</span>
+            <Check
+              v-if="account.avatarType === 'preset'
+                && account.avatarPreset === preset.id"
+              :size="14"
+            />
+          </button>
+        </div>
+        <p class="avatar-upload-hint">
+          <ImagePlus :size="14" /> JPEG、PNG、WebP 或 GIF，最大 8 MB；服务器会自动裁剪、压缩并移除照片元数据。
+        </p>
+        <p v-if="localAvatarError" class="account-error" role="alert">
+          {{ localAvatarError }}
+        </p>
+        <p v-if="avatarMessage" class="settings-success" role="status">
+          {{ avatarMessage }}
+        </p>
+      </section>
 
       <section class="settings-section">
         <header><UserRoundPen :size="18" /><strong>账号与游戏昵称</strong></header>
@@ -144,12 +289,12 @@ function chooseTheme(theme: ThemeName) {
 </template>
 
 <style scoped>
-.settings-modal { width: min(560px, calc(100vw - 28px)); max-height: calc(100dvh - 36px); overflow-y: auto; }
+.settings-modal { width: min(660px, calc(100vw - 28px)); max-height: calc(100dvh - 36px); overflow-y: auto; }
 .settings-section { margin-top: 20px; padding: 17px; border: 1px solid var(--line); border-radius: 17px; background: color-mix(in srgb, var(--surface) 82%, transparent); }
 .settings-section > header { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; color: var(--gold); }
 .settings-section form { display: grid; gap: 11px; }
 .settings-hint { color: var(--muted); line-height: 1.6; }
-.settings-success { margin: 0; color: #8fe0bd; font-weight: 700; }
+.settings-success { margin: 0; color: #8fe0bd; font-size: 10px; font-weight: 700; line-height: 1.55; }
 .settings-theme-list { display: grid; gap: 9px; }
 .settings-theme-list button { min-height: 58px; padding: 10px 12px; display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; border: 1px solid var(--line); border-radius: 13px; color: var(--text); background: var(--surface); text-align: left; }
 .settings-theme-list button.selected { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, var(--surface)); }
@@ -157,4 +302,25 @@ function chooseTheme(theme: ThemeName) {
 .theme-swatches i { width: 18px; height: 30px; display: block; border: 1px solid #ffffff20; }
 .theme-swatches i:first-child { border-radius: 8px 0 0 8px; }
 .theme-swatches i:last-child { border-radius: 0 8px 8px 0; }
+.current-avatar-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.current-avatar { width: 68px; height: 68px; border: 1px solid rgba(225, 188, 104, .5); border-radius: 20px; background: rgba(0, 0, 0, .2); box-shadow: 0 9px 24px rgba(0, 0, 0, .24); }
+.current-avatar-row > div { min-width: 0; }
+.current-avatar-row > div strong, .current-avatar-row > div small { display: block; }
+.current-avatar-row > div small { margin-top: 4px; color: var(--muted); line-height: 1.45; }
+.avatar-upload-button { min-height: 40px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(225, 188, 104, .38); border-radius: 11px; padding: 0 12px; color: var(--gold); background: rgba(225, 188, 104, .08); font-weight: 850; }
+.avatar-file-input { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.avatar-preset-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+.avatar-preset-grid button { position: relative; min-width: 0; display: grid; justify-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 13px; padding: 8px 5px; color: var(--muted); background: rgba(0, 0, 0, .12); font-size: 9px; }
+.avatar-preset-grid button.selected { border-color: var(--gold); color: var(--text); background: color-mix(in srgb, var(--gold) 9%, transparent); box-shadow: inset 0 0 0 1px rgba(225, 188, 104, .08); }
+.avatar-preset-grid button > svg { position: absolute; top: 6px; right: 6px; border-radius: 50%; padding: 2px; color: #1d2a22; background: var(--gold); }
+.preset-avatar { width: 54px; height: 54px; border-radius: 16px; }
+.avatar-upload-hint { margin: 11px 0 0; display: flex; align-items: flex-start; gap: 6px; color: var(--muted); font-size: 10px; line-height: 1.55; }
+.avatar-upload-hint svg { flex: 0 0 auto; margin-top: 1px; color: var(--gold); }
+@media (max-width: 520px) {
+  .current-avatar-row { grid-template-columns: auto minmax(0, 1fr); }
+  .avatar-upload-button { grid-column: 1 / -1; justify-content: center; width: 100%; }
+  .avatar-preset-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .preset-avatar { width: 46px; height: 46px; border-radius: 13px; }
+  .avatar-preset-grid button { font-size: 8px; }
+}
 </style>

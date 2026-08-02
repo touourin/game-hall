@@ -102,6 +102,7 @@ export interface LeaderboardEntry {
   rank: number
   accountId: string
   playerName: string
+  avatarUrl?: string
   games: number
   wins: number
   draws: number

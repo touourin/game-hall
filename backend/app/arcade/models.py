@@ -17,6 +17,7 @@ class ArcadePlayer:
     name: str
     token_hash: str
     seat: int
+    avatar_url: str | None = None
     connected: bool = True
     disconnected_at: datetime | None = None
     disconnect_timeout_handled: bool = False

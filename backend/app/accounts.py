@@ -45,6 +45,16 @@ GAME_NAMES = {
     "hanoi": "汉诺塔",
 }
 TIME_TRIAL_GAMES = {"reaction", "schulte", "minesweeper"}
+AVATAR_PRESET_IDS = (
+    "moon-fox",
+    "jade-owl",
+    "sun-lion",
+    "cloud-rabbit",
+    "ember-cat",
+    "frost-wolf",
+    "star-deer",
+    "ink-dragon",
+)
 
 
 class AccountError(ValueError):
@@ -57,7 +67,19 @@ class Account:
     username: str
     player_name: str
     player_name_changed_at: str | None
+    avatar_preset: str
+    avatar_token: str | None
     created_at: str
+
+    @property
+    def avatar_type(self) -> str:
+        return "custom" if self.avatar_token is not None else "preset"
+
+    @property
+    def avatar_url(self) -> str:
+        if self.avatar_token is not None:
+            return f"/api/avatars/{self.avatar_token}"
+        return f"/avatars/{self.avatar_preset}.svg"
 
     def as_dict(self) -> dict[str, str | None]:
         next_rename_at = None
@@ -71,6 +93,9 @@ class Account:
             "username": self.username,
             "playerName": self.player_name,
             "nextRenameAt": next_rename_at,
+            "avatarType": self.avatar_type,
+            "avatarPreset": self.avatar_preset,
+            "avatarUrl": self.avatar_url,
             "createdAt": self.created_at,
         }
 
@@ -127,11 +152,14 @@ class AccountStore:
         salt = secrets.token_bytes(16)
         password_hash = self._password_hash(password, salt)
         created_at = self._now()
+        avatar_preset = secrets.choice(AVATAR_PRESET_IDS)
         account = Account(
             id=secrets.token_urlsafe(12),
             username=normalized_username,
             player_name=normalized_name,
             player_name_changed_at=None,
+            avatar_preset=avatar_preset,
+            avatar_token=None,
             created_at=self._iso_datetime(created_at),
         )
         self.initialize()
@@ -146,6 +174,10 @@ class AccountStore:
                         password_salt=salt,
                         password_hash=password_hash,
                         player_name_changed_at=None,
+                        avatar_preset=avatar_preset,
+                        avatar_token=None,
+                        avatar_mime=None,
+                        avatar_data=None,
                         created_at=created_at,
                     )
                 )
@@ -172,6 +204,8 @@ class AccountStore:
                         users.c.username,
                         users.c.player_name,
                         users.c.player_name_changed_at,
+                        users.c.avatar_preset,
+                        users.c.avatar_token,
                         users.c.password_salt,
                         users.c.password_hash,
                         users.c.created_at,
@@ -207,6 +241,8 @@ class AccountStore:
                         users.c.username,
                         users.c.player_name,
                         users.c.player_name_changed_at,
+                        users.c.avatar_preset,
+                        users.c.avatar_token,
                         users.c.created_at,
                     )
                     .select_from(
@@ -235,6 +271,8 @@ class AccountStore:
                         users.c.username,
                         users.c.player_name,
                         users.c.player_name_changed_at,
+                        users.c.avatar_preset,
+                        users.c.avatar_token,
                         users.c.created_at,
                     ).where(users.c.id == account_id)
                 )
@@ -256,6 +294,8 @@ class AccountStore:
                             users.c.username,
                             users.c.player_name,
                             users.c.player_name_changed_at,
+                            users.c.avatar_preset,
+                            users.c.avatar_token,
                             users.c.created_at,
                         ).where(users.c.id == account_id)
                     )
@@ -308,10 +348,81 @@ class AccountStore:
                     username=row["username"],
                     player_name=normalized_name,
                     player_name_changed_at=self._iso_datetime(now),
+                    avatar_preset=row["avatar_preset"],
+                    avatar_token=row["avatar_token"],
                     created_at=self._iso_datetime(row["created_at"]),
                 )
         except IntegrityError as exc:
             raise AccountError("这个游戏昵称已经被使用") from exc
+
+    def set_avatar_preset(self, account_id: str, preset: str) -> Account:
+        if preset not in AVATAR_PRESET_IDS:
+            raise AccountError("请选择有效的内置头像")
+        self.initialize()
+        with self.engine.begin() as connection:
+            result = connection.execute(
+                update(users)
+                .where(users.c.id == account_id)
+                .values(
+                    avatar_preset=preset,
+                    avatar_token=None,
+                    avatar_mime=None,
+                    avatar_data=None,
+                )
+            )
+            if result.rowcount == 0:
+                raise AccountError("账号不存在")
+        updated = self.account_for_id(account_id)
+        if updated is None:
+            raise AccountError("账号不存在")
+        return updated
+
+    def set_custom_avatar(
+        self,
+        account_id: str,
+        data: bytes,
+        mime_type: str,
+    ) -> Account:
+        if not data or mime_type != "image/webp":
+            raise AccountError("头像数据不正确")
+        self.initialize()
+        avatar_token = secrets.token_urlsafe(24)
+        with self.engine.begin() as connection:
+            result = connection.execute(
+                update(users)
+                .where(users.c.id == account_id)
+                .values(
+                    avatar_token=avatar_token,
+                    avatar_mime=mime_type,
+                    avatar_data=data,
+                )
+            )
+            if result.rowcount == 0:
+                raise AccountError("账号不存在")
+        updated = self.account_for_id(account_id)
+        if updated is None:
+            raise AccountError("账号不存在")
+        return updated
+
+    def custom_avatar(self, avatar_token: str) -> tuple[bytes, str] | None:
+        if not avatar_token or len(avatar_token) > 48:
+            return None
+        self.initialize()
+        with self.engine.connect() as connection:
+            row = (
+                connection.execute(
+                    select(users.c.avatar_data, users.c.avatar_mime).where(
+                        users.c.avatar_token == avatar_token,
+                        users.c.avatar_data.is_not(None),
+                        users.c.avatar_mime.is_not(None),
+                    )
+                )
+                .mappings()
+                .first()
+            )
+        if row is None:
+            return None
+        return bytes(row["avatar_data"]), str(row["avatar_mime"])
 
     def logout(self, token: str | None) -> None:
         if not token:
@@ -669,6 +780,8 @@ class AccountStore:
                 select(
                     users.c.id,
                     users.c.player_name,
+                    users.c.avatar_preset,
+                    users.c.avatar_token,
                     attempt_count,
                     best_ms,
                     average_ms,
@@ -683,7 +796,13 @@ class AccountStore:
                     matches.c.ranked.is_(True),
                     match_players.c.score_ms.is_not(None),
                 )
-                .group_by(users.c.id, users.c.player_name, users.c.created_at)
+                .group_by(
+                    users.c.id,
+                    users.c.player_name,
+                    users.c.avatar_preset,
+                    users.c.avatar_token,
+                    users.c.created_at,
+                )
                 .order_by(
                     best_ms.asc(),
                     average_ms.asc(),
@@ -704,6 +823,7 @@ class AccountStore:
                     "rank": index,
                     "accountId": row["id"],
                     "playerName": row["player_name"],
+                    "avatarUrl": self._avatar_url_from_row(row),
                     "games": int(row["games"]),
                     "wins": 0,
                     "draws": 0,
@@ -724,6 +844,8 @@ class AccountStore:
             select(
                 users.c.id,
                 users.c.player_name,
+                users.c.avatar_preset,
+                users.c.avatar_token,
                 game_count,
                 win_count,
                 draw_count,
@@ -734,7 +856,13 @@ class AccountStore:
                 ).join(users, users.c.id == match_players.c.account_id)
             )
             .where(matches.c.ranked.is_(True))
-            .group_by(users.c.id, users.c.player_name, users.c.created_at)
+            .group_by(
+                users.c.id,
+                users.c.player_name,
+                users.c.avatar_preset,
+                users.c.avatar_token,
+                users.c.created_at,
+            )
             .order_by(
                 win_count.desc(),
                 (win_count * 1.0 / game_count).desc(),
@@ -751,6 +879,7 @@ class AccountStore:
                 "rank": index,
                 "accountId": row["id"],
                 "playerName": row["player_name"],
+                "avatarUrl": self._avatar_url_from_row(row),
                 "games": int(row["games"]),
                 "wins": int(row["wins"]),
                 "draws": int(row["draws"]),
@@ -929,8 +1058,17 @@ class AccountStore:
                 if row["player_name_changed_at"] is not None
                 else None
             ),
+            avatar_preset=row["avatar_preset"],
+            avatar_token=row["avatar_token"],
             created_at=cls._iso_datetime(row["created_at"]),
         )
+
+    @staticmethod
+    def _avatar_url_from_row(row: Mapping[str, Any]) -> str:
+        avatar_token = row.get("avatar_token")
+        if avatar_token:
+            return f"/api/avatars/{avatar_token}"
+        return f"/avatars/{row['avatar_preset']}.svg"
 
     @staticmethod
     def _normalize_username(username: str) -> tuple[str, str]:

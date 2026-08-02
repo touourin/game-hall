@@ -34,6 +34,7 @@ import RoomDissolveButton from '../../components/RoomDissolveButton.vue'
 import RoomPageHeader from '../../components/RoomPageHeader.vue'
 import RoomInviteModal from '../../components/RoomInviteModal.vue'
 import RoomKickButton from '../../components/RoomKickButton.vue'
+import AvatarImage from '../../components/AvatarImage.vue'
 import {
   clearRoleSkinLock,
   lockRoleSkin,
@@ -261,6 +262,11 @@ function playerDisplayName(player: PlayerView): string {
 function playerNumber(playerId: string | null): number | null {
   const player = props.snapshot.players.find((item) => item.id === playerId)
   return player ? player.seat + 1 : null
+}
+
+function playerAvatar(playerId: string | null): string | null {
+  return props.snapshot.players.find((item) => item.id === playerId)
+    ?.avatarUrl ?? null
 }
 
 function playerLabel(playerId: string | null): string {
@@ -716,7 +722,12 @@ async function sendChat() {
           class="player-row"
           :class="{ offline: !player.connected }"
         >
-          <span class="avatar number-avatar">{{ player.seat + 1 }}</span>
+          <AvatarImage
+            class="avatar number-avatar"
+            :src="player.avatarUrl"
+            :name="player.name"
+            :fallback="player.seat + 1"
+          />
           <div>
             <strong>
               {{ player.name }}
@@ -1012,7 +1023,12 @@ async function sendChat() {
             :class="playerClasses(player)"
             @click="toggleTeamPlayer(player.id)"
           >
-            <span class="avatar number-avatar">{{ player.seat + 1 }}</span>
+            <AvatarImage
+              class="avatar number-avatar"
+              :src="player.avatarUrl"
+              :name="player.name"
+              :fallback="player.seat + 1"
+            />
             <strong>{{ playerDisplayName(player) }}</strong>
             <span
               v-if="player.isLeader || player.id === snapshot.lady.holderId"
@@ -1060,7 +1076,12 @@ async function sendChat() {
         <span>任务成员</span>
         <div class="selected-team">
           <div v-for="player in selectedPlayers" :key="player.id">
-            <span class="avatar number-avatar">{{ player.seat + 1 }}</span>
+            <AvatarImage
+              class="avatar number-avatar"
+              :src="player.avatarUrl"
+              :name="player.name"
+              :fallback="player.seat + 1"
+            />
             <strong>{{ playerDisplayName(player) }}</strong>
           </div>
         </div>
@@ -1111,7 +1132,12 @@ async function sendChat() {
         <span>执行任务</span>
         <div class="selected-team">
           <div v-for="player in selectedPlayers" :key="player.id">
-            <span class="avatar number-avatar">{{ player.seat + 1 }}</span>
+            <AvatarImage
+              class="avatar number-avatar"
+              :src="player.avatarUrl"
+              :name="player.name"
+              :fallback="player.seat + 1"
+            />
             <strong>{{ playerDisplayName(player) }}</strong>
           </div>
         </div>
@@ -1226,7 +1252,12 @@ async function sendChat() {
             :class="{ selected: ladyTargetId === player.id }"
             @click="ladyTargetId = player.id"
           >
-            <span class="avatar number-avatar">{{ player.seat + 1 }}</span>
+            <AvatarImage
+              class="avatar number-avatar"
+              :src="player.avatarUrl"
+              :name="player.name"
+              :fallback="player.seat + 1"
+            />
             <strong>{{ playerDisplayName(player) }}</strong>
             <Sparkles v-if="ladyTargetId === player.id" :size="18" />
           </button>
@@ -1343,7 +1374,12 @@ async function sendChat() {
             :class="{ selected: assassinTargetId === player.id }"
             @click="assassinTargetId = player.id"
           >
-            <span class="avatar number-avatar">{{ player.seat + 1 }}</span>
+            <AvatarImage
+              class="avatar number-avatar"
+              :src="player.avatarUrl"
+              :name="player.name"
+              :fallback="player.seat + 1"
+            />
             <strong>{{ playerDisplayName(player) }}</strong>
             <Swords v-if="assassinTargetId === player.id" :size="18" />
           </button>
@@ -1402,17 +1438,23 @@ async function sendChat() {
 
         <div class="assassination-chain">
           <div v-if="assassinPlayer">
-            <span class="avatar number-avatar">
-              {{ assassinPlayer.seat + 1 }}
-            </span>
+            <AvatarImage
+              class="avatar number-avatar"
+              :src="assassinPlayer.avatarUrl"
+              :name="assassinPlayer.name"
+              :fallback="assassinPlayer.seat + 1"
+            />
             <strong>{{ playerDisplayName(assassinPlayer) }}</strong>
             <small>刺客</small>
           </div>
           <ArrowRight :size="20" />
           <div>
-            <span class="avatar number-avatar">
-              {{ assassinTarget.seat + 1 }}
-            </span>
+            <AvatarImage
+              class="avatar number-avatar"
+              :src="assassinTarget.avatarUrl"
+              :name="assassinTarget.name"
+              :fallback="assassinTarget.seat + 1"
+            />
             <strong>{{ playerDisplayName(assassinTarget) }}</strong>
             <small>{{ assassinTarget.roleLabel }}</small>
           </div>
@@ -1432,7 +1474,12 @@ async function sendChat() {
           :key="player.id"
           class="reveal-row"
         >
-          <span class="avatar number-avatar">{{ player.seat + 1 }}</span>
+          <AvatarImage
+            class="avatar number-avatar"
+            :src="player.avatarUrl"
+            :name="player.name"
+            :fallback="player.seat + 1"
+          />
           <strong>{{ playerDisplayName(player) }}</strong>
           <span :class="['alignment-label', player.alignment]">
             {{ player.roleLabel }}
@@ -1490,7 +1537,12 @@ async function sendChat() {
             :class="{ selected: earlyAssassinTargetId === player.id }"
             @click="earlyAssassinTargetId = player.id"
           >
-            <span class="avatar number-avatar">{{ player.seat + 1 }}</span>
+            <AvatarImage
+              class="avatar number-avatar"
+              :src="player.avatarUrl"
+              :name="player.name"
+              :fallback="player.seat + 1"
+            />
             <strong>{{ playerDisplayName(player) }}</strong>
             <Swords v-if="earlyAssassinTargetId === player.id" :size="18" />
           </button>
@@ -1541,17 +1593,23 @@ async function sendChat() {
             </header>
             <div class="lady-history-chain">
               <div>
-                <span class="avatar number-avatar">
-                  {{ playerNumber(check.inspectorId) ?? check.inspectorName.slice(0, 1) }}
-                </span>
+                <AvatarImage
+                  class="avatar number-avatar"
+                  :src="playerAvatar(check.inspectorId)"
+                  :name="check.inspectorName"
+                  :fallback="playerNumber(check.inspectorId) ?? check.inspectorName.slice(0, 1)"
+                />
                 <strong>{{ playerLabel(check.inspectorId) }}</strong>
                 <small>查验者</small>
               </div>
               <ArrowRight :size="19" />
               <div>
-                <span class="avatar number-avatar">
-                  {{ playerNumber(check.targetId) ?? check.targetName.slice(0, 1) }}
-                </span>
+                <AvatarImage
+                  class="avatar number-avatar"
+                  :src="playerAvatar(check.targetId)"
+                  :name="check.targetName"
+                  :fallback="playerNumber(check.targetId) ?? check.targetName.slice(0, 1)"
+                />
                 <strong>{{ playerLabel(check.targetId) }}</strong>
                 <small>被查验并接过仙女</small>
               </div>
@@ -1796,9 +1854,12 @@ async function sendChat() {
             class="chat-message"
             :class="{ mine: message.senderId === snapshot.self.id }"
           >
-            <span class="chat-avatar">
-              {{ playerNumber(message.senderId) ?? message.senderName.slice(0, 1) }}
-            </span>
+            <AvatarImage
+              class="chat-avatar"
+              :src="playerAvatar(message.senderId)"
+              :name="message.senderName"
+              :fallback="playerNumber(message.senderId) ?? message.senderName.slice(0, 1)"
+            />
             <div>
               <header>
                 <strong>
