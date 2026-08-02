@@ -180,10 +180,12 @@ async function chooseRoom(code: string) {
 .arcade-home { width: min(100%, 980px); padding-bottom: 80px; }
 .arcade-home .room-browser { margin-bottom: 18px; }
 .arcade-home .join-card { width: min(100%, 760px); margin: 28px auto 0; padding: 10px 26px 26px; }
-.cleanup-room-browser { margin-bottom: 22px; }
+.cleanup-room-browser { width: min(100%, 760px); margin: 0 auto; padding: 16px; }
+.cleanup-room-browser + .join-card { margin-top: 18px; }
 .cleanup-room-browser > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
-.cleanup-room-browser > header > div { display: flex; align-items: center; gap: 10px; }
+.cleanup-room-browser > header > div { min-width: 0; display: flex; align-items: center; gap: 10px; }
 .cleanup-room-browser header strong, .cleanup-room-browser header small { display: block; }.cleanup-room-browser header small { margin-top: 2px; color: var(--muted); }
+.cleanup-room-browser > header > span { flex: 0 0 auto; border-radius: 999px; padding: 5px 8px; color: #efaaa7; background: rgba(134, 45, 49, .1); font-size: 11px; font-weight: 800; }
 .cleanup-browser-icon { width: 38px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 11px; color: #efaaa7; background: rgba(134, 45, 49, .15); }
 .cleanup-room-list { display: grid; gap: 8px; }
 .cleanup-room-item { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 11px; border: 1px solid rgba(231, 119, 119, .24); border-radius: 13px; padding: 11px 12px; background: rgba(96, 32, 36, .1); }
@@ -195,6 +197,9 @@ async function chooseRoom(code: string) {
   .arcade-home { padding-right: 12px; padding-left: 12px; }
   .arcade-home .join-card { margin-top: 18px; padding: 8px 14px 16px; }
   .create-rule-settings { margin-bottom: 16px; padding: 16px 0; }
+  .cleanup-room-browser { padding: 14px; }
+  .cleanup-room-browser > header { align-items: flex-start; gap: 8px; }
+  .cleanup-room-browser header small { font-size: 10px; line-height: 1.45; }
   .cleanup-room-item { grid-template-columns: auto minmax(0, 1fr); }.cleanup-room-item :deep(.cleanup-room-button) { grid-column: 1 / -1; width: 100%; }
 }
 </style>
