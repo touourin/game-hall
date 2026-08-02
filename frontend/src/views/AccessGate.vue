@@ -15,8 +15,9 @@ const emit = defineEmits<{
 const password = ref('')
 
 function submit() {
-  if (!password.value) return
-  emit('unlock', password.value)
+  const candidate = password.value.trim()
+  if (!candidate) return
+  emit('unlock', candidate)
 }
 </script>
 
@@ -29,6 +30,7 @@ function submit() {
       <p class="eyebrow">RESTRICTED ACCESS</p>
       <h1 id="access-title">访问验证</h1>
       <p class="access-copy">此页面仅供内部访问，请输入密码以继续。</p>
+      <p class="access-password-note">访问密码固定为 <code>avalon</code></p>
 
       <div v-if="checking" class="access-checking" role="status">
         <LoaderCircle :size="20" />

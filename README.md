@@ -55,13 +55,13 @@
 
 服务器需要安装 Docker 和 Docker Compose。
 
-首次部署时复制环境变量模板并设置访问密码：
+首次部署时复制环境变量模板：
 
 ```bash
 cp .env.example .env
 ```
 
-编辑 `.env` 中的大厅访问密码、MySQL 密码和 Redis 密码，不要把 `.env` 提交到 Git。建议为四个密码分别使用独立随机值。默认配置使用数据库和用户 `game_hall`，并只在服务器回环地址发布 MySQL `1025` 与 Redis `7878`；容器内部仍使用标准端口 `3306` 与 `6379`。
+大厅共享访问密码在代码中固定为 `avalon`（只用于进入访问验证页，不是玩家账号密码），本机和 39 服务器均不可通过环境变量修改。编辑 `.env` 时只需为 MySQL 和 Redis 等基础服务设置独立随机密码，不要把 `.env` 提交到 Git。默认配置使用数据库和用户 `game_hall`，并只在服务器回环地址发布 MySQL `1025` 与 Redis `7878`；容器内部仍使用标准端口 `3306` 与 `6379`。
 
 ```bash
 docker compose up -d --build
@@ -78,6 +78,8 @@ http://服务器内网IP:10618
 ```text
 http://192.168.1.20:10618
 ```
+
+39 服务器的大厅地址为 `http://39.105.163.254:10618`；`8000` 端口属于服务器上的另一套项目，不是游戏大厅。
 
 房主应当使用内网 IP 打开页面，而不是 `localhost`，这样大厅生成的二维码才会包含其他手机能够访问的地址。
 所有浏览器必须先通过访问密码验证，再注册、登录个人账号或选择游客入席；验证前无法连接房间和游戏服务。
@@ -133,9 +135,9 @@ npm run smoke
 npm --prefix frontend run smoke:arcade
 ```
 
-`npm run smoke` 需要开发服务正在运行，它会注册五个测试账号，通过真实 Socket.IO 连接模拟五名玩家发送聊天消息并完成第一轮任务。可用 `AVALON_SMOKE_ACCESS_PASSWORD` 和 `AVALON_SMOKE_PREFIX` 指定测试访问密码与账号前缀。
+`npm run smoke` 需要开发服务正在运行，它会使用固定访问密码 `avalon` 注册五个测试账号，通过真实 Socket.IO 连接模拟五名玩家发送聊天消息并完成第一轮任务。可用 `AVALON_SMOKE_PREFIX` 指定测试账号前缀。
 
-`npm --prefix frontend run smoke:arcade` 需要本地 Docker 服务运行在 `http://127.0.0.1:10618`。它会注册三个测试账号，通过真实 Socket.IO 依次完成五子棋、象棋、围棋、德州扑克、斗地主以及两种军旗模式的创建、加入、开局、结算及 MySQL 战绩检查，并追加一局玩家对游客的五子棋，确认双方均不产生战绩。可通过 `ARCADE_SMOKE_URL`、`ARCADE_SMOKE_ACCESS_PASSWORD` 和 `ARCADE_SMOKE_PREFIX` 指定地址、访问密码与账号前缀。两种冒烟脚本都会输出测试账号前缀，验证后可按该前缀从测试数据库清理账号。
+`npm --prefix frontend run smoke:arcade` 需要本地 Docker 服务运行在 `http://127.0.0.1:10618`。它会使用固定访问密码 `avalon` 注册三个测试账号，通过真实 Socket.IO 依次完成五子棋、象棋、围棋、德州扑克、斗地主以及两种军旗模式的创建、加入、开局、结算及 MySQL 战绩检查，并追加一局玩家对游客的五子棋，确认双方均不产生战绩。可通过 `ARCADE_SMOKE_URL` 和 `ARCADE_SMOKE_PREFIX` 指定地址与测试账号前缀。两种冒烟脚本都会输出测试账号前缀，验证后可按该前缀从测试数据库清理账号。
 
 生产构建后，也可以在已经准备好 MySQL 和 Redis、且 `.env` 包含 `DATABASE_URL` 与 `REDIS_URL` 时直接运行：
 

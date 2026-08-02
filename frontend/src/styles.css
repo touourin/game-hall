@@ -195,10 +195,28 @@ button:disabled {
 }
 
 .access-copy {
-  margin: 12px auto 26px;
+  margin: 12px auto 10px;
   color: var(--muted);
   font-size: 14px;
   line-height: 1.7;
+}
+
+.access-password-note {
+  margin: 0 auto 26px;
+  color: var(--text-soft);
+  font-size: 13px;
+}
+
+.access-password-note code {
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 3px 9px;
+  color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 8%, var(--surface-inset));
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
 }
 
 .access-form {

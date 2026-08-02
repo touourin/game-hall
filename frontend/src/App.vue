@@ -112,13 +112,7 @@ watch(
   },
 )
 
-watch(
-  selectedGame,
-  (game) => {
-    document.title = game ? `${game.name} · 游戏大厅` : '游戏大厅'
-  },
-  { immediate: true },
-)
+document.title = '游戏大厅'
 
 function enterGame(profile: AccountProfile, token: string) {
   account.value = profile

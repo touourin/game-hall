@@ -2,7 +2,7 @@ import { io } from 'socket.io-client'
 
 const baseUrl = process.env.ARCADE_SMOKE_URL ?? 'http://127.0.0.1:10618'
 const prefix = process.env.ARCADE_SMOKE_PREFIX ?? `smoke_${Date.now().toString(36)}`
-const accessPassword = process.env.ARCADE_SMOKE_ACCESS_PASSWORD ?? 'avalon'
+const accessPassword = 'avalon'
 const password = 'SmokePass123!'
 
 async function jsonRequest(path, options = {}) {

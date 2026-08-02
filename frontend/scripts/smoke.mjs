@@ -1,7 +1,7 @@
 import { io } from 'socket.io-client'
 
 const serverUrl = process.env.AVALON_SERVER_URL ?? 'http://127.0.0.1:10618'
-const accessPassword = process.env.AVALON_SMOKE_ACCESS_PASSWORD ?? 'avalon'
+const accessPassword = 'avalon'
 const accountPrefix = process.env.AVALON_SMOKE_PREFIX ?? `smk${Date.now().toString(36)}`
 const clients = []
 const snapshots = []

@@ -14,21 +14,21 @@ from backend.app.main import api, game_hall_access_header
 from backend.app.realtime import connect, sio
 
 
-def test_password_and_token_are_verified_server_side(monkeypatch) -> None:
-    monkeypatch.setenv("GAME_HALL_ACCESS_PASSWORD", "test-secret")
-
-    assert verify_password("test-secret") is True
+def test_password_and_token_are_verified_server_side() -> None:
+    assert verify_password("avalon") is True
     assert verify_password("wrong") is False
     assert verify_access_token(access_token()) is True
     assert verify_access_token("wrong-token") is False
     assert verify_access_token(None) is False
 
 
-def test_legacy_avalon_access_password_is_still_accepted(monkeypatch) -> None:
-    monkeypatch.delenv("GAME_HALL_ACCESS_PASSWORD", raising=False)
+def test_environment_cannot_override_fixed_access_password(monkeypatch) -> None:
+    monkeypatch.setenv("GAME_HALL_ACCESS_PASSWORD", "configured-secret")
     monkeypatch.setenv("AVALON_ACCESS_PASSWORD", "legacy-secret")
 
-    assert verify_password("legacy-secret") is True
+    assert verify_password("avalon") is True
+    assert verify_password("configured-secret") is False
+    assert verify_password("legacy-secret") is False
 
 
 def test_legacy_avalon_access_header_is_still_accepted() -> None:
@@ -46,7 +46,7 @@ def test_access_endpoints_reject_wrong_password(monkeypatch, tmp_path) -> None:
             "/api/access/unlock", json={"password": "wrong"}
         )
         accepted = client.post(
-            "/api/access/unlock", json={"password": "test-secret"}
+            "/api/access/unlock", json={"password": "avalon"}
         )
         token = accepted.json()["token"]
         unauthorized = client.get("/api/access/status")
@@ -65,7 +65,7 @@ def test_access_endpoints_reject_wrong_password(monkeypatch, tmp_path) -> None:
     )
     assert '"event": "http.completed"' in application_log
     assert '"path": "/api/access/unlock"' in application_log
-    assert "test-secret" not in application_log
+    assert "avalon" not in application_log
     assert '"password"' not in application_log
 
 
