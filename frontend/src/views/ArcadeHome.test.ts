@@ -79,11 +79,13 @@ describe('ArcadeHome', () => {
       },
       global: { plugins: [pinia] },
     })
+    await wrapper.get('.match-rule-summary button').trigger('click')
     const renju = wrapper
       .findAll('.game-rule-settings button')
       .find((button) => button.text().includes('有禁手连珠'))
 
     await renju?.trigger('click')
+    await wrapper.get('.match-rule-modal > footer button').trigger('click')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
@@ -120,11 +122,13 @@ describe('ArcadeHome', () => {
       },
       global: { plugins: [pinia] },
     })
+    await wrapper.get('.match-rule-summary button').trigger('click')
     const courtUndercurrent = wrapper
       .findAll('.game-rule-settings button')
       .find((button) => button.text().includes('王庭暗流'))
 
     await courtUndercurrent?.trigger('click')
+    await wrapper.get('.match-rule-modal > footer button').trigger('click')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
