@@ -1,9 +1,14 @@
 import { createPinia } from 'pinia'
 import { flushPromises, mount, shallowMount } from '@vue/test-utils'
-import type { ArcadeGameKey, ArcadeSnapshot } from '../types/arcade'
+import type {
+  ArcadeGameKey,
+  ArcadeSnapshot,
+  AvalonArcadeSnapshot,
+} from '../types/arcade'
 import * as clipboard from '../clipboard'
 import RoomPageHeader from '../components/RoomPageHeader.vue'
 import { useArcadeStore } from '../stores/arcade'
+import type { RoomSnapshot as AvalonRoomSnapshot } from '../types/avalon'
 import ArcadeRoom from './ArcadeRoom.vue'
 
 function snapshot(gameKey: ArcadeGameKey): ArcadeSnapshot {
@@ -42,6 +47,132 @@ function snapshot(gameKey: ArcadeGameKey): ArcadeSnapshot {
   }
 }
 
+function avalonSnapshot(
+  phase: AvalonRoomSnapshot['phase'] = 'lobby',
+): AvalonArcadeSnapshot {
+  const outer = snapshot('avalon')
+  const started = phase !== 'lobby'
+  const inner: AvalonRoomSnapshot = {
+    roomCode: 'TEST',
+    revision: 1,
+    phase,
+    self: {
+      id: 'p1',
+      name: '玩家一',
+      isHost: true,
+      role: started
+        ? {
+            code: 'merlin',
+            label: '梅林',
+            alignment: 'good',
+            description: '隐藏自己的身份。',
+            knowledge: [],
+          }
+        : null,
+    },
+    players: [
+      {
+        id: 'p1',
+        name: '玩家一',
+        seat: 0,
+        connected: true,
+        isBot: false,
+        isHost: true,
+        isLeader: started,
+        isSelected: false,
+      },
+    ],
+    settings: {
+      mode: 'standard',
+      ladyEnabled: true,
+      ladyRecommended: false,
+      listed: true,
+      earlyAssassinationEnabled: false,
+      rolePreset: [],
+    },
+    game: {
+      missionNumber: 1,
+      requiredTeamSize: 2,
+      failThreshold: 1,
+      leaderId: started ? 'p1' : null,
+      proposalAttempt: 1,
+      selectedTeamIds: [],
+      teamVotesSubmitted: 0,
+      myTeamVoteSubmitted: false,
+      lastTeamVotes: [],
+      missionVotesSubmitted: 0,
+      myMissionVoteSubmitted: false,
+      roleConfirmedCount: 0,
+      missionHistory: [],
+      proposalHistory: [],
+      successCount: 0,
+      failCount: 0,
+    },
+    lady: {
+      enabled: true,
+      holderId: null,
+      usedByIds: [],
+      eligibleTargetIds: [],
+      pendingInspectorId: null,
+      pendingTargetId: null,
+      history: [],
+      myChecks: [],
+      currentResult: null,
+    },
+    result: {
+      winner: null,
+      reason: null,
+      endingRoute: null,
+      assassinTargetId: null,
+      assassinationWasEarly: false,
+    },
+    courtUndercurrent: {
+      enabled: false,
+      daggerCandidateIds: [],
+      daggerTargetId: null,
+      daggerHit: null,
+      transformedPlayerId: null,
+      eligibleTargetIds: [],
+      assassinationTargetId: null,
+    },
+    chat: { maxLength: 300, messages: [] },
+    actions: {
+      canStart: false,
+      canUpdateSettings: phase === 'lobby',
+      canDissolve: phase === 'lobby',
+      canLeave: true,
+      canConfirmRole: phase === 'role_reveal',
+      canProposeTeam: false,
+      canVoteTeam: false,
+      canVoteMission: false,
+      canMissionFail: false,
+      canContinueRound: false,
+      canUseLady: false,
+      canAcknowledgeLady: false,
+      canAssassinate: false,
+      canGrantDagger: false,
+      canDissentingAssassinate: false,
+      canEarlyAssassinate: false,
+      canAddAiPlayer: phase === 'lobby',
+      canRestart: false,
+    },
+  }
+  outer.gameName = '阿瓦隆'
+  outer.options = {
+    mode: inner.settings.mode,
+    ladyEnabled: true,
+    listed: true,
+    earlyAssassinationEnabled: false,
+  }
+  outer.phase = phase === 'game_over' ? 'finished' : phase
+  outer.minimumPlayers = 5
+  outer.requiredPlayers = 10
+  outer.actions.canStart = false
+  outer.actions.canDissolve = phase === 'lobby'
+  outer.actions.canEditRules = phase === 'lobby'
+  return { ...outer, gameKey: 'avalon', game: inner }
+}
+
 describe('ArcadeRoom', () => {
   beforeEach(() => localStorage.clear())
 
@@ -76,10 +207,79 @@ describe('ArcadeRoom', () => {
 
     expect(wrapper.getComponent(RoomPageHeader).props('title')).toBe('房间 TEST')
     expect(wrapper.get('.arcade-room').classes()).toContain('arcade-room--wide')
+    await wrapper.setProps({ snapshot: avalonSnapshot() })
+    expect(wrapper.get('.arcade-room').classes()).toContain('arcade-room--wide')
     await wrapper.setProps({ snapshot: snapshot('gomoku') })
     expect(wrapper.get('.arcade-room').classes()).not.toContain('arcade-room--wide')
     await wrapper.setProps({ snapshot: snapshot('minesweeper') })
     expect(wrapper.get('.arcade-room').classes()).toContain('arcade-room--wide')
+  })
+
+  it('runs the Avalon lobby inside the same shared room shell', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const action = vi.spyOn(arcade, 'action').mockResolvedValue()
+    const room = avalonSnapshot()
+    room.players.push({
+      id: 'bot-1',
+      name: 'AI玩家 1',
+      seat: 1,
+      connected: true,
+      isBot: true,
+      isHost: false,
+    })
+    const avalon = room.game
+    avalon.players.push({
+      id: 'bot-1',
+      name: 'AI玩家 1',
+      seat: 1,
+      connected: true,
+      isBot: true,
+      isHost: false,
+      isLeader: false,
+      isSelected: false,
+    })
+    const wrapper = mount(ArcadeRoom, {
+      props: { snapshot: room },
+      global: { plugins: [pinia] },
+    })
+
+    expect(wrapper.findAll('main.arcade-room')).toHaveLength(1)
+    expect(wrapper.find('.game-page').exists()).toBe(false)
+    expect(wrapper.get('.arcade-player-strip').text()).toContain('AI玩家 1')
+    expect(wrapper.get('.artwork-skin-card').text()).toContain('开局后锁定')
+    expect(wrapper.findAll('.exit-room-trigger')).toHaveLength(1)
+
+    await wrapper.get('.self-number-trigger').trigger('click')
+    expect(wrapper.get('.player-number-list').text()).toContain('AI玩家 1')
+    await wrapper.get('.room-rule-actions button').trigger('click')
+    expect(action).toHaveBeenCalledWith('add_ai')
+  })
+
+  it('keeps Avalon rules, identity, table and chat in the shared room page', async () => {
+    const lobby = avalonSnapshot()
+    const lobbyGame = lobby.game
+    lobbyGame.settings.mode = 'court_undercurrent'
+    lobbyGame.settings.ladyEnabled = false
+    lobby.options.mode = 'court_undercurrent'
+    lobby.options.ladyEnabled = false
+    const wrapper = mount(ArcadeRoom, {
+      props: { snapshot: lobby },
+      global: { plugins: [createPinia()] },
+    })
+
+    await wrapper.get('[aria-label="查看玩法说明"]').trigger('click')
+    expect(wrapper.get('.rules-modal').text()).toContain('胜势已成，暗流未息')
+    expect(wrapper.get('.rules-modal').text()).toContain('异志之臣')
+
+    await wrapper.setProps({ snapshot: avalonSnapshot('role_reveal') })
+    expect(wrapper.get('.avalon-table').text()).toContain('只让自己看到')
+    expect(wrapper.get('.arcade-player-strip').text()).toContain('玩家一')
+    await wrapper.get('[aria-label="查看我的身份"]').trigger('click')
+    await wrapper.get('.identity-modal .press-reveal-card').trigger('pointerdown')
+    expect(wrapper.get('.identity-modal').text()).toContain('梅林')
+    await wrapper.get('.arcade-chat-dock').trigger('click')
+    expect(wrapper.get('.arcade-chat-panel').attributes('aria-label')).toBe('房间聊天')
   })
 
   it('shows the shared ten-minute disconnect rule and pending forfeit', () => {
@@ -265,7 +465,7 @@ describe('ArcadeRoom', () => {
     })
 
     expect(wrapper.get('.room-rule-bar').text()).toContain('15 路棋盘')
-    await wrapper.get('.room-rule-bar > button').trigger('click')
+    await wrapper.get('.room-rule-actions > button').trigger('click')
     const exactFive = wrapper
       .findAll('.rule-editor-modal .game-rule-settings button')
       .find((button) => button.text().includes('正好五子'))

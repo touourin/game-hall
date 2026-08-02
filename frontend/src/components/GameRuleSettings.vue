@@ -2,7 +2,7 @@
 import type { ArcadeGameKey } from '../types/arcade'
 import { withDefaultGameRules } from '../gameRules'
 import ModeGuide from './ModeGuide.vue'
-import { AVALON_COURT_GUIDE } from '../games/avalon/modeGuide'
+import { AVALON_COURT_GUIDE } from '../gameModeGuides'
 
 const props = defineProps<{
   gameKey: ArcadeGameKey

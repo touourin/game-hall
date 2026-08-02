@@ -2,60 +2,39 @@
 import { computed, ref, watch } from 'vue'
 import {
   ArrowRight,
-  Bot,
   Check,
   ChevronRight,
-  CircleHelp,
   Crown,
   Eye,
   History,
-  Link2,
   MessageCircle,
-  QrCode,
   RotateCcw,
   Shield,
   Sparkles,
   Swords,
-  UserRound,
   UsersRound,
   X,
 } from '@lucide/vue'
 import MissionProgressTrack from '../../components/MissionProgressTrack.vue'
-import ArtworkSkinPicker from '../../components/ArtworkSkinPicker.vue'
 import PressRevealCard from '../../components/PressRevealCard.vue'
-import ModeGuide from '../../components/ModeGuide.vue'
-import ArcadeChatPanel from '../../components/ArcadeChatPanel.vue'
-import InviteLinkPanel from '../../components/InviteLinkPanel.vue'
-import HostTransferNotice from '../../components/HostTransferNotice.vue'
-import RoomExitButton from '../../components/RoomExitButton.vue'
-import RoomDissolveButton from '../../components/RoomDissolveButton.vue'
-import RoomPageHeader from '../../components/RoomPageHeader.vue'
-import RoomInviteModal from '../../components/RoomInviteModal.vue'
-import RoomKickButton from '../../components/RoomKickButton.vue'
 import AvatarImage from '../../components/AvatarImage.vue'
 import {
-  ROLE_SKINS,
-  clearRoleSkinLock,
-  lockRoleSkin,
-  rememberRoleSkin,
   roleArtwork,
   roleArtworkFraming,
   roleSkinName,
-  roleSkinPreviewRoles,
-  storedRoleSkin,
-  storedRoleSkinLock,
   type RoleSkinId,
-} from './roleSkins'
-import { AVALON_COURT_GUIDE } from './modeGuide'
+} from '../../gameRoleSkins'
 import { useArcadeStore } from '../../stores/arcade'
-import type { ArcadeChatMessage } from '../../types/arcade'
-import type {
-  ArtworkSkinOption,
-  MissionProgressItem,
-} from '../../components/uiTypes'
-import type { PlayerView, RoomSnapshot } from './types'
+import type { MissionProgressItem } from '../../components/uiTypes'
+import type { PlayerView, RoomSnapshot } from '../../types/avalon'
 
-const props = defineProps<{ snapshot: RoomSnapshot }>()
+const props = withDefaults(defineProps<{
+  snapshot: RoomSnapshot
+  roleSkin?: RoleSkinId
+}>(), {
+  roleSkin: 'classic-tabletop',
+})
+const emit = defineEmits<{ openChat: [] }>()
 const room = useArcadeStore()
 
 const selectedTeamIds = ref<string[]>([])
@@ -66,17 +45,10 @@ const dissentingTargetId = ref<string | null>(null)
 const earlyAssassinTargetId = ref<string | null>(null)
 const roleSeen = ref(false)
 const ladySeen = ref(false)
-const showQr = ref(false)
-const showIdentity = ref(false)
-const showRules = ref(false)
 const showReplay = ref(false)
-const showPlayerNumbers = ref(false)
 const showLadyHistory = ref(false)
 const showEarlyAssassination = ref(false)
-const sharedChat = ref<{ openChat: () => Promise<void> } | null>(null)
 const selectedReplayMission = ref<number | null>(null)
-const selectedRoleSkin = ref<RoleSkinId>(storedRoleSkin())
-const lockedRoleSkin = ref<RoleSkinId | null>(null)
 
 const leader = computed(() =>
   props.snapshot.players.find(
@@ -144,31 +116,6 @@ const dissentingAssassinationTarget = computed(() =>
 const dissentingAssassinationHit = computed(
   () => dissentingAssassinationTarget.value?.role === 'merlin',
 )
-const shareUrl = computed(() => {
-  const url = new URL(window.location.href)
-  url.search = ''
-  url.hash = ''
-  url.searchParams.set('game', 'avalon')
-  url.searchParams.set('room', props.snapshot.roomCode)
-  return url.toString()
-})
-const phaseTitle = computed(() => {
-  const titles: Record<RoomSnapshot['phase'], string> = {
-    lobby: '等待圆桌集结',
-    role_reveal: '确认你的身份',
-    team_building: '组建任务队伍',
-    team_voting: '表决任务队伍',
-    mission_voting: '执行秘密任务',
-    round_result: '任务结算',
-    lady_select: '湖中仙女',
-    lady_reveal: '仙女的启示',
-    assassination: '最后的刺杀',
-    dagger_grant: '黑誓授刃',
-    final_council: '最后议事',
-    game_over: '本局终章',
-  }
-  return titles[props.snapshot.phase]
-})
 const replayMissionNumbers = computed(() => [
   ...new Set(
     props.snapshot.game.proposalHistory.map(
@@ -184,15 +131,6 @@ const replayProposals = computed(() =>
           proposal.missionNumber === selectedReplayMission.value,
       ),
 )
-const activeRoleSkin = computed(
-  () => lockedRoleSkin.value ?? selectedRoleSkin.value,
-)
-const modeName = computed(() =>
-  props.snapshot.settings.mode === 'court_undercurrent'
-    ? '王庭暗流'
-    : '阿瓦隆',
-)
-
 const missionTeamSizes: Record<number, readonly number[]> = {
   5: [2, 3, 2, 3, 3],
   6: [2, 3, 4, 3, 4],
@@ -238,24 +176,6 @@ const missionProgressItems = computed<MissionProgressItem[]>(() =>
   }),
 )
 
-const roleArtworkOptions: ArtworkSkinOption[] = ROLE_SKINS.map((skin) => ({
-  ...skin,
-  items: roleSkinPreviewRoles(skin.id).map((role) => ({
-    id: role.code,
-    name: role.name,
-    group: role.alignment === 'good' ? '亚瑟阵营' : '莫德雷德阵营',
-    artwork: role.artwork,
-    framing: role.framing,
-  })),
-}))
-
-const sharedChatMessages = computed<ArcadeChatMessage[]>(() =>
-  props.snapshot.chat.messages.map((message) => ({
-    ...message,
-    senderAvatarUrl: playerAvatar(message.senderId),
-  })),
-)
-
 watch(
   () => props.snapshot.phase,
   (phase) => {
@@ -274,39 +194,9 @@ watch(
     }
   },
 )
-watch(
-  () => [props.snapshot.roomCode, props.snapshot.phase] as const,
-  ([roomCode, phase]) => {
-    if (phase === 'lobby') {
-      clearRoleSkinLock(roomCode)
-      lockedRoleSkin.value = null
-      selectedRoleSkin.value = storedRoleSkin()
-      return
-    }
-
-    lockedRoleSkin.value =
-      storedRoleSkinLock(roomCode) ??
-      lockRoleSkin(roomCode, selectedRoleSkin.value)
-  },
-  { immediate: true },
-)
-watch(
-  () => props.snapshot.phase,
-  (phase) => {
-    if (phase !== 'lobby') showQr.value = false
-  },
-)
 function playerName(playerId: string | null): string {
   const player = props.snapshot.players.find((item) => item.id === playerId)
   return player ? playerDisplayName(player) : '未知玩家'
-}
-
-function selectRoleSkin(skin: string) {
-  if (props.snapshot.phase !== 'lobby') return
-  const selected = ROLE_SKINS.find((option) => option.id === skin)?.id
-  if (!selected) return
-  selectedRoleSkin.value = selected
-  rememberRoleSkin(selected)
 }
 
 function playerDisplayName(player: PlayerView): string {
@@ -419,103 +309,24 @@ async function earlyAssassinate() {
 }
 
 function openSharedChat() {
-  void sharedChat.value?.openChat()
+  emit('openChat')
 }
 
 function selfRoleArtwork(): string | null {
   const roleCode = props.snapshot.self.role?.code
-  return roleCode ? roleArtwork(roleCode, activeRoleSkin.value) : null
+  return roleCode ? roleArtwork(roleCode, props.roleSkin) : null
 }
 
 function selfRoleArtworkFraming() {
   return roleArtworkFraming(
     props.snapshot.self.role?.code ?? '',
-    activeRoleSkin.value,
+    props.roleSkin,
   )
-}
-
-function avalonOptions(overrides: Record<string, unknown> = {}) {
-  return {
-    mode: props.snapshot.settings.mode,
-    ladyEnabled: props.snapshot.settings.ladyEnabled,
-    listed: props.snapshot.settings.listed,
-    earlyAssassinationEnabled:
-      props.snapshot.settings.earlyAssassinationEnabled,
-    ...overrides,
-  }
-}
-
-async function updateAvalonOptions(overrides: Record<string, unknown>) {
-  await room.updateRules(avalonOptions(overrides))
 }
 </script>
 
 <template>
-  <main class="game-page page-container">
-    <RoomPageHeader :eyebrow="`${modeName} · ${phaseTitle}`" :title="`房间 ${snapshot.roomCode}`">
-      <template #details>
-        <button
-          class="self-number-trigger"
-          type="button"
-          :aria-label="`我的号码是 ${playerNumber(snapshot.self.id)} 号，查看玩家号码表`"
-          @click="showPlayerNumbers = true"
-        >
-          <span class="self-number-value">
-            {{ playerNumber(snapshot.self.id) }}号
-          </span>
-          <span class="self-number-copy">
-            <small>我的号码</small>
-            <span>查看号码表</span>
-          </span>
-          <ChevronRight :size="14" aria-hidden="true" />
-        </button>
-      </template>
-      <template #actions>
-        <button
-          v-if="snapshot.phase === 'lobby'"
-          class="header-action"
-          type="button"
-          aria-label="显示加入二维码"
-          @click="showQr = true"
-        >
-          <QrCode :size="21" />
-        </button>
-        <button
-          v-if="snapshot.self.role && snapshot.phase !== 'game_over'"
-          class="header-action"
-          type="button"
-          aria-label="查看我的身份"
-          @click="showIdentity = true"
-        >
-          <Eye :size="20" />
-        </button>
-        <button
-          class="header-action"
-          type="button"
-          aria-label="查看玩法说明"
-          @click="showRules = true"
-        >
-          <CircleHelp :size="21" />
-        </button>
-        <RoomDissolveButton
-          v-if="snapshot.actions.canDissolve"
-          :busy="room.busy"
-          @confirm="room.dissolveRoom"
-        />
-        <RoomExitButton
-          :busy="room.busy"
-          :description="
-            snapshot.phase === 'lobby'
-              ? '你会离开圆桌并让出号码；如果你是房主，房主将自动移交。'
-              : '你的座位、号码和身份都会保留，可以从首页随时返回本局。'
-          "
-          @confirm="room.leaveRoom"
-        />
-      </template>
-    </RoomPageHeader>
-
-    <HostTransferNotice :transfer-at="snapshot.hostTransferAt" />
-
+  <div class="avalon-table">
     <MissionProgressTrack
       v-if="snapshot.phase !== 'lobby' && snapshot.phase !== 'role_reveal'"
       :items="missionProgressItems"
@@ -568,232 +379,7 @@ async function updateAvalonOptions(overrides: Record<string, unknown>) {
       <em>{{ ladyReminderTiming }}</em>
     </div>
 
-    <section v-if="snapshot.phase === 'lobby'" class="phase-stack">
-      <div class="surface lobby-code-card">
-        <span class="eyebrow">ROOM CODE</span>
-        <button type="button" @click="showQr = true">
-          {{ snapshot.roomCode }}
-        </button>
-        <p>让朋友连接同一 Wi‑Fi，输入代码或扫描二维码加入</p>
-        <InviteLinkPanel
-          :url="shareUrl"
-          :share-title="`加入阿瓦隆房间 ${snapshot.roomCode}`"
-          :share-text="`点击链接加入我的阿瓦隆房间 ${snapshot.roomCode}`"
-        />
-      </div>
-
-      <div class="section-heading">
-        <div>
-          <span>圆桌成员</span>
-          <strong>{{ snapshot.players.length }} / 10</strong>
-        </div>
-        <div class="lobby-heading-actions">
-          <button
-            v-if="snapshot.actions.canAddAiPlayer"
-            class="text-button add-ai-button"
-            type="button"
-            :disabled="room.busy"
-            @click="room.action('add_ai')"
-          >
-            <Bot :size="16" /> 添加 AI
-          </button>
-        </div>
-      </div>
-
-      <div class="player-list">
-        <div
-          v-for="player in snapshot.players"
-          :key="player.id"
-          class="player-row"
-          :class="{ offline: !player.connected }"
-        >
-          <AvatarImage
-            class="avatar number-avatar"
-            :src="player.avatarUrl"
-            :name="player.name"
-            :fallback="player.seat + 1"
-          />
-          <div>
-            <strong>
-              {{ player.name }}
-              <span v-if="player.isBot" class="ai-player-badge">AI</span>
-            </strong>
-            <small>
-              {{ player.seat + 1 }} 号玩家
-              <template v-if="player.id === snapshot.self.id"> · 你</template>
-            </small>
-          </div>
-          <div class="player-row-actions">
-            <span v-if="player.isHost" class="status-badge gold">房主</span>
-            <span v-if="!player.connected" class="status-badge">
-              {{ player.disconnectForfeited
-                ? '掉线弃权'
-                : player.disconnectForfeitAt
-                  ? '离线 · 10 分钟后弃权'
-                  : '离线' }}
-            </span>
-            <RoomKickButton
-              v-if="snapshot.self.isHost && !player.isHost"
-              :player-name="player.name"
-              :busy="room.busy"
-              @confirm="room.kickPlayer(player.id)"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div class="surface settings-card">
-        <div class="avalon-mode-setting">
-          <div class="setting-copy">
-            <strong>游戏模式</strong>
-            <span>标准模式保持原规则；王庭暗流加入异志之臣与授刃终局</span>
-          </div>
-          <div class="avalon-mode-options" role="group" aria-label="选择阿瓦隆游戏模式">
-            <button
-              type="button"
-              :class="{ active: snapshot.settings.mode === 'standard' }"
-              :disabled="!snapshot.actions.canUpdateSettings"
-              @click="updateAvalonOptions({ mode: 'standard' })"
-            >
-              <strong>标准模式</strong>
-              <small>湖中仙女与刺客终局</small>
-            </button>
-            <button
-              type="button"
-              :class="{ active: snapshot.settings.mode === 'court_undercurrent' }"
-              :disabled="!snapshot.actions.canUpdateSettings"
-              @click="updateAvalonOptions({ mode: 'court_undercurrent' })"
-            >
-              <strong>王庭暗流</strong>
-              <small>异志之臣 · 授刃 · 最后议事</small>
-            </button>
-          </div>
-          <div v-if="snapshot.settings.mode === 'court_undercurrent'" class="avalon-mode-note">
-            <p>胜势已成，暗流未息。本模式自动关闭湖中仙女与提前刺杀。</p>
-            <button type="button" @click="showRules = true">
-              <span><strong>查看王庭暗流完整说明</strong><small>背景故事 · 异志之臣 · 新模式规则</small></span>
-              <ChevronRight :size="16" />
-            </button>
-          </div>
-        </div>
-
-        <div class="setting-row">
-          <div class="setting-icon"><Link2 :size="20" /></div>
-          <div class="setting-copy">
-            <strong>在大厅公开</strong>
-            <span>其他人可以从首页看到并选择这个房间</span>
-          </div>
-          <label class="switch">
-            <input
-              type="checkbox"
-              :checked="snapshot.settings.listed"
-              :disabled="!snapshot.actions.canUpdateSettings"
-              @change="
-                updateAvalonOptions({
-                  listed: ($event.target as HTMLInputElement).checked,
-                })
-              "
-            />
-            <span />
-          </label>
-        </div>
-
-        <div class="setting-row">
-          <div class="setting-icon"><Sparkles :size="20" /></div>
-          <div class="setting-copy">
-            <strong>湖中仙女</strong>
-            <span>
-              第 2、3、4 次任务后秘密查验阵营
-              <template v-if="!snapshot.settings.ladyRecommended"> · 建议 7 人以上</template>
-            </span>
-          </div>
-          <label class="switch">
-            <input
-              type="checkbox"
-              :checked="snapshot.settings.ladyEnabled"
-              :disabled="
-                !snapshot.actions.canUpdateSettings ||
-                snapshot.settings.mode === 'court_undercurrent'
-              "
-              @change="
-                updateAvalonOptions({
-                  ladyEnabled: ($event.target as HTMLInputElement).checked,
-                })
-              "
-            />
-            <span />
-          </label>
-        </div>
-
-        <div
-          v-if="'earlyAssassinationEnabled' in snapshot.settings"
-          class="setting-row"
-        >
-          <div class="setting-icon danger-setting-icon">
-            <Swords :size="20" />
-          </div>
-          <div class="setting-copy">
-            <strong>允许提前刺杀</strong>
-            <span>刺客可在讨论阶段豪赌梅林；刺错则好人立即获胜</span>
-          </div>
-          <label class="switch danger-switch">
-            <input
-              type="checkbox"
-              :checked="snapshot.settings.earlyAssassinationEnabled"
-              :disabled="
-                !snapshot.actions.canUpdateSettings ||
-                snapshot.settings.mode === 'court_undercurrent'
-              "
-              @change="
-                updateAvalonOptions({
-                  earlyAssassinationEnabled: ($event.target as HTMLInputElement).checked,
-                })
-              "
-            />
-            <span />
-          </label>
-        </div>
-
-        <div v-if="snapshot.settings.rolePreset.length" class="role-preset">
-          <span>当前人数角色预设</span>
-          <div>
-            <span
-              v-for="(role, index) in snapshot.settings.rolePreset"
-              :key="`${role.code}-${index}`"
-              class="role-chip"
-            >
-              {{ role.label }}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <ArtworkSkinPicker
-        :model-value="selectedRoleSkin"
-        :options="roleArtworkOptions"
-        title="我的身份卡画风"
-        description="仅影响你看到的身份卡 · 开局后锁定"
-        item-name="身份"
-        @update:model-value="selectRoleSkin"
-      />
-
-      <button
-        v-if="snapshot.self.isHost"
-        class="primary-button wide-button"
-        type="button"
-        :disabled="!snapshot.actions.canStart"
-        @click="room.startGame"
-      >
-        <Swords :size="19" />
-        {{ snapshot.players.length < 5 ? `还需 ${5 - snapshot.players.length} 人` : '开始游戏' }}
-      </button>
-      <div v-else class="waiting-card">
-        <span class="pulse-dot" />
-        等待房主开始游戏
-      </div>
-    </section>
-
-    <section v-else-if="snapshot.phase === 'role_reveal'" class="phase-stack">
+    <section v-if="snapshot.phase === 'role_reveal'" class="phase-stack">
       <div class="phase-intro">
         <span class="phase-icon"><Eye :size="22" /></span>
         <div>
@@ -876,7 +462,7 @@ async function updateAvalonOptions(overrides: Record<string, unknown>) {
         :title="snapshot.self.role.label"
         :subtitle="snapshot.self.role.alignment === 'good' ? '亚瑟阵营' : '莫德雷德阵营'"
         :artwork="selfRoleArtwork()"
-        :artwork-label="roleSkinName(activeRoleSkin)"
+        :artwork-label="roleSkinName(roleSkin)"
         :artwork-framing="selfRoleArtworkFraming()"
         @seen="roleSeen = true"
       >
@@ -1916,128 +1502,5 @@ async function updateAvalonOptions(overrides: Record<string, unknown>) {
       </section>
     </div>
 
-    <ArcadeChatPanel
-      ref="sharedChat"
-      :messages="sharedChatMessages"
-      :max-length="snapshot.chat.maxLength"
-      :self-id="snapshot.self.id"
-      :busy="room.busy"
-      :send="room.sendChat"
-    />
-
-    <RoomInviteModal
-      v-if="showQr && snapshot.phase === 'lobby'"
-      :url="shareUrl"
-      :room-code="snapshot.roomCode"
-      title="扫描加入圆桌"
-      @close="showQr = false"
-    />
-
-    <div
-      v-if="showPlayerNumbers"
-      class="modal-backdrop"
-      @click.self="showPlayerNumbers = false"
-    >
-      <section
-        class="modal-card player-number-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label="玩家号码表"
-      >
-        <button
-          class="modal-close"
-          type="button"
-          aria-label="关闭玩家号码表"
-          @click="showPlayerNumbers = false"
-        >
-          <X :size="20" />
-        </button>
-        <span class="modal-icon"><UsersRound :size="25" /></span>
-        <h2>玩家号码表</h2>
-        <p>本局号码保持不变</p>
-
-        <div class="player-number-list">
-          <div
-            v-for="player in snapshot.players"
-            :key="player.id"
-            :class="{ self: player.id === snapshot.self.id }"
-          >
-            <span>{{ player.seat + 1 }}</span>
-            <strong>{{ player.name }}</strong>
-            <small v-if="player.isBot">AI</small>
-            <small v-if="player.id === snapshot.self.id">你</small>
-          </div>
-        </div>
-      </section>
-    </div>
-
-    <div
-      v-if="showIdentity && snapshot.self.role"
-      class="modal-backdrop"
-      @click.self="showIdentity = false"
-    >
-      <section class="modal-card identity-modal" role="dialog" aria-modal="true">
-        <button
-          class="modal-close"
-          aria-label="关闭"
-          @click="showIdentity = false"
-        >
-          <X :size="20" />
-        </button>
-        <PressRevealCard
-          :title="snapshot.self.role.label"
-          :subtitle="snapshot.self.role.alignment === 'good' ? '亚瑟阵营' : '莫德雷德阵营'"
-          :artwork="selfRoleArtwork()"
-          :artwork-label="roleSkinName(activeRoleSkin)"
-          :artwork-framing="selfRoleArtworkFraming()"
-          hint="按住重新查看身份"
-        >
-          <p class="secret-description">{{ snapshot.self.role.description }}</p>
-          <div v-if="snapshot.self.role.knowledge.length" class="knowledge-list">
-            <span
-              v-for="item in snapshot.self.role.knowledge"
-              :key="item.playerId"
-            >
-              {{ playerLabel(item.playerId) }} · {{ item.label }}
-            </span>
-          </div>
-          <div v-if="snapshot.lady.myChecks.length" class="knowledge-list">
-            <span
-              v-for="check in snapshot.lady.myChecks"
-              :key="`${check.missionNumber}-${check.targetId}`"
-            >
-              仙女：{{ playerLabel(check.targetId) }} ·
-              {{ check.alignment === 'good' ? '好人阵营' : '坏人阵营' }}
-            </span>
-          </div>
-        </PressRevealCard>
-      </section>
-    </div>
-
-    <div v-if="showRules" class="modal-backdrop" @click.self="showRules = false">
-      <section class="modal-card rules-modal" role="dialog" aria-modal="true">
-        <button class="modal-close" aria-label="关闭" @click="showRules = false">
-          <X :size="20" />
-        </button>
-        <span class="modal-icon"><CircleHelp :size="25" /></span>
-        <h2>{{ snapshot.settings.mode === 'court_undercurrent' ? '王庭暗流 · 玩法说明' : '标准阿瓦隆 · 玩法说明' }}</h2>
-        <p>{{ snapshot.settings.mode === 'court_undercurrent' ? '背景故事、特殊角色与终局规则集中在这里。' : '本局采用标准阿瓦隆规则。' }}</p>
-        <ModeGuide
-          v-if="snapshot.settings.mode === 'court_undercurrent'"
-          :content="AVALON_COURT_GUIDE"
-        />
-        <section class="avalon-core-rules">
-          <h3>圆桌通用规则</h3>
-          <ul>
-            <li>好人只能提交任务成功，坏人可选择成功或失败。</li>
-            <li>队伍表决需要过半赞成，平票视为否决。</li>
-            <li>连续五次组队被否决，坏人直接获胜。</li>
-            <li>部分玩家掉线超过 10 分钟，其所属阵营弃权；全员离线只进入房间清理流程。</li>
-            <li v-if="snapshot.players.length >= 7">第四次任务需要两张失败票才会失败。</li>
-            <li v-if="snapshot.settings.ladyEnabled">仙女只查阵营，持有者可以谎报查验结果。</li>
-          </ul>
-        </section>
-      </section>
-    </div>
-  </main>
+  </div>
 </template>

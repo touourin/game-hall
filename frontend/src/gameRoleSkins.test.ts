@@ -3,7 +3,7 @@ import {
   roleArtwork,
   roleArtworkFraming,
   roleSkinPreviewRoles,
-} from './roleSkins'
+} from './gameRoleSkins'
 
 describe('Avalon role skin artwork framing', () => {
   it('brings the smaller classic Merlin portrait up to the base-set scale', () => {

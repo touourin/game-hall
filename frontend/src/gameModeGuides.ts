@@ -1,4 +1,4 @@
-import type { ModeGuideContent } from '../../components/uiTypes'
+import type { ModeGuideContent } from './components/uiTypes'
 
 export const AVALON_COURT_GUIDE: ModeGuideContent = {
   ariaLabel: '王庭暗流完整说明',

@@ -29,6 +29,8 @@ describe('GameHall', () => {
     expect(wrapper.findAll('.account-bar-actions button')).toHaveLength(3)
     expect(wrapper.get('[aria-label="退出登录"]').text()).toContain('退出')
     expect(wrapper.get('[aria-label="打开设置"]').attributes('aria-label')).toBe('打开设置')
+    expect(wrapper.get('.account-identity-copy').text()).toContain('玩家账号 · tester')
+    expect(wrapper.get('.hall-highlights').text()).toBe('实时联机·独立战绩')
     expect(wrapper.text()).not.toContain('PRIVATE')
     expect(wrapper.text()).not.toContain('私人席位')
     expect(wrapper.text()).not.toContain('11 款游戏')

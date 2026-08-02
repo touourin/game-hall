@@ -1,15 +1,9 @@
 import { createPinia } from 'pinia'
-import { flushPromises, mount } from '@vue/test-utils'
-import { nextTick } from 'vue'
+import { mount } from '@vue/test-utils'
 import { beforeEach, vi } from 'vitest'
-import * as clipboard from '../../clipboard'
 import { useArcadeStore } from '../../stores/arcade'
-import {
-  storedRoleSkin,
-  storedRoleSkinLock,
-} from './roleSkins'
-import type { RoomSnapshot } from './types'
-import GameRoom from './GameRoom.vue'
+import type { RoomSnapshot } from '../../types/avalon'
+import AvalonTable from './AvalonTable.vue'
 
 function roleRevealSnapshot(revision: number): RoomSnapshot {
   return {
@@ -120,39 +114,9 @@ function roleRevealSnapshot(revision: number): RoomSnapshot {
   }
 }
 
-describe('GameRoom role reveal', () => {
+describe('AvalonTable role reveal', () => {
   beforeEach(() => {
     localStorage.clear()
-  })
-
-  it('keeps the player own number visible and opens the full number list', async () => {
-    const snapshot = roleRevealSnapshot(1)
-    snapshot.players.push({
-      id: 'p2',
-      name: '第二位玩家',
-      seat: 1,
-      connected: true,
-      isBot: false,
-      isHost: false,
-      isLeader: false,
-      isSelected: false,
-    })
-    const wrapper = mount(GameRoom, {
-      props: { snapshot },
-      global: { plugins: [createPinia()] },
-    })
-
-    expect(wrapper.get('.room-page-header').text()).toContain('阿瓦隆')
-    expect(wrapper.get('.room-page-header').text()).toContain('房间 TEST')
-    expect(wrapper.get('.self-number-trigger').text()).toContain('我的号码')
-    expect(wrapper.get('.self-number-trigger').text()).toContain('1号')
-    expect(wrapper.get('.self-number-trigger').text()).toContain('查看号码表')
-    await wrapper.get('.self-number-trigger').trigger('click')
-
-    const numberList = wrapper.get('.player-number-list').text()
-    expect(numberList).toContain('测试玩家')
-    expect(numberList).toContain('第二位玩家')
-    expect(numberList).toContain('你')
   })
 
   it('shows every player number and name on the identity confirmation page', () => {
@@ -168,7 +132,7 @@ describe('GameRoom role reveal', () => {
       isSelected: false,
     })
 
-    const wrapper = mount(GameRoom, {
+    const wrapper = mount(AvalonTable, {
       props: { snapshot },
       global: { plugins: [createPinia()] },
     })
@@ -195,7 +159,7 @@ describe('GameRoom role reveal', () => {
     snapshot.players[0]!.isLeader = false
     snapshot.game.leaderId = 'p2'
 
-    const wrapper = mount(GameRoom, {
+    const wrapper = mount(AvalonTable, {
       props: { snapshot },
       global: { plugins: [createPinia()] },
     })
@@ -224,7 +188,7 @@ describe('GameRoom role reveal', () => {
     })
     snapshot.lady.holderId = 'p2'
 
-    const wrapper = mount(GameRoom, {
+    const wrapper = mount(AvalonTable, {
       props: { snapshot },
       global: { plugins: [createPinia()] },
     })
@@ -252,7 +216,7 @@ describe('GameRoom role reveal', () => {
     })
     snapshot.lady.holderId = 'p2'
 
-    const wrapper = mount(GameRoom, {
+    const wrapper = mount(AvalonTable, {
       props: { snapshot },
       global: { plugins: [createPinia()] },
     })
@@ -266,200 +230,8 @@ describe('GameRoom role reveal', () => {
     expect(holderTile.get('.lady-chip').text()).toContain('仙女')
   })
 
-  it('shows numbered AI players and lets the host add another one', async () => {
-    const snapshot = roleRevealSnapshot(1)
-    snapshot.phase = 'lobby'
-    snapshot.self.role = null
-    snapshot.actions.canConfirmRole = false
-    snapshot.actions.canAddAiPlayer = true
-    snapshot.players.push({
-      id: 'bot-1',
-      name: 'AI玩家 1',
-      seat: 1,
-      connected: true,
-      isBot: true,
-      isHost: false,
-      isLeader: false,
-      isSelected: false,
-    })
-    const pinia = createPinia()
-    const room = useArcadeStore(pinia)
-    const action = vi.spyOn(room, 'action').mockResolvedValue()
-    const wrapper = mount(GameRoom, {
-      props: { snapshot },
-      global: { plugins: [pinia] },
-    })
-
-    expect(wrapper.get('.player-list').text()).toContain('2 号玩家')
-    expect(wrapper.get('.ai-player-badge').text()).toBe('AI')
-    await wrapper.get('.add-ai-button').trigger('click')
-
-    expect(action).toHaveBeenCalledWith('add_ai')
-  })
-
-  it('opens the complete court guide from the lobby header and mode setting', async () => {
-    const snapshot = roleRevealSnapshot(1)
-    snapshot.phase = 'lobby'
-    snapshot.self.role = null
-    snapshot.settings.mode = 'court_undercurrent'
-    snapshot.settings.ladyEnabled = false
-    snapshot.settings.earlyAssassinationEnabled = false
-    snapshot.courtUndercurrent.enabled = true
-    snapshot.actions.canConfirmRole = false
-
-    const wrapper = mount(GameRoom, {
-      props: { snapshot },
-      global: { plugins: [createPinia()] },
-    })
-
-    expect(wrapper.get('.avalon-mode-note button').text()).toContain(
-      '背景故事 · 异志之臣 · 新模式规则',
-    )
-    await wrapper.get('[aria-label="查看玩法说明"]').trigger('click')
-
-    const guide = wrapper.get('.rules-modal')
-    expect(guide.text()).toContain('王庭暗流 · 玩法说明')
-    expect(guide.text()).toContain('胜势已成，暗流未息')
-    expect(guide.text()).toContain('开局属于好人阵营')
-    expect(guide.text()).toContain('刺客从私密候选中寻找异志之臣')
-    expect(guide.text()).toContain('圆桌通用规则')
-  })
-
-  it('uses the shared confirmation before the host dissolves a lobby', async () => {
-    const snapshot = roleRevealSnapshot(1)
-    snapshot.phase = 'lobby'
-    snapshot.self.role = null
-    snapshot.actions.canConfirmRole = false
-    snapshot.actions.canDissolve = true
-    const pinia = createPinia()
-    const room = useArcadeStore(pinia)
-    const dissolveRoom = vi.spyOn(room, 'dissolveRoom').mockResolvedValue(true)
-    const wrapper = mount(GameRoom, {
-      props: { snapshot },
-      global: { plugins: [pinia] },
-    })
-
-    await wrapper.get('.dissolve-room-trigger').trigger('click')
-    expect(wrapper.get('.dissolve-room-modal').text()).toContain(
-      '所有等待中的玩家都会返回大厅',
-    )
-    expect(dissolveRoom).not.toHaveBeenCalled()
-
-    await wrapper.get('.dissolve-room-actions .danger').trigger('click')
-    await flushPromises()
-
-    expect(dissolveRoom).toHaveBeenCalledOnce()
-  })
-
-  it('uses the shared confirmation before the host removes a player', async () => {
-    const snapshot = roleRevealSnapshot(1)
-    snapshot.phase = 'lobby'
-    snapshot.self.role = null
-    snapshot.actions.canConfirmRole = false
-    snapshot.players.push({
-      id: 'p2',
-      name: '第二位玩家',
-      seat: 1,
-      connected: true,
-      isBot: false,
-      isHost: false,
-      isLeader: false,
-      isSelected: false,
-    })
-    const pinia = createPinia()
-    const room = useArcadeStore(pinia)
-    const kickPlayer = vi.spyOn(room, 'kickPlayer').mockResolvedValue(true)
-    const wrapper = mount(GameRoom, {
-      props: { snapshot },
-      global: { plugins: [pinia] },
-    })
-
-    await wrapper.get('[aria-label="移除第二位玩家"]').trigger('click')
-    expect(wrapper.get('.kick-player-modal').text()).toContain('移除第二位玩家？')
-    expect(kickPlayer).not.toHaveBeenCalled()
-
-    await wrapper.get('.kick-player-actions .danger').trigger('click')
-    await flushPromises()
-
-    expect(kickPlayer).toHaveBeenCalledWith('p2')
-  })
-
-  it('chooses a personal skin in the lobby and locks it for the game', async () => {
-    const lobby = roleRevealSnapshot(1)
-    lobby.phase = 'lobby'
-    lobby.self.isHost = false
-    lobby.self.role = null
-    lobby.actions.canConfirmRole = false
-    lobby.actions.canUpdateSettings = false
-
-    const wrapper = mount(GameRoom, {
-      props: { snapshot: lobby },
-      global: {
-        plugins: [createPinia()],
-        stubs: { Teleport: true },
-      },
-    })
-
-    expect(wrapper.get('.artwork-skin-card').text()).toContain(
-      '开局后锁定',
-    )
-    await wrapper
-      .get('button[data-artwork-skin="royal-codex"]')
-      .trigger('click')
-    expect(storedRoleSkin()).not.toBe('royal-codex')
-
-    await wrapper.get('.artwork-skin-modal footer button').trigger('click')
-
-    expect(storedRoleSkin()).toBe('royal-codex')
-    expect(storedRoleSkinLock('TEST')).toBeNull()
-
-    await wrapper.setProps({ snapshot: roleRevealSnapshot(2) })
-    await nextTick()
-
-    expect(wrapper.find('.artwork-skin-card').exists()).toBe(false)
-    expect(wrapper.get('.press-reveal-art-label').text()).toContain('王庭秘卷')
-    await wrapper.get('.press-reveal-card').trigger('pointerdown')
-    expect(wrapper.get('.press-reveal-art').attributes('src')).toContain(
-      'royal-codex',
-    )
-    await wrapper.get('.press-reveal-card').trigger('pointerup')
-    expect(storedRoleSkinLock('TEST')).toBe('royal-codex')
-
-    const nextLobby = roleRevealSnapshot(3)
-    nextLobby.phase = 'lobby'
-    nextLobby.self.role = null
-    nextLobby.actions.canConfirmRole = false
-    await wrapper.setProps({ snapshot: nextLobby })
-    await nextTick()
-
-    expect(wrapper.find('.artwork-skin-card').exists()).toBe(true)
-    expect(storedRoleSkinLock('TEST')).toBeNull()
-  })
-
-  it('uses the shared invitation copier and confirms success', async () => {
-    const snapshot = roleRevealSnapshot(1)
-    snapshot.phase = 'lobby'
-    snapshot.self.role = null
-    snapshot.actions.canConfirmRole = false
-    const copyText = vi.spyOn(clipboard, 'copyText').mockResolvedValue(true)
-    const wrapper = mount(GameRoom, {
-      props: { snapshot },
-      global: { plugins: [createPinia()] },
-    })
-
-    await wrapper.get('.invite-link-actions button').trigger('click')
-    await nextTick()
-
-    expect(copyText).toHaveBeenCalledOnce()
-    const invitation = new URL(String(copyText.mock.calls[0]?.[0]))
-    expect(invitation.searchParams.get('game')).toBe('avalon')
-    expect(invitation.searchParams.get('room')).toBe('TEST')
-    expect(wrapper.get('.invite-link-actions button').text()).toContain('已复制')
-    copyText.mockRestore()
-  })
-
   it('keeps confirmation enabled when another player updates the room', async () => {
-    const wrapper = mount(GameRoom, {
+    const wrapper = mount(AvalonTable, {
       props: { snapshot: roleRevealSnapshot(1) },
       global: { plugins: [createPinia()] },
     })
@@ -489,7 +261,7 @@ describe('GameRoom role reveal', () => {
       },
     ]
 
-    const wrapper = mount(GameRoom, {
+    const wrapper = mount(AvalonTable, {
       props: { snapshot },
       global: { plugins: [createPinia()] },
     })
@@ -532,7 +304,7 @@ describe('GameRoom role reveal', () => {
       },
     ]
 
-    const wrapper = mount(GameRoom, {
+    const wrapper = mount(AvalonTable, {
       props: { snapshot },
       global: { plugins: [createPinia()] },
     })
@@ -578,7 +350,7 @@ describe('GameRoom role reveal', () => {
       },
     ]
 
-    const wrapper = mount(GameRoom, {
+    const wrapper = mount(AvalonTable, {
       props: { snapshot },
       global: { plugins: [createPinia()] },
     })
@@ -594,26 +366,6 @@ describe('GameRoom role reveal', () => {
     expect(history).toContain('1号 测试玩家')
     expect(history).toContain('2号 被查验者')
     expect(history).toContain('你看到： 好人阵营')
-  })
-
-  it('uses the shared room chat without covering voting controls', async () => {
-    const snapshot = roleRevealSnapshot(1)
-    snapshot.phase = 'team_voting'
-    snapshot.game.selectedTeamIds = ['p1']
-    snapshot.actions.canConfirmRole = false
-    snapshot.actions.canVoteTeam = true
-
-    const wrapper = mount(GameRoom, {
-      props: { snapshot },
-      global: { plugins: [createPinia()] },
-    })
-
-    await wrapper.get('.arcade-chat-dock').trigger('click')
-
-    expect(wrapper.get('.arcade-chat-panel').attributes('aria-label')).toBe(
-      '房间聊天',
-    )
-    expect(wrapper.get('.decision-button.approve').attributes('disabled')).toBeUndefined()
   })
 
   it('shows the irreversible early assassination confirmation to the assassin', async () => {
@@ -640,7 +392,7 @@ describe('GameRoom role reveal', () => {
       isSelected: false,
     })
 
-    const wrapper = mount(GameRoom, {
+    const wrapper = mount(AvalonTable, {
       props: { snapshot },
       global: { plugins: [createPinia()] },
     })
@@ -695,7 +447,7 @@ describe('GameRoom role reveal', () => {
       },
     )
 
-    const wrapper = mount(GameRoom, {
+    const wrapper = mount(AvalonTable, {
       props: { snapshot },
       global: { plugins: [createPinia()] },
     })
@@ -767,7 +519,7 @@ describe('GameRoom role reveal', () => {
     const pinia = createPinia()
     const room = useArcadeStore(pinia)
     const action = vi.spyOn(room, 'action').mockResolvedValue()
-    const wrapper = mount(GameRoom, {
+    const wrapper = mount(AvalonTable, {
       props: { snapshot },
       global: { plugins: [pinia] },
     })
@@ -825,7 +577,7 @@ describe('GameRoom role reveal', () => {
     const pinia = createPinia()
     const room = useArcadeStore(pinia)
     const action = vi.spyOn(room, 'action').mockResolvedValue()
-    const wrapper = mount(GameRoom, {
+    const wrapper = mount(AvalonTable, {
       props: { snapshot },
       global: { plugins: [pinia] },
     })
@@ -838,40 +590,6 @@ describe('GameRoom role reveal', () => {
     expect(action).toHaveBeenCalledWith('dissenting_assassinate', {
       target_id: 'p3',
     })
-  })
-
-  it('asks for confirmation before exiting an active game', async () => {
-    const snapshot = roleRevealSnapshot(1)
-    const pinia = createPinia()
-    const room = useArcadeStore(pinia)
-    const leaveRoom = vi.spyOn(room, 'leaveRoom').mockResolvedValue()
-    const wrapper = mount(GameRoom, {
-      props: { snapshot },
-      global: { plugins: [pinia] },
-    })
-
-    await wrapper.get('.exit-room-trigger').trigger('click')
-    expect(wrapper.get('.exit-room-modal').text()).toContain(
-      '座位、号码和身份都会保留',
-    )
-    await wrapper.get('.exit-room-modal .danger-button').trigger('click')
-
-    expect(leaveRoom).toHaveBeenCalledOnce()
-  })
-
-  it('renders only one exit control in the waiting room', () => {
-    const snapshot = roleRevealSnapshot(1)
-    snapshot.phase = 'lobby'
-    snapshot.actions.canLeave = true
-    const wrapper = mount(GameRoom, {
-      props: { snapshot },
-      global: { plugins: [createPinia()] },
-    })
-
-    expect(wrapper.findAll('.exit-room-trigger')).toHaveLength(1)
-    expect(wrapper.find('.lobby-heading-actions .danger-text').exists()).toBe(
-      false,
-    )
   })
 
   it('renders the early assassination target in the final record', () => {
@@ -905,7 +623,7 @@ describe('GameRoom role reveal', () => {
       alignment: 'good',
     })
 
-    const wrapper = mount(GameRoom, {
+    const wrapper = mount(AvalonTable, {
       props: { snapshot },
       global: { plugins: [createPinia()] },
     })

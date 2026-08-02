@@ -111,6 +111,7 @@ export interface RoomActions {
 }
 
 export interface RoomSnapshot {
+  [key: string]: unknown
   roomCode: string
   revision: number
   phase: Phase

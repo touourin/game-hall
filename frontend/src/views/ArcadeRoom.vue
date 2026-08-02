@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import {
+  Bot,
+  ChevronRight,
+  CircleHelp,
   Crown,
+  Eye,
   Handshake,
   QrCode,
   RotateCcw,
@@ -11,6 +15,7 @@ import {
   X,
 } from '@lucide/vue'
 import ArcadeChatPanel from '../components/ArcadeChatPanel.vue'
+import ArtworkSkinPicker from '../components/ArtworkSkinPicker.vue'
 import GameSkinPicker from '../components/GameSkinPicker.vue'
 import InviteLinkPanel from '../components/InviteLinkPanel.vue'
 import GameRuleSettings from '../components/GameRuleSettings.vue'
@@ -20,9 +25,29 @@ import RoomDissolveButton from '../components/RoomDissolveButton.vue'
 import RoomPageHeader from '../components/RoomPageHeader.vue'
 import RoomInviteModal from '../components/RoomInviteModal.vue'
 import RoomKickButton from '../components/RoomKickButton.vue'
+import ModeGuide from '../components/ModeGuide.vue'
+import PressRevealCard from '../components/PressRevealCard.vue'
 import { useArcadeStore } from '../stores/arcade'
-import type { ArcadeSnapshot } from '../types/arcade'
+import {
+  isAvalonArcadeSnapshot,
+  type ArcadeSnapshot,
+} from '../types/arcade'
+import type { ArtworkSkinOption } from '../components/uiTypes'
 import { gameRuleLabels, withDefaultGameRules } from '../gameRules'
+import { AVALON_COURT_GUIDE } from '../gameModeGuides'
+import {
+  ROLE_SKINS,
+  clearRoleSkinLock,
+  lockRoleSkin,
+  rememberRoleSkin,
+  roleArtwork,
+  roleArtworkFraming,
+  roleSkinName,
+  roleSkinPreviewRoles,
+  storedRoleSkin,
+  storedRoleSkinLock,
+  type RoleSkinId,
+} from '../gameRoleSkins'
 import {
   gameSkinCssVariables,
   gameSkinKind,
@@ -40,17 +65,22 @@ import SchulteGrid from '../games/schulte/SchulteGrid.vue'
 import MinesweeperBoard from '../games/minesweeper/MinesweeperBoard.vue'
 import HanoiGame from '../games/hanoi/HanoiGame.vue'
 import PokerTable from '../games/poker/PokerTable.vue'
-import AvalonGameRoom from '../games/avalon/GameRoom.vue'
-import type { RoomSnapshot as AvalonRoomSnapshot } from '../games/avalon/types'
+import AvalonTable from '../games/avalon/AvalonTable.vue'
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
 const avalonSnapshot = computed(
-  () => props.snapshot.game as unknown as AvalonRoomSnapshot,
+  () => isAvalonArcadeSnapshot(props.snapshot) ? props.snapshot.game : null,
 )
 const ruleEditor = ref<Record<string, unknown> | null>(null)
 const showQr = ref(false)
+const showPlayerNumbers = ref(false)
+const showIdentity = ref(false)
+const showAvalonRules = ref(false)
+const sharedChat = ref<{ openChat: () => Promise<void> } | null>(null)
 const activeGameSkin = ref<GameSkinId>(storedGameSkin())
+const selectedRoleSkin = ref<RoleSkinId>(storedRoleSkin())
+const lockedRoleSkin = ref<RoleSkinId | null>(null)
 const missingPlayers = computed(
   () => Math.max(0, (props.snapshot.minimumPlayers ?? props.snapshot.requiredPlayers) - props.snapshot.players.length),
 )
@@ -72,8 +102,41 @@ const activeGameSkinKind = computed(() => gameSkinKind(props.snapshot.gameKey))
 const activeGameSkinStyle = computed(() => (
   activeGameSkinKind.value ? gameSkinCssVariables(activeGameSkin.value) : undefined
 ))
+const activeRoleSkin = computed(
+  () => lockedRoleSkin.value ?? selectedRoleSkin.value,
+)
+const roleArtworkOptions: ArtworkSkinOption[] = ROLE_SKINS.map((skin) => ({
+  ...skin,
+  items: roleSkinPreviewRoles(skin.id).map((role) => ({
+    id: role.code,
+    name: role.name,
+    group: role.alignment === 'good' ? '亚瑟阵营' : '莫德雷德阵营',
+    artwork: role.artwork,
+    framing: role.framing,
+  })),
+}))
+const avalonPhaseLabel = computed(() => {
+  const phase = avalonSnapshot.value?.phase
+  if (!phase) return ''
+  return {
+    lobby: '等待圆桌集结',
+    role_reveal: '确认身份',
+    team_building: '组建任务队伍',
+    team_voting: '表决任务队伍',
+    mission_voting: '执行秘密任务',
+    round_result: '任务结算',
+    lady_select: '湖中仙女',
+    lady_reveal: '仙女启示',
+    assassination: '最后刺杀',
+    dagger_grant: '黑誓授刃',
+    final_council: '最后议事',
+    game_over: '本局终章',
+  }[phase]
+})
 const roomHeaderEyebrow = computed(() => {
-  const suffix = props.snapshot.gameKey === 'junqi'
+  const suffix = props.snapshot.gameKey === 'avalon'
+    ? ` · ${avalonSnapshot.value?.settings.mode === 'court_undercurrent' ? '王庭暗流' : '标准模式'} · ${avalonPhaseLabel.value}`
+    : props.snapshot.gameKey === 'junqi'
     ? ` · ${props.snapshot.options.mode === 'flip' ? '翻棋军旗' : '暗军旗'}`
     : props.snapshot.gameKey === 'reaction'
       ? ' · 单人测试'
@@ -100,6 +163,22 @@ watch(
   ([phase]) => {
     if (phase !== 'lobby' || isSolo.value) showQr.value = false
   },
+)
+watch(
+  () => [props.snapshot.roomCode, avalonSnapshot.value?.phase] as const,
+  ([roomCode, phase]) => {
+    if (!phase) return
+    if (phase === 'lobby') {
+      clearRoleSkinLock(roomCode)
+      lockedRoleSkin.value = null
+      selectedRoleSkin.value = storedRoleSkin()
+      return
+    }
+    lockedRoleSkin.value =
+      storedRoleSkinLock(roomCode) ??
+      lockRoleSkin(roomCode, selectedRoleSkin.value)
+  },
+  { immediate: true },
 )
 const exitDescription = computed(() => {
   if (props.snapshot.phase === 'lobby') {
@@ -128,17 +207,46 @@ function selectGameSkin(skin: GameSkinId) {
   rememberGameSkin(skin)
 }
 
+function selectRoleSkin(skin: string) {
+  if (avalonSnapshot.value?.phase !== 'lobby') return
+  const selected = ROLE_SKINS.find((option) => option.id === skin)?.id
+  if (!selected) return
+  selectedRoleSkin.value = selected
+  rememberRoleSkin(selected)
+}
+
+function playerNumber(playerId: string): number | null {
+  const player = props.snapshot.players.find((item) => item.id === playerId)
+  return player ? player.seat + 1 : null
+}
+
+function avalonPlayerLabel(playerId: string): string {
+  const player = props.snapshot.players.find((item) => item.id === playerId)
+  return player ? `${player.seat + 1}号 ${player.name}` : '未知玩家'
+}
+
+function selfRoleArtwork(): string | null {
+  const roleCode = avalonSnapshot.value?.self.role?.code
+  return roleCode ? roleArtwork(roleCode, activeRoleSkin.value) : null
+}
+
+function selfRoleArtworkFraming() {
+  return roleArtworkFraming(
+    avalonSnapshot.value?.self.role?.code ?? '',
+    activeRoleSkin.value,
+  )
+}
+
+function openSharedChat() {
+  void sharedChat.value?.openChat()
+}
+
 </script>
 
 <template>
-  <AvalonGameRoom
-    v-if="snapshot.gameKey === 'avalon'"
-    :snapshot="avalonSnapshot"
-  />
   <main
-    v-else
     class="arcade-room page-container"
-    :class="{ 'arcade-room--wide': ['poker', 'doudizhu', 'junqi', 'minesweeper'].includes(snapshot.gameKey) }"
+    :class="{ 'arcade-room--wide': ['avalon', 'poker', 'doudizhu', 'junqi', 'minesweeper'].includes(snapshot.gameKey) }"
     :data-game-skin="activeGameSkinKind ? activeGameSkin : undefined"
     :style="activeGameSkinStyle"
   >
@@ -146,6 +254,23 @@ function selectGameSkin(skin: GameSkinId) {
       :eyebrow="roomHeaderEyebrow"
       :title="roomHeaderTitle"
     >
+      <template v-if="avalonSnapshot" #details>
+        <button
+          class="self-number-trigger"
+          type="button"
+          :aria-label="`我的号码是 ${playerNumber(snapshot.self.id)} 号，查看玩家号码表`"
+          @click="showPlayerNumbers = true"
+        >
+          <span class="self-number-value">
+            {{ playerNumber(snapshot.self.id) }}号
+          </span>
+          <span class="self-number-copy">
+            <small>我的号码</small>
+            <span>查看号码表</span>
+          </span>
+          <ChevronRight :size="14" aria-hidden="true" />
+        </button>
+      </template>
       <template #actions>
         <button
           v-if="snapshot.phase === 'lobby' && !isSolo"
@@ -155,6 +280,24 @@ function selectGameSkin(skin: GameSkinId) {
           @click="showQr = true"
         >
           <QrCode :size="21" />
+        </button>
+        <button
+          v-if="avalonSnapshot?.self.role && avalonSnapshot.phase !== 'game_over'"
+          class="header-action"
+          type="button"
+          aria-label="查看我的身份"
+          @click="showIdentity = true"
+        >
+          <Eye :size="20" />
+        </button>
+        <button
+          v-if="avalonSnapshot"
+          class="header-action"
+          type="button"
+          aria-label="查看玩法说明"
+          @click="showAvalonRules = true"
+        >
+          <CircleHelp :size="21" />
         </button>
         <RoomDissolveButton
           v-if="snapshot.actions.canDissolve"
@@ -215,7 +358,17 @@ function selectGameSkin(skin: GameSkinId) {
         <span v-for="label in gameRuleLabels(snapshot.gameKey, snapshot.options)" :key="label">{{ label }}</span>
         <span>掉线保护 10 分钟</span>
       </div>
-      <button v-if="snapshot.actions.canEditRules" type="button" @click="openRuleEditor">{{ snapshot.phase === 'finished' ? '修改下局规则' : '修改规则' }}</button>
+      <div class="room-rule-actions">
+        <button
+          v-if="avalonSnapshot?.actions.canAddAiPlayer"
+          type="button"
+          :disabled="arcade.busy"
+          @click="arcade.action('add_ai')"
+        >
+          <Bot :size="16" /> 添加 AI
+        </button>
+        <button v-if="snapshot.actions.canEditRules" type="button" @click="openRuleEditor">{{ snapshot.phase === 'finished' ? '修改下局规则' : '修改规则' }}</button>
+      </div>
     </section>
 
     <GameSkinPicker
@@ -223,6 +376,16 @@ function selectGameSkin(skin: GameSkinId) {
       :model-value="activeGameSkin"
       :kind="activeGameSkinKind"
       @update:model-value="selectGameSkin"
+    />
+
+    <ArtworkSkinPicker
+      v-if="avalonSnapshot?.phase === 'lobby'"
+      :model-value="selectedRoleSkin"
+      :options="roleArtworkOptions"
+      title="我的身份卡画风"
+      description="仅影响你看到的身份卡 · 开局后锁定"
+      item-name="身份"
+      @update:model-value="selectRoleSkin"
     />
 
     <section v-if="snapshot.phase === 'lobby'" class="surface arcade-waiting">
@@ -251,7 +414,7 @@ function selectGameSkin(skin: GameSkinId) {
     </section>
 
     <section v-else class="arcade-game-stage">
-      <div v-if="snapshot.phase === 'finished' && !isSolo" class="surface result-banner">
+      <div v-if="snapshot.phase === 'finished' && !isSolo && !avalonSnapshot" class="surface result-banner">
         <small>本局结束</small>
         <h2>{{ snapshot.winReason }}</h2>
         <p>
@@ -322,10 +485,17 @@ function selectGameSkin(skin: GameSkinId) {
       <SchulteGrid v-else-if="snapshot.gameKey === 'schulte'" :snapshot="snapshot" />
       <MinesweeperBoard v-else-if="snapshot.gameKey === 'minesweeper'" :snapshot="snapshot" />
       <HanoiGame v-else-if="snapshot.gameKey === 'hanoi'" :snapshot="snapshot" />
+      <AvalonTable
+        v-else-if="avalonSnapshot"
+        :snapshot="avalonSnapshot"
+        :role-skin="activeRoleSkin"
+        @open-chat="openSharedChat"
+      />
     </section>
 
     <ArcadeChatPanel
       v-if="!isSolo"
+      ref="sharedChat"
       :messages="snapshot.chat.messages"
       :max-length="snapshot.chat.maxLength"
       :self-id="snapshot.self.id"
@@ -353,6 +523,83 @@ function selectGameSkin(skin: GameSkinId) {
         <button type="button" class="primary-button wide-button" :disabled="arcade.busy" @click="saveRules">保存规则</button>
       </section>
     </div>
+
+    <div v-if="showPlayerNumbers && avalonSnapshot" class="modal-backdrop" @click.self="showPlayerNumbers = false">
+      <section class="modal-card player-number-modal" role="dialog" aria-modal="true" aria-label="玩家号码表">
+        <button class="modal-close" type="button" aria-label="关闭玩家号码表" @click="showPlayerNumbers = false">
+          <X :size="20" />
+        </button>
+        <span class="modal-icon"><UsersRound :size="25" /></span>
+        <h2>玩家号码表</h2>
+        <p>本局号码保持不变</p>
+        <div class="player-number-list">
+          <div
+            v-for="player in snapshot.players"
+            :key="player.id"
+            :class="{ self: player.id === snapshot.self.id }"
+          >
+            <span>{{ player.seat + 1 }}</span>
+            <strong>{{ player.name }}</strong>
+            <small v-if="player.isBot">AI</small>
+            <small v-if="player.id === snapshot.self.id">你</small>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div v-if="showIdentity && avalonSnapshot?.self.role" class="modal-backdrop" @click.self="showIdentity = false">
+      <section class="modal-card identity-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" type="button" aria-label="关闭身份" @click="showIdentity = false">
+          <X :size="20" />
+        </button>
+        <PressRevealCard
+          :title="avalonSnapshot.self.role.label"
+          :subtitle="avalonSnapshot.self.role.alignment === 'good' ? '亚瑟阵营' : '莫德雷德阵营'"
+          :artwork="selfRoleArtwork()"
+          :artwork-label="roleSkinName(activeRoleSkin)"
+          :artwork-framing="selfRoleArtworkFraming()"
+          hint="按住重新查看身份"
+        >
+          <p class="secret-description">{{ avalonSnapshot.self.role.description }}</p>
+          <div v-if="avalonSnapshot.self.role.knowledge.length" class="knowledge-list">
+            <span v-for="item in avalonSnapshot.self.role.knowledge" :key="item.playerId">
+              {{ avalonPlayerLabel(item.playerId) }} · {{ item.label }}
+            </span>
+          </div>
+          <div v-if="avalonSnapshot.lady.myChecks.length" class="knowledge-list">
+            <span v-for="check in avalonSnapshot.lady.myChecks" :key="`${check.missionNumber}-${check.targetId}`">
+              仙女：{{ avalonPlayerLabel(check.targetId) }} · {{ check.alignment === 'good' ? '好人阵营' : '坏人阵营' }}
+            </span>
+          </div>
+        </PressRevealCard>
+      </section>
+    </div>
+
+    <div v-if="showAvalonRules && avalonSnapshot" class="modal-backdrop" @click.self="showAvalonRules = false">
+      <section class="modal-card rules-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" type="button" aria-label="关闭玩法说明" @click="showAvalonRules = false">
+          <X :size="20" />
+        </button>
+        <span class="modal-icon"><CircleHelp :size="25" /></span>
+        <h2>{{ avalonSnapshot.settings.mode === 'court_undercurrent' ? '王庭暗流 · 玩法说明' : '标准阿瓦隆 · 玩法说明' }}</h2>
+        <p>{{ avalonSnapshot.settings.mode === 'court_undercurrent' ? '背景故事、特殊角色与终局规则集中在这里。' : '本局采用标准阿瓦隆规则。' }}</p>
+        <ModeGuide
+          v-if="avalonSnapshot.settings.mode === 'court_undercurrent'"
+          :content="AVALON_COURT_GUIDE"
+        />
+        <section class="avalon-core-rules">
+          <h3>圆桌通用规则</h3>
+          <ul>
+            <li>好人只能提交任务成功，坏人可选择成功或失败。</li>
+            <li>队伍表决需要过半赞成，平票视为否决。</li>
+            <li>连续五次组队被否决，坏人直接获胜。</li>
+            <li>部分玩家掉线超过 10 分钟，其所属阵营弃权；全员离线只进入房间清理流程。</li>
+            <li v-if="snapshot.players.length >= 7">第四次任务需要两张失败票才会失败。</li>
+            <li v-if="avalonSnapshot.settings.ladyEnabled">仙女只查阵营，持有者可以谎报查验结果。</li>
+          </ul>
+        </section>
+      </section>
+    </div>
   </main>
 </template>
 
@@ -372,8 +619,10 @@ function selectGameSkin(skin: GameSkinId) {
 .room-rule-bar > div { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; min-width: 0; }
 .room-rule-bar svg { flex: 0 0 auto; color: var(--gold); }
 .room-rule-bar span { border: 1px solid var(--line); border-radius: 999px; padding: 4px 8px; color: var(--muted); background: rgba(0, 0, 0, .1); font-size: 10px; }
-.room-rule-bar > button { flex: 0 0 auto; min-height: 36px; border: 1px solid color-mix(in srgb, var(--gold) 38%, var(--line)); border-radius: 10px; padding: 0 11px; color: var(--gold); background: color-mix(in srgb, var(--gold) 7%, transparent); font-weight: 850; }
-.game-skin-card + .arcade-waiting { margin-top: 18px; }
+.room-rule-actions { flex: 0 0 auto; display: flex; gap: 8px; }
+.room-rule-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; border: 1px solid color-mix(in srgb, var(--gold) 38%, var(--line)); border-radius: 10px; padding: 0 11px; color: var(--gold); background: color-mix(in srgb, var(--gold) 7%, transparent); font-weight: 850; }
+.game-skin-card + .arcade-waiting,
+.artwork-skin-picker + .arcade-waiting { margin-top: 18px; }
 .arcade-waiting { min-height: 390px; display: grid; place-items: center; align-content: center; gap: 12px; text-align: center; }
 .arcade-waiting > svg { color: var(--gold); }
 .arcade-waiting h2, .arcade-waiting p { margin: 0; }
@@ -404,7 +653,8 @@ function selectGameSkin(skin: GameSkinId) {
   .match-request-panel > div { display: grid; grid-template-columns: 1fr 1fr; }
   .match-request-panel button { justify-content: center; }
   .room-rule-bar { align-items: stretch; flex-direction: column; }
-  .room-rule-bar > button { width: 100%; }
+  .room-rule-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+  .room-rule-actions button { width: 100%; }
 }
 @media (min-width: 860px) {
   .arcade-room.arcade-room--wide { width: min(100%, 1080px); }

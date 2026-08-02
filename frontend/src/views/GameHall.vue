@@ -52,7 +52,10 @@ const games: Array<GameCatalogItem & { tone: string; category: string }> = [
           :src="account.avatarUrl"
           :name="account.playerName"
         />
-        <strong>{{ account.playerName }}</strong>
+        <span class="account-identity-copy">
+          <small>玩家账号 · {{ account.username }}</small>
+          <strong>{{ account.playerName }}</strong>
+        </span>
       </div>
       <div class="account-bar-actions">
         <button type="button" aria-label="查看战绩" @click="showStats = true"><History :size="16" /><span>战绩</span></button>
@@ -66,7 +69,7 @@ const games: Array<GameCatalogItem & { tone: string; category: string }> = [
       <h1>游戏大厅</h1>
       <p>今晚玩什么？</p>
       <div class="hall-highlights" aria-label="大厅能力">
-        <span>实时联机</span><b>·</b><span>独立战绩</span>
+        <span>实时联机</span><b aria-hidden="true">·</b><span>独立战绩</span>
       </div>
     </section>
 
@@ -126,15 +129,16 @@ const games: Array<GameCatalogItem & { tone: string; category: string }> = [
 .game-hall { width: min(100%, 1180px); padding-bottom: 88px; }
 .salon-account-bar { position: sticky; z-index: 20; top: calc(12px + env(safe-area-inset-top)); min-height: 72px; border-bottom: 1px solid var(--line); padding: 10px 13px; background: color-mix(in srgb, var(--surface-elevated) 92%, transparent); box-shadow: 0 14px 34px color-mix(in srgb, var(--bg) 30%, transparent); backdrop-filter: blur(20px); }
 .account-avatar { width: 42px; height: 42px; border: 1px solid color-mix(in srgb, var(--gold) 50%, transparent); border-radius: 50%; }
-.salon-account-bar > div:first-child { position: relative; padding-right: 22px; }
-.salon-account-bar > div:first-child::after { position: absolute; top: 6px; right: 0; bottom: 6px; width: 1px; background: linear-gradient(var(--line-strong), transparent); content: ''; }
+.salon-account-bar > div:first-child { min-width: 0; }
+.account-identity-copy { min-width: 0; display: grid; gap: 2px; }
+.account-identity-copy small,.account-identity-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .salon-account-bar small { color: var(--gold); font-size: 9px; font-weight: 800; letter-spacing: .1em; }
 .salon-account-bar strong { font-size: 14px; }
 .hall-hero { min-height: 305px; display: grid; justify-items: center; align-content: center; padding: 58px 20px 42px; text-align: center; }
 .hall-ornament { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; color: var(--gold); }.hall-ornament i { width: 72px; height: 1px; background: linear-gradient(90deg, transparent, var(--gold)); }.hall-ornament i:last-child { background: linear-gradient(90deg, var(--gold), transparent); }
 .hall-hero h1 { margin: 11px 0 7px; font-family: "Songti SC", "STSong", serif; font-size: clamp(48px, 7vw, 72px); font-weight: 650; letter-spacing: .08em; line-height: 1; text-shadow: 0 12px 38px color-mix(in srgb, var(--bg) 55%, transparent); }
 .hall-hero > p { margin: 0; color: var(--muted); font-family: "Songti SC", serif; font-size: 15px; letter-spacing: .25em; }
-.hall-highlights { display: flex; align-items: center; gap: 10px; margin-top: 23px; color: var(--text-soft); font-size: 11px; font-weight: 750; letter-spacing: .08em; }.hall-highlights b { color: var(--gold); font-weight: 400; }
+.hall-highlights { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 23px; color: var(--text-soft); font-size: 11px; font-weight: 750; }.hall-highlights span { letter-spacing: .08em; text-indent: .08em; }.hall-highlights b { flex: 0 0 auto; color: var(--gold); font-weight: 400; }
 .resume-arcade-card { margin-bottom: 22px; padding: 16px 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .resume-arcade-card > div { display: flex; gap: 12px; align-items: center; color: var(--gold); }
 .resume-arcade-card strong, .resume-arcade-card small { display: block; }
@@ -171,7 +175,7 @@ const games: Array<GameCatalogItem & { tone: string; category: string }> = [
 }
 @media (max-width: 680px) {
   .game-hall { padding-right: 11px; padding-bottom: calc(106px + env(safe-area-inset-bottom)); padding-left: 11px; }
-  .salon-account-bar { top: calc(7px + env(safe-area-inset-top)); min-height: 62px; border-radius: 15px; padding: 8px 9px; }.account-avatar { width: 38px; height: 38px; }.salon-account-bar small { max-width: 140px; overflow: hidden; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+  .salon-account-bar { top: calc(7px + env(safe-area-inset-top)); min-height: 62px; border-radius: 15px; padding: 8px 9px; }.account-avatar { width: 38px; height: 38px; }.account-identity-copy { max-width: min(36vw, 140px); }.salon-account-bar small { overflow: hidden; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
   .salon-account-bar .account-bar-actions { display: flex; width: auto; }
   .salon-account-bar .account-bar-actions button { flex: 0 0 38px; width: 38px; height: 38px; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 0; padding: 0; line-height: 0; }
   .salon-account-bar .account-bar-actions button span { display: none; }
