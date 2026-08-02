@@ -725,7 +725,7 @@ function openSharedChat() {
 @media (max-width: 860px) {
   .arcade-player-strip article { flex-basis: calc(33.333333% - 6.667px); }
 }
-@media (max-width: 620px) {
+@media (max-width: 620px), (orientation: landscape) and (max-height: 600px) and (max-width: 980px) {
   .arcade-room--active { display: flex; flex-direction: column; }
   .arcade-room--active :deep(.room-page-header) { order: 1; }
   .arcade-room--active :deep(.host-transfer-notice),
@@ -753,6 +753,12 @@ function openSharedChat() {
 }
 @media (max-width: 430px) {
   .arcade-player-strip article { flex-basis: 100%; }
+}
+@media (orientation: landscape) and (min-width: 621px) and (max-width: 980px) and (max-height: 600px) {
+  .arcade-room--active.arcade-room--board-game :deep(.room-page-header) { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .arcade-room--active.arcade-room--board-game :deep(.room-page-actions) { grid-column: auto; width: auto; justify-content: flex-end; }
+  .arcade-room--active.arcade-room--board-game > .arcade-game-stage { order: 2; }
+  .arcade-room--active.arcade-room--board-game > .guest-match-notice { order: 3; margin-top: 18px; }
 }
 @media (min-width: 860px) {
   .arcade-room.arcade-room--wide { width: min(100%, 1080px); }

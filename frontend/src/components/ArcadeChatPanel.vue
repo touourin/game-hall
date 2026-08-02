@@ -284,7 +284,7 @@ defineExpose({ openChat })
   opacity: 0.45;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 600px), (orientation: landscape) and (max-height: 600px) and (max-width: 980px) {
   .arcade-chat-dock {
     position: static;
     width: 100%;
