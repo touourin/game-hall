@@ -25,18 +25,33 @@ describe('Avalon role skin artwork framing', () => {
     expect(roleArtworkFraming('merlin', 'stained-glass').scale).toBe(1)
   })
 
-  it('finishes the restrained royal-codex Merlin composition correction', () => {
+  it('calibrates the royal-codex portraits while preserving their manuscript frames', () => {
     expect(roleArtworkFraming('merlin', 'royal-codex')).toEqual({
-      scale: 1.16,
+      scale: 1.26,
       originXPercent: 50,
-      originYPercent: 50,
+      originYPercent: 42,
       preserveFrame: true,
       treatment: 'codex-ink-wash',
     })
     expect(roleArtworkFraming('percival', 'royal-codex')).toMatchObject({
-      scale: 1,
+      scale: 1.08,
+      preserveFrame: true,
       treatment: 'codex-ink-wash',
     })
+    expect(roleArtworkFraming('mordred', 'royal-codex')).toMatchObject({
+      scale: 1.12,
+      preserveFrame: true,
+      treatment: 'codex-ink-wash',
+    })
+    expect(roleArtworkFraming('oberon', 'royal-codex')).toMatchObject({
+      scale: 1.15,
+      treatment: 'codex-ink-wash',
+    })
+    expect(
+      roleSkinPreviewRoles('royal-codex').every(
+        (role) => role.framing.treatment === 'codex-ink-wash',
+      ),
+    ).toBe(true)
   })
 
   it('keeps the established ultimate heroes unchanged and corrects the oversized Assassin', () => {

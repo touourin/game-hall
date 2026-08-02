@@ -209,9 +209,27 @@ const ROLE_ARTWORK_FRAMING: Partial<
   },
   'royal-codex': {
     merlin: {
-      scale: 1.16,
+      scale: 1.26,
       originXPercent: 50,
-      originYPercent: 50,
+      originYPercent: 42,
+      preserveFrame: true,
+    },
+    percival: {
+      scale: 1.08,
+      originXPercent: 50,
+      originYPercent: 38,
+      preserveFrame: true,
+    },
+    mordred: {
+      scale: 1.12,
+      originXPercent: 50,
+      originYPercent: 38,
+      preserveFrame: true,
+    },
+    oberon: {
+      scale: 1.15,
+      originXPercent: 50,
+      originYPercent: 38,
       preserveFrame: true,
     },
   },

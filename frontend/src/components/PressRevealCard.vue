@@ -125,7 +125,7 @@ function hide() {
 .press-reveal-art.preserves-frame { transform: none; }
 .press-reveal-inner-art { z-index: 0; object-fit: cover; pointer-events: none; transform: scale(var(--reveal-art-scale, 1)); transform-origin: var(--reveal-art-origin, 50% 50%); -webkit-mask-image: radial-gradient(ellipse 38% 42% at 50% 42%, #000 0 75%, rgba(0, 0, 0, .76) 84%, transparent 100%); mask-image: radial-gradient(ellipse 38% 42% at 50% 42%, #000 0 75%, rgba(0, 0, 0, .76) 84%, transparent 100%); }
 .press-reveal-shade { z-index: 1; background: linear-gradient(180deg, transparent 30%, rgba(3, 13, 15, .2) 49%, rgba(3, 13, 15, .94) 76%), linear-gradient(90deg, rgba(3, 13, 15, .16), transparent 26%, transparent 74%, rgba(3, 13, 15, .16)); }
-.press-reveal-card[data-artwork-treatment="codex-ink-wash"] .press-reveal-shade { background: linear-gradient(180deg, transparent 52%, rgba(7,18,27,.72) 62%, #07121b 68%, #02090a 100%), linear-gradient(90deg, rgba(3,13,15,.16), transparent 26%, transparent 74%, rgba(3,13,15,.16)); }
+.press-reveal-card[data-artwork-treatment="codex-ink-wash"] .press-reveal-shade { background: linear-gradient(180deg, transparent 60%, rgba(7,18,27,.9) 68%, #07121b 74%, #02090a 100%), linear-gradient(90deg, rgba(3,13,15,.16), transparent 26%, transparent 74%, rgba(3,13,15,.16)); }
 .press-reveal-content.illustrated { align-content: end; min-height: inherit; padding: 58% 22px 23px; }
 .press-reveal-content.illustrated > svg { filter: drop-shadow(0 2px 7px rgba(0, 0, 0, .75)); }
 .press-reveal-content.illustrated > strong, .press-reveal-content.illustrated > span, .press-reveal-content.illustrated :deep(.secret-description), .press-reveal-content.illustrated :deep(.muted-secret) { text-shadow: 0 2px 9px rgba(0, 0, 0, .9); }
