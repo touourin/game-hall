@@ -216,6 +216,22 @@ describe('ArcadeRoom', () => {
     expect(wrapper.get('.arcade-room').classes()).toContain('arcade-room--wide')
   })
 
+  it('marks active board rooms for the mobile board-first layout', () => {
+    const room = snapshot('xiangqi')
+    room.phase = 'playing'
+    room.actions.canRequestDraw = true
+    const wrapper = shallowMount(ArcadeRoom, {
+      props: { snapshot: room },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.get('.arcade-room').classes()).toContain('arcade-room--active')
+    expect(wrapper.get('.arcade-room').classes()).toContain('arcade-room--board-game')
+    expect(wrapper.get('.arcade-game-stage').element.lastElementChild?.classList).toContain(
+      'match-request-panel',
+    )
+  })
+
   it('runs the Avalon lobby inside the same shared room shell', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)

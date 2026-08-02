@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Check, LayoutPanelTop, PanelsTopLeft } from '@lucide/vue'
+import { computed, ref } from 'vue'
+import { Check, ChevronRight, LayoutPanelTop, PanelsTopLeft, X } from '@lucide/vue'
 import {
   GAME_SKINS,
   gameSkinCssVariables,
@@ -15,6 +16,16 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [skin: GameSkinId]
 }>()
+
+const mobileOpen = ref(false)
+const selectedSkin = computed(() => (
+  GAME_SKINS.find((skin) => skin.id === props.modelValue) ?? GAME_SKINS[0]!
+))
+
+function selectSkin(skin: GameSkinId) {
+  emit('update:modelValue', skin)
+  mobileOpen.value = false
+}
 </script>
 
 <template>
@@ -30,7 +41,37 @@ const emit = defineEmits<{
       </div>
     </div>
 
-    <div class="game-skin-options" role="group" :aria-label="`预览并选择本局${props.kind === 'board' ? '棋盘' : '扑克'}画风`">
+    <button
+      type="button"
+      class="game-skin-mobile-trigger"
+      aria-label="更换本局画风"
+      @click="mobileOpen = true"
+    >
+      <span>
+        <small>当前画风</small>
+        <strong>{{ selectedSkin.name }}</strong>
+      </span>
+      <span>{{ selectedSkin.tier }} <ChevronRight :size="16" /></span>
+    </button>
+
+    <button
+      v-if="mobileOpen"
+      type="button"
+      class="game-skin-mobile-backdrop"
+      aria-label="关闭画风选择"
+      @click="mobileOpen = false"
+    />
+
+    <div
+      class="game-skin-options"
+      :class="{ 'is-mobile-open': mobileOpen }"
+      role="group"
+      :aria-label="`预览并选择本局${props.kind === 'board' ? '棋盘' : '扑克'}画风`"
+    >
+      <header class="game-skin-mobile-sheet-header">
+        <span><small>LOCAL APPEARANCE</small><strong>选择本局画风</strong></span>
+        <button type="button" aria-label="关闭画风选择" @click="mobileOpen = false"><X :size="19" /></button>
+      </header>
       <button
         v-for="skin in GAME_SKINS"
         :key="skin.id"
@@ -39,7 +80,7 @@ const emit = defineEmits<{
         :class="{ active: modelValue === skin.id }"
         :aria-pressed="modelValue === skin.id"
         :aria-label="`${skin.name}，${skin.tier}皮肤：${skin.description}`"
-        @click="emit('update:modelValue', skin.id)"
+        @click="selectSkin(skin.id)"
       >
         <span class="game-skin-preview" :style="gameSkinCssVariables(skin.id)">
           <span class="preview-board" aria-hidden="true">
@@ -72,6 +113,7 @@ const emit = defineEmits<{
 .game-skin-heading strong { font-family: "Songti SC", "STSong", serif; font-size: 14px; }
 .game-skin-heading small { color: var(--muted); font-size: 10px; }
 .game-skin-icon { display: grid; flex: 0 0 auto; place-items: center; width: 42px; height: 42px; border: 1px solid rgba(225,188,104,.18); border-radius: 14px; color: var(--gold); background: rgba(225,188,104,.08); }
+.game-skin-mobile-trigger, .game-skin-mobile-sheet-header, .game-skin-mobile-backdrop { display: none; }
 .game-skin-options { display: grid; grid-auto-columns: minmax(154px, 1fr); grid-auto-flow: column; gap: 10px; margin-inline: -4px; padding: 2px 4px 9px; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-color: rgba(225,188,104,.34) transparent; scrollbar-width: thin; scroll-snap-type: inline proximity; }
 .game-skin-options button { display: grid; align-content: start; gap: 9px; min-width: 0; border: 1px solid var(--line); border-radius: 15px; padding: 6px 6px 10px; color: var(--text); background: rgba(var(--surface-header-rgb),.58); text-align: left; cursor: pointer; overflow: hidden; scroll-snap-align: start; transition: border-color 160ms ease, background 160ms ease, transform 160ms ease; }
 .game-skin-options button.active { border-color: rgba(225,188,104,.52); background: rgba(225,188,104,.11); box-shadow: inset 0 0 0 1px rgba(225,188,104,.08); }
@@ -101,6 +143,24 @@ const emit = defineEmits<{
 
 @media (max-width: 430px) {
   .game-skin-card { padding-inline: 13px; }
-  .game-skin-options { grid-auto-columns: minmax(148px, 46vw); }
+}
+
+@media (max-width: 720px) {
+  .game-skin-card { gap: 12px; }
+  .game-skin-mobile-trigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 60px; border: 1px solid color-mix(in srgb, var(--gold) 28%, var(--line)); border-radius: 13px; padding: 10px 12px; color: var(--text); background: color-mix(in srgb, var(--gold) 7%, var(--surface-inset)); text-align: left; }
+  .game-skin-mobile-trigger > span { display: flex; align-items: center; gap: 7px; }
+  .game-skin-mobile-trigger > span:first-child { display: grid; gap: 2px; }
+  .game-skin-mobile-trigger small { color: var(--muted); font-size: 9px; }
+  .game-skin-mobile-trigger strong { font-family: "Songti SC", "STSong", serif; font-size: 14px; }
+  .game-skin-mobile-trigger > span:last-child { color: var(--gold); font-size: 10px; font-weight: 850; }
+  .game-skin-options { display: none; }
+  .game-skin-mobile-backdrop { position: fixed; z-index: 90; inset: 0; display: block; width: 100%; border: 0; background: color-mix(in srgb, var(--bg) 76%, transparent); backdrop-filter: blur(8px); }
+  .game-skin-options.is-mobile-open { position: fixed; z-index: 91; right: 8px; bottom: 0; left: 8px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: row; grid-auto-columns: auto; gap: 9px; max-height: min(82dvh, 720px); margin: 0; border: 1px solid color-mix(in srgb, var(--gold) 30%, var(--line)); border-bottom: 0; border-radius: 22px 22px 0 0; padding: 12px 12px calc(16px + env(safe-area-inset-bottom)); overflow-x: hidden; overflow-y: auto; background: var(--material-pattern), var(--modal-surface); box-shadow: 0 -20px 70px rgba(0,0,0,.42); scroll-snap-type: none; }
+  .game-skin-mobile-sheet-header { position: sticky; z-index: 3; top: -12px; grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -12px -12px 3px; border-bottom: 1px solid var(--line); padding: 14px; background: color-mix(in srgb, var(--modal-surface) 94%, transparent); backdrop-filter: blur(14px); }
+  .game-skin-mobile-sheet-header > span { display: grid; gap: 2px; }
+  .game-skin-mobile-sheet-header small { color: var(--gold); font-size: 8px; font-weight: 900; letter-spacing: .12em; }
+  .game-skin-mobile-sheet-header strong { font-family: "Songti SC", "STSong", serif; font-size: 17px; }
+  .game-skin-mobile-sheet-header button { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 50%; color: var(--text); background: var(--surface-inset); }
+  .game-skin-options.is-mobile-open > button { scroll-snap-align: none; }
 }
 </style>

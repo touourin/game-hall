@@ -114,6 +114,7 @@ html {
 body {
   min-width: 320px;
   min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   color: var(--text);
   background: var(--body-background);
@@ -162,6 +163,7 @@ button:disabled {
 
 .app-shell {
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .access-page {
@@ -369,6 +371,7 @@ button:disabled {
 .page-container {
   width: min(100%, 720px);
   min-height: 100vh;
+  min-height: 100dvh;
   margin: 0 auto;
   padding:
     calc(18px + env(safe-area-inset-top))

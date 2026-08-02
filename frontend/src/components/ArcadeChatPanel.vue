@@ -160,6 +160,7 @@ defineExpose({ openChat })
   bottom: max(18px, env(safe-area-inset-bottom));
   width: min(390px, calc(100vw - 36px));
   height: min(520px, calc(100vh - 80px));
+  height: min(520px, calc(100dvh - 80px));
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
@@ -284,12 +285,22 @@ defineExpose({ openChat })
 }
 
 @media (max-width: 600px) {
+  .arcade-chat-dock {
+    position: static;
+    width: 100%;
+    min-height: 48px;
+    justify-content: center;
+    margin-top: 14px;
+    border-radius: 14px;
+  }
+
   .arcade-chat-panel {
     right: 0;
     bottom: 0;
     left: 0;
     width: 100%;
-    height: min(68vh, 560px);
+    height: min(72dvh, 560px);
+    padding-bottom: env(safe-area-inset-bottom);
     border-radius: 20px 20px 0 0;
   }
 }

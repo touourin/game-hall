@@ -277,7 +277,11 @@ function openSharedChat() {
 <template>
   <main
     class="arcade-room page-container"
-    :class="{ 'arcade-room--wide': ['avalon', 'poker', 'doudizhu', 'junqi', 'minesweeper'].includes(snapshot.gameKey) }"
+    :class="{
+      'arcade-room--wide': ['avalon', 'poker', 'doudizhu', 'junqi', 'minesweeper'].includes(snapshot.gameKey),
+      'arcade-room--active': snapshot.phase !== 'lobby',
+      'arcade-room--board-game': ['gomoku', 'xiangqi', 'go', 'junqi'].includes(snapshot.gameKey),
+    }"
     :data-game-skin="activeGameSkinKind ? activeGameSkin : undefined"
     :style="activeGameSkinStyle"
   >
@@ -504,6 +508,23 @@ function openSharedChat() {
         </button>
       </div>
 
+      <GomokuBoard v-if="snapshot.gameKey === 'gomoku'" :snapshot="snapshot" />
+      <XiangqiBoard v-else-if="snapshot.gameKey === 'xiangqi'" :snapshot="snapshot" />
+      <GoBoard v-else-if="snapshot.gameKey === 'go'" :snapshot="snapshot" />
+      <PokerTable v-else-if="snapshot.gameKey === 'poker'" :snapshot="snapshot" />
+      <DoudizhuTable v-else-if="snapshot.gameKey === 'doudizhu'" :snapshot="snapshot" />
+      <JunqiBoard v-else-if="snapshot.gameKey === 'junqi'" :snapshot="snapshot" />
+      <ReactionTest v-else-if="snapshot.gameKey === 'reaction'" :snapshot="snapshot" />
+      <SchulteGrid v-else-if="snapshot.gameKey === 'schulte'" :snapshot="snapshot" />
+      <MinesweeperBoard v-else-if="snapshot.gameKey === 'minesweeper'" :snapshot="snapshot" />
+      <HanoiGame v-else-if="snapshot.gameKey === 'hanoi'" :snapshot="snapshot" />
+      <AvalonTable
+        v-else-if="avalonSnapshot"
+        :snapshot="avalonSnapshot"
+        :role-skin="activeRoleSkin"
+        @open-chat="openSharedChat"
+      />
+
       <section
         v-if="snapshot.phase === 'playing' && (snapshot.actions.canRequestUndo || snapshot.actions.canRequestDraw || snapshot.request)"
         class="surface match-request-panel"
@@ -542,23 +563,6 @@ function openSharedChat() {
           </div>
         </template>
       </section>
-
-      <GomokuBoard v-if="snapshot.gameKey === 'gomoku'" :snapshot="snapshot" />
-      <XiangqiBoard v-else-if="snapshot.gameKey === 'xiangqi'" :snapshot="snapshot" />
-      <GoBoard v-else-if="snapshot.gameKey === 'go'" :snapshot="snapshot" />
-      <PokerTable v-else-if="snapshot.gameKey === 'poker'" :snapshot="snapshot" />
-      <DoudizhuTable v-else-if="snapshot.gameKey === 'doudizhu'" :snapshot="snapshot" />
-      <JunqiBoard v-else-if="snapshot.gameKey === 'junqi'" :snapshot="snapshot" />
-      <ReactionTest v-else-if="snapshot.gameKey === 'reaction'" :snapshot="snapshot" />
-      <SchulteGrid v-else-if="snapshot.gameKey === 'schulte'" :snapshot="snapshot" />
-      <MinesweeperBoard v-else-if="snapshot.gameKey === 'minesweeper'" :snapshot="snapshot" />
-      <HanoiGame v-else-if="snapshot.gameKey === 'hanoi'" :snapshot="snapshot" />
-      <AvalonTable
-        v-else-if="avalonSnapshot"
-        :snapshot="avalonSnapshot"
-        :role-skin="activeRoleSkin"
-        @open-chat="openSharedChat"
-      />
     </section>
 
     <ArcadeChatPanel
@@ -693,7 +697,7 @@ function openSharedChat() {
 .room-rule-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; border: 1px solid color-mix(in srgb, var(--gold) 38%, var(--line)); border-radius: 10px; padding: 0 11px; color: var(--gold); background: color-mix(in srgb, var(--gold) 7%, transparent); font-weight: 850; }
 .game-skin-card + .arcade-waiting,
 .artwork-skin-picker + .arcade-waiting { margin-top: 18px; }
-.arcade-waiting { min-height: 390px; display: grid; place-items: center; align-content: center; gap: 12px; text-align: center; }
+.arcade-waiting { min-height: min(390px, 48dvh); display: grid; place-items: center; align-content: center; gap: 12px; padding: 30px 18px; text-align: center; }
 .arcade-waiting > svg { color: var(--gold); }
 .arcade-waiting h2, .arcade-waiting p { margin: 0; }
 .arcade-waiting p { color: var(--muted); }
@@ -722,6 +726,19 @@ function openSharedChat() {
   .arcade-player-strip article { flex-basis: calc(33.333333% - 6.667px); }
 }
 @media (max-width: 620px) {
+  .arcade-room--active { display: flex; flex-direction: column; }
+  .arcade-room--active :deep(.room-page-header) { order: 1; }
+  .arcade-room--active :deep(.host-transfer-notice),
+  .arcade-room--active > .guest-match-notice { order: 2; }
+  .arcade-room--active > .arcade-game-stage { order: 3; }
+  .arcade-room--active > .arcade-player-strip { order: 4; margin-top: 18px; }
+  .arcade-room--active > .room-rule-bar { order: 5; }
+  .arcade-room--active > :deep(.arcade-chat-dock),
+  .arcade-room--active > :deep(.arcade-chat-panel) { order: 6; }
+  .arcade-room--active.arcade-room--board-game :deep(.room-page-header) { margin-bottom: 12px; }
+  .arcade-room--active.arcade-room--board-game :deep(.room-page-copy > small) { font-size: 9px; letter-spacing: .08em; }
+  .arcade-room--active.arcade-room--board-game :deep(.room-page-title-row h1) { font-size: 23px; }
+  .arcade-room--active.arcade-room--board-game :deep(.room-page-actions) { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; }
   .arcade-player-strip article { flex-basis: calc(50% - 5px); }
   .match-request-panel { align-items: stretch; flex-direction: column; }
   .match-request-panel > div { display: grid; grid-template-columns: 1fr 1fr; }
@@ -729,6 +746,10 @@ function openSharedChat() {
   .room-rule-bar { align-items: stretch; flex-direction: column; }
   .room-rule-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
   .room-rule-actions button { width: 100%; }
+  .arcade-waiting { min-height: 0; padding: 25px 14px; }
+  .arcade-waiting > svg { width: 38px; height: 38px; }
+  .arcade-waiting h2 { font-size: 20px; }
+  .arcade-waiting .room-code-share { margin-top: 7px; font-size: 24px; }
 }
 @media (max-width: 430px) {
   .arcade-player-strip article { flex-basis: 100%; }
