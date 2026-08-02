@@ -259,15 +259,15 @@ function selectPoint(row: number, column: number, cell: number, event: MouseEven
 </template>
 
 <style scoped>
-.go-panel { display: grid; gap: 14px; justify-items: center; }
-.go-status { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 16px; color: var(--muted); }
+.go-panel { min-width: 0; display: grid; gap: 14px; justify-items: center; }
+.go-status { width: 100%; min-width: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 16px; color: var(--muted); }
 .go-status strong { color: var(--gold); }
-.go-scoring-guide { width: min(94vw, 700px); padding: 13px 15px; border: 1px solid color-mix(in srgb, var(--gold) 42%, var(--line)); border-radius: 13px; background: color-mix(in srgb, var(--gold) 8%, var(--surface)); text-align: center; }
+.go-scoring-guide { width: min(100%, 700px); padding: 13px 15px; border: 1px solid color-mix(in srgb, var(--gold) 42%, var(--line)); border-radius: 13px; background: color-mix(in srgb, var(--gold) 8%, var(--surface)); text-align: center; }
 .go-scoring-guide strong { color: var(--gold); }
 .go-scoring-guide p { margin: 5px 0 0; color: var(--muted); line-height: 1.5; }
 .go-board {
   --board-size: 19;
-  width: min(94vw, 700px);
+  width: min(100%, 700px);
   aspect-ratio: 1;
   padding: 11px;
   display: grid;
@@ -310,13 +310,13 @@ function selectPoint(row: number, column: number, cell: number, event: MouseEven
 .inline-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 .inline-actions button:not(.arcade-danger-button) { border: 1px solid var(--line); border-radius: 12px; padding: 10px 18px; color: var(--text); background: var(--surface); }
 .inline-actions small { flex-basis: 100%; color: var(--muted); text-align: center; }
-.go-scoring-actions { width: min(94vw, 700px); display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.go-scoring-actions { width: min(100%, 700px); display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
 .go-scoring-actions p { margin: 0; color: var(--muted); text-align: center; }
 .go-scoring-actions > div { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .go-scoring-actions button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--line); border-radius: 11px; color: var(--text); background: transparent; font-weight: 850; }
 .go-scoring-actions .confirm-score-button { border-color: color-mix(in srgb, var(--gold) 48%, var(--line)); color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, transparent); }
 .go-scoring-actions button:disabled { opacity: .58; }
-.go-score-card { width: min(94vw, 700px); display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.go-score-card { width: min(100%, 700px); display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
 .go-score-card header { display: flex; align-items: center; justify-content: space-between; }
 .go-score-card header strong { color: var(--gold); }
 .go-score-card header span, .go-score-card p, .go-score-breakdown span { color: var(--muted); }
@@ -325,12 +325,12 @@ function selectPoint(row: number, column: number, cell: number, event: MouseEven
 .go-score-breakdown b { font-size: 16px; }
 .go-score-breakdown span { line-height: 1.45; }
 .go-score-card p { margin: 0; text-align: center; }
-.go-board-hint { width: min(94vw, 700px); margin: -3px 0 0; color: var(--muted); text-align: center; font-size: 13px; }
+.go-board-hint { width: min(100%, 700px); margin: -3px 0 0; color: var(--muted); text-align: center; font-size: 13px; }
 @media (max-width: 600px) {
   .go-scoring-guide, .go-scoring-actions, .go-score-card { width: 100%; }
   .go-scoring-guide { text-align: left; }
   .go-scoring-actions > div, .go-score-breakdown { grid-template-columns: 1fr; }
-  .go-board { width: min(96vw, 700px); padding: 7px; border-width: 4px; }
+  .go-board { width: min(100%, 700px); padding: 7px; border-width: 4px; }
 }
 @media (hover: none) {
   .go-point:hover .go-preview:not(.active) { opacity: 0; transform: scale(.82); }

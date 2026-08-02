@@ -26,6 +26,7 @@ interface LegalMove {
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
 const selected = ref<{ row: number; column: number } | null>(null)
+const pendingTarget = ref<{ row: number; column: number } | null>(null)
 const showReplay = ref(false)
 const replayStep = ref(0)
 
@@ -89,11 +90,17 @@ const selectedPieceLabel = computed(() => {
     game.value.board[selected.value.row]?.[selected.value.column] ?? ''
   ] ?? ''
 })
+const selectionHint = computed(() => {
+  if (!selected.value) return ''
+  if (!pendingTarget.value) return `已选${selectedPieceLabel.value} · 请选择落点`
+  return `预览${selectedPieceLabel.value}到第 ${pendingTarget.value.row + 1} 行第 ${pendingTarget.value.column + 1} 列 · 再点一次确认`
+})
 
 watch(
   () => props.snapshot.revision,
   () => {
     selected.value = null
+    pendingTarget.value = null
     if (showReplay.value) replayStep.value = moveHistory.value.length
   },
 )
@@ -121,24 +128,42 @@ function isLegalTarget(row: number, column: number): boolean {
   )
 }
 
-function choose(row: number, column: number) {
+function isPendingTarget(row: number, column: number): boolean {
+  return pendingTarget.value?.row === row && pendingTarget.value?.column === column
+}
+
+function usesTouchConfirmation(event: MouseEvent): boolean {
+  return ['touch', 'pen'].includes((event as PointerEvent).pointerType ?? '')
+}
+
+function choose(row: number, column: number, event: MouseEvent) {
   if (!isMyTurn.value || isReplaying.value || arcade.busy) return
   const piece = game.value.board[row]?.[column] ?? null
   if (!selected.value) {
-    if (isOwn(piece)) selected.value = { row, column }
+    if (isOwn(piece)) {
+      selected.value = { row, column }
+      pendingTarget.value = null
+    }
     return
   }
   if (isOwn(piece)) {
     if (selected.value.row === row && selected.value.column === column) {
       selected.value = null
+      pendingTarget.value = null
       return
     }
     selected.value = { row, column }
+    pendingTarget.value = null
     return
   }
   if (!isLegalTarget(row, column)) return
+  if (usesTouchConfirmation(event) && !isPendingTarget(row, column)) {
+    pendingTarget.value = { row, column }
+    return
+  }
   const source = selected.value
   selected.value = null
+  pendingTarget.value = null
   void arcade.action('move', {
     fromRow: source.row,
     fromColumn: source.column,
@@ -150,6 +175,7 @@ function choose(row: number, column: number) {
 function openReplay(step = moveHistory.value.length) {
   replayStep.value = step
   selected.value = null
+  pendingTarget.value = null
   showReplay.value = true
 }
 
@@ -179,7 +205,7 @@ function exportMoves() {
     <div class="xiangqi-status">
       <strong>{{ isReplaying ? `复盘第 ${replayStep} / ${moveHistory.length} 手` : isMyTurn ? '轮到你走棋' : '等待对手走棋' }}</strong>
       <span>你执{{ game.viewerColor === 'red' ? '红' : '黑' }}</span>
-      <span v-if="selected && !isReplaying" class="selection">已选{{ selectedPieceLabel }} · 请选择落点</span>
+      <span v-if="selected && !isReplaying" class="selection">{{ selectionHint }}</span>
       <span v-if="checkedText && !isReplaying" class="check">{{ checkedText }}</span>
     </div>
 
@@ -206,12 +232,13 @@ function exportMoves() {
             :aria-label="`第 ${row + 1} 行第 ${column + 1} 列`"
             :class="{
               selected: selected?.row === row && selected?.column === column,
+              confirming: isPendingTarget(row, column),
               legal: !isReplaying && isLegalTarget(row, column),
               capture: !isReplaying && isLegalTarget(row, column) && game.board[row][column],
               latest: (isReplaying ? replayMove : game.lastMove)?.toRow === row && (isReplaying ? replayMove : game.lastMove)?.toColumn === column,
               'last-from': (isReplaying ? replayMove : game.lastMove)?.fromRow === row && (isReplaying ? replayMove : game.lastMove)?.fromColumn === column,
             }"
-            @click="choose(row, column)"
+            @click="choose(row, column, $event)"
           >
             <span
               v-if="displayBoard[row][column]"
@@ -255,6 +282,7 @@ function exportMoves() {
 .xiangqi-grid { position: relative; isolation: isolate; width: 100%; aspect-ratio: 9 / 10; display: grid; grid-template-columns: repeat(9, 1fr); grid-template-rows: repeat(10, 1fr); }
 .xiangqi-lines { pointer-events: none; position: absolute; z-index: 0; inset: 5% 5.5556%; width: auto; height: auto; overflow: hidden; }.xiangqi-lines path { fill: none; stroke: var(--game-board-line, #603b1d); stroke-width: 1.25; vector-effect: non-scaling-stroke; stroke-linecap: square; }
 .xiangqi-cell { position: relative; z-index: 2; min-width: 0; min-height: 0; appearance: none; -webkit-appearance: none; touch-action: manipulation; padding: 0; border: 0; border-radius: 0; background: transparent; }.xiangqi-cell:disabled { opacity: 1; }.xiangqi-cell:not(:disabled) { cursor: pointer; }.xiangqi-cell.selected::after, .xiangqi-cell.latest::after { content: ''; position: absolute; inset: 0; z-index: 4; border: 3px solid var(--gold); border-radius: 50%; box-shadow: 0 0 0 2px rgba(255, 235, 168, .35), 0 0 18px rgba(246, 196, 89, .62); }.xiangqi-cell.latest::after { inset: 10%; z-index: 1; border-width: 2px; border-color: #b94337; box-shadow: 0 0 0 2px rgba(255, 229, 186, .34); }.xiangqi-cell.last-from::before { content: ''; position: absolute; inset: 30%; z-index: 1; border-radius: 50%; background: rgba(178, 64, 50, .62); box-shadow: 0 0 0 3px rgba(255, 225, 177, .28); }.xiangqi-cell.legal::before { content: ''; position: absolute; z-index: 3; width: 13px; height: 13px; top: 50%; left: 50%; border-radius: 50%; background: #18875edb; box-shadow: 0 0 0 4px rgba(24, 135, 94, .14); transform: translate(-50%, -50%); }.xiangqi-cell.legal.capture::before { width: 72%; height: 72%; border: 3px solid #18875e; background: transparent; box-shadow: 0 0 0 3px rgba(24, 135, 94, .13); }
+.xiangqi-cell.confirming::after { content: ''; position: absolute; inset: 5%; z-index: 5; border: 3px solid var(--gold); border-radius: 50%; background: color-mix(in srgb, var(--gold) 16%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 22%, transparent), 0 0 20px color-mix(in srgb, var(--gold) 62%, transparent); pointer-events: none; }
 .xiangqi-cell:focus-visible { border-radius: 50%; outline-offset: -3px; }
 .xiangqi-piece { position: absolute; inset: 7%; z-index: 3; display: grid; place-items: center; border: 2px solid currentColor; border-radius: 50%; background: var(--game-piece-surface, radial-gradient(circle at 38% 30%, rgba(255, 248, 215, .92), transparent 27%), radial-gradient(circle, #efd398, #bd7d35 76%)); box-shadow: 0 3px 7px #0008, inset 0 0 0 2px var(--game-piece-rim, #edc77d), inset 0 -4px 8px rgba(0, 0, 0, .22); font-family: serif; font-size: clamp(15px, 4.3vw, 27px); line-height: 1; font-weight: 900; transition: transform .14s ease, box-shadow .14s ease, filter .14s ease; }.xiangqi-piece.red { color: #a92b25; }.xiangqi-piece.black { color: #242621; }.xiangqi-cell.selected .xiangqi-piece { transform: translateY(-3px) scale(1.06); filter: saturate(1.12) brightness(1.06); box-shadow: 0 7px 13px rgba(48, 24, 8, .62), 0 0 0 3px #f4cd68, 0 0 22px rgba(246, 196, 82, .78), inset 0 0 0 2px #f3d58d; }.river-label { pointer-events: none; position: absolute; z-index: 1; top: 50%; left: 9%; right: 9%; display: flex; justify-content: space-around; color: var(--game-board-label, #603b1d); font-family: serif; font-size: clamp(16px, 4vw, 27px); line-height: 1; font-weight: 900; text-shadow: 0 1px rgba(255, 255, 255, .28); transform: translateY(-50%); }
 .xiangqi-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }.xiangqi-actions > button:not(.arcade-danger-button) { min-height: 42px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 10px; padding: 0 13px; color: var(--text); background: var(--surface); font-weight: 800; }.xiangqi-actions button:disabled { opacity: .4; }

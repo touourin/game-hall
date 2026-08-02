@@ -272,18 +272,18 @@ function pass() {
 </template>
 
 <style scoped>
-.board-game-panel { display: grid; gap: 16px; justify-items: center; }
+.board-game-panel { min-width: 0; display: grid; gap: 16px; justify-items: center; }
 .turn-banner { color: var(--muted); text-align: center; font-weight: 700; }
 .turn-banner.active { color: var(--gold); }
 .turn-banner small { display: block; margin-top: 3px; font-weight: 500; }
-.swap2-choice-panel { width: min(92vw, 650px); display: grid; gap: 10px; border: 1px solid color-mix(in srgb, var(--gold) 42%, var(--line)); border-radius: 13px; padding: 13px; text-align: center; background: color-mix(in srgb, var(--gold) 7%, rgba(0, 0, 0, .14)); }
+.swap2-choice-panel { width: min(100%, 650px); display: grid; gap: 10px; border: 1px solid color-mix(in srgb, var(--gold) 42%, var(--line)); border-radius: 13px; padding: 13px; text-align: center; background: color-mix(in srgb, var(--gold) 7%, rgba(0, 0, 0, .14)); }
 .swap2-choice-panel > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .swap2-choice-panel button { min-height: 42px; border: 1px solid color-mix(in srgb, var(--gold) 35%, var(--line)); border-radius: 10px; color: var(--gold); background: rgba(0, 0, 0, .16); font-weight: 850; }
-.gomoku-pass-notice { width: min(92vw, 650px); margin: 0; color: var(--gold); text-align: center; }
-.gomoku-rule-notice { width: min(92vw, 650px); margin: 0; border: 1px solid rgba(216, 91, 91, .42); border-radius: 11px; padding: 9px 12px; color: #f1b0b0; background: rgba(112, 35, 39, .18); text-align: center; }
+.gomoku-pass-notice { width: min(100%, 650px); margin: 0; color: var(--gold); text-align: center; }
+.gomoku-rule-notice { width: min(100%, 650px); margin: 0; border: 1px solid rgba(216, 91, 91, .42); border-radius: 11px; padding: 9px 12px; color: #f1b0b0; background: rgba(112, 35, 39, .18); text-align: center; }
 .gomoku-board {
   --board-size: 15;
-  width: min(92vw, 650px);
+  width: min(100%, 650px);
   aspect-ratio: 1;
   padding: 14px;
   display: grid;
@@ -347,8 +347,8 @@ function pass() {
   background: #d84f42;
   box-shadow: 0 0 0 1px rgba(255, 238, 210, .62);
 }
-.gomoku-board-hint { width: min(92vw, 650px); margin: -4px 0 0; color: var(--muted); text-align: center; font-size: 13px; }
-.renju-legend { width: min(92vw, 650px); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 16px; color: var(--muted); }
+.gomoku-board-hint { width: min(100%, 650px); margin: -4px 0 0; color: var(--muted); text-align: center; font-size: 13px; }
+.renju-legend { width: min(100%, 650px); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 16px; color: var(--muted); }
 .renju-legend > span { display: inline-flex; align-items: center; gap: 6px; }
 .renju-legend i { width: 18px; aspect-ratio: 1; display: inline-grid; place-items: center; border-radius: 50%; font-style: normal; }
 .forbidden-sample { color: #a12a2a; background: rgba(255, 210, 190, .45); font-weight: 950; }
@@ -358,7 +358,7 @@ function pass() {
 .gomoku-pass-button { display: inline-flex; align-items: center; gap: 6px; min-height: 42px; border: 1px solid var(--line); border-radius: 11px; padding: 0 14px; color: var(--text); background: transparent; font-weight: 850; }
 .gomoku-pass-button:disabled { opacity: .45; }
 @media (max-width: 600px) {
-  .gomoku-board { width: min(96vw, 650px); padding: 8px; border-width: 4px; }
+  .gomoku-board { width: min(100%, 650px); padding: 8px; border-width: 4px; }
   .gomoku-rule-notice, .renju-legend, .swap2-choice-panel, .gomoku-pass-notice { width: 100%; }
   .swap2-choice-panel > div { grid-template-columns: 1fr; }
 }

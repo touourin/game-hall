@@ -1,5 +1,6 @@
 import { createPinia } from 'pinia'
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { vi } from 'vitest'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
@@ -115,6 +116,42 @@ describe('XiangqiBoard', () => {
     await cells[9 * 9 + 4]?.trigger('click')
     expect(cells[8 * 9 + 4]?.classes()).toContain('legal')
     await cells[8 * 9 + 4]?.trigger('click')
+    expect(action).toHaveBeenCalledWith('move', {
+      fromRow: 9,
+      fromColumn: 4,
+      toRow: 8,
+      toColumn: 4,
+    })
+  })
+
+  it('previews a touch destination before submitting it on the second tap', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const action = vi.spyOn(arcade, 'action').mockResolvedValue()
+    const wrapper = mount(XiangqiBoard, {
+      props: { snapshot: snapshot('p1') },
+      global: { plugins: [pinia] },
+    })
+    const cells = wrapper.findAll('.xiangqi-cell')
+    const source = cells[9 * 9 + 4]
+    const target = cells[8 * 9 + 4]
+    const touchTarget = () => {
+      const event = new MouseEvent('click', { bubbles: true, cancelable: true })
+      Object.defineProperty(event, 'pointerType', { value: 'touch' })
+      target?.element.dispatchEvent(event)
+    }
+
+    await source?.trigger('click')
+    touchTarget()
+    await nextTick()
+
+    expect(action).not.toHaveBeenCalled()
+    expect(target?.classes()).toContain('confirming')
+    expect(wrapper.text()).toContain('再点一次确认')
+
+    touchTarget()
+    await nextTick()
+
     expect(action).toHaveBeenCalledWith('move', {
       fromRow: 9,
       fromColumn: 4,

@@ -26,6 +26,8 @@ describe('GameHall', () => {
     expect(wrapper.find('.featured-art-midnight').exists()).toBe(true)
     expect(wrapper.find('.featured-art-royal').exists()).toBe(true)
     expect(wrapper.find('.mobile-salon-dock').exists()).toBe(true)
+    expect(wrapper.findAll('.account-bar-secondary')).toHaveLength(2)
+    expect(wrapper.get('.account-logout').text()).toContain('退出')
     expect(wrapper.get('[aria-label="打开设置"]').attributes('aria-label')).toBe('打开设置')
     expect(wrapper.text()).toContain('军旗')
     expect(wrapper.text()).toContain('秘密布阵，沿铁路突袭敌旗')

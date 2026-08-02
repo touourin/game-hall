@@ -1,5 +1,8 @@
 import { createPinia } from 'pinia'
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
+import { vi } from 'vitest'
+import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
 import JunqiBoard from './JunqiBoard.vue'
 
@@ -87,5 +90,52 @@ describe('JunqiBoard', () => {
     expect(
       wrapper.findAll('.junqi-cell').every((cell) => cell.attributes('disabled') === undefined),
     ).toBe(true)
+  })
+
+  it('previews a touch move before submitting it on the second target tap', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const action = vi.spyOn(arcade, 'action').mockResolvedValue()
+    const current = snapshot('p1')
+    const game = current.game as {
+      board: Array<Array<Record<string, unknown> | null>>
+    }
+    game.board[11][0] = {
+      id: 'red-engineer',
+      side: 'red',
+      kind: 'engineer',
+      label: '工兵',
+      revealed: true,
+    }
+    const wrapper = mount(JunqiBoard, {
+      props: { snapshot: current },
+      global: { plugins: [pinia] },
+    })
+    const cells = wrapper.findAll('.junqi-cell')
+    const source = cells[11 * 5]
+    const target = cells[10 * 5]
+    const touchTarget = () => {
+      const event = new MouseEvent('click', { bubbles: true, cancelable: true })
+      Object.defineProperty(event, 'pointerType', { value: 'touch' })
+      target?.element.dispatchEvent(event)
+    }
+
+    await source?.trigger('click')
+    touchTarget()
+    await nextTick()
+
+    expect(action).not.toHaveBeenCalled()
+    expect(target?.classes()).toContain('confirming')
+    expect(wrapper.text()).toContain('再点一次确认')
+
+    touchTarget()
+    await nextTick()
+
+    expect(action).toHaveBeenCalledWith('move', {
+      fromRow: 11,
+      fromColumn: 0,
+      toRow: 10,
+      toColumn: 0,
+    })
   })
 })

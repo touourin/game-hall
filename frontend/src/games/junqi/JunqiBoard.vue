@@ -17,6 +17,8 @@ interface Position { row: number; column: number }
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
 const selected = ref<Position | null>(null)
+const pendingTarget = ref<Position | null>(null)
+const pendingFlip = ref<Position | null>(null)
 
 const game = computed(() => props.snapshot.game as {
   mode: 'dark' | 'flip'
@@ -62,16 +64,29 @@ const statusTitle = computed(() => {
   return isMyTurn.value ? '轮到你行动' : '等待对手行动'
 })
 const statusHint = computed(() => {
+  if (pendingFlip.value) return `预览翻开第 ${pendingFlip.value.row + 1} 行第 ${pendingFlip.value.column + 1} 列 · 再点一次确认`
+  if (pendingTarget.value) return `预览目标第 ${pendingTarget.value.row + 1} 行第 ${pendingTarget.value.column + 1} 列 · 再点一次确认`
   if (isSetup.value) return isReady.value ? '你的棋子已锁定' : '点选两枚棋子即可交换位置'
   if (game.value.mode === 'flip' && !game.value.viewerSide) return '翻开任意暗棋，首翻颜色就是你的阵营'
   return `${game.value.modeLabel} · ${selfColorLabel.value}`
 })
 
-watch(() => props.snapshot.revision, () => { selected.value = null })
+watch(() => props.snapshot.revision, () => {
+  selected.value = null
+  pendingTarget.value = null
+  pendingFlip.value = null
+})
 
 function key(row: number, column: number) { return `${row}-${column}` }
 function isSelected(row: number, column: number) {
   return selected.value?.row === row && selected.value?.column === column
+}
+function isPending(row: number, column: number) {
+  return pendingTarget.value?.row === row && pendingTarget.value?.column === column
+    || pendingFlip.value?.row === row && pendingFlip.value?.column === column
+}
+function usesTouchConfirmation(event: MouseEvent) {
+  return ['touch', 'pen'].includes((event as PointerEvent).pointerType ?? '')
 }
 function isLatest(row: number, column: number) {
   const action = game.value.lastAction
@@ -85,21 +100,28 @@ function isRail(row: number, column: number) {
   return [1, 5, 6, 10].includes(row) || ([0, 4].includes(column) && row >= 1 && row <= 10)
 }
 
-function choose(row: number, column: number) {
-  if (props.snapshot.phase === 'finished') return
+function choose(row: number, column: number, event: MouseEvent) {
+  if (props.snapshot.phase === 'finished' || arcade.busy) return
   const piece = game.value.board[row]?.[column] ?? null
   if (isSetup.value) {
     if (isReady.value || !piece?.revealed || piece.side !== game.value.viewerSide) return
     if (!selected.value) {
       selected.value = { row, column }
+      pendingTarget.value = null
       return
     }
     if (isSelected(row, column)) {
       selected.value = null
+      pendingTarget.value = null
+      return
+    }
+    if (usesTouchConfirmation(event) && !isPending(row, column)) {
+      pendingTarget.value = { row, column }
       return
     }
     const from = selected.value
     selected.value = null
+    pendingTarget.value = null
     void arcade.action('swap', {
       fromRow: from.row,
       fromColumn: from.column,
@@ -111,16 +133,31 @@ function choose(row: number, column: number) {
   if (!isMyTurn.value) return
   if (game.value.mode === 'flip' && piece && !piece.revealed) {
     selected.value = null
+    pendingTarget.value = null
+    if (usesTouchConfirmation(event) && !isPending(row, column)) {
+      pendingFlip.value = { row, column }
+      return
+    }
+    pendingFlip.value = null
     void arcade.action('flip', { row, column })
     return
   }
   if (piece?.revealed && piece.side === game.value.viewerSide) {
     selected.value = isSelected(row, column) ? null : { row, column }
+    pendingTarget.value = null
+    pendingFlip.value = null
     return
   }
   if (selected.value) {
+    if (usesTouchConfirmation(event) && !isPending(row, column)) {
+      pendingTarget.value = { row, column }
+      pendingFlip.value = null
+      return
+    }
     const from = selected.value
     selected.value = null
+    pendingTarget.value = null
+    pendingFlip.value = null
     void arcade.action('move', {
       fromRow: from.row,
       fromColumn: from.column,
@@ -175,18 +212,19 @@ function choose(row: number, column: number) {
                 gridRow: displayRowIndex < 6 ? displayRowIndex + 1 : displayRowIndex + 2,
                 gridColumn: displayColumnIndex + 1,
               }"
-              :disabled="snapshot.phase === 'finished' || (isSetup ? isReady : !isMyTurn)"
+              :disabled="snapshot.phase === 'finished' || arcade.busy || (isSetup ? isReady : !isMyTurn)"
               :class="{
                 camp: campKeys.has(key(row, column)),
                 headquarters: headquartersKeys.has(key(row, column)),
                 rail: isRail(row, column),
                 selected: isSelected(row, column),
+                confirming: isPending(row, column),
                 latest: isLatest(row, column),
                 'last-from': isLastFrom(row, column),
                 occupied: game.board[row][column],
               }"
               :aria-label="`第 ${row + 1} 行第 ${column + 1} 列${campKeys.has(key(row, column)) ? '，行营' : headquartersKeys.has(key(row, column)) ? '，大本营' : isRail(row, column) ? '，铁路兵站' : '，公路兵站'}`"
-              @click="choose(row, column)"
+              @click="choose(row, column, $event)"
             >
               <span v-if="campKeys.has(key(row, column)) && !game.board[row][column]" class="terrain-label">行营</span>
               <span v-else-if="headquartersKeys.has(key(row, column)) && !game.board[row][column]" class="terrain-label">大本营</span>
@@ -274,6 +312,7 @@ function choose(row: number, column: number) {
 .junqi-cell.headquarters::before { width: 76%; height: 58%; border: 2px solid color-mix(in srgb, var(--game-board-line, #59401f) 88%, #15130f); border-radius: 2px; background: color-mix(in srgb, var(--game-board-line, #59401f) 72%, #17140f); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--game-board-surface, #c19a58) 25%, transparent), 0 2px 3px rgba(0,0,0,.22); clip-path: polygon(12% 18%,50% 0,88% 18%,100% 18%,100% 100%,0 100%,0 18%); }
 .junqi-cell.headquarters .terrain-label { color: color-mix(in srgb, var(--game-board-surface, #c19a58) 72%, white); text-shadow: 0 1px rgba(0,0,0,.4); }
 .junqi-cell.selected::after, .junqi-cell.latest::after, .junqi-cell.last-from::after { content: ''; position: absolute; z-index: 4; width: 88%; height: 75%; border: 3px solid var(--gold); border-radius: 7px; box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 22%, transparent), 0 0 18px color-mix(in srgb, var(--gold) 55%, transparent); pointer-events: none; }
+.junqi-cell.confirming::after { content: ''; position: absolute; z-index: 5; width: 88%; height: 75%; border: 3px solid var(--gold); border-radius: 7px; background: color-mix(in srgb, var(--gold) 14%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 22%, transparent), 0 0 18px color-mix(in srgb, var(--gold) 58%, transparent); pointer-events: none; }
 .junqi-cell.latest::after { width: 80%; height: 64%; border-width: 2px; border-color: #df8637; box-shadow: 0 0 12px rgba(223,134,55,.42); }.junqi-cell.last-from::after { width: 18%; height: auto; aspect-ratio: 1; border: 0; border-radius: 50%; background: #df8637; box-shadow: 0 0 0 3px rgba(223,134,55,.22); }
 .terrain-label { position: relative; z-index: 1; font-family: "Songti SC", "STSong", serif; font-size: clamp(7px, 1.35vw, 10px); font-weight: 900; letter-spacing: .05em; opacity: .76; }
 .junqi-piece { position: relative; z-index: 3; width: 82%; height: 64%; box-sizing: border-box; overflow: hidden; display: grid; place-items: center; align-content: center; border: 2px solid currentColor; border-radius: 5px; font-family: "Songti SC", "STSong", serif; font-weight: 900; background: var(--game-piece-surface, #f3dfae); box-shadow: inset 0 0 0 1px var(--game-piece-rim, transparent), inset 0 -5px 8px rgba(49,27,7,.15), 0 3px 6px #0007; transition: transform .14s ease, filter .14s ease, box-shadow .14s ease; }
