@@ -82,6 +82,11 @@ describe('StatsModal', () => {
 
     expect(wrapper.get('.match-detail-result').classes()).toContain('draw')
     expect(wrapper.get('.match-detail-result strong').text()).toBe('双方和棋')
+    expect(wrapper.get('.stats-back').attributes('aria-label')).toBe(
+      '返回战绩列表',
+    )
+    await wrapper.get('.stats-back').trigger('click')
+    expect(wrapper.find('.match-history-list').exists()).toBe(true)
   })
 
   it('separates Avalon modes and replays the full court-undercurrent ending', async () => {

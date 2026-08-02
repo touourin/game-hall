@@ -2866,17 +2866,11 @@ button:disabled {
 }
 
 .stats-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin: 0 auto 12px 0;
-  border: 0;
-  padding: 0;
-  color: var(--gold);
-  background: transparent;
-  font-size: 9px;
-  font-weight: 850;
-  cursor: pointer;
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 34px;
+  height: 34px;
 }
 
 .match-detail-result {

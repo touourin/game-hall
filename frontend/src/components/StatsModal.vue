@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
-import { ArrowLeft, History, LoaderCircle, Shield, Swords, X } from '@lucide/vue'
+import { History, LoaderCircle, Shield, Swords, X } from '@lucide/vue'
+import BackNavigationButton from './BackNavigationButton.vue'
 import {
   loadMatchDetail,
   loadPersonalStats,
@@ -160,9 +161,11 @@ watch(activeGameMode, loadStats)
       </button>
 
       <template v-if="selectedMatch">
-        <button class="stats-back" type="button" @click="selectedMatch = null">
-          <ArrowLeft :size="16" /> 返回战绩列表
-        </button>
+        <BackNavigationButton
+          class="stats-back"
+          label="返回战绩列表"
+          @click="selectedMatch = null"
+        />
         <span class="modal-icon"><History :size="24" /></span>
         <h2>{{ selectedMatch.gameName }} · 房间 {{ selectedMatch.roomCode }}</h2>
         <p>{{ formatDate(selectedMatch.endedAt) }} · {{ selectedMatch.playerCount }} 人局</p>

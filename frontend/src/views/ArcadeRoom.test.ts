@@ -250,6 +250,12 @@ describe('ArcadeRoom', () => {
     expect(wrapper.get('.arcade-player-strip').text()).toContain('AI玩家 1')
     expect(wrapper.get('.artwork-skin-card').text()).toContain('开局后锁定')
     expect(wrapper.findAll('.exit-room-trigger')).toHaveLength(1)
+    expect(
+      wrapper.find('.room-page-navigation .exit-room-trigger').exists(),
+    ).toBe(true)
+    expect(wrapper.find('.room-page-actions .exit-room-trigger').exists()).toBe(
+      false,
+    )
 
     await wrapper.get('.self-number-trigger').trigger('click')
     expect(wrapper.get('.player-number-list').text()).toContain('AI玩家 1')

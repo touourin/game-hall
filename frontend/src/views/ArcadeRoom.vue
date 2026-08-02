@@ -275,6 +275,13 @@ function openSharedChat() {
       :eyebrow="roomHeaderEyebrow"
       :title="roomHeaderTitle"
     >
+      <template #navigation>
+        <RoomExitButton
+          :busy="arcade.busy"
+          :description="exitDescription"
+          @confirm="arcade.leaveRoom"
+        />
+      </template>
       <template v-if="avalonSnapshot" #details>
         <button
           class="self-number-trigger"
@@ -339,11 +346,6 @@ function openSharedChat() {
           v-if="snapshot.actions.canDissolve"
           :busy="arcade.busy"
           @confirm="arcade.dissolveRoom"
-        />
-        <RoomExitButton
-          :busy="arcade.busy"
-          :description="exitDescription"
-          @confirm="arcade.leaveRoom"
         />
       </template>
     </RoomPageHeader>

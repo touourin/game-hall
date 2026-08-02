@@ -7,6 +7,9 @@ defineProps<{
 
 <template>
   <header class="room-page-header">
+    <div class="room-page-navigation">
+      <slot name="navigation" />
+    </div>
     <div class="room-page-copy">
       <small>{{ eyebrow }}</small>
       <div class="room-page-title-row">
@@ -22,16 +25,18 @@ defineProps<{
 
 <style scoped>
 .room-page-header {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 18px;
   margin-bottom: 20px;
 }
 
+.room-page-navigation {
+  align-self: start;
+}
+
 .room-page-copy {
-  flex: 1 1 280px;
   min-width: 0;
 }
 
@@ -57,7 +62,6 @@ defineProps<{
 
 .room-page-actions {
   display: flex;
-  flex: 0 0 auto;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
@@ -66,12 +70,12 @@ defineProps<{
 
 @media (max-width: 680px) {
   .room-page-header {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr);
     gap: 11px;
   }
 
   .room-page-actions {
+    grid-column: 1 / -1;
     width: 100%;
     justify-content: flex-start;
   }

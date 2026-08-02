@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { DoorOpen, X } from '@lucide/vue'
+import BackNavigationButton from './BackNavigationButton.vue'
 
 withDefaults(
   defineProps<{
@@ -26,15 +27,12 @@ function confirmExit() {
 </script>
 
 <template>
-  <button
-    class="header-action exit-room-trigger"
-    type="button"
-    aria-label="退出当前房间"
+  <BackNavigationButton
+    class="exit-room-trigger"
+    label="退出当前房间"
     :disabled="busy"
     @click="showConfirmation = true"
-  >
-    <DoorOpen :size="20" />
-  </button>
+  />
 
   <div
     v-if="showConfirmation"

@@ -1239,7 +1239,7 @@ function selfRoleArtworkFraming() {
         type="button"
         @click="room.restartGame"
       >
-        <RotateCcw :size="18" /> 返回大厅再来一局
+        <RotateCcw :size="18" /> 再来一局
       </button>
       <div v-else class="waiting-card">
         <span class="pulse-dot" />

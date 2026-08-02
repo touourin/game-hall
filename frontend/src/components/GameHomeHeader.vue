@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft } from '@lucide/vue'
+import BackNavigationButton from './BackNavigationButton.vue'
 
 defineProps<{
   eyebrow: string
@@ -14,14 +14,7 @@ defineEmits<{
 
 <template>
   <header class="game-home-header">
-    <button
-      type="button"
-      class="icon-button"
-      aria-label="返回游戏大厅"
-      @click="$emit('back')"
-    >
-      <ArrowLeft :size="21" />
-    </button>
+    <BackNavigationButton label="返回游戏大厅" @click="$emit('back')" />
     <div class="game-home-copy">
       <small>{{ eyebrow }}</small>
       <h1>{{ title }}</h1>
