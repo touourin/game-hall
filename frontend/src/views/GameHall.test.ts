@@ -21,6 +21,12 @@ describe('GameHall', () => {
 
     const gameCards = wrapper.findAll('.game-card')
     expect(gameCards).toHaveLength(11)
+    expect(wrapper.findAll('.game-card-art')).toHaveLength(10)
+    expect(wrapper.find('.featured-art-emerald').exists()).toBe(true)
+    expect(wrapper.find('.featured-art-midnight').exists()).toBe(true)
+    expect(wrapper.find('.featured-art-royal').exists()).toBe(true)
+    expect(wrapper.find('.mobile-salon-dock').exists()).toBe(true)
+    expect(wrapper.get('[aria-label="打开设置"]').attributes('aria-label')).toBe('打开设置')
     expect(wrapper.text()).toContain('军旗')
     expect(wrapper.text()).toContain('反应挑战')
     expect(wrapper.text()).toContain('舒尔特方格')

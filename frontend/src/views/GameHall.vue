@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { History, LogOut, RotateCcw, Settings, Sparkles } from '@lucide/vue'
+import { Gamepad2, History, LogOut, RotateCcw, Settings, Sparkles } from '@lucide/vue'
 import type { AccountProfile, AvatarPresetId } from '../account'
 import type { GameCatalogItem } from '../types/arcade'
 import { useArcadeStore } from '../stores/arcade'
 import StatsModal from '../components/StatsModal.vue'
 import SettingsModal from '../components/SettingsModal.vue'
 import AvatarImage from '../components/AvatarImage.vue'
+import GameCardArtwork from '../components/GameCardArtwork.vue'
+import avalonRoundTable from '../assets/game-hall/avalon-round-table.webp'
+import avalonMidnightTable from '../assets/game-hall/avalon-midnight-table.webp'
+import avalonIvoryTable from '../assets/game-hall/avalon-ivory-table.webp'
 
 defineProps<{
   account: AccountProfile
@@ -24,52 +28,46 @@ const arcade = useArcadeStore()
 const showStats = ref(false)
 const showSettings = ref(false)
 
-const games: Array<GameCatalogItem & { symbol: string; tone: string; category: string }> = [
-  { key: 'avalon', name: '阿瓦隆', players: '5–10 人', description: '身份推理、组队投票与湖中仙女', symbol: '♛', tone: 'gold', category: '社交推理' },
-  { key: 'gomoku', name: '五子棋', players: '2 人', description: '15 路棋盘，Swap2 与有禁手连珠', symbol: '●', tone: 'ink', category: '棋类竞技' },
-  { key: 'xiangqi', name: '中国象棋', players: '2 人', description: '楚河汉界，完整走子与重复局面限制', symbol: '将', tone: 'red', category: '棋类竞技' },
-  { key: 'go', name: '围棋', players: '2 人', description: '9/13/19 路可选，中国数子与贴目', symbol: '○', tone: 'jade', category: '棋类竞技' },
-  { key: 'poker', name: '德州扑克', players: '2–8 人', description: '大小盲、四轮下注与全押边池', symbol: '♥', tone: 'poker', category: '扑克对战' },
-  { key: 'doudizhu', name: '斗地主', players: '3 人', description: '叫抢地主、三种玩法与倍数结算', symbol: '♠', tone: 'blue', category: '扑克对战' },
-  { key: 'junqi', name: '军旗', players: '2 人', description: '暗军旗布阵，或翻棋决定阵营', symbol: '旗', tone: 'army', category: '棋类竞技' },
-  { key: 'reaction', name: '反应挑战', players: '1 人', description: '等待信号变色，测出三轮真实反应', symbol: '⚡', tone: 'pulse', category: '个人挑战' },
-  { key: 'schulte', name: '舒尔特方格', players: '1 人', description: '按顺序寻找 1–25，训练专注与视觉搜索', symbol: '格', tone: 'focus', category: '个人挑战' },
-  { key: 'minesweeper', name: '扫雷', players: '1 人', description: '初、中、高三种经典难度，首次点击安全', symbol: '雷', tone: 'mine', category: '个人挑战' },
-  { key: 'hanoi', name: '汉诺塔', players: '1 人', description: '3–8 层经典益智挑战，争取最少步数', symbol: '塔', tone: 'tower', category: '个人挑战' },
+const games: Array<GameCatalogItem & { tone: string; category: string }> = [
+  { key: 'avalon', name: '阿瓦隆', players: '5–10 人', description: '身份推理、组队投票与湖中仙女', tone: 'gold', category: '社交推理' },
+  { key: 'gomoku', name: '五子棋', players: '2 人', description: '15 路棋盘，Swap2 与有禁手连珠', tone: 'ink', category: '棋类竞技' },
+  { key: 'xiangqi', name: '中国象棋', players: '2 人', description: '楚河汉界，完整走子与重复局面限制', tone: 'red', category: '棋类竞技' },
+  { key: 'go', name: '围棋', players: '2 人', description: '9/13/19 路可选，中国数子与贴目', tone: 'jade', category: '棋类竞技' },
+  { key: 'poker', name: '德州扑克', players: '2–8 人', description: '大小盲、四轮下注与全押边池', tone: 'poker', category: '扑克对战' },
+  { key: 'doudizhu', name: '斗地主', players: '3 人', description: '叫抢地主、三种玩法与倍数结算', tone: 'blue', category: '扑克对战' },
+  { key: 'junqi', name: '军旗', players: '2 人', description: '暗军旗布阵，或翻棋决定阵营', tone: 'army', category: '棋类竞技' },
+  { key: 'reaction', name: '反应挑战', players: '1 人', description: '等待信号变色，测出三轮真实反应', tone: 'pulse', category: '个人挑战' },
+  { key: 'schulte', name: '舒尔特方格', players: '1 人', description: '按顺序寻找 1–25，训练专注与视觉搜索', tone: 'focus', category: '个人挑战' },
+  { key: 'minesweeper', name: '扫雷', players: '1 人', description: '初、中、高三种经典难度，首次点击安全', tone: 'mine', category: '个人挑战' },
+  { key: 'hanoi', name: '汉诺塔', players: '1 人', description: '3–8 层经典益智挑战，争取最少步数', tone: 'tower', category: '个人挑战' },
 ]
 </script>
 
 <template>
   <main class="game-hall page-container">
-    <section class="account-bar" aria-label="当前登录账号">
+    <section class="account-bar salon-account-bar surface" aria-label="当前登录账号">
       <div>
         <AvatarImage
           class="avatar account-avatar"
           :src="account.avatarUrl"
           :name="account.playerName"
         />
-        <span><small>游戏大厅</small><strong>{{ account.playerName }}</strong></span>
+        <span><small>PRIVATE MEMBER · 私人席位</small><strong>{{ account.playerName }}</strong></span>
       </div>
       <div class="account-bar-actions">
-        <button type="button" @click="showStats = true"><History :size="16" /><span>战绩</span></button>
-        <button type="button" @click="showSettings = true"><Settings :size="16" /><span>设置</span></button>
-        <button type="button" @click="emit('logout')"><LogOut :size="16" /><span>退出</span></button>
+        <button type="button" aria-label="查看战绩" @click="showStats = true"><History :size="16" /><span>战绩</span></button>
+        <button type="button" aria-label="打开设置" @click="showSettings = true"><Settings :size="16" /><span>设置</span></button>
+        <button type="button" aria-label="退出登录" @click="emit('logout')"><LogOut :size="16" /><span>退出</span></button>
       </div>
     </section>
 
     <section class="hall-hero">
-      <div class="hall-hero-copy">
-        <p class="eyebrow">PRIVATE GAME SALON · 11 GAMES</p>
-        <h1>今晚，开一局。</h1>
-        <p>棋局、牌桌与社交推理汇于同一间私人会所。每款游戏独立记录，随时回来继续。</p>
-        <div class="hall-highlights" aria-label="大厅能力">
-          <span>实时联机</span><span>独立战绩</span><span>专属皮肤</span>
-        </div>
-      </div>
-      <div class="hall-seal" aria-hidden="true">
-        <Sparkles :size="20" />
-        <strong>十一</strong>
-        <small>款精选游戏</small>
+      <div class="hall-ornament" aria-hidden="true"><i /><Sparkles :size="14" /><i /></div>
+      <p class="eyebrow">PRIVATE GAME SALON</p>
+      <h1>游戏大厅</h1>
+      <p>今晚玩什么？</p>
+      <div class="hall-highlights" aria-label="大厅能力">
+        <span>11 款游戏</span><b>·</b><span>实时联机</span><b>·</b><span>独立战绩</span>
       </div>
     </section>
 
@@ -90,17 +88,27 @@ const games: Array<GameCatalogItem & { symbol: string; tone: string; category: s
         :class="`tone-${game.tone}`"
         @click="emit('select', game)"
       >
-        <span class="game-index">{{ String(index + 1).padStart(2, '0') }}</span>
-        <span class="game-symbol">{{ game.symbol }}</span>
+        <template v-if="index === 0">
+          <img class="featured-art featured-art-emerald" :src="avalonRoundTable" alt="" />
+          <img class="featured-art featured-art-midnight" :src="avalonMidnightTable" alt="" />
+          <img class="featured-art featured-art-royal" :src="avalonIvoryTable" alt="" />
+        </template>
+        <GameCardArtwork v-else :game-key="game.key" />
+        <span class="game-card-topline"><small>{{ game.category }}</small><em>{{ game.players }}</em></span>
         <span class="game-copy">
-          <small>{{ game.category }} · {{ game.players }}</small>
           <strong>{{ game.name }}</strong>
           <em>{{ game.description }}</em>
         </span>
         <span v-if="index === 0" class="featured-label">本周主桌</span>
-        <span class="enter-game">进入游戏 <b>↗</b></span>
+        <span class="enter-game" aria-hidden="true">›</span>
       </button>
     </section>
+
+    <nav class="mobile-salon-dock surface" aria-label="大厅快捷导航">
+      <button type="button" class="active"><Gamepad2 :size="20" /><span>大厅</span></button>
+      <button type="button" @click="showStats = true"><History :size="20" /><span>战绩</span></button>
+      <button type="button" @click="showSettings = true"><Settings :size="20" /><span>设置</span></button>
+    </nav>
 
     <StatsModal v-if="showStats" @close="showStats = false" />
     <SettingsModal
@@ -118,66 +126,70 @@ const games: Array<GameCatalogItem & { symbol: string; tone: string; category: s
 
 <style scoped>
 .game-hall { width: min(100%, 1180px); padding-bottom: 88px; }
-.account-avatar { border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent); }
-.hall-hero { min-height: 330px; padding: clamp(54px, 8vw, 96px) clamp(4px, 2vw, 24px) 48px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 50px; }
-.hall-hero-copy { max-width: 680px; }
-.hall-hero h1 { margin: 13px 0 15px; font-family: "Songti SC", "STSong", serif; font-size: clamp(48px, 7vw, 78px); font-weight: 650; letter-spacing: -.045em; line-height: 1.04; }
-.hall-hero-copy > p:last-of-type { max-width: 570px; margin: 0; color: var(--muted); font-size: 16px; line-height: 1.75; }
-.hall-highlights { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
-.hall-highlights span { border: 1px solid var(--line); border-radius: 999px; padding: 7px 11px; color: var(--text-soft); background: var(--surface-inset); font-size: 11px; font-weight: 750; letter-spacing: .08em; }
-.hall-seal { position: relative; width: 152px; aspect-ratio: 1; display: grid; place-items: center; align-content: center; gap: 3px; border: 1px solid var(--line-strong); border-radius: 50%; color: var(--gold); background: radial-gradient(circle, color-mix(in srgb, var(--gold) 13%, var(--surface)) 0 47%, transparent 48%), var(--surface-inset); box-shadow: inset 0 0 0 9px color-mix(in srgb, var(--gold) 4%, transparent), var(--shadow-card); transform: rotate(3deg); }
-.hall-seal::before { position: absolute; inset: 10px; border: 1px dashed color-mix(in srgb, var(--gold) 42%, transparent); border-radius: 50%; content: ''; }
-.hall-seal strong { font-family: "Songti SC", "STSong", serif; font-size: 34px; line-height: 1; }
-.hall-seal small { color: var(--muted); font-size: 10px; letter-spacing: .12em; }
+.salon-account-bar { position: sticky; z-index: 20; top: calc(12px + env(safe-area-inset-top)); min-height: 72px; border-bottom: 1px solid var(--line); padding: 10px 13px; background: color-mix(in srgb, var(--surface-elevated) 92%, transparent); box-shadow: 0 14px 34px color-mix(in srgb, var(--bg) 30%, transparent); backdrop-filter: blur(20px); }
+.account-avatar { width: 42px; height: 42px; border: 1px solid color-mix(in srgb, var(--gold) 50%, transparent); border-radius: 50%; }
+.salon-account-bar > div:first-child { position: relative; padding-right: 22px; }
+.salon-account-bar > div:first-child::after { position: absolute; top: 6px; right: 0; bottom: 6px; width: 1px; background: linear-gradient(var(--line-strong), transparent); content: ''; }
+.salon-account-bar small { color: var(--gold); font-size: 9px; font-weight: 800; letter-spacing: .1em; }
+.salon-account-bar strong { font-size: 14px; }
+.hall-hero { min-height: 305px; display: grid; justify-items: center; align-content: center; padding: 58px 20px 42px; text-align: center; }
+.hall-ornament { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; color: var(--gold); }.hall-ornament i { width: 72px; height: 1px; background: linear-gradient(90deg, transparent, var(--gold)); }.hall-ornament i:last-child { background: linear-gradient(90deg, var(--gold), transparent); }
+.hall-hero h1 { margin: 11px 0 7px; font-family: "Songti SC", "STSong", serif; font-size: clamp(48px, 7vw, 72px); font-weight: 650; letter-spacing: .08em; line-height: 1; text-shadow: 0 12px 38px color-mix(in srgb, var(--bg) 55%, transparent); }
+.hall-hero > p:nth-of-type(2) { margin: 0; color: var(--muted); font-family: "Songti SC", serif; font-size: 15px; letter-spacing: .25em; }
+.hall-highlights { display: flex; align-items: center; gap: 10px; margin-top: 23px; color: var(--text-soft); font-size: 11px; font-weight: 750; letter-spacing: .08em; }.hall-highlights b { color: var(--gold); font-weight: 400; }
 .resume-arcade-card { margin-bottom: 22px; padding: 16px 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .resume-arcade-card > div { display: flex; gap: 12px; align-items: center; color: var(--gold); }
 .resume-arcade-card strong, .resume-arcade-card small { display: block; }
 .resume-arcade-card small { margin-top: 3px; color: var(--muted); }
-.game-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.game-card { --card-tone: var(--gold); position: relative; min-height: 250px; padding: 27px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-content: start; gap: 19px; border-color: color-mix(in srgb, var(--card-tone) 18%, var(--line)); text-align: left; color: var(--text); overflow: hidden; isolation: isolate; cursor: pointer; }
-.game-card:first-child { grid-column: span 2; min-height: 286px; }
-.game-card::before { position: absolute; z-index: -1; inset: 0; background: radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--card-tone) 18%, transparent), transparent 35%), linear-gradient(145deg, transparent 40%, color-mix(in srgb, var(--card-tone) 5%, transparent)); content: ''; }
-.game-card::after { position: absolute; z-index: -1; right: -42px; bottom: -76px; width: 184px; aspect-ratio: 1; border: 1px solid color-mix(in srgb, var(--card-tone) 22%, transparent); border-radius: 50%; box-shadow: inset 0 0 0 18px color-mix(in srgb, var(--card-tone) 2%, transparent); content: ''; }
-.game-index { position: absolute; top: 19px; right: 21px; color: color-mix(in srgb, var(--muted) 58%, transparent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; letter-spacing: .14em; }
-.game-symbol { width: 62px; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--card-tone) 36%, var(--line)); border-radius: var(--radius-md); color: var(--card-tone); background: color-mix(in srgb, var(--card-tone) 9%, var(--surface-inset)); font-family: "Songti SC", serif; font-size: 31px; box-shadow: inset 0 1px rgba(255,255,255,.08); }
-.game-copy { display: grid; gap: 8px; min-width: 0; }
-.game-copy small { color: var(--card-tone); font-size: 11px; font-weight: 850; letter-spacing: .06em; }
-.game-copy strong { font-family: "Songti SC", "STSong", serif; font-size: 29px; letter-spacing: -.02em; }
-.game-copy em { color: var(--muted); font-style: normal; line-height: 1.5; }
-.featured-label { position: absolute; left: 27px; bottom: 25px; border: 1px solid color-mix(in srgb, var(--gold) 35%, transparent); border-radius: 999px; padding: 6px 10px; color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, transparent); font-size: 10px; font-weight: 850; letter-spacing: .08em; }
-.enter-game { position: absolute; right: 23px; bottom: 22px; color: var(--card-tone); font-size: 12px; font-weight: 800; }
-.enter-game b { display: inline-grid; width: 24px; aspect-ratio: 1; margin-left: 5px; place-items: center; border: 1px solid color-mix(in srgb, var(--card-tone) 28%, transparent); border-radius: 50%; font-size: 12px; }
+.game-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 230px; gap: 13px; }
+.game-card { --card-tone: var(--gold); position: relative; height: 100%; min-width: 0; padding: 42px 14px 14px; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 10px; border-color: color-mix(in srgb, var(--card-tone) 24%, var(--line)); text-align: left; color: var(--text); overflow: hidden; isolation: isolate; cursor: pointer; }
+.game-card:first-child { grid-column: span 2; grid-row: span 2; padding: 32px; align-content: end; }
+.game-card::before { position: absolute; z-index: -1; inset: 0; background: radial-gradient(circle at 86% 8%, color-mix(in srgb, var(--card-tone) 14%, transparent), transparent 34%), linear-gradient(145deg, transparent 44%, color-mix(in srgb, var(--card-tone) 4%, transparent)); content: ''; }
+.game-card-topline { position: absolute; z-index: 3; top: 15px; right: 14px; left: 14px; display: flex; justify-content: space-between; gap: 7px; color: var(--card-tone); font-style: normal; }.game-card-topline small { font-size: 9px; font-weight: 850; letter-spacing: .1em; }.game-card-topline em { color: var(--muted); font-size: 9px; font-style: normal; font-weight: 750; }
+.featured-art { position: absolute; z-index: -2; inset: 0; display: none; width: 100%; height: 100%; object-fit: cover; object-position: center; transition: transform 500ms ease, filter 220ms ease; }.featured-art-emerald { display: block; }
+.game-card:first-child::before { z-index: -1; background: linear-gradient(90deg, rgba(3,9,8,.92) 0%, rgba(4,13,11,.74) 40%, rgba(3,8,7,.12) 76%), linear-gradient(0deg, rgba(3,10,8,.78), transparent 58%); }
+.game-card:first-child .game-card-topline { top: 26px; right: 28px; left: 28px; }.game-card:first-child .game-card-topline small,.game-card:first-child .game-card-topline em { color: #d6b76e; font-size: 10px; }
+.game-copy { position: relative; z-index: 2; display: grid; gap: 4px; min-width: 0; padding-right: 19px; }
+.game-copy strong { font-family: "Songti SC", "STSong", serif; font-size: 20px; letter-spacing: .01em; }
+.game-copy em { overflow: hidden; color: var(--muted); font-size: 10px; font-style: normal; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.game-card:first-child .game-copy { align-self: end; max-width: 55%; gap: 10px; padding: 0 0 42px; }.game-card:first-child .game-copy strong { color: #f4efe1; font-size: clamp(38px,5vw,58px); }.game-card:first-child .game-copy em { color: #aab5aa; font-size: 14px; line-height: 1.6; white-space: normal; }
+.featured-label { position: absolute; z-index: 3; left: 32px; bottom: 28px; border: 1px solid rgba(214,183,110,.4); border-radius: 999px; padding: 6px 10px; color: #d6b76e; background: rgba(6,19,16,.58); font-size: 9px; font-weight: 850; letter-spacing: .1em; backdrop-filter: blur(8px); }
+.enter-game { position: absolute; z-index: 3; right: 13px; bottom: 14px; width: 24px; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--card-tone) 34%, transparent); border-radius: 50%; color: var(--card-tone); font-size: 21px; line-height: 1; }
+.game-card:first-child .enter-game { right: 29px; bottom: 28px; width: 34px; color: #d6b76e; border-color: rgba(214,183,110,.44); }
 .tone-red { --card-tone: #e88a82; }.tone-jade { --card-tone: #72d0ad; }.tone-blue { --card-tone: #86bde4; }.tone-ink { --card-tone: #d7d8d1; }
 .tone-army { --card-tone: #d8b66b; }.tone-pulse { --card-tone: #8fe0bd; }.tone-focus { --card-tone: #7ecdb5; }.tone-mine { --card-tone: #ef9d93; }.tone-tower { --card-tone: #d9a86c; }.tone-poker { --card-tone: #ef8c88; }
-:global(:root[data-theme="royal"]) .tone-red { --card-tone: #a54e40; }:global(:root[data-theme="royal"]) .tone-jade { --card-tone: #36785f; }:global(:root[data-theme="royal"]) .tone-blue { --card-tone: #3f6f91; }:global(:root[data-theme="royal"]) .tone-ink { --card-tone: #4d4a43; }:global(:root[data-theme="royal"]) .tone-army { --card-tone: #85651f; }:global(:root[data-theme="royal"]) .tone-pulse { --card-tone: #39785e; }:global(:root[data-theme="royal"]) .tone-focus { --card-tone: #346f68; }:global(:root[data-theme="royal"]) .tone-mine { --card-tone: #a44a42; }:global(:root[data-theme="royal"]) .tone-tower { --card-tone: #90602d; }:global(:root[data-theme="royal"]) .tone-poker { --card-tone: #a54e40; }
+:global(:root[data-theme="royal"] .tone-red) { --card-tone: #a54e40; }:global(:root[data-theme="royal"] .tone-jade) { --card-tone: #36785f; }:global(:root[data-theme="royal"] .tone-blue) { --card-tone: #3f6f91; }:global(:root[data-theme="royal"] .tone-ink) { --card-tone: #4d4a43; }:global(:root[data-theme="royal"] .tone-army) { --card-tone: #85651f; }:global(:root[data-theme="royal"] .tone-pulse) { --card-tone: #39785e; }:global(:root[data-theme="royal"] .tone-focus) { --card-tone: #346f68; }:global(:root[data-theme="royal"] .tone-mine) { --card-tone: #a44a42; }:global(:root[data-theme="royal"] .tone-tower) { --card-tone: #90602d; }:global(:root[data-theme="royal"] .tone-poker) { --card-tone: #a54e40; }
+:global(:root[data-theme="midnight"] .featured-art-emerald) { display: none; }:global(:root[data-theme="midnight"] .featured-art-midnight) { display: block; }
+:global(:root[data-theme="royal"] .featured-art-emerald) { display: none; }:global(:root[data-theme="royal"] .featured-art-royal) { display: block; }
+:global(:root[data-theme="royal"] .game-card:first-child) { border-color: rgba(165,78,64,.34); }
+:global(:root[data-theme="royal"] .game-card:first-child::before) { background: linear-gradient(90deg, rgba(249,246,237,.98), rgba(249,246,237,.77) 46%, rgba(249,246,237,.08) 78%), linear-gradient(0deg, rgba(249,246,237,.7), transparent 62%); }
+:global(:root[data-theme="royal"] .game-card:first-child .game-card-topline small),:global(:root[data-theme="royal"] .game-card:first-child .game-card-topline em),:global(:root[data-theme="royal"] .game-card:first-child .game-copy strong) { color: #292720; }:global(:root[data-theme="royal"] .game-card:first-child .game-copy em) { color: #716c61; }:global(:root[data-theme="royal"] .featured-label) { border-color: rgba(165,78,64,.32); color: #a54e40; background: rgba(249,246,237,.7); }:global(:root[data-theme="royal"] .game-card:first-child .enter-game) { border-color: rgba(165,78,64,.38); color: #a54e40; }
+.mobile-salon-dock { display: none; }
 @media (hover: hover) {
-  .game-card:hover { border-color: color-mix(in srgb, var(--card-tone) 42%, var(--line)); box-shadow: 0 24px 60px color-mix(in srgb, var(--bg) 56%, transparent); transform: translateY(-4px); }
-  .game-card:hover .enter-game b { background: var(--card-tone); color: var(--accent-contrast); transform: rotate(8deg); }
+  .game-card:hover { border-color: color-mix(in srgb, var(--card-tone) 48%, var(--line)); box-shadow: 0 24px 60px color-mix(in srgb, var(--bg) 48%, transparent); transform: translateY(-3px); }
+  .game-card:hover .featured-art { transform: scale(1.035); }.game-card:hover .enter-game { color: var(--accent-contrast); background: var(--card-tone); }
+}
+@media (max-width: 960px) {
+  .game-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
 }
 @media (max-width: 680px) {
-  .game-hall { padding-right: 12px; padding-left: 12px; }
-  .hall-hero { min-height: 0; padding: 40px 5px 30px; grid-template-columns: minmax(0, 1fr) 78px; gap: 12px; }
-  .hall-hero h1 { margin: 10px 0 12px; font-size: clamp(40px, 12vw, 54px); }
-  .hall-hero-copy > p:last-of-type { font-size: 14px; line-height: 1.65; }
-  .hall-seal { width: 76px; }.hall-seal::before { inset: 6px; }.hall-seal svg { display: none; }.hall-seal strong { font-size: 25px; }.hall-seal small { font-size: 7px; }
-  .hall-highlights { gap: 5px; margin-top: 17px; }.hall-highlights span { padding: 5px 7px; font-size: 9px; }
-  .game-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .game-card { min-height: 202px; padding: 17px 14px; grid-template-columns: 1fr; gap: 10px; }
-  .game-card:first-child { grid-column: 1 / -1; min-height: 225px; padding: 20px; grid-template-columns: auto 1fr; gap: 15px; }
-  .game-symbol { width: 50px; border-radius: 14px; font-size: 25px; }
-  .game-copy { gap: 5px; }.game-copy small { padding-right: 20px; font-size: 9px; line-height: 1.4; }.game-copy strong { font-size: 22px; }.game-copy em { display: -webkit-box; overflow: hidden; font-size: 11px; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-  .game-index { top: 13px; right: 12px; }.enter-game { right: 14px; bottom: 14px; font-size: 0; }.enter-game b { margin: 0; }
-  .featured-label { left: 20px; bottom: 18px; }
+  .game-hall { padding-right: 11px; padding-bottom: calc(106px + env(safe-area-inset-bottom)); padding-left: 11px; }
+  .salon-account-bar { top: calc(7px + env(safe-area-inset-top)); min-height: 62px; border-radius: 15px; padding: 8px 9px; }.account-avatar { width: 38px; height: 38px; }.salon-account-bar small { max-width: 140px; overflow: hidden; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+  .salon-account-bar .account-bar-actions { display: flex; width: auto; }.salon-account-bar button { width: 38px; min-height: 38px; padding: 0; }.salon-account-bar button span { display: none; }
+  .hall-hero { min-height: 216px; padding: 39px 5px 27px; }.hall-ornament { margin-bottom: 7px; }.hall-ornament i { width: 40px; }.hall-hero h1 { margin-top: 8px; font-size: 43px; }.hall-hero > p:nth-of-type(2) { font-size: 12px; }.hall-highlights { gap: 6px; margin-top: 16px; font-size: 8px; }
+  .game-grid { grid-template-columns: repeat(2,minmax(0,1fr)); grid-auto-rows: 184px; gap: 8px; }
+  .game-card { padding: 36px 9px 10px; gap: 7px; border-radius: 13px; }
+  .game-card:first-child { grid-column: 1 / -1; grid-row: auto; padding: 19px; }
+  .game-card:first-child::before { background: linear-gradient(90deg, rgba(3,9,8,.94), rgba(4,13,11,.63) 55%, rgba(3,8,7,.1)), linear-gradient(0deg, rgba(3,10,8,.75), transparent 68%); }
+  .featured-art { object-position: center; }.game-card:first-child .game-card-topline { top: 16px; right: 17px; left: 17px; }.game-card:first-child .game-card-topline small,.game-card:first-child .game-card-topline em { font-size: 8px; }
+  .game-copy strong { font-size: 16px; }.game-copy em { font-size: 8px; }.game-card:not(:first-child) .game-copy em { display: none; }
+  .game-card:first-child .game-copy { max-width: 64%; gap: 5px; padding-bottom: 21px; }.game-card:first-child .game-copy strong { font-size: 29px; }.game-card:first-child .game-copy em { font-size: 10px; line-height: 1.45; }
+  .game-card-topline { top: 12px; right: 10px; left: 10px; }.game-card-topline small,.game-card-topline em { font-size: 7px; }
+  .featured-label { left: 19px; bottom: 15px; padding: 4px 7px; font-size: 7px; }.game-card:first-child .enter-game { right: 17px; bottom: 15px; width: 27px; }.enter-game { right: 9px; bottom: 10px; width: 20px; font-size: 17px; }
   .resume-arcade-card { align-items: stretch; flex-direction: column; }
-  .account-bar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 0 0 12px; }
-  .account-bar > div:first-child { min-width: 0; }
-  .account-bar > div:first-child strong { max-width: min(68vw, 260px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .account-bar .account-bar-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; gap: 6px; }
-  .account-bar button { width: 100%; min-width: 0; min-height: 46px; padding: 5px 2px; flex-direction: column; justify-content: center; gap: 2px; }
-  .account-bar-actions span { display: block; line-height: 1; white-space: nowrap; }
+  .mobile-salon-dock { position: fixed; z-index: 25; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); left: 12px; display: grid; grid-template-columns: repeat(3,1fr); min-height: 62px; padding: 5px; border-radius: 18px; background: color-mix(in srgb,var(--surface-elevated) 92%,transparent); backdrop-filter: blur(20px); }.mobile-salon-dock button { display: grid; justify-items: center; align-content: center; gap: 2px; border: 0; border-radius: 13px; color: var(--muted); background: transparent; font-size: 8px; font-weight: 750; }.mobile-salon-dock button.active { color: var(--gold); background: color-mix(in srgb,var(--gold) 8%,transparent); }
 }
 @media (max-width: 370px) {
-  .hall-seal { display: none; }.hall-hero { grid-template-columns: 1fr; }
-  .game-grid { grid-template-columns: 1fr; }.game-card:first-child { grid-column: auto; }
+  .game-grid { grid-auto-rows: 175px; }
 }
 </style>
