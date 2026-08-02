@@ -198,6 +198,14 @@ const ROLE_ARTWORK_FRAMING: Partial<
   'classic-tabletop': {
     merlin: { scale: 1.1, originXPercent: 50, originYPercent: 36 },
   },
+  'stained-glass': {
+    percival: {
+      scale: 1.09,
+      originXPercent: 50,
+      originYPercent: 50,
+      preserveFrame: true,
+    },
+  },
   'royal-codex': {
     merlin: {
       scale: 1.16,

@@ -15,6 +15,16 @@ describe('Avalon role skin artwork framing', () => {
     expect(roleArtworkFraming('percival', 'classic-tabletop').scale).toBe(1)
   })
 
+  it('brings stained-glass Percival up to the set scale without cropping its frame', () => {
+    expect(roleArtworkFraming('percival', 'stained-glass')).toEqual({
+      scale: 1.09,
+      originXPercent: 50,
+      originYPercent: 50,
+      preserveFrame: true,
+    })
+    expect(roleArtworkFraming('merlin', 'stained-glass').scale).toBe(1)
+  })
+
   it('finishes the restrained royal-codex Merlin composition correction', () => {
     expect(roleArtworkFraming('merlin', 'royal-codex')).toEqual({
       scale: 1.16,
