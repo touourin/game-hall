@@ -267,8 +267,14 @@ button:disabled {
   line-height: 1.65;
 }
 
-.account-mode {
+.segmented-control.account-mode {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-bottom: 18px;
+}
+
+.segmented-control.account-mode button {
+  min-width: 0;
+  padding: 0 10px;
 }
 
 .account-form {

@@ -2,6 +2,21 @@ import { mount } from '@vue/test-utils'
 import AccountGate from './AccountGate.vue'
 
 describe('AccountGate', () => {
+  it('keeps all three account entry modes in one segmented control', () => {
+    const wrapper = mount(AccountGate, {
+      props: { busy: false, error: null },
+    })
+
+    expect(wrapper.get('.account-mode').attributes('aria-label')).toBe(
+      '登录、注册或游客入席',
+    )
+    expect(wrapper.findAll('.account-mode button').map((button) => button.text())).toEqual([
+      '登录',
+      '注册',
+      '游客',
+    ])
+  })
+
   it('submits account credentials for login', async () => {
     const wrapper = mount(AccountGate, {
       props: { busy: false, error: null },

@@ -85,7 +85,7 @@ function submit() {
         }}
       </p>
 
-      <div class="segmented-control account-mode" aria-label="登录或注册">
+      <div class="segmented-control account-mode" aria-label="登录、注册或游客入席">
         <button
           type="button"
           :class="{ active: mode === 'login' }"
