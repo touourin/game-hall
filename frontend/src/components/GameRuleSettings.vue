@@ -57,7 +57,7 @@ function setOption(key: string, value: unknown) {
     </details>
 
     <section v-if="gameKey === 'avalon'" class="rule-setting-group">
-      <header><strong>圆桌规则</strong><small>王庭暗流固定关闭湖中仙女和提前刺杀</small></header>
+      <header><strong>对局规则</strong><small>王庭暗流固定关闭湖中仙女和提前刺杀</small></header>
       <div class="rule-toggle-list">
         <button type="button" :class="{ active: option('listed') }" @click="setOption('listed', !option('listed'))">
           <span><strong>公开房间</strong><small>允许其他玩家在大厅房间列表中发现</small></span><b>{{ option('listed') ? '开' : '关' }}</b>

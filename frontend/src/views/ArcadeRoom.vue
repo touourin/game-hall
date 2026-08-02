@@ -135,7 +135,7 @@ const avalonPhaseLabel = computed(() => {
   const phase = avalonSnapshot.value?.phase
   if (!phase) return ''
   return {
-    lobby: '等待圆桌集结',
+    lobby: '等待玩家集结',
     role_reveal: '确认身份',
     team_building: '组建任务队伍',
     team_voting: '表决任务队伍',
@@ -656,7 +656,7 @@ function openSharedChat() {
           :content="AVALON_COURT_GUIDE"
         />
         <section class="avalon-core-rules">
-          <h3>圆桌通用规则</h3>
+          <h3>阿瓦隆基础规则</h3>
           <ul>
             <li>好人只能提交任务成功，坏人可选择成功或失败。</li>
             <li>队伍表决需要过半赞成，平票视为否决。</li>
