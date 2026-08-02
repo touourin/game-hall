@@ -118,6 +118,39 @@ def advance_ai_players(room: Room, engine: GameEngine) -> None:
             )
             continue
 
+        if room.phase == Phase.DAGGER_GRANT:
+            assassin = next(
+                (
+                    player
+                    for player in room.players
+                    if player.role == Role.ASSASSIN
+                ),
+                None,
+            )
+            if assassin is None or not assassin.is_bot:
+                return
+            engine.grant_dagger(
+                room,
+                assassin.id,
+                engine.rng.choice(room.dagger_candidate_ids),
+            )
+            continue
+
+        if room.phase == Phase.FINAL_COUNCIL:
+            if room.transformed_player_id is None:
+                return
+            dissenting = room.player(room.transformed_player_id)
+            if not dissenting.is_bot:
+                return
+            engine.dissenting_assassinate(
+                room,
+                dissenting.id,
+                engine.rng.choice(
+                    engine.eligible_dissenting_targets(room)
+                ),
+            )
+            continue
+
         return
 
     raise RuntimeError("AI 自动行动超过安全上限")

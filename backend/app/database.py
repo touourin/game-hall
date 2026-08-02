@@ -108,16 +108,31 @@ matches = Table(
         nullable=False,
     ),
     Column("room_code", String(8), nullable=False),
+    Column(
+        "mode",
+        String(32),
+        nullable=False,
+        default="standard",
+        server_default="standard",
+    ),
     Column("player_count", Integer(), nullable=False),
     Column("winner", String(16), nullable=False),
     Column("reason", Text(), nullable=False),
     Column("ranked", Boolean(), nullable=False),
     Column("assassination_hit", Boolean(), nullable=True),
+    Column("ending_route", String(32), nullable=True),
+    Column("recruitment_hit", Boolean(), nullable=True),
     Column("started_at", DateTime(), nullable=False),
     Column("ended_at", DateTime(), nullable=False),
     Column("details_json", JSON(), nullable=False),
 )
 Index("ix_matches_game_ended", matches.c.game_key, matches.c.ended_at)
+Index(
+    "ix_matches_game_mode_ended",
+    matches.c.game_key,
+    matches.c.mode,
+    matches.c.ended_at,
+)
 
 match_players = Table(
     "match_players",

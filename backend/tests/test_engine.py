@@ -7,6 +7,7 @@ import pytest
 from backend.app.games.avalon.engine import GameEngine, GameRuleError
 from backend.app.games.avalon.models import (
     Alignment,
+    AvalonMode,
     GameSettings,
     MissionRecord,
     Phase,
@@ -16,7 +17,11 @@ from backend.app.games.avalon.models import (
 )
 
 
-def make_room(player_count: int, lady_enabled: bool = True) -> Room:
+def make_room(
+    player_count: int,
+    lady_enabled: bool = True,
+    mode: AvalonMode = AvalonMode.STANDARD,
+) -> Room:
     players = [
         Player(
             id=f"p{index}",
@@ -30,12 +35,16 @@ def make_room(player_count: int, lady_enabled: bool = True) -> Room:
         code="TEST",
         host_id=players[0].id,
         players=players,
-        settings=GameSettings(lady_enabled=lady_enabled),
+        settings=GameSettings(mode=mode, lady_enabled=lady_enabled),
     )
 
 
-def start_room(player_count: int = 5, lady_enabled: bool = True):
-    room = make_room(player_count, lady_enabled)
+def start_room(
+    player_count: int = 5,
+    lady_enabled: bool = True,
+    mode: AvalonMode = AvalonMode.STANDARD,
+):
+    room = make_room(player_count, lady_enabled, mode)
     engine = GameEngine(random.Random(42))
     engine.start_game(room, room.host_id)
     return engine, room
@@ -262,3 +271,182 @@ def test_early_assassination_is_not_available_during_role_reveal():
 
     with pytest.raises(GameRuleError, match="当前阶段不能发动提前刺杀"):
         engine.early_assassinate(room, assassin.id, target.id)
+
+
+def complete_three_successes(room: Room) -> None:
+    room.mission_index = 2
+    room.mission_history = [
+        MissionRecord(1, ["p0", "p1"], True, 0),
+        MissionRecord(2, ["p0", "p1", "p2"], True, 0),
+        MissionRecord(3, ["p0", "p1"], True, 0),
+    ]
+    room.phase = Phase.ROUND_RESULT
+
+
+@pytest.mark.parametrize(
+    ("player_count", "candidate_count"),
+    [(5, 2), (6, 2), (7, 2), (8, 2), (9, 2), (10, 3)],
+)
+def test_court_undercurrent_starts_dagger_grant_with_balanced_candidates(
+    player_count: int, candidate_count: int
+):
+    engine, room = start_room(
+        player_count,
+        lady_enabled=True,
+        mode=AvalonMode.COURT_UNDERCURRENT,
+    )
+    dissenting = next(
+        player
+        for player in room.players
+        if player.role == Role.DISSENTING_COURTIER
+    )
+    complete_three_successes(room)
+
+    engine.continue_after_mission(room, room.host_id)
+
+    assert room.phase == Phase.DAGGER_GRANT
+    assert len(room.dagger_candidate_ids) == candidate_count
+    assert dissenting.id in room.dagger_candidate_ids
+    assert all(
+        room.player(player_id).alignment == Alignment.GOOD
+        for player_id in room.dagger_candidate_ids
+    )
+    assert room.settings.lady_enabled is False
+    assert room.settings.early_assassination_enabled is False
+
+
+def test_wrong_dagger_target_gives_good_the_win_without_assassination():
+    engine, room = start_room(mode=AvalonMode.COURT_UNDERCURRENT)
+    complete_three_successes(room)
+    engine.continue_after_mission(room, room.host_id)
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    decoy_id = next(
+        player_id
+        for player_id in room.dagger_candidate_ids
+        if room.player(player_id).role != Role.DISSENTING_COURTIER
+    )
+
+    engine.grant_dagger(room, assassin.id, decoy_id)
+
+    assert room.phase == Phase.GAME_OVER
+    assert room.winner == Alignment.GOOD
+    assert room.dagger_hit is False
+    assert room.ending_route == "dagger_miss"
+    assert room.assassin_target_id is None
+
+
+def test_correct_dagger_target_forces_transformation_and_transfers_stab():
+    engine, room = start_room(7, mode=AvalonMode.COURT_UNDERCURRENT)
+    complete_three_successes(room)
+    engine.continue_after_mission(room, room.host_id)
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    dissenting = next(
+        player
+        for player in room.players
+        if player.role == Role.DISSENTING_COURTIER
+    )
+
+    engine.grant_dagger(room, assassin.id, dissenting.id)
+
+    assert room.phase == Phase.FINAL_COUNCIL
+    assert room.dagger_hit is True
+    assert room.transformed_player_id == dissenting.id
+    assert dissenting.alignment == Alignment.EVIL
+    assert assassin.id not in engine.eligible_dissenting_targets(room)
+    oberon = next(
+        player for player in room.players if player.role == Role.OBERON
+    )
+    assert oberon.id in engine.eligible_dissenting_targets(room)
+    assert len(engine.eligible_dissenting_targets(room)) == 4
+
+
+@pytest.mark.parametrize(
+    ("player_count", "target_count"),
+    [(5, 2), (6, 3), (7, 4), (8, 4), (9, 5), (10, 6)],
+)
+def test_dissenting_assassination_uses_the_natural_target_range(
+    player_count: int, target_count: int
+):
+    engine, room = start_room(
+        player_count, mode=AvalonMode.COURT_UNDERCURRENT
+    )
+    complete_three_successes(room)
+    engine.continue_after_mission(room, room.host_id)
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    dissenting = next(
+        player
+        for player in room.players
+        if player.role == Role.DISSENTING_COURTIER
+    )
+
+    engine.grant_dagger(room, assassin.id, dissenting.id)
+
+    targets = [
+        room.player(player_id)
+        for player_id in engine.eligible_dissenting_targets(room)
+    ]
+    assert len(targets) == target_count
+    assert dissenting not in targets
+    assert all(
+        player.role
+        not in {Role.ASSASSIN, Role.MORGANA, Role.MORDRED, Role.MINION}
+        for player in targets
+    )
+    if player_count in {7, 10}:
+        assert any(player.role == Role.OBERON for player in targets)
+
+
+def test_transformed_dissenting_courtier_wins_only_by_stabbing_merlin():
+    engine, room = start_room(mode=AvalonMode.COURT_UNDERCURRENT)
+    complete_three_successes(room)
+    engine.continue_after_mission(room, room.host_id)
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    dissenting = next(
+        player
+        for player in room.players
+        if player.role == Role.DISSENTING_COURTIER
+    )
+    merlin = next(player for player in room.players if player.role == Role.MERLIN)
+    engine.grant_dagger(room, assassin.id, dissenting.id)
+
+    engine.dissenting_assassinate(room, dissenting.id, merlin.id)
+
+    assert room.phase == Phase.GAME_OVER
+    assert room.winner == Alignment.EVIL
+    assert room.dissenting_assassination_target_id == merlin.id
+    assert room.ending_route == "dissenting_assassination"
+
+
+def test_transformed_dissenting_courtier_loses_after_stabbing_wrong_target():
+    engine, room = start_room(6, mode=AvalonMode.COURT_UNDERCURRENT)
+    complete_three_successes(room)
+    engine.continue_after_mission(room, room.host_id)
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    dissenting = next(
+        player
+        for player in room.players
+        if player.role == Role.DISSENTING_COURTIER
+    )
+    engine.grant_dagger(room, assassin.id, dissenting.id)
+    wrong_target = next(
+        room.player(player_id)
+        for player_id in engine.eligible_dissenting_targets(room)
+        if room.player(player_id).role != Role.MERLIN
+    )
+
+    engine.dissenting_assassinate(room, dissenting.id, wrong_target.id)
+
+    assert room.phase == Phase.GAME_OVER
+    assert room.winner == Alignment.GOOD
+    assert room.dissenting_assassination_target_id == wrong_target.id
+    assert room.ending_route == "dissenting_assassination"

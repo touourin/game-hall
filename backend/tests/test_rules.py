@@ -1,4 +1,4 @@
-from backend.app.games.avalon.models import Role
+from backend.app.games.avalon.models import AvalonMode, Role
 from backend.app.games.avalon.rules import (
     GOOD_EVIL_COUNTS,
     MISSION_TEAM_SIZES,
@@ -48,3 +48,22 @@ def test_fourth_mission_needs_two_fails_for_seven_or_more_players():
     assert mission_fail_threshold(7, 3) == 2
     assert mission_fail_threshold(10, 3) == 2
     assert mission_fail_threshold(10, 2) == 1
+
+
+def test_court_undercurrent_replaces_exactly_one_loyal_servant():
+    for player_count in range(5, 11):
+        standard = roles_for_player_count(player_count)
+        variant = roles_for_player_count(
+            player_count, AvalonMode.COURT_UNDERCURRENT
+        )
+
+        assert variant.count(Role.DISSENTING_COURTIER) == 1
+        assert variant.count(Role.LOYAL_SERVANT) == (
+            standard.count(Role.LOYAL_SERVANT) - 1
+        )
+        for role in Role:
+            if role not in {
+                Role.LOYAL_SERVANT,
+                Role.DISSENTING_COURTIER,
+            }:
+                assert variant.count(role) == standard.count(role)

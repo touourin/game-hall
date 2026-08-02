@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { ArrowLeft, History, LoaderCircle, Shield, Swords, X } from '@lucide/vue'
 import {
   loadMatchDetail,
@@ -18,11 +18,15 @@ const selectedMatch = ref<MatchDetail | null>(null)
 const loading = ref(true)
 const detailLoading = ref(false)
 const error = ref<string | null>(null)
+const activeGameMode = ref<string | undefined>(
+  props.gameMode ?? (props.gameKey === 'avalon' ? 'standard' : undefined),
+)
 
 const roleLabels: Record<string, string> = {
   merlin: '梅林',
   percival: '派西维尔',
   loyal_servant: '亚瑟的忠臣',
+  dissenting_courtier: '异志之臣',
   assassin: '刺客',
   morgana: '莫甘娜',
   mordred: '莫德雷德',
@@ -85,11 +89,20 @@ function formatDate(value: string): string {
   }).format(new Date(value))
 }
 
+function percentage(hits: number | undefined, attempts: number | undefined): string {
+  if (!attempts) return '—'
+  return `${Math.round(Number(hits ?? 0) / attempts * 100)}%`
+}
+
 function difficultyLabel(value: string | null | undefined): string {
   if (value === 'expert') return '高级'
   if (value === 'intermediate') return '中级'
   if (value === 'beginner') return '初级'
   return ''
+}
+
+function avalonModeLabel(value: string | null | undefined): string {
+  return value === 'court_undercurrent' ? '王庭暗流' : '标准模式'
 }
 
 function playerFor(match: MatchDetail, playerId: string) {
@@ -121,9 +134,11 @@ async function openMatch(matchId: string) {
   }
 }
 
-onMounted(async () => {
+async function loadStats() {
+  loading.value = true
+  error.value = null
   try {
-    const data = await loadPersonalStats(props.gameKey, props.gameMode)
+    const data = await loadPersonalStats(props.gameKey, activeGameMode.value)
     summary.value = data.summary
     history.value = data.history
   } catch (caught) {
@@ -131,7 +146,10 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(loadStats)
+watch(activeGameMode, loadStats)
 </script>
 
 <template>
@@ -148,6 +166,9 @@ onMounted(async () => {
         <span class="modal-icon"><History :size="24" /></span>
         <h2>{{ selectedMatch.gameName }} · 房间 {{ selectedMatch.roomCode }}</h2>
         <p>{{ formatDate(selectedMatch.endedAt) }} · {{ selectedMatch.playerCount }} 人局</p>
+        <p v-if="selectedMatch.gameKey === 'avalon'" class="match-mode-label">
+          {{ avalonModeLabel(selectedMatch.gameMode ?? selectedMatch.details.mode) }}
+        </p>
         <p v-if="selectedMatch.gameKey === 'junqi'" class="match-mode-label">
           {{ selectedMatch.details.options?.mode === 'flip' ? '翻棋军旗' : '暗军旗' }}
         </p>
@@ -163,7 +184,10 @@ onMounted(async () => {
             <div v-for="player in selectedMatch.details.players" :key="player.id">
               <b>{{ player.seat + 1 }}号</b>
               <strong>{{ player.name }}<small v-if="player.isBot">AI</small></strong>
-              <em :class="player.alignment">{{ roleLabel(player.role ?? '') }}</em>
+              <em :class="player.finalAlignment ?? player.alignment">
+                {{ roleLabel(player.role ?? '') }}
+                <small v-if="player.transformed"> · 已转化</small>
+              </em>
             </div>
           </div>
         </div>
@@ -233,6 +257,59 @@ onMounted(async () => {
           <em :class="selectedMatch.assassinationHit ? 'hit' : 'miss'">
             {{ selectedMatch.assassinationHit ? '命中梅林' : '刺杀失败' }}
           </em>
+        </div>
+
+        <div
+          v-if="
+            selectedMatch.gameKey === 'avalon' &&
+            selectedMatch.details.courtUndercurrent?.daggerTargetId
+          "
+          class="match-detail-section"
+        >
+          <span>王庭暗流终局</span>
+          <div class="match-court-timeline">
+            <div>
+              <strong>授刃候选</strong>
+              <span>
+                {{
+                  seatList(
+                    selectedMatch,
+                    selectedMatch.details.courtUndercurrent.daggerCandidateIds,
+                  )
+                }}
+              </span>
+            </div>
+            <div>
+              <strong>刺客选择</strong>
+              <span>
+                {{
+                  playerLabel(
+                    selectedMatch,
+                    selectedMatch.details.courtUndercurrent.daggerTargetId,
+                  )
+                }}
+              </span>
+              <em :class="selectedMatch.recruitmentHit ? 'hit' : 'miss'">
+                {{ selectedMatch.recruitmentHit ? '授刃成功' : '授刃失败' }}
+              </em>
+            </div>
+            <div
+              v-if="selectedMatch.details.courtUndercurrent.assassinationTargetId"
+            >
+              <strong>异志之臣刺杀</strong>
+              <span>
+                {{
+                  playerLabel(
+                    selectedMatch,
+                    selectedMatch.details.courtUndercurrent.assassinationTargetId,
+                  )
+                }}
+              </span>
+              <em :class="selectedMatch.assassinationHit ? 'hit' : 'miss'">
+                {{ selectedMatch.assassinationHit ? '命中梅林' : '刺杀失败' }}
+              </em>
+            </div>
+          </div>
         </div>
 
         <div v-if="selectedMatch.gameKey === 'reaction'" class="match-detail-section">
@@ -324,8 +401,30 @@ onMounted(async () => {
 
       <template v-else>
         <span class="modal-icon"><History :size="24" /></span>
-        <h2>{{ props.gameName ? `${props.gameName}${difficultyLabel(props.gameMode)}战绩` : '我的全部战绩' }}</h2>
+        <h2>{{ props.gameName ? `${props.gameName}${props.gameKey === 'avalon' ? ` · ${avalonModeLabel(activeGameMode)}` : difficultyLabel(activeGameMode)}战绩` : '我的全部战绩' }}</h2>
         <p>{{ props.gameKey === 'reaction' ? '记录每次三轮测试的平均值与单轮明细。' : props.gameKey === 'schulte' ? '记录每次 5×5 标准挑战的完成用时与点击准确率。' : props.gameKey === 'minesweeper' ? '不同难度分别统计通关时间，失败记录也会保留在战绩中。' : props.gameKey === 'hanoi' ? '记录每次通关的层数、步数与完成用时。' : '每款游戏独立记录胜负，对局详情绑定当前账号。' }}</p>
+
+        <div
+          v-if="props.gameKey === 'avalon' && !props.gameMode"
+          class="stats-mode-tabs"
+          role="group"
+          aria-label="筛选阿瓦隆模式战绩"
+        >
+          <button
+            type="button"
+            :class="{ active: activeGameMode === 'standard' }"
+            @click="activeGameMode = 'standard'"
+          >
+            标准模式
+          </button>
+          <button
+            type="button"
+            :class="{ active: activeGameMode === 'court_undercurrent' }"
+            @click="activeGameMode = 'court_undercurrent'"
+          >
+            王庭暗流
+          </button>
+        </div>
 
         <div v-if="loading" class="stats-loading">
           <LoaderCircle :size="24" /> 正在读取战绩…
@@ -362,6 +461,42 @@ onMounted(async () => {
             <span><Shield :size="15" /> 好人 {{ summary.goodWins }}/{{ summary.goodGames }}</span>
             <span><Swords :size="15" /> 坏人 {{ summary.evilWins }}/{{ summary.evilGames }}</span>
           </div>
+          <div
+            v-if="
+              props.gameKey === 'avalon' &&
+              activeGameMode === 'court_undercurrent'
+            "
+            class="court-balance-summary"
+          >
+            <div>
+              <strong>
+                {{ percentage(summary.missionRouteGames, summary.games) }}
+              </strong>
+              <span>邪恶任务路线</span>
+            </div>
+            <div>
+              <strong>
+                {{
+                  percentage(
+                    summary.recruitmentHits,
+                    summary.recruitmentAttempts,
+                  )
+                }}
+              </strong>
+              <span>授刃命中</span>
+            </div>
+            <div>
+              <strong>
+                {{
+                  percentage(
+                    summary.dissentingAssassinationHits,
+                    summary.dissentingAssassinationAttempts,
+                  )
+                }}
+              </strong>
+              <span>异志刺杀命中</span>
+            </div>
+          </div>
           <div v-if="['gomoku', 'xiangqi', 'go'].includes(props.gameKey ?? '')" class="match-result-summary">
             <span>胜 {{ summary.wins }}</span>
             <span>和 {{ summary.draws }}</span>
@@ -384,6 +519,10 @@ onMounted(async () => {
                 <small v-else-if="match.gameKey === 'schulte'">{{ formatDate(match.endedAt) }} · 标准挑战</small>
                 <small v-else-if="match.gameKey === 'minesweeper'">{{ formatDate(match.endedAt) }} · {{ match.reason }}</small>
                 <small v-else-if="match.gameKey === 'hanoi'">{{ formatDate(match.endedAt) }} · 单人益智挑战</small>
+                <small v-else-if="match.gameKey === 'avalon'">
+                  {{ formatDate(match.endedAt) }} · {{ avalonModeLabel(match.gameMode) }} ·
+                  {{ match.playerCount }} 人 · 房间 {{ match.roomCode }}
+                </small>
                 <small v-else>{{ formatDate(match.endedAt) }} · {{ match.playerCount }} 人 · 房间 {{ match.roomCode }}</small>
               </span>
               <em :class="{ unranked: !match.ranked }">{{ match.ranked ? '计榜' : '测试局' }}</em>

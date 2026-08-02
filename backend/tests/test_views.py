@@ -1,7 +1,13 @@
 from datetime import datetime, timedelta, timezone
 
 from backend.app.games.avalon.engine import GameEngine
-from backend.app.games.avalon.models import Alignment, MissionRecord, Phase, Role
+from backend.app.games.avalon.models import (
+    Alignment,
+    AvalonMode,
+    MissionRecord,
+    Phase,
+    Role,
+)
 from backend.app.games.avalon.rooms import RoomManager
 from backend.app.games.avalon.views import build_lobby_view, build_player_view
 
@@ -181,6 +187,7 @@ def test_lobby_view_only_lists_public_joinable_rooms():
             "playerCount": 1,
             "maxPlayers": 10,
             "ladyEnabled": True,
+            "mode": "standard",
             "phase": "lobby",
             "cleanupAvailable": False,
             "allHumansOffline": False,
@@ -214,6 +221,7 @@ def test_cleanup_ready_room_returns_to_lobby_as_non_joinable_cleanup_item():
             "playerCount": 1,
             "maxPlayers": 10,
             "ladyEnabled": True,
+            "mode": "standard",
             "phase": "role_reveal",
             "cleanupAvailable": True,
             "allHumansOffline": True,
@@ -259,3 +267,155 @@ def test_only_assassin_can_see_early_assassination_action():
     assert assassin_view["actions"]["canEarlyAssassinate"] is True
     assert other_view["actions"]["canEarlyAssassinate"] is False
     assert assassin_view["settings"]["earlyAssassinationEnabled"] is True
+
+
+def test_court_undercurrent_initial_knowledge_is_private():
+    engine, room = start_room(9, mode=AvalonMode.COURT_UNDERCURRENT)
+    merlin = next(player for player in room.players if player.role == Role.MERLIN)
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    dissenting = next(
+        player
+        for player in room.players
+        if player.role == Role.DISSENTING_COURTIER
+    )
+
+    merlin_knowledge = build_player_view(room, merlin, engine)["self"]["role"][
+        "knowledge"
+    ]
+    dissenting_knowledge = build_player_view(room, dissenting, engine)["self"][
+        "role"
+    ]["knowledge"]
+    assassin_knowledge = build_player_view(room, assassin, engine)["self"][
+        "role"
+    ]["knowledge"]
+
+    assert any(
+        item["playerId"] == dissenting.id
+        and item["kind"] == "dissenting_courtier"
+        for item in merlin_knowledge
+    )
+    assert dissenting_knowledge == [
+        {
+            "playerId": assassin.id,
+            "playerName": assassin.name,
+            "kind": "assassin",
+            "label": "你认出的刺客",
+        }
+    ]
+    assert all(
+        item["playerId"] != dissenting.id
+        for item in assassin_knowledge
+    )
+
+
+def test_only_assassin_sees_dagger_candidates():
+    engine, room = start_room(5, mode=AvalonMode.COURT_UNDERCURRENT)
+    room.phase = Phase.DAGGER_GRANT
+    dissenting = next(
+        player
+        for player in room.players
+        if player.role == Role.DISSENTING_COURTIER
+    )
+    decoy = next(
+        player
+        for player in room.players
+        if player.alignment == Alignment.GOOD and player.id != dissenting.id
+    )
+    room.dagger_candidate_ids = [dissenting.id, decoy.id]
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    other = next(player for player in room.players if player.id != assassin.id)
+
+    assassin_view = build_player_view(room, assassin, engine)
+    other_view = build_player_view(room, other, engine)
+
+    assert assassin_view["actions"]["canGrantDagger"] is True
+    assert assassin_view["courtUndercurrent"]["daggerCandidateIds"] == [
+        dissenting.id,
+        decoy.id,
+    ]
+    assert other_view["actions"]["canGrantDagger"] is False
+    assert other_view["courtUndercurrent"]["daggerCandidateIds"] == []
+
+
+def test_successful_dagger_grant_reunites_evil_except_oberon():
+    engine, room = start_room(7, mode=AvalonMode.COURT_UNDERCURRENT)
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    morgana = next(
+        player for player in room.players if player.role == Role.MORGANA
+    )
+    oberon = next(
+        player for player in room.players if player.role == Role.OBERON
+    )
+    dissenting = next(
+        player
+        for player in room.players
+        if player.role == Role.DISSENTING_COURTIER
+    )
+    room.phase = Phase.DAGGER_GRANT
+    room.dagger_candidate_ids = [dissenting.id, room.players[0].id]
+    engine.grant_dagger(room, assassin.id, dissenting.id)
+
+    assassin_view = build_player_view(room, assassin, engine)
+    morgana_view = build_player_view(room, morgana, engine)
+    dissenting_view = build_player_view(room, dissenting, engine)
+    oberon_view = build_player_view(room, oberon, engine)
+
+    assert any(
+        item["playerId"] == dissenting.id
+        for item in assassin_view["self"]["role"]["knowledge"]
+    )
+    assert any(
+        item["playerId"] == dissenting.id
+        for item in morgana_view["self"]["role"]["knowledge"]
+    )
+    assert {
+        item["playerId"]
+        for item in dissenting_view["self"]["role"]["knowledge"]
+    } == {assassin.id, morgana.id}
+    assert oberon_view["self"]["role"]["knowledge"] == []
+    assert all(
+        item["playerId"] != oberon.id
+        for item in dissenting_view["self"]["role"]["knowledge"]
+    )
+    assert all("alignment" not in player for player in assassin_view["players"])
+
+
+def test_court_ending_reveals_both_candidate_lists_to_everyone():
+    engine, room = start_room(7, mode=AvalonMode.COURT_UNDERCURRENT)
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    dissenting = next(
+        player
+        for player in room.players
+        if player.role == Role.DISSENTING_COURTIER
+    )
+    decoy = next(
+        player
+        for player in room.players
+        if player.alignment == Alignment.GOOD and player.id != dissenting.id
+    )
+    room.phase = Phase.DAGGER_GRANT
+    room.dagger_candidate_ids = [dissenting.id, decoy.id]
+    engine.grant_dagger(room, assassin.id, dissenting.id)
+    merlin = next(player for player in room.players if player.role == Role.MERLIN)
+    final_candidates = engine.eligible_dissenting_targets(room)
+    engine.dissenting_assassinate(room, dissenting.id, merlin.id)
+
+    viewer = next(
+        player for player in room.players if player.alignment == Alignment.GOOD
+    )
+    view = build_player_view(room, viewer, engine)
+
+    assert view["courtUndercurrent"]["daggerCandidateIds"] == [
+        dissenting.id,
+        decoy.id,
+    ]
+    assert view["courtUndercurrent"]["eligibleTargetIds"] == final_candidates
+    assert view["courtUndercurrent"]["transformedPlayerId"] == dissenting.id

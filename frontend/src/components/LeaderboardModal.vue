@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { LoaderCircle, Trophy, X } from '@lucide/vue'
 import { loadLeaderboard, type LeaderboardEntry } from '../stats'
 import AvatarImage from './AvatarImage.vue'
@@ -10,6 +10,9 @@ defineEmits<{ close: [] }>()
 const players = ref<LeaderboardEntry[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
+const activeGameMode = ref<string | undefined>(
+  props.gameMode ?? (props.gameKey === 'avalon' ? 'standard' : undefined),
+)
 
 function formatDuration(milliseconds: number | undefined): string {
   if (milliseconds === undefined) return '—'
@@ -25,15 +28,20 @@ function difficultyLabel(value: string | undefined): string {
   return ''
 }
 
-onMounted(async () => {
+async function loadPlayers() {
+  loading.value = true
+  error.value = null
   try {
-    players.value = await loadLeaderboard(props.gameKey, props.gameMode)
+    players.value = await loadLeaderboard(props.gameKey, activeGameMode.value)
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : '读取排行榜失败'
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(loadPlayers)
+watch(activeGameMode, loadPlayers)
 </script>
 
 <template>
@@ -43,8 +51,32 @@ onMounted(async () => {
         <X :size="20" />
       </button>
       <span class="modal-icon"><Trophy :size="25" /></span>
-      <h2>{{ props.gameName }}{{ difficultyLabel(props.gameMode) }}排行榜</h2>
+      <h2>
+        {{ props.gameName }}{{ props.gameKey === 'avalon' ? ` · ${activeGameMode === 'court_undercurrent' ? '王庭暗流' : '标准模式'}` : difficultyLabel(activeGameMode) }}排行榜
+      </h2>
       <p>{{ props.gameKey === 'reaction' ? '按个人历史最佳三轮平均时间排序，数值越低越快。' : props.gameKey === 'schulte' ? '按个人最快完成时间排序，数值越低越快。' : props.gameKey === 'minesweeper' ? '三种难度独立排名，按个人最快通关时间排序。' : props.gameKey === 'hanoi' ? '按累计通关次数排序，同次数时优先更早完成挑战的玩家。' : '按胜场排序，同胜场时依次比较胜率和有效场次。' }}</p>
+
+      <div
+        v-if="props.gameKey === 'avalon' && !props.gameMode"
+        class="stats-mode-tabs"
+        role="group"
+        aria-label="筛选阿瓦隆模式排行榜"
+      >
+        <button
+          type="button"
+          :class="{ active: activeGameMode === 'standard' }"
+          @click="activeGameMode = 'standard'"
+        >
+          标准模式
+        </button>
+        <button
+          type="button"
+          :class="{ active: activeGameMode === 'court_undercurrent' }"
+          @click="activeGameMode = 'court_undercurrent'"
+        >
+          王庭暗流
+        </button>
+      </div>
 
       <div v-if="loading" class="stats-loading">
         <LoaderCircle :size="24" /> 正在读取排行…

@@ -1,4 +1,6 @@
 import {
+  ROLE_SKINS,
+  roleArtwork,
   roleArtworkFraming,
   roleSkinPreviewRoles,
 } from './roleSkins'
@@ -54,5 +56,13 @@ describe('Avalon role skin artwork framing', () => {
     expect(roles).toHaveLength(8)
     expect(roles.find((role) => role.code === 'merlin')?.framing.scale).toBe(1)
     expect(roles.find((role) => role.code === 'morgana')?.framing.scale).toBe(1.1)
+  })
+
+  it('temporarily reuses the loyal servant artwork for the dissenting courtier', () => {
+    for (const skin of ROLE_SKINS) {
+      expect(roleArtwork('dissenting_courtier', skin.id)).toBe(
+        roleArtwork('loyal_servant', skin.id),
+      )
+    }
   })
 })

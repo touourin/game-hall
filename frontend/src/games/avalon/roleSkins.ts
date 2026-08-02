@@ -57,6 +57,7 @@ export type AvalonRoleCode =
   | 'merlin'
   | 'percival'
   | 'loyal_servant'
+  | 'dissenting_courtier'
   | 'assassin'
   | 'morgana'
   | 'mordred'
@@ -132,6 +133,7 @@ const ROLE_ART: Record<RoleSkinId, Record<AvalonRoleCode, string>> = {
     merlin: classicMerlin,
     percival: classicPercival,
     loyal_servant: classicLoyalServant,
+    dissenting_courtier: classicLoyalServant,
     assassin: classicAssassin,
     morgana: classicMorgana,
     mordred: classicMordred,
@@ -142,6 +144,7 @@ const ROLE_ART: Record<RoleSkinId, Record<AvalonRoleCode, string>> = {
     merlin: darkMerlin,
     percival: darkPercival,
     loyal_servant: darkLoyalServant,
+    dissenting_courtier: darkLoyalServant,
     assassin: darkAssassin,
     morgana: darkMorgana,
     mordred: darkMordred,
@@ -152,6 +155,7 @@ const ROLE_ART: Record<RoleSkinId, Record<AvalonRoleCode, string>> = {
     merlin: stainedMerlin,
     percival: stainedPercival,
     loyal_servant: stainedLoyalServant,
+    dissenting_courtier: stainedLoyalServant,
     assassin: stainedAssassin,
     morgana: stainedMorgana,
     mordred: stainedMordred,
@@ -162,6 +166,7 @@ const ROLE_ART: Record<RoleSkinId, Record<AvalonRoleCode, string>> = {
     merlin: codexMerlin,
     percival: codexPercival,
     loyal_servant: codexLoyalServant,
+    dissenting_courtier: codexLoyalServant,
     assassin: codexAssassin,
     morgana: codexMorgana,
     mordred: codexMordred,
@@ -172,6 +177,7 @@ const ROLE_ART: Record<RoleSkinId, Record<AvalonRoleCode, string>> = {
     merlin: grailMerlin,
     percival: grailPercival,
     loyal_servant: grailLoyalServant,
+    dissenting_courtier: grailLoyalServant,
     assassin: grailAssassin,
     morgana: grailMorgana,
     mordred: grailMordred,

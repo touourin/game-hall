@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from typing import Any
 
 from .engine import EARLY_ASSASSINATION_PHASES, GameEngine
-from .models import Alignment, Phase, Player, Role, Room
+from .models import Alignment, AvalonMode, Phase, Player, Role, Room
 from .rules import (
     GOOD_EVIL_COUNTS,
     mission_fail_threshold,
@@ -18,6 +18,7 @@ ROLE_LABELS = {
     Role.MERLIN: "梅林",
     Role.PERCIVAL: "派西维尔",
     Role.LOYAL_SERVANT: "亚瑟的忠臣",
+    Role.DISSENTING_COURTIER: "异志之臣",
     Role.ASSASSIN: "刺客",
     Role.MORGANA: "莫甘娜",
     Role.MORDRED: "莫德雷德",
@@ -29,6 +30,10 @@ ROLE_DESCRIPTIONS = {
     Role.MERLIN: "你知道多数邪恶势力是谁，但必须隐藏自己的身份。",
     Role.PERCIVAL: "你能看到梅林与莫甘娜，但不知道两人各自的身份。",
     Role.LOYAL_SERVANT: "你没有额外信息，请通过发言和投票找出邪恶势力。",
+    Role.DISSENTING_COURTIER: (
+        "你开局属于好人且只能支持任务成功。你知道刺客是谁，"
+        "可以选择隐藏身份，也可以通过发言争取被授刃。"
+    ),
     Role.ASSASSIN: "邪恶阵营。若好人完成三次任务，你可以刺杀梅林翻盘。",
     Role.MORGANA: "邪恶阵营。你会在派西维尔眼中伪装成梅林。",
     Role.MORDRED: "邪恶阵营。梅林无法看到你。",
@@ -62,6 +67,7 @@ def build_lobby_view(all_rooms: Iterable[Room]) -> list[dict[str, Any]]:
             "playerCount": len(room.players),
             "maxPlayers": 10,
             "ladyEnabled": room.settings.lady_enabled,
+            "mode": room.settings.mode.value,
             "phase": room.phase.value,
             "cleanupAvailable": room.cleanup_ready,
             "allHumansOffline": room.all_humans_offline_since is not None,
@@ -128,6 +134,29 @@ def build_player_view(
     if room.phase != Phase.LOBBY and viewer.role is not None:
         role_description = ROLE_DESCRIPTIONS[viewer.role]
         if (
+            room.settings.mode == AvalonMode.COURT_UNDERCURRENT
+            and viewer.role == Role.MERLIN
+        ):
+            role_description += (
+                " 你还知道异志之臣是谁，必须同时向他隐藏身份。"
+            )
+        if (
+            room.settings.mode == AvalonMode.COURT_UNDERCURRENT
+            and viewer.role == Role.ASSASSIN
+        ):
+            role_description = (
+                "邪恶阵营。你知道场上存在异志之臣，但不知道是谁。"
+                "好人完成三次任务后，你必须从私密候选中向他授刃。"
+            )
+        if (
+            viewer.role == Role.DISSENTING_COURTIER
+            and room.transformed_player_id == viewer.id
+        ):
+            role_description = (
+                "你已被黑誓之刃强制转化为邪恶阵营。"
+                "利用最后议事判断梅林，并由你亲自完成刺杀。"
+            )
+        if (
             viewer.role == Role.ASSASSIN
             and room.settings.early_assassination_enabled
         ):
@@ -170,7 +199,9 @@ def build_player_view(
     if player_count in GOOD_EVIL_COUNTS:
         role_preset = [
             {"code": role.value, "label": ROLE_LABELS[role]}
-            for role in roles_for_player_count(player_count)
+            for role in roles_for_player_count(
+                player_count, room.settings.mode
+            )
         ]
 
     actions = {
@@ -199,6 +230,10 @@ def build_player_view(
         and viewer.id == room.lady_pending_inspector_id,
         "canAssassinate": room.phase == Phase.ASSASSINATION
         and viewer.role == Role.ASSASSIN,
+        "canGrantDagger": room.phase == Phase.DAGGER_GRANT
+        and viewer.role == Role.ASSASSIN,
+        "canDissentingAssassinate": room.phase == Phase.FINAL_COUNCIL
+        and room.transformed_player_id == viewer.id,
         "canEarlyAssassinate": room.settings.early_assassination_enabled
         and room.phase in EARLY_ASSASSINATION_PHASES
         and viewer.role == Role.ASSASSIN,
@@ -227,6 +262,7 @@ def build_player_view(
         },
         "players": players,
         "settings": {
+            "mode": room.settings.mode.value,
             "ladyEnabled": room.settings.lady_enabled,
             "ladyRecommended": player_count >= 7,
             "listed": room.settings.listed,
@@ -308,8 +344,48 @@ def build_player_view(
         "result": {
             "winner": room.winner.value if room.winner else None,
             "reason": room.win_reason,
+            "endingRoute": room.ending_route,
             "assassinTargetId": room.assassin_target_id,
             "assassinationWasEarly": room.assassination_was_early,
+        },
+        "courtUndercurrent": {
+            "enabled": (
+                room.settings.mode == AvalonMode.COURT_UNDERCURRENT
+            ),
+            "daggerCandidateIds": (
+                list(room.dagger_candidate_ids)
+                if actions["canGrantDagger"]
+                or room.phase == Phase.GAME_OVER
+                else []
+            ),
+            "daggerTargetId": (
+                room.dagger_target_id
+                if room.phase == Phase.GAME_OVER
+                or viewer.role == Role.ASSASSIN
+                or viewer.id == room.transformed_player_id
+                else None
+            ),
+            "daggerHit": (
+                room.dagger_hit
+                if room.phase in {Phase.FINAL_COUNCIL, Phase.GAME_OVER}
+                else None
+            ),
+            "transformedPlayerId": (
+                room.transformed_player_id
+                if room.phase == Phase.GAME_OVER
+                else None
+            ),
+            "eligibleTargetIds": (
+                engine.eligible_dissenting_targets(room)
+                if actions["canDissentingAssassinate"]
+                or room.phase == Phase.GAME_OVER
+                else []
+            ),
+            "assassinationTargetId": (
+                room.dissenting_assassination_target_id
+                if room.phase == Phase.GAME_OVER
+                else None
+            ),
         },
         "chat": {
             "maxLength": 300,
@@ -332,13 +408,35 @@ def _knowledge_for_player(room: Room, viewer: Player) -> list[dict[str, str]]:
     knowledge: list[dict[str, str]] = []
     if viewer.role == Role.MERLIN:
         for player in room.players:
-            if player.alignment == Alignment.EVIL and player.role != Role.MORDRED:
+            if (
+                player.alignment == Alignment.EVIL
+                and player.role
+                not in {Role.MORDRED, Role.DISSENTING_COURTIER}
+            ):
                 knowledge.append(
                     {
                         "playerId": player.id,
                         "playerName": player.name,
                         "kind": "evil",
                         "label": "你看到的邪恶势力",
+                    }
+                )
+        if room.settings.mode == AvalonMode.COURT_UNDERCURRENT:
+            dissenting = next(
+                (
+                    player
+                    for player in room.players
+                    if player.role == Role.DISSENTING_COURTIER
+                ),
+                None,
+            )
+            if dissenting is not None:
+                knowledge.append(
+                    {
+                        "playerId": dissenting.id,
+                        "playerName": dissenting.name,
+                        "kind": "dissenting_courtier",
+                        "label": "你察觉到的异志之臣",
                     }
                 )
     elif viewer.role == Role.PERCIVAL:
@@ -350,6 +448,31 @@ def _knowledge_for_player(room: Room, viewer: Player) -> list[dict[str, str]]:
                         "playerName": player.name,
                         "kind": "merlin_candidate",
                         "label": "梅林或莫甘娜",
+                    }
+                )
+    elif viewer.role == Role.DISSENTING_COURTIER:
+        for player in room.players:
+            if player.role == Role.ASSASSIN:
+                knowledge.append(
+                    {
+                        "playerId": player.id,
+                        "playerName": player.name,
+                        "kind": "assassin",
+                        "label": "你认出的刺客",
+                    }
+                )
+            elif (
+                room.transformed_player_id == viewer.id
+                and player.id != viewer.id
+                and player.alignment == Alignment.EVIL
+                and player.role != Role.OBERON
+            ):
+                knowledge.append(
+                    {
+                        "playerId": player.id,
+                        "playerName": player.name,
+                        "kind": "evil_ally",
+                        "label": "邪恶同伴",
                     }
                 )
     elif viewer.alignment == Alignment.EVIL and viewer.role != Role.OBERON:

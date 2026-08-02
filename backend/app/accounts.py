@@ -25,7 +25,7 @@ from .database import (
     player_name_claims,
     users,
 )
-from .games.avalon.models import Room, Role
+from .games.avalon.models import ROLE_ALIGNMENT, Room, Role
 
 
 SESSION_LIFETIME = timedelta(days=30)
@@ -456,9 +456,13 @@ class AccountStore:
             and len(account_ids) == len(human_players)
             and len(set(account_ids)) == len(account_ids)
         )
+        assassination_target_id = (
+            room.dissenting_assassination_target_id
+            or room.assassin_target_id
+        )
         assassination_target = (
-            room.player(room.assassin_target_id)
-            if room.assassin_target_id is not None
+            room.player(assassination_target_id)
+            if assassination_target_id is not None
             else None
         )
         assassination_hit = (
@@ -482,11 +486,14 @@ class AccountStore:
                         id=room.game_id,
                         game_key=GAME_KEY,
                         room_code=room.code,
+                        mode=room.settings.mode.value,
                         player_count=len(room.players),
                         winner=room.winner.value,
                         reason=room.win_reason,
                         ranked=ranked,
                         assassination_hit=assassination_hit,
+                        ending_route=room.ending_route,
+                        recruitment_hit=room.dagger_hit,
                         started_at=started_at,
                         ended_at=ended_at,
                         details_json=details,
@@ -544,11 +551,14 @@ class AccountStore:
                         id=match_id,
                         game_key=game_key,
                         room_code=room_code,
+                        mode=self._match_mode(game_key, details),
                         player_count=len(players),
                         winner=winner,
                         reason=reason,
                         ranked=ranked,
                         assassination_hit=None,
+                        ending_route=None,
+                        recruitment_hit=None,
                         started_at=self._parse_datetime(started_at),
                         ended_at=self._parse_datetime(ended_at),
                         details_json=details,
@@ -595,6 +605,7 @@ class AccountStore:
                 matches.c.game_key,
                 games.c.name.label("game_name"),
                 matches.c.room_code,
+                matches.c.mode,
                 matches.c.player_count,
                 matches.c.winner,
                 matches.c.reason,
@@ -621,10 +632,7 @@ class AccountStore:
         if game_key is not None:
             statement = statement.where(matches.c.game_key == game_key)
         if game_mode is not None:
-            statement = statement.where(
-                matches.c.details_json["state"]["difficulty"].as_string()
-                == game_mode
-            )
+            statement = statement.where(matches.c.mode == game_mode)
         with self.engine.connect() as connection:
             rows = connection.execute(statement).mappings().all()
         return [self._history_row(row) for row in rows]
@@ -656,10 +664,7 @@ class AccountStore:
                 )
             )
             if game_mode is not None:
-                statement = statement.where(
-                    matches.c.details_json["state"]["difficulty"].as_string()
-                    == game_mode
-                )
+                statement = statement.where(matches.c.mode == game_mode)
             with self.engine.connect() as connection:
                 row = connection.execute(statement).mappings().one()
             return {
@@ -736,6 +741,53 @@ class AccountStore:
                     ),
                     0,
                 ).label("evil_wins"),
+                func.coalesce(
+                    func.sum(
+                        case((matches.c.ending_route == "missions", 1), else_=0)
+                    ),
+                    0,
+                ).label("mission_route_games"),
+                func.coalesce(
+                    func.sum(
+                        case((matches.c.recruitment_hit.is_not(None), 1), else_=0)
+                    ),
+                    0,
+                ).label("recruitment_attempts"),
+                func.coalesce(
+                    func.sum(
+                        case((matches.c.recruitment_hit.is_(True), 1), else_=0)
+                    ),
+                    0,
+                ).label("recruitment_hits"),
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (
+                                matches.c.ending_route
+                                == "dissenting_assassination",
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ).label("dissenting_assassination_attempts"),
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (
+                                (
+                                    matches.c.ending_route
+                                    == "dissenting_assassination"
+                                )
+                                & matches.c.assassination_hit.is_(True),
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ).label("dissenting_assassination_hits"),
             )
             .select_from(
                 match_players.join(
@@ -748,6 +800,8 @@ class AccountStore:
             statement = statement.where(matches.c.game_key == game_key)
         else:
             statement = statement.where(matches.c.game_key.not_in(TIME_TRIAL_GAMES))
+        if game_mode is not None:
+            statement = statement.where(matches.c.mode == game_mode)
         with self.engine.connect() as connection:
             row = connection.execute(statement).mappings().one()
         game_count = int(row["games"])
@@ -762,6 +816,15 @@ class AccountStore:
             "goodWins": int(row["good_wins"]),
             "evilGames": int(row["evil_games"]),
             "evilWins": int(row["evil_wins"]),
+            "missionRouteGames": int(row["mission_route_games"]),
+            "recruitmentAttempts": int(row["recruitment_attempts"]),
+            "recruitmentHits": int(row["recruitment_hits"]),
+            "dissentingAssassinationAttempts": int(
+                row["dissenting_assassination_attempts"]
+            ),
+            "dissentingAssassinationHits": int(
+                row["dissenting_assassination_hits"]
+            ),
         }
 
     def leaderboard(
@@ -812,10 +875,7 @@ class AccountStore:
                 .limit(min(max(limit, 1), 100))
             )
             if game_mode is not None:
-                statement = statement.where(
-                    matches.c.details_json["state"]["difficulty"].as_string()
-                    == game_mode
-                )
+                statement = statement.where(matches.c.mode == game_mode)
             with self.engine.connect() as connection:
                 rows = connection.execute(statement).mappings().all()
             return [
@@ -872,6 +932,8 @@ class AccountStore:
             .limit(min(max(limit, 1), 100))
         )
         statement = statement.where(matches.c.game_key == game_key)
+        if game_mode is not None:
+            statement = statement.where(matches.c.mode == game_mode)
         with self.engine.connect() as connection:
             rows = connection.execute(statement).mappings().all()
         return [
@@ -898,11 +960,14 @@ class AccountStore:
                 matches.c.game_key,
                 games.c.name.label("game_name"),
                 matches.c.room_code,
+                matches.c.mode,
                 matches.c.player_count,
                 matches.c.winner,
                 matches.c.reason,
                 matches.c.ranked,
                 matches.c.assassination_hit,
+                matches.c.ending_route,
+                matches.c.recruitment_hit,
                 matches.c.started_at,
                 matches.c.ended_at,
                 matches.c.details_json,
@@ -930,6 +995,7 @@ class AccountStore:
             "gameKey": row["game_key"],
             "gameName": row["game_name"],
             "roomCode": row["room_code"],
+            "gameMode": row["mode"],
             "playerCount": row["player_count"],
             "winner": row["winner"],
             "reason": row["reason"],
@@ -937,6 +1003,12 @@ class AccountStore:
             "assassinationHit": (
                 bool(row["assassination_hit"])
                 if row["assassination_hit"] is not None
+                else None
+            ),
+            "endingRoute": row["ending_route"],
+            "recruitmentHit": (
+                bool(row["recruitment_hit"])
+                if row["recruitment_hit"] is not None
                 else None
             ),
             "startedAt": self._iso_datetime(row["started_at"]),
@@ -963,7 +1035,6 @@ class AccountStore:
         details = row.get("details_json")
         if isinstance(details, str):
             details = json.loads(details)
-        state = details.get("state", {}) if isinstance(details, dict) else {}
         return {
             "id": row["id"],
             "gameKey": row["game_key"],
@@ -989,7 +1060,7 @@ class AccountStore:
                 if row["score_ms"] is not None
                 else None
             ),
-            "gameMode": state.get("difficulty"),
+            "gameMode": row["mode"],
         }
 
     @staticmethod
@@ -1003,6 +1074,7 @@ class AccountStore:
     @staticmethod
     def _match_details(room: Room) -> dict:
         return {
+            "mode": room.settings.mode.value,
             "players": [
                 {
                     "id": player.id,
@@ -1011,6 +1083,11 @@ class AccountStore:
                     "isBot": player.is_bot,
                     "role": player.role.value,
                     "alignment": player.alignment.value,
+                    "initialAlignment": ROLE_ALIGNMENT[player.role].value,
+                    "finalAlignment": player.alignment.value,
+                    "transformed": (
+                        player.id == room.transformed_player_id
+                    ),
                 }
                 for player in room.players
             ],
@@ -1045,7 +1122,43 @@ class AccountStore:
             ],
             "assassinTargetId": room.assassin_target_id,
             "assassinationWasEarly": room.assassination_was_early,
+            "courtUndercurrent": {
+                "daggerCandidateIds": list(room.dagger_candidate_ids),
+                "daggerTargetId": room.dagger_target_id,
+                "daggerHit": room.dagger_hit,
+                "transformedPlayerId": room.transformed_player_id,
+                "eligibleTargetIds": (
+                    [
+                        player.id
+                        for player in room.players
+                        if player.id != room.transformed_player_id
+                        and player.role
+                        not in {
+                            Role.ASSASSIN,
+                            Role.MORGANA,
+                            Role.MORDRED,
+                            Role.MINION,
+                        }
+                    ]
+                    if room.transformed_player_id is not None
+                    else []
+                ),
+                "assassinationTargetId": (
+                    room.dissenting_assassination_target_id
+                ),
+            },
+            "endingRoute": room.ending_route,
         }
+
+    @staticmethod
+    def _match_mode(game_key: str, details: dict[str, Any]) -> str:
+        if game_key == "minesweeper":
+            state = details.get("state")
+            if isinstance(state, dict):
+                difficulty = state.get("difficulty")
+                if isinstance(difficulty, str) and difficulty:
+                    return difficulty
+        return "standard"
 
     @classmethod
     def _account_from_row(cls, row: Mapping[str, Any]) -> Account:

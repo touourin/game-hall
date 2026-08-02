@@ -1,7 +1,7 @@
 import pytest
 
 from backend.app.accounts import AVATAR_PRESET_IDS, AccountError, AccountStore
-from backend.app.games.avalon.models import Alignment, Phase, Role
+from backend.app.games.avalon.models import Alignment, AvalonMode, Phase, Role
 
 from .test_engine import start_room
 
@@ -116,6 +116,84 @@ def test_completed_match_is_saved_once_with_personal_history(tmp_path):
     assert summary["wins"] == int(first_player.alignment == Alignment.EVIL)
     assert detail["details"]["players"][0]["name"] == "玩家0"
     assert detail["assassinationHit"] is True
+
+
+def test_court_undercurrent_match_records_final_alignment_and_mode(tmp_path):
+    store = AccountStore(tmp_path / "court-undercurrent.sqlite3")
+    engine, room = start_room(7, mode=AvalonMode.COURT_UNDERCURRENT)
+    for index, player in enumerate(room.players):
+        player.account_id = account_for_player(store, index, "court").id
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    dissenting = next(
+        player
+        for player in room.players
+        if player.role == Role.DISSENTING_COURTIER
+    )
+    merlin = next(player for player in room.players if player.role == Role.MERLIN)
+    room.phase = Phase.DAGGER_GRANT
+    room.dagger_candidate_ids = [dissenting.id, merlin.id]
+    engine.grant_dagger(room, assassin.id, dissenting.id)
+    engine.dissenting_assassinate(room, dissenting.id, merlin.id)
+
+    assert store.record_match(room) is True
+
+    court_history = store.history_for_account(
+        dissenting.account_id,
+        game_key="avalon",
+        game_mode="court_undercurrent",
+    )
+    standard_history = store.history_for_account(
+        dissenting.account_id,
+        game_key="avalon",
+        game_mode="standard",
+    )
+    detail = store.match_for_account(room.game_id, dissenting.account_id)
+    summary = store.summary_for_account(
+        dissenting.account_id,
+        game_key="avalon",
+        game_mode="court_undercurrent",
+    )
+
+    assert len(court_history) == 1
+    assert standard_history == []
+    assert court_history[0]["alignment"] == "evil"
+    assert court_history[0]["won"] is True
+    assert detail["gameMode"] == "court_undercurrent"
+    assert detail["recruitmentHit"] is True
+    assert detail["assassinationHit"] is True
+    assert summary["recruitmentAttempts"] == 1
+    assert summary["recruitmentHits"] == 1
+    assert summary["dissentingAssassinationAttempts"] == 1
+    assert summary["dissentingAssassinationHits"] == 1
+    assert detail["details"]["courtUndercurrent"] == {
+        "daggerCandidateIds": [dissenting.id, merlin.id],
+        "daggerTargetId": dissenting.id,
+        "daggerHit": True,
+        "transformedPlayerId": dissenting.id,
+        "eligibleTargetIds": [
+            player.id
+            for player in room.players
+            if player.id != dissenting.id
+            and player.role
+            not in {
+                Role.ASSASSIN,
+                Role.MORGANA,
+                Role.MORDRED,
+                Role.MINION,
+            }
+        ],
+        "assassinationTargetId": merlin.id,
+    }
+    recorded_dissenting = next(
+        player
+        for player in detail["details"]["players"]
+        if player["id"] == dissenting.id
+    )
+    assert recorded_dissenting["initialAlignment"] == "good"
+    assert recorded_dissenting["finalAlignment"] == "evil"
+    assert recorded_dissenting["transformed"] is True
 
 
 def test_ranked_leaderboard_excludes_matches_with_ai_players(tmp_path):

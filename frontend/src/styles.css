@@ -1267,6 +1267,61 @@ button:disabled {
   padding: 16px;
 }
 
+.avalon-mode-setting {
+  display: grid;
+  gap: 11px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 14px;
+}
+
+.avalon-mode-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.avalon-mode-options button {
+  display: grid;
+  gap: 4px;
+  min-height: 64px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  padding: 10px;
+  color: var(--text);
+  background: rgba(var(--surface-deep-rgb), 0.42);
+  text-align: left;
+}
+
+.avalon-mode-options button.active {
+  border-color: rgba(225, 188, 104, 0.42);
+  background: rgba(112, 82, 35, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(225, 188, 104, 0.08);
+}
+
+.avalon-mode-options button:disabled {
+  cursor: default;
+}
+
+.avalon-mode-options strong {
+  color: var(--gold);
+  font-size: 11px;
+}
+
+.avalon-mode-options small,
+.avalon-mode-note {
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.avalon-mode-note {
+  margin: 0;
+  border-radius: 9px;
+  padding: 8px 9px;
+  background: rgba(153, 58, 63, 0.11);
+}
+
 .setting-row {
   display: flex;
   align-items: center;
@@ -2208,6 +2263,62 @@ button:disabled {
   padding: 14px;
 }
 
+.court-hero {
+  background:
+    radial-gradient(circle at 50% 8%, rgba(124, 60, 112, 0.24), transparent 45%),
+    rgba(55, 27, 47, 0.8);
+}
+
+.court-secret-note,
+.final-council-chat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px;
+}
+
+.court-secret-note > svg,
+.final-council-chat > svg:first-child {
+  flex: 0 0 auto;
+  color: var(--gold);
+}
+
+.court-secret-note > div,
+.final-council-chat > div {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+
+.court-secret-note strong,
+.final-council-chat strong {
+  font-size: 12px;
+}
+
+.court-secret-note small,
+.final-council-chat small {
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.court-secret-note.transformed {
+  border-color: rgba(225, 114, 114, 0.26);
+  background: rgba(95, 35, 52, 0.32);
+}
+
+.final-council-chat {
+  width: 100%;
+  color: var(--text);
+  text-align: left;
+}
+
+.final-council-chat > svg:last-child {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
 .assassination-alignments > header {
   display: flex;
   align-items: center;
@@ -2355,6 +2466,11 @@ button:disabled {
   gap: 10px;
 }
 
+.court-ending-chain.complete {
+  grid-template-columns:
+    minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+}
+
 .assassination-chain > div {
   display: grid;
   justify-items: center;
@@ -2392,6 +2508,19 @@ button:disabled {
 
 .assassination-record > p strong {
   color: var(--text);
+}
+
+.court-candidate-summary {
+  display: grid;
+  gap: 4px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.court-candidate-summary small {
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.5;
 }
 
 .score-summary {
@@ -2440,10 +2569,17 @@ button:disabled {
 }
 
 .alignment-label {
+  display: grid;
+  justify-items: end;
+  gap: 1px;
   border-radius: 8px;
   padding: 5px 7px;
   font-size: 9px;
   font-weight: 800;
+}
+
+.alignment-label small {
+  font-size: 6px;
 }
 
 .alignment-label.good {
@@ -3290,6 +3426,54 @@ button:disabled {
   font-weight: 850;
 }
 
+.match-player-list em small {
+  font-size: 6px;
+}
+
+.match-court-timeline {
+  display: grid;
+  gap: 7px;
+}
+
+.match-court-timeline > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 8px;
+  background: rgba(var(--surface-deep-rgb), 0.46);
+}
+
+.match-court-timeline strong {
+  color: var(--gold);
+  font-size: 8px;
+}
+
+.match-court-timeline span {
+  color: var(--muted);
+  font-size: 7px;
+}
+
+.match-court-timeline em {
+  border-radius: 999px;
+  padding: 4px 6px;
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.match-court-timeline em.hit {
+  color: #efadad;
+  background: rgba(153, 58, 63, 0.18);
+}
+
+.match-court-timeline em.miss {
+  color: #b5ead0;
+  background: rgba(45, 126, 89, 0.18);
+}
+
 .match-player-list em.good {
   color: #b5ead0;
   background: rgba(45, 126, 89, 0.18);
@@ -3482,6 +3666,59 @@ button:disabled {
   margin: 4px 0 0;
   color: var(--muted);
   font-size: 8px;
+}
+
+.stats-mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 12px 0;
+  border-radius: 12px;
+  padding: 4px;
+  background: rgba(var(--surface-deep-rgb), 0.54);
+}
+
+.stats-mode-tabs button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.stats-mode-tabs button.active {
+  color: var(--gold);
+  background: rgba(225, 188, 104, 0.13);
+}
+
+.court-balance-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+  margin-bottom: 13px;
+}
+
+.court-balance-summary > div {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  border: 1px solid rgba(225, 188, 104, 0.16);
+  border-radius: 11px;
+  padding: 9px 5px;
+  background: rgba(112, 82, 35, 0.1);
+}
+
+.court-balance-summary strong {
+  color: var(--gold);
+  font-size: 13px;
+}
+
+.court-balance-summary span {
+  color: var(--muted);
+  font-size: 7px;
+  text-align: center;
 }
 
 .leaderboard-list {

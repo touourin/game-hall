@@ -17,7 +17,7 @@ from .arcade.models import ArcadeRoom
 from .arcade.realtime import arcade_realtime
 from .games.avalon.bots import advance_ai_players
 from .games.avalon.engine import GameEngine, GameRuleError
-from .games.avalon.models import Phase, Room
+from .games.avalon.models import AvalonMode, Phase, Room
 from .games.avalon.rooms import RoomError, RoomManager
 from .games.avalon.schemas import (
     ChatPayload,
@@ -25,6 +25,7 @@ from .games.avalon.schemas import (
     JoinPayload,
     LadySettingPayload,
     ListedSettingPayload,
+    ModeSettingPayload,
     MissionVotePayload,
     ResumePayload,
     TargetPayload,
@@ -70,6 +71,7 @@ INFO_SOCKET_EVENTS = {
     "room:set-early-assassination",
     "room:set-lady",
     "room:set-listed",
+    "room:set-mode",
 }
 
 
@@ -98,6 +100,20 @@ async def restore_room_state() -> None:
 
     restored_at = datetime.now(timezone.utc)
     for room in avalon_rooms.rooms.values():
+        if not hasattr(room.settings, "mode"):
+            room.settings.mode = AvalonMode.STANDARD
+        room.ending_route = getattr(room, "ending_route", None)
+        room.dagger_candidate_ids = getattr(
+            room, "dagger_candidate_ids", []
+        )
+        room.dagger_target_id = getattr(room, "dagger_target_id", None)
+        room.dagger_hit = getattr(room, "dagger_hit", None)
+        room.transformed_player_id = getattr(
+            room, "transformed_player_id", None
+        )
+        room.dissenting_assassination_target_id = getattr(
+            room, "dissenting_assassination_target_id", None
+        )
         had_connected_human = any(
             not player.is_bot and player.connected for player in room.players
         )
@@ -105,6 +121,9 @@ async def restore_room_state() -> None:
         room.cleanup_ready = getattr(room, "cleanup_ready", False)
         room.host_offline_since = None
         for player in room.players:
+            player.alignment_override = getattr(
+                player, "alignment_override", None
+            )
             if not player.is_bot:
                 player.connected = False
                 player.disconnected_at = None
@@ -640,6 +659,18 @@ async def set_listed(sid: str, raw_data: Any) -> dict[str, Any]:
     )
 
 
+@logged_socket_event("room:set-mode")
+async def set_mode(sid: str, raw_data: Any) -> dict[str, Any]:
+    return await execute_lobby_action(
+        sid,
+        raw_data,
+        ModeSettingPayload,
+        lambda room, player_id, payload: avalon_rooms.set_mode(
+            room, player_id, payload.mode
+        ),
+    )
+
+
 @logged_socket_event("room:set-early-assassination")
 async def set_early_assassination(
     sid: str, raw_data: Any
@@ -766,6 +797,34 @@ async def assassinate(sid: str, raw_data: Any) -> dict[str, Any]:
         TargetPayload,
         lambda room, player_id, payload: avalon_engine.assassinate(
             room, player_id, payload.target_id
+        ),
+    )
+
+
+@logged_socket_event("game:grant-dagger")
+async def grant_dagger(sid: str, raw_data: Any) -> dict[str, Any]:
+    return await execute_action(
+        sid,
+        raw_data,
+        TargetPayload,
+        lambda room, player_id, payload: avalon_engine.grant_dagger(
+            room, player_id, payload.target_id
+        ),
+    )
+
+
+@logged_socket_event("game:dissenting-assassinate")
+async def dissenting_assassinate(
+    sid: str, raw_data: Any
+) -> dict[str, Any]:
+    return await execute_action(
+        sid,
+        raw_data,
+        TargetPayload,
+        lambda room, player_id, payload: (
+            avalon_engine.dissenting_assassinate(
+                room, player_id, payload.target_id
+            )
         ),
     )
 

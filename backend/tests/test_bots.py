@@ -1,5 +1,11 @@
 from backend.app.games.avalon.bots import advance_ai_players
-from backend.app.games.avalon.models import Alignment, MissionRecord, Phase, Role
+from backend.app.games.avalon.models import (
+    Alignment,
+    AvalonMode,
+    MissionRecord,
+    Phase,
+    Role,
+)
 
 from .test_engine import start_room
 
@@ -80,3 +86,31 @@ def test_ai_assassin_resolves_final_assassination_but_not_early():
     assert room.phase == Phase.GAME_OVER
     assert room.assassin_target_id != assassin.id
     assert room.assassination_was_early is False
+
+
+def test_ai_randomly_resolves_dagger_grant_and_courtier_stab():
+    engine, room = start_room(7, mode=AvalonMode.COURT_UNDERCURRENT)
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    dissenting = next(
+        player
+        for player in room.players
+        if player.role == Role.DISSENTING_COURTIER
+    )
+    decoy = next(
+        player
+        for player in room.players
+        if player.alignment == Alignment.GOOD and player.id != dissenting.id
+    )
+    assassin.is_bot = True
+    dissenting.is_bot = True
+    room.dagger_candidate_ids = [dissenting.id, decoy.id]
+    room.phase = Phase.DAGGER_GRANT
+
+    advance_ai_players(room, engine)
+
+    assert room.phase == Phase.GAME_OVER
+    assert room.dagger_target_id in room.dagger_candidate_ids
+    if room.dagger_hit:
+        assert room.dissenting_assassination_target_id is not None

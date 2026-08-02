@@ -1,4 +1,5 @@
 export type Alignment = 'good' | 'evil'
+export type AvalonMode = 'standard' | 'court_undercurrent'
 
 export type Phase =
   | 'lobby'
@@ -10,12 +11,19 @@ export type Phase =
   | 'lady_select'
   | 'lady_reveal'
   | 'assassination'
+  | 'dagger_grant'
+  | 'final_council'
   | 'game_over'
 
 export interface Knowledge {
   playerId: string
   playerName: string
-  kind: 'evil' | 'merlin_candidate' | 'evil_ally'
+  kind:
+    | 'evil'
+    | 'merlin_candidate'
+    | 'evil_ally'
+    | 'assassin'
+    | 'dissenting_courtier'
   label: string
 }
 
@@ -75,6 +83,7 @@ export interface LobbyRoom {
   playerCount: number
   maxPlayers: number
   ladyEnabled: boolean
+  mode: AvalonMode
   phase?: Phase
   cleanupAvailable?: boolean
   allHumansOffline?: boolean
@@ -94,6 +103,8 @@ export interface RoomActions {
   canUseLady: boolean
   canAcknowledgeLady: boolean
   canAssassinate: boolean
+  canGrantDagger: boolean
+  canDissentingAssassinate: boolean
   canEarlyAssassinate: boolean
   canAddAiPlayer: boolean
   canRestart: boolean
@@ -113,6 +124,7 @@ export interface RoomSnapshot {
   }
   players: PlayerView[]
   settings: {
+    mode: AvalonMode
     ladyEnabled: boolean
     ladyRecommended: boolean
     listed: boolean
@@ -166,8 +178,18 @@ export interface RoomSnapshot {
   result: {
     winner: Alignment | null
     reason: string | null
+    endingRoute: string | null
     assassinTargetId: string | null
     assassinationWasEarly: boolean
+  }
+  courtUndercurrent: {
+    enabled: boolean
+    daggerCandidateIds: string[]
+    daggerTargetId: string | null
+    daggerHit: boolean | null
+    transformedPlayerId: string | null
+    eligibleTargetIds: string[]
+    assassinationTargetId: string | null
   }
   chat: {
     maxLength: number

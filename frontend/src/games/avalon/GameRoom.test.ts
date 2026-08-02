@@ -41,6 +41,7 @@ function roleRevealSnapshot(revision: number): RoomSnapshot {
       },
     ],
     settings: {
+      mode: 'standard',
       ladyEnabled: true,
       ladyRecommended: false,
       listed: true,
@@ -79,8 +80,18 @@ function roleRevealSnapshot(revision: number): RoomSnapshot {
     result: {
       winner: null,
       reason: null,
+      endingRoute: null,
       assassinTargetId: null,
       assassinationWasEarly: false,
+    },
+    courtUndercurrent: {
+      enabled: false,
+      daggerCandidateIds: [],
+      daggerTargetId: null,
+      daggerHit: null,
+      transformedPlayerId: null,
+      eligibleTargetIds: [],
+      assassinationTargetId: null,
     },
     chat: {
       maxLength: 300,
@@ -100,6 +111,8 @@ function roleRevealSnapshot(revision: number): RoomSnapshot {
       canUseLady: false,
       canAcknowledgeLady: false,
       canAssassinate: false,
+      canGrantDagger: false,
+      canDissentingAssassinate: false,
       canEarlyAssassinate: false,
       canAddAiPlayer: false,
       canRestart: false,
@@ -753,6 +766,129 @@ describe('GameRoom role reveal', () => {
     expect(assassinationCandidates).toContain('奥伯伦')
   })
 
+  it('shows only the private dagger candidates to the assassin', async () => {
+    const snapshot = roleRevealSnapshot(1)
+    snapshot.phase = 'dagger_grant'
+    snapshot.settings.mode = 'court_undercurrent'
+    snapshot.courtUndercurrent.enabled = true
+    snapshot.courtUndercurrent.daggerCandidateIds = ['p2', 'p3']
+    snapshot.actions.canConfirmRole = false
+    snapshot.actions.canGrantDagger = true
+    snapshot.self.role = {
+      code: 'assassin',
+      label: '刺客',
+      alignment: 'evil',
+      description: '寻找异志之臣。',
+      knowledge: [],
+    }
+    snapshot.players.push(
+      {
+        id: 'p2',
+        name: '二号候选',
+        seat: 1,
+        connected: true,
+        isBot: false,
+        isHost: false,
+        isLeader: false,
+        isSelected: false,
+      },
+      {
+        id: 'p3',
+        name: '三号候选',
+        seat: 2,
+        connected: true,
+        isBot: false,
+        isHost: false,
+        isLeader: false,
+        isSelected: false,
+      },
+      {
+        id: 'p4',
+        name: '名单外玩家',
+        seat: 3,
+        connected: true,
+        isBot: false,
+        isHost: false,
+        isLeader: false,
+        isSelected: false,
+      },
+    )
+    const pinia = createPinia()
+    const room = useRoomStore(pinia)
+    const perform = vi.spyOn(room, 'perform').mockResolvedValue({ ok: true })
+    const wrapper = mount(GameRoom, {
+      props: { snapshot },
+      global: { plugins: [pinia] },
+    })
+
+    expect(wrapper.text()).toContain('刺客最后的授刃')
+    expect(wrapper.get('.player-grid').text()).toContain('二号候选')
+    expect(wrapper.get('.player-grid').text()).toContain('三号候选')
+    expect(wrapper.get('.player-grid').text()).not.toContain('名单外玩家')
+    await wrapper.findAll('.player-grid .player-tile')[0]!.trigger('click')
+    await wrapper.get('.danger-button').trigger('click')
+
+    expect(perform).toHaveBeenCalledWith('game:grant-dagger', {
+      target_id: 'p2',
+    })
+  })
+
+  it('lets only the transformed courtier end the final council', async () => {
+    const snapshot = roleRevealSnapshot(1)
+    snapshot.phase = 'final_council'
+    snapshot.settings.mode = 'court_undercurrent'
+    snapshot.courtUndercurrent.enabled = true
+    snapshot.courtUndercurrent.daggerHit = true
+    snapshot.courtUndercurrent.eligibleTargetIds = ['p2', 'p3']
+    snapshot.actions.canConfirmRole = false
+    snapshot.actions.canDissentingAssassinate = true
+    snapshot.self.role = {
+      code: 'dissenting_courtier',
+      label: '异志之臣',
+      alignment: 'evil',
+      description: '你已被强制转化。',
+      knowledge: [],
+    }
+    snapshot.players.push(
+      {
+        id: 'p2',
+        name: '梅林候选甲',
+        seat: 1,
+        connected: true,
+        isBot: false,
+        isHost: false,
+        isLeader: false,
+        isSelected: false,
+      },
+      {
+        id: 'p3',
+        name: '梅林候选乙',
+        seat: 2,
+        connected: true,
+        isBot: false,
+        isHost: false,
+        isLeader: false,
+        isSelected: false,
+      },
+    )
+    const pinia = createPinia()
+    const room = useRoomStore(pinia)
+    const perform = vi.spyOn(room, 'perform').mockResolvedValue({ ok: true })
+    const wrapper = mount(GameRoom, {
+      props: { snapshot },
+      global: { plugins: [pinia] },
+    })
+
+    expect(wrapper.text()).toContain('王庭最后议事')
+    expect(wrapper.text()).toContain('你已必定转化为邪恶阵营')
+    await wrapper.findAll('.player-grid .player-tile')[1]!.trigger('click')
+    await wrapper.get('.danger-button').trigger('click')
+
+    expect(perform).toHaveBeenCalledWith('game:dissenting-assassinate', {
+      target_id: 'p3',
+    })
+  })
+
   it('asks for confirmation before exiting an active game', async () => {
     const snapshot = roleRevealSnapshot(1)
     const pinia = createPinia()
@@ -794,6 +930,7 @@ describe('GameRoom role reveal', () => {
     snapshot.result = {
       winner: 'evil',
       reason: '刺客提前刺杀并成功找出了梅林',
+      endingRoute: 'standard_assassination',
       assassinTargetId: 'p2',
       assassinationWasEarly: true,
     }

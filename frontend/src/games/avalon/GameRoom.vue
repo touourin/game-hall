@@ -52,6 +52,8 @@ const room = useRoomStore()
 const selectedTeamIds = ref<string[]>([])
 const ladyTargetId = ref<string | null>(null)
 const assassinTargetId = ref<string | null>(null)
+const daggerTargetId = ref<string | null>(null)
+const dissentingTargetId = ref<string | null>(null)
 const earlyAssassinTargetId = ref<string | null>(null)
 const roleSeen = ref(false)
 const ladySeen = ref(false)
@@ -125,6 +127,25 @@ const assassinTarget = computed(() =>
 const assassinationHit = computed(
   () => assassinTarget.value?.role === 'merlin',
 )
+const dissentingPlayer = computed(() =>
+  props.snapshot.players.find(
+    (player) => player.role === 'dissenting_courtier',
+  ),
+)
+const daggerTarget = computed(() =>
+  props.snapshot.players.find(
+    (player) => player.id === props.snapshot.courtUndercurrent.daggerTargetId,
+  ),
+)
+const dissentingAssassinationTarget = computed(() =>
+  props.snapshot.players.find(
+    (player) =>
+      player.id === props.snapshot.courtUndercurrent.assassinationTargetId,
+  ),
+)
+const dissentingAssassinationHit = computed(
+  () => dissentingAssassinationTarget.value?.role === 'merlin',
+)
 const shareUrl = computed(() => {
   const url = new URL(window.location.href)
   url.search = ''
@@ -144,6 +165,8 @@ const phaseTitle = computed(() => {
     lady_select: '湖中仙女',
     lady_reveal: '仙女的启示',
     assassination: '最后的刺杀',
+    dagger_grant: '黑誓授刃',
+    final_council: '最后议事',
     game_over: '本局终章',
   }
   return titles[props.snapshot.phase]
@@ -183,6 +206,11 @@ const chatPanelStyle = computed<Record<string, string>>(() => {
 const activeRoleSkin = computed(
   () => lockedRoleSkin.value ?? selectedRoleSkin.value,
 )
+const modeName = computed(() =>
+  props.snapshot.settings.mode === 'court_undercurrent'
+    ? '王庭暗流'
+    : '阿瓦隆',
+)
 
 let chatResizePointerId: number | null = null
 let chatResizeStartY = 0
@@ -203,6 +231,8 @@ watch(
     selectedTeamIds.value = []
     ladyTargetId.value = null
     assassinTargetId.value = null
+    daggerTargetId.value = null
+    dissentingTargetId.value = null
     earlyAssassinTargetId.value = null
     ladySeen.value = false
     if (phase === 'role_reveal') {
@@ -275,6 +305,10 @@ function playerLabel(playerId: string | null): string {
   return number ? `${number}号 ${name}` : name
 }
 
+function playerLabels(playerIds: string[]): string {
+  return playerIds.map((playerId) => playerLabel(playerId)).join('、')
+}
+
 function toggleTeamPlayer(playerId: string) {
   const current = selectedTeamIds.value
   if (current.includes(playerId)) {
@@ -335,6 +369,20 @@ async function assassinate() {
   if (!assassinTargetId.value) return
   await room.perform('game:assassinate', {
     target_id: assassinTargetId.value,
+  })
+}
+
+async function grantDagger() {
+  if (!daggerTargetId.value) return
+  await room.perform('game:grant-dagger', {
+    target_id: daggerTargetId.value,
+  })
+}
+
+async function dissentingAssassinate() {
+  if (!dissentingTargetId.value) return
+  await room.perform('game:dissenting-assassinate', {
+    target_id: dissentingTargetId.value,
   })
 }
 
@@ -562,7 +610,7 @@ async function sendChat() {
     :class="{ 'chat-open': showChat }"
     :style="chatPanelStyle"
   >
-    <RoomPageHeader :eyebrow="`阿瓦隆 · ${phaseTitle}`" :title="`房间 ${snapshot.roomCode}`">
+    <RoomPageHeader :eyebrow="`${modeName} · ${phaseTitle}`" :title="`房间 ${snapshot.roomCode}`">
       <template #details>
         <button
           class="self-number-trigger"
@@ -758,6 +806,36 @@ async function sendChat() {
       </div>
 
       <div class="surface settings-card">
+        <div class="avalon-mode-setting">
+          <div class="setting-copy">
+            <strong>游戏模式</strong>
+            <span>标准模式保持原规则；王庭暗流加入异志之臣与授刃终局</span>
+          </div>
+          <div class="avalon-mode-options" role="group" aria-label="选择阿瓦隆游戏模式">
+            <button
+              type="button"
+              :class="{ active: snapshot.settings.mode === 'standard' }"
+              :disabled="!snapshot.actions.canUpdateSettings"
+              @click="room.perform('room:set-mode', { mode: 'standard' })"
+            >
+              <strong>标准模式</strong>
+              <small>湖中仙女与刺客终局</small>
+            </button>
+            <button
+              type="button"
+              :class="{ active: snapshot.settings.mode === 'court_undercurrent' }"
+              :disabled="!snapshot.actions.canUpdateSettings"
+              @click="room.perform('room:set-mode', { mode: 'court_undercurrent' })"
+            >
+              <strong>王庭暗流</strong>
+              <small>异志之臣 · 授刃 · 最后议事</small>
+            </button>
+          </div>
+          <p v-if="snapshot.settings.mode === 'court_undercurrent'" class="avalon-mode-note">
+            胜势已成，暗流未息。本模式自动关闭湖中仙女与提前刺杀。
+          </p>
+        </div>
+
         <div class="setting-row">
           <div class="setting-icon"><Link2 :size="20" /></div>
           <div class="setting-copy">
@@ -792,7 +870,10 @@ async function sendChat() {
             <input
               type="checkbox"
               :checked="snapshot.settings.ladyEnabled"
-              :disabled="!snapshot.actions.canUpdateSettings"
+              :disabled="
+                !snapshot.actions.canUpdateSettings ||
+                snapshot.settings.mode === 'court_undercurrent'
+              "
               @change="
                 room.perform('room:set-lady', {
                   enabled: ($event.target as HTMLInputElement).checked,
@@ -818,7 +899,10 @@ async function sendChat() {
             <input
               type="checkbox"
               :checked="snapshot.settings.earlyAssassinationEnabled"
-              :disabled="!snapshot.actions.canUpdateSettings"
+              :disabled="
+                !snapshot.actions.canUpdateSettings ||
+                snapshot.settings.mode === 'court_undercurrent'
+              "
               @change="
                 room.perform('room:set-early-assassination', {
                   enabled: ($event.target as HTMLInputElement).checked,
@@ -1400,6 +1484,129 @@ async function sendChat() {
       </div>
     </section>
 
+    <section v-else-if="snapshot.phase === 'dagger_grant'" class="phase-stack">
+      <div class="assassination-hero court-hero">
+        <span><Swords :size="29" /></span>
+        <p>亚瑟一方已完成三次任务</p>
+        <h2>刺客最后的授刃</h2>
+        <strong>找出异志之臣，将黑誓之刃交到他手中</strong>
+      </div>
+
+      <template v-if="snapshot.actions.canGrantDagger">
+        <div class="surface court-secret-note">
+          <Eye :size="19" />
+          <div>
+            <strong>以下名单仅你可见</strong>
+            <small>其中一人是异志之臣；选错则好人立即获胜</small>
+          </div>
+        </div>
+        <div class="selection-counter">
+          <span>选择授刃目标</span>
+          <strong>{{ daggerTargetId ? '目标锁定' : '谨慎判断' }}</strong>
+        </div>
+        <div class="player-grid">
+          <button
+            v-for="player in snapshot.players.filter((item) =>
+              snapshot.courtUndercurrent.daggerCandidateIds.includes(item.id),
+            )"
+            :key="player.id"
+            type="button"
+            class="player-tile"
+            :class="{ selected: daggerTargetId === player.id }"
+            @click="daggerTargetId = player.id"
+          >
+            <AvatarImage
+              class="avatar number-avatar"
+              :src="player.avatarUrl"
+              :name="player.name"
+              :fallback="player.seat + 1"
+            />
+            <strong>{{ playerDisplayName(player) }}</strong>
+            <Swords v-if="daggerTargetId === player.id" :size="18" />
+          </button>
+        </div>
+        <button
+          class="danger-button wide-button"
+          type="button"
+          :disabled="!daggerTargetId"
+          @click="grantDagger"
+        >
+          向 {{ playerLabel(daggerTargetId) }} 授刃
+        </button>
+      </template>
+      <div v-else class="waiting-card tall">
+        <span class="pulse-dot danger-dot" />
+        <strong>刺客正在寻找异志之臣</strong>
+        <small>候选名单与选择过程保持私密</small>
+      </div>
+    </section>
+
+    <section v-else-if="snapshot.phase === 'final_council'" class="phase-stack">
+      <div class="assassination-hero court-hero">
+        <span><Crown :size="29" /></span>
+        <p>黑誓授刃成功</p>
+        <h2>王庭最后议事</h2>
+        <strong>所有人仍可发言，梅林必须隐藏到最后</strong>
+      </div>
+
+      <button class="surface final-council-chat" type="button" @click="openChat">
+        <MessageCircle :size="21" />
+        <div>
+          <strong>打开最后议事</strong>
+          <small>邪恶方可以判断，好人也可以冒充梅林制造假线索</small>
+        </div>
+        <ChevronRight :size="18" />
+      </button>
+
+      <template v-if="snapshot.actions.canDissentingAssassinate">
+        <div class="surface court-secret-note transformed">
+          <Swords :size="19" />
+          <div>
+            <strong>你已必定转化为邪恶阵营</strong>
+            <small>最终决定只能由你作出；确认目标将立即结束议事</small>
+          </div>
+        </div>
+        <div class="selection-counter">
+          <span>选择你认为的梅林</span>
+          <strong>{{ dissentingTargetId ? '目标锁定' : '继续观察' }}</strong>
+        </div>
+        <div class="player-grid">
+          <button
+            v-for="player in snapshot.players.filter((item) =>
+              snapshot.courtUndercurrent.eligibleTargetIds.includes(item.id),
+            )"
+            :key="player.id"
+            type="button"
+            class="player-tile"
+            :class="{ selected: dissentingTargetId === player.id }"
+            @click="dissentingTargetId = player.id"
+          >
+            <AvatarImage
+              class="avatar number-avatar"
+              :src="player.avatarUrl"
+              :name="player.name"
+              :fallback="player.seat + 1"
+            />
+            <strong>{{ playerDisplayName(player) }}</strong>
+            <Swords v-if="dissentingTargetId === player.id" :size="18" />
+          </button>
+        </div>
+        <button
+          class="danger-button wide-button"
+          type="button"
+          :disabled="!dissentingTargetId"
+          @click="dissentingAssassinate"
+        >
+          确认刺杀 {{ playerLabel(dissentingTargetId) }}
+        </button>
+      </template>
+      <div v-else class="waiting-card tall">
+        <span class="pulse-dot danger-dot" />
+        <strong>异志之臣正在判断梅林</strong>
+        <small>他的身份仍未向好人公开，所有人都可以继续发言</small>
+      </div>
+    </section>
+
     <section v-else-if="snapshot.phase === 'game_over'" class="phase-stack">
       <div
         class="final-hero"
@@ -1412,6 +1619,102 @@ async function sendChat() {
         <p>{{ snapshot.result.winner === 'good' ? '亚瑟的荣光延续' : '阴影笼罩阿瓦隆' }}</p>
         <h2>{{ snapshot.result.winner === 'good' ? '好人阵营获胜' : '坏人阵营获胜' }}</h2>
         <strong>{{ snapshot.result.reason }}</strong>
+      </div>
+
+      <div
+        v-if="snapshot.courtUndercurrent.enabled && daggerTarget"
+        class="surface assassination-record court-ending-record"
+        :class="
+          snapshot.courtUndercurrent.daggerHit && dissentingAssassinationHit
+            ? 'hit'
+            : 'missed'
+        "
+      >
+        <header>
+          <span><Swords :size="21" /></span>
+          <div>
+            <strong>王庭暗流终局</strong>
+            <small>
+              {{
+                snapshot.courtUndercurrent.daggerHit
+                  ? '授刃命中，异志之臣被强制转化'
+                  : '刺客选中了诱饵，授刃失败'
+              }}
+            </small>
+          </div>
+          <span class="assassination-status">
+            {{
+              !snapshot.courtUndercurrent.daggerHit
+                ? '授刃失败'
+                : dissentingAssassinationHit
+                  ? '命中梅林'
+                  : '刺杀失败'
+            }}
+          </span>
+        </header>
+
+        <div
+          class="assassination-chain court-ending-chain"
+          :class="{ complete: dissentingAssassinationTarget }"
+        >
+          <div v-if="assassinPlayer">
+            <AvatarImage
+              class="avatar number-avatar"
+              :src="assassinPlayer.avatarUrl"
+              :name="assassinPlayer.name"
+              :fallback="assassinPlayer.seat + 1"
+            />
+            <strong>{{ playerDisplayName(assassinPlayer) }}</strong>
+            <small>刺客</small>
+          </div>
+          <ArrowRight :size="20" />
+          <div>
+            <AvatarImage
+              class="avatar number-avatar"
+              :src="daggerTarget.avatarUrl"
+              :name="daggerTarget.name"
+              :fallback="daggerTarget.seat + 1"
+            />
+            <strong>{{ playerDisplayName(daggerTarget) }}</strong>
+            <small>{{ daggerTarget.roleLabel }}</small>
+          </div>
+          <template
+            v-if="
+              snapshot.courtUndercurrent.daggerHit &&
+              dissentingAssassinationTarget
+            "
+          >
+            <ArrowRight :size="20" />
+            <div>
+              <AvatarImage
+                class="avatar number-avatar"
+                :src="dissentingAssassinationTarget.avatarUrl"
+                :name="dissentingAssassinationTarget.name"
+                :fallback="dissentingAssassinationTarget.seat + 1"
+              />
+              <strong>{{ playerDisplayName(dissentingAssassinationTarget) }}</strong>
+              <small>{{ dissentingAssassinationTarget.roleLabel }}</small>
+            </div>
+          </template>
+        </div>
+
+        <p v-if="snapshot.courtUndercurrent.daggerHit && dissentingAssassinationTarget">
+          刺客向 {{ playerLabel(daggerTarget.id) }} 成功授刃；异志之臣随后选择
+          {{ playerLabel(dissentingAssassinationTarget.id) }}，其真实身份为
+          <strong>{{ dissentingAssassinationTarget.roleLabel }}</strong>。
+        </p>
+        <p v-else>
+          刺客选择了 {{ playerLabel(daggerTarget.id) }}，但其真实身份是
+          <strong>{{ daggerTarget.roleLabel }}</strong>，好人阵营立即获胜。
+        </p>
+        <div class="court-candidate-summary">
+          <small>
+            授刃候选：{{ playerLabels(snapshot.courtUndercurrent.daggerCandidateIds) }}
+          </small>
+          <small v-if="snapshot.courtUndercurrent.eligibleTargetIds.length">
+            刺杀候选：{{ playerLabels(snapshot.courtUndercurrent.eligibleTargetIds) }}
+          </small>
+        </div>
       </div>
 
       <div
@@ -1483,6 +1786,11 @@ async function sendChat() {
           <strong>{{ playerDisplayName(player) }}</strong>
           <span :class="['alignment-label', player.alignment]">
             {{ player.roleLabel }}
+            <small
+              v-if="player.id === snapshot.courtUndercurrent.transformedPlayerId"
+            >
+              已转化
+            </small>
           </span>
         </div>
       </div>
@@ -1999,6 +2307,12 @@ async function sendChat() {
           <li>部分玩家掉线超过 10 分钟，其所属阵营弃权；全员离线只进入房间清理流程。</li>
           <li v-if="snapshot.players.length >= 7">第四次任务需要两张失败票才会失败。</li>
           <li v-if="snapshot.settings.ladyEnabled">仙女只查阵营，持有者可以谎报查验结果。</li>
+          <template v-if="snapshot.settings.mode === 'court_undercurrent'">
+            <li>异志之臣开局属于好人，知道刺客，但只能提交成功任务牌。</li>
+            <li>三次任务成功后，刺客必须从私密候选中寻找异志之臣；选错则好人立即获胜。</li>
+            <li>授刃命中后异志之臣必定转化；除奥伯伦外的邪恶玩家随后互认。</li>
+            <li>最后议事结束于异志之臣确认刺杀目标，刺中梅林才由邪恶方获胜。</li>
+          </template>
         </ul>
       </section>
     </div>

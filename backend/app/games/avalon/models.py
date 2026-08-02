@@ -11,10 +11,16 @@ class Alignment(str, Enum):
     EVIL = "evil"
 
 
+class AvalonMode(str, Enum):
+    STANDARD = "standard"
+    COURT_UNDERCURRENT = "court_undercurrent"
+
+
 class Role(str, Enum):
     MERLIN = "merlin"
     PERCIVAL = "percival"
     LOYAL_SERVANT = "loyal_servant"
+    DISSENTING_COURTIER = "dissenting_courtier"
     ASSASSIN = "assassin"
     MORGANA = "morgana"
     MORDRED = "mordred"
@@ -32,6 +38,8 @@ class Phase(str, Enum):
     LADY_SELECT = "lady_select"
     LADY_REVEAL = "lady_reveal"
     ASSASSINATION = "assassination"
+    DAGGER_GRANT = "dagger_grant"
+    FINAL_COUNCIL = "final_council"
     GAME_OVER = "game_over"
 
 
@@ -39,6 +47,7 @@ ROLE_ALIGNMENT: dict[Role, Alignment] = {
     Role.MERLIN: Alignment.GOOD,
     Role.PERCIVAL: Alignment.GOOD,
     Role.LOYAL_SERVANT: Alignment.GOOD,
+    Role.DISSENTING_COURTIER: Alignment.GOOD,
     Role.ASSASSIN: Alignment.EVIL,
     Role.MORGANA: Alignment.EVIL,
     Role.MORDRED: Alignment.EVIL,
@@ -60,9 +69,12 @@ class Player:
     disconnect_forfeited: bool = False
     is_bot: bool = False
     role: Role | None = None
+    alignment_override: Alignment | None = None
 
     @property
     def alignment(self) -> Alignment | None:
+        if self.alignment_override is not None:
+            return self.alignment_override
         return ROLE_ALIGNMENT[self.role] if self.role is not None else None
 
 
@@ -103,6 +115,7 @@ class ChatMessage:
 
 @dataclass
 class GameSettings:
+    mode: AvalonMode = AvalonMode.STANDARD
     lady_enabled: bool = True
     listed: bool = True
     early_assassination_enabled: bool = False
@@ -132,6 +145,12 @@ class Room:
     win_reason: str | None = None
     assassin_target_id: str | None = None
     assassination_was_early: bool = False
+    ending_route: str | None = None
+    dagger_candidate_ids: list[str] = field(default_factory=list)
+    dagger_target_id: str | None = None
+    dagger_hit: bool | None = None
+    transformed_player_id: str | None = None
+    dissenting_assassination_target_id: str | None = None
     lady_holder_id: str | None = None
     lady_used_by_ids: set[str] = field(default_factory=set)
     lady_checks: list[LadyCheck] = field(default_factory=list)

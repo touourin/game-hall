@@ -13,6 +13,11 @@ export interface StatsSummary {
   evilWins: number
   bestMs: number | null
   averageMs: number | null
+  missionRouteGames?: number
+  recruitmentAttempts?: number
+  recruitmentHits?: number
+  dissentingAssassinationAttempts?: number
+  dissentingAssassinationHits?: number
 }
 
 export type MatchOutcome = 'win' | 'loss' | 'draw' | 'completed'
@@ -42,15 +47,19 @@ export interface MatchDetail {
   gameKey: string
   gameName: string
   roomCode: string
+  gameMode?: string | null
   playerCount: number
   winner: string
   reason: string
   ranked: boolean
   assassinationHit: boolean | null
+  endingRoute?: string | null
+  recruitmentHit?: boolean | null
   startedAt: string
   endedAt: string
   details: {
     options?: Record<string, unknown>
+    mode?: string
     players: Array<{
       id: string
       name: string
@@ -58,6 +67,9 @@ export interface MatchDetail {
       isBot?: boolean
       role?: string
       alignment?: string
+      initialAlignment?: string
+      finalAlignment?: string
+      transformed?: boolean
     }>
     missions?: Array<{
       number: number
@@ -81,6 +93,15 @@ export interface MatchDetail {
     }>
     assassinTargetId?: string | null
     assassinationWasEarly?: boolean
+    endingRoute?: string | null
+    courtUndercurrent?: {
+      daggerCandidateIds: string[]
+      daggerTargetId: string | null
+      daggerHit: boolean | null
+      transformedPlayerId: string | null
+      eligibleTargetIds: string[]
+      assassinationTargetId: string | null
+    }
     state?: Record<string, unknown> & {
       results_ms?: number[]
       disc_count?: number

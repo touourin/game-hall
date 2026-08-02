@@ -456,11 +456,12 @@ def personal_stats(
     account = require_account_session(authorization, game_hall_access)
     if game is not None and game not in GAME_NAMES:
         raise HTTPException(status_code=404, detail="没有找到这个游戏")
-    if mode is not None and (
-        game != "minesweeper"
-        or mode not in {"beginner", "intermediate", "expert"}
-    ):
-        raise HTTPException(status_code=400, detail="游戏难度不正确")
+    valid_modes = {
+        "minesweeper": {"beginner", "intermediate", "expert"},
+        "avalon": {"standard", "court_undercurrent"},
+    }
+    if mode is not None and mode not in valid_modes.get(game or "", set()):
+        raise HTTPException(status_code=400, detail="游戏模式或难度不正确")
     return {
         "ok": True,
         "summary": account_store().summary_for_account(
@@ -482,11 +483,12 @@ def leaderboard(
     require_account_session(authorization, game_hall_access)
     if game not in GAME_NAMES:
         raise HTTPException(status_code=404, detail="没有找到这个游戏")
-    if mode is not None and (
-        game != "minesweeper"
-        or mode not in {"beginner", "intermediate", "expert"}
-    ):
-        raise HTTPException(status_code=400, detail="游戏难度不正确")
+    valid_modes = {
+        "minesweeper": {"beginner", "intermediate", "expert"},
+        "avalon": {"standard", "court_undercurrent"},
+    }
+    if mode is not None and mode not in valid_modes.get(game, set()):
+        raise HTTPException(status_code=400, detail="游戏模式或难度不正确")
     return {
         "ok": True,
         "players": account_store().leaderboard(

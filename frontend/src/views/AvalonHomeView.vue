@@ -123,6 +123,12 @@ async function chooseRoom(code: string) {
               {{ availableRoom.playerCount }}/{{ availableRoom.maxPlayers }} 人
             </small>
           </span>
+          <span
+            v-if="availableRoom.mode === 'court_undercurrent'"
+            class="room-feature"
+          >
+            王庭暗流
+          </span>
           <span v-if="availableRoom.ladyEnabled" class="room-feature">湖中仙女</span>
           <ChevronRight :size="18" />
         </button>

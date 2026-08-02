@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 
+from .models import AvalonMode
+
 
 class JoinPayload(BaseModel):
     room_code: str = Field(min_length=4, max_length=8)
@@ -20,6 +22,10 @@ class ListedSettingPayload(BaseModel):
 
 class EarlyAssassinationSettingPayload(BaseModel):
     enabled: bool
+
+
+class ModeSettingPayload(BaseModel):
+    mode: AvalonMode
 
 
 class TeamPayload(BaseModel):

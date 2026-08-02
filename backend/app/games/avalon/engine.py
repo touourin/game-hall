@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 from .models import (
     Alignment,
+    AvalonMode,
     LadyCheck,
     MissionRecord,
     Phase,
@@ -47,10 +48,15 @@ class GameEngine:
         if player_count not in GOOD_EVIL_COUNTS:
             raise GameRuleError("需要 5–10 名玩家才能开始")
 
-        roles = roles_for_player_count(player_count)
+        if room.settings.mode == AvalonMode.COURT_UNDERCURRENT:
+            room.settings.lady_enabled = False
+            room.settings.early_assassination_enabled = False
+
+        roles = roles_for_player_count(player_count, room.settings.mode)
         self.rng.shuffle(roles)
         for player, role in zip(room.players, roles, strict=True):
             player.role = role
+            player.alignment_override = None
             player.disconnected_at = None
             player.disconnect_forfeited = False
 
@@ -72,6 +78,12 @@ class GameEngine:
         room.win_reason = None
         room.assassin_target_id = None
         room.assassination_was_early = False
+        room.ending_route = None
+        room.dagger_candidate_ids.clear()
+        room.dagger_target_id = None
+        room.dagger_hit = None
+        room.transformed_player_id = None
+        room.dissenting_assassination_target_id = None
         room.lady_used_by_ids.clear()
         room.lady_checks.clear()
         room.lady_pending_inspector_id = None
@@ -141,6 +153,7 @@ class GameEngine:
                         room,
                         Alignment.EVIL,
                         "同一任务连续五次组队被否决",
+                        ending_route="proposal_rejections",
                     )
                 else:
                     room.proposal_attempt += 1
@@ -182,9 +195,17 @@ class GameEngine:
         last_mission_number = room.mission_history[-1].number
 
         if room.fail_count >= 3:
-            self._finish(room, Alignment.EVIL, "坏人阵营破坏了三次任务")
+            self._finish(
+                room,
+                Alignment.EVIL,
+                "坏人阵营破坏了三次任务",
+                ending_route="missions",
+            )
         elif room.success_count >= 3:
-            room.phase = Phase.ASSASSINATION
+            if room.settings.mode == AvalonMode.COURT_UNDERCURRENT:
+                self._start_dagger_grant(room)
+            else:
+                room.phase = Phase.ASSASSINATION
         elif (
             room.settings.lady_enabled
             and last_mission_number in (2, 3, 4)
@@ -235,6 +256,64 @@ class GameEngine:
         self._resolve_assassination(room, actor_id, target_id, early=False)
         self._touch(room)
 
+    def grant_dagger(
+        self, room: Room, actor_id: str, target_id: str
+    ) -> None:
+        self._require_phase(room, Phase.DAGGER_GRANT)
+        assassin = self._require_player(room, actor_id)
+        if assassin.role != Role.ASSASSIN:
+            raise GameRuleError("只有刺客可以选择授刃目标")
+        if target_id not in room.dagger_candidate_ids:
+            raise GameRuleError("授刃目标不在候选名单中")
+
+        target = self._require_player(room, target_id)
+        room.dagger_target_id = target_id
+        room.dagger_hit = target.role == Role.DISSENTING_COURTIER
+        if not room.dagger_hit:
+            self._finish(
+                room,
+                Alignment.GOOD,
+                "刺客未能找出异志之臣，授刃失败",
+                ending_route="dagger_miss",
+            )
+        else:
+            target.alignment_override = Alignment.EVIL
+            room.transformed_player_id = target.id
+            room.phase = Phase.FINAL_COUNCIL
+        self._touch(room)
+
+    def dissenting_assassinate(
+        self, room: Room, actor_id: str, target_id: str
+    ) -> None:
+        self._require_phase(room, Phase.FINAL_COUNCIL)
+        actor = self._require_player(room, actor_id)
+        if (
+            actor.role != Role.DISSENTING_COURTIER
+            or room.transformed_player_id != actor.id
+            or actor.alignment != Alignment.EVIL
+        ):
+            raise GameRuleError("只有转化后的异志之臣可以执行刺杀")
+        if target_id not in self.eligible_dissenting_targets(room):
+            raise GameRuleError("该玩家不能成为异志之臣的刺杀目标")
+
+        target = self._require_player(room, target_id)
+        room.dissenting_assassination_target_id = target.id
+        if target.role == Role.MERLIN:
+            self._finish(
+                room,
+                Alignment.EVIL,
+                "异志之臣成功刺杀了梅林",
+                ending_route="dissenting_assassination",
+            )
+        else:
+            self._finish(
+                room,
+                Alignment.GOOD,
+                "异志之臣未能找出梅林",
+                ending_route="dissenting_assassination",
+            )
+        self._touch(room)
+
     def early_assassinate(
         self, room: Room, actor_id: str, target_id: str
     ) -> None:
@@ -263,20 +342,31 @@ class GameEngine:
                 if early
                 else "刺客成功找出了梅林"
             )
-            self._finish(room, Alignment.EVIL, reason)
+            self._finish(
+                room,
+                Alignment.EVIL,
+                reason,
+                ending_route="standard_assassination",
+            )
         else:
             reason = (
                 "刺客提前刺杀错误，好人阵营直接获胜"
                 if early
                 else "刺客未能找出梅林"
             )
-            self._finish(room, Alignment.GOOD, reason)
+            self._finish(
+                room,
+                Alignment.GOOD,
+                reason,
+                ending_route="standard_assassination",
+            )
 
     def restart(self, room: Room, actor_id: str) -> None:
         self._require_phase(room, Phase.GAME_OVER)
         self._require_host(room, actor_id)
         for player in room.players:
             player.role = None
+            player.alignment_override = None
             player.disconnected_at = None
             player.disconnect_forfeited = False
         room.phase = Phase.LOBBY
@@ -295,6 +385,12 @@ class GameEngine:
         room.win_reason = None
         room.assassin_target_id = None
         room.assassination_was_early = False
+        room.ending_route = None
+        room.dagger_candidate_ids.clear()
+        room.dagger_target_id = None
+        room.dagger_hit = None
+        room.transformed_player_id = None
+        room.dissenting_assassination_target_id = None
         room.lady_holder_id = None
         room.lady_used_by_ids.clear()
         room.lady_checks.clear()
@@ -312,6 +408,48 @@ class GameEngine:
             and player.id not in room.lady_used_by_ids
         ]
 
+    def eligible_dissenting_targets(self, room: Room) -> list[str]:
+        if room.transformed_player_id is None:
+            return []
+        known_evil_roles = {
+            Role.ASSASSIN,
+            Role.MORGANA,
+            Role.MORDRED,
+            Role.MINION,
+        }
+        return [
+            player.id
+            for player in room.players
+            if player.id != room.transformed_player_id
+            and player.role not in known_evil_roles
+        ]
+
+    def _start_dagger_grant(self, room: Room) -> None:
+        dissenting = next(
+            (
+                player
+                for player in room.players
+                if player.role == Role.DISSENTING_COURTIER
+            ),
+            None,
+        )
+        if dissenting is None:
+            raise GameRuleError("王庭暗流缺少异志之臣")
+        decoys = [
+            player
+            for player in room.players
+            if player.alignment == Alignment.GOOD
+            and player.id != dissenting.id
+        ]
+        candidate_count = 3 if len(room.players) == 10 else 2
+        candidates = [
+            dissenting,
+            *self.rng.sample(decoys, candidate_count - 1),
+        ]
+        self.rng.shuffle(candidates)
+        room.dagger_candidate_ids = [player.id for player in candidates]
+        room.phase = Phase.DAGGER_GRANT
+
     def _advance_to_next_mission(self, room: Room) -> None:
         room.mission_index += 1
         room.proposal_attempt = 1
@@ -322,10 +460,16 @@ class GameEngine:
         room.phase = Phase.TEAM_BUILDING
 
     def _finish(
-        self, room: Room, winner: Alignment, reason: str
+        self,
+        room: Room,
+        winner: Alignment,
+        reason: str,
+        *,
+        ending_route: str | None = None,
     ) -> None:
         room.winner = winner
         room.win_reason = reason
+        room.ending_route = ending_route
         room.phase = Phase.GAME_OVER
 
     @staticmethod

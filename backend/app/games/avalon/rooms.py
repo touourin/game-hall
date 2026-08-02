@@ -6,7 +6,15 @@ import secrets
 import string
 from datetime import datetime, timedelta, timezone
 
-from .models import Alignment, ChatMessage, GameSettings, Phase, Player, Room
+from .models import (
+    Alignment,
+    AvalonMode,
+    ChatMessage,
+    GameSettings,
+    Phase,
+    Player,
+    Room,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -326,6 +334,8 @@ class RoomManager:
             raise RoomError("只能在等待房间修改规则")
         if room.host_id != actor_id:
             raise RoomError("只有房主可以修改规则")
+        if enabled and room.settings.mode == AvalonMode.COURT_UNDERCURRENT:
+            raise RoomError("王庭暗流模式不能启用湖中仙女")
         room.settings.lady_enabled = enabled
         room.revision += 1
 
@@ -346,7 +356,22 @@ class RoomManager:
             raise RoomError("只能在等待房间修改提前刺杀规则")
         if room.host_id != actor_id:
             raise RoomError("只有房主可以修改提前刺杀规则")
+        if enabled and room.settings.mode == AvalonMode.COURT_UNDERCURRENT:
+            raise RoomError("王庭暗流模式不能启用提前刺杀")
         room.settings.early_assassination_enabled = enabled
+        room.revision += 1
+
+    def set_mode(
+        self, room: Room, actor_id: str, mode: AvalonMode
+    ) -> None:
+        if room.phase != Phase.LOBBY:
+            raise RoomError("只能在等待房间修改游戏模式")
+        if room.host_id != actor_id:
+            raise RoomError("只有房主可以修改游戏模式")
+        room.settings.mode = mode
+        if mode == AvalonMode.COURT_UNDERCURRENT:
+            room.settings.lady_enabled = False
+            room.settings.early_assassination_enabled = False
         room.revision += 1
 
     def send_chat(
@@ -398,6 +423,7 @@ class RoomManager:
         room.win_reason = (
             f"{player.name} 掉线超过 10 分钟，所属阵营视为弃权"
         )
+        room.ending_route = "disconnect_forfeit"
         room.phase = Phase.GAME_OVER
         room.revision += 1
         logger.info(

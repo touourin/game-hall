@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from backend.app.games.avalon.engine import GameEngine
-from backend.app.games.avalon.models import Alignment, Phase
+from backend.app.games.avalon.models import Alignment, AvalonMode, Phase
 from backend.app.games.avalon.rooms import RoomError, RoomManager
 
 
@@ -328,3 +328,22 @@ def test_host_controls_early_assassination_house_rule():
 
     with pytest.raises(RoomError, match="只有房主"):
         manager.set_early_assassination_enabled(room, guest.id, False)
+
+
+def test_court_undercurrent_mode_disables_incompatible_house_rules():
+    manager = RoomManager()
+    room, host, _ = manager.create_room("亚瑟")
+    _, guest, _ = manager.join_room(room.code, "兰斯洛特")
+    manager.set_early_assassination_enabled(room, host.id, True)
+
+    manager.set_mode(room, host.id, AvalonMode.COURT_UNDERCURRENT)
+
+    assert room.settings.mode == AvalonMode.COURT_UNDERCURRENT
+    assert room.settings.lady_enabled is False
+    assert room.settings.early_assassination_enabled is False
+    with pytest.raises(RoomError, match="湖中仙女"):
+        manager.set_lady_enabled(room, host.id, True)
+    with pytest.raises(RoomError, match="提前刺杀"):
+        manager.set_early_assassination_enabled(room, host.id, True)
+    with pytest.raises(RoomError, match="只有房主"):
+        manager.set_mode(room, guest.id, AvalonMode.STANDARD)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .models import Role
+from .models import AvalonMode, Role
 
 
 GOOD_EVIL_COUNTS: dict[int, tuple[int, int]] = {
@@ -32,12 +32,19 @@ def mission_fail_threshold(player_count: int, mission_index: int) -> int:
     return 1
 
 
-def roles_for_player_count(player_count: int) -> list[Role]:
+def roles_for_player_count(
+    player_count: int,
+    mode: AvalonMode = AvalonMode.STANDARD,
+) -> list[Role]:
     """Return a balanced, familiar role preset for 5–10 players."""
     good_count, evil_count = GOOD_EVIL_COUNTS[player_count]
 
     good_roles = [Role.MERLIN, Role.PERCIVAL]
     good_roles.extend([Role.LOYAL_SERVANT] * (good_count - len(good_roles)))
+    if mode == AvalonMode.COURT_UNDERCURRENT:
+        good_roles[good_roles.index(Role.LOYAL_SERVANT)] = (
+            Role.DISSENTING_COURTIER
+        )
 
     if player_count <= 6:
         evil_roles = [Role.ASSASSIN, Role.MORGANA]
