@@ -33,6 +33,20 @@ logger = logging.getLogger(__name__)
 SESSION_LIFETIME = timedelta(days=30)
 PLAYER_NAME_CHANGE_INTERVAL = timedelta(days=30)
 GAME_KEY = "avalon"
+# Accounts present when role progression shipped retain the complete skin library.
+AVALON_ROLE_SKIN_PROGRESSION_START = datetime(2026, 8, 2, 17, 18, 0)
+AVALON_ROLE_SKIN_ROLES = (
+    "merlin",
+    "percival",
+    "loyal_servant",
+    "assassin",
+    "morgana",
+    "mordred",
+    "oberon",
+    "minion",
+)
+AVALON_ROLE_SKIN_UPGRADE_WINS = 2
+AVALON_ROLE_SKIN_ULTIMATE_WINS = 5
 GAME_NAMES = {
     "avalon": "阿瓦隆",
     "gomoku": "五子棋",
@@ -966,6 +980,65 @@ class AccountStore:
             }
             for index, row in enumerate(rows, start=1)
         ]
+
+    def avalon_role_skin_progress(self, account_id: str) -> dict[str, Any]:
+        """Return server-authoritative, ranked Avalon wins by skin role family."""
+        self.initialize()
+        with self.engine.connect() as connection:
+            created_at = connection.execute(
+                select(users.c.created_at).where(users.c.id == account_id)
+            ).scalar_one_or_none()
+            if created_at is None:
+                raise AccountError("账号不存在")
+            rows = connection.execute(
+                select(
+                    match_players.c.role,
+                    func.count().label("wins"),
+                )
+                .select_from(
+                    match_players.join(
+                        matches, matches.c.id == match_players.c.match_id
+                    )
+                )
+                .where(
+                    match_players.c.account_id == account_id,
+                    matches.c.game_key == GAME_KEY,
+                    matches.c.ranked.is_(True),
+                    match_players.c.won.is_(True),
+                )
+                .group_by(match_players.c.role)
+            ).mappings().all()
+
+        legacy_all_unlocked = (
+            created_at <= AVALON_ROLE_SKIN_PROGRESSION_START
+        )
+        wins = {role: 0 for role in AVALON_ROLE_SKIN_ROLES}
+        for row in rows:
+            role = str(row["role"])
+            role_family = (
+                "loyal_servant"
+                if role == "dissenting_courtier"
+                else role
+            )
+            if role_family in wins:
+                wins[role_family] += int(row["wins"])
+
+        return {
+            "legacyAllUnlocked": legacy_all_unlocked,
+            "rankedOnly": True,
+            "upgradeWinsRequired": AVALON_ROLE_SKIN_UPGRADE_WINS,
+            "ultimateWinsRequired": AVALON_ROLE_SKIN_ULTIMATE_WINS,
+            "roles": {
+                role: {
+                    "wins": role_wins,
+                    "upgradeUnlocked": legacy_all_unlocked
+                    or role_wins >= AVALON_ROLE_SKIN_UPGRADE_WINS,
+                    "ultimateUnlocked": legacy_all_unlocked
+                    or role_wins >= AVALON_ROLE_SKIN_ULTIMATE_WINS,
+                }
+                for role, role_wins in wins.items()
+            },
+        }
 
     def match_for_account(
         self, match_id: str, account_id: str

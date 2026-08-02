@@ -15,7 +15,6 @@ import {
   X,
 } from '@lucide/vue'
 import ArcadeChatPanel from '../components/ArcadeChatPanel.vue'
-import ArtworkSkinPicker from '../components/ArtworkSkinPicker.vue'
 import GameSkinPicker from '../components/GameSkinPicker.vue'
 import InviteLinkPanel from '../components/InviteLinkPanel.vue'
 import GameRuleSettings from '../components/GameRuleSettings.vue'
@@ -28,27 +27,36 @@ import RoomInviteModal from '../components/RoomInviteModal.vue'
 import RoomKickButton from '../components/RoomKickButton.vue'
 import ModeGuide from '../components/ModeGuide.vue'
 import PressRevealCard from '../components/PressRevealCard.vue'
+import RoleSkinLoadoutPicker from '../components/RoleSkinLoadoutPicker.vue'
 import { useArcadeStore } from '../stores/arcade'
 import {
   isAvalonArcadeSnapshot,
   type ArcadeSnapshot,
 } from '../types/arcade'
-import type { ArtworkSkinOption } from '../components/uiTypes'
+import type { RoleSkinLoadoutRoleOption } from '../components/uiTypes'
 import { gameRuleLabels, withDefaultGameRules } from '../gameRules'
 import { AVALON_COURT_GUIDE } from '../gameModeGuides'
 import {
   ROLE_SKINS,
-  clearRoleSkinLock,
-  lockRoleSkin,
-  rememberRoleSkin,
+  ROLE_SKIN_ROLES,
+  clearRoleSkinLoadoutLock,
+  defaultRoleSkinLoadout,
+  lockRoleSkinLoadout,
+  rememberRoleSkinLoadout,
   roleArtwork,
   roleArtworkFraming,
   roleSkinName,
-  roleSkinPreviewRoles,
-  storedRoleSkin,
-  storedRoleSkinLock,
+  roleSkinRoleCode,
+  storedRoleSkinLoadout,
+  storedRoleSkinLoadoutLock,
+  type RoleSkinLoadout,
   type RoleSkinId,
 } from '../gameRoleSkins'
+import {
+  emptyAvalonRoleSkinProgress,
+  isRoleSkinUnlocked,
+  loadAvalonRoleSkinProgress,
+} from '../avalonRoleSkinProgress'
 import {
   gameSkinCssVariables,
   gameSkinKind,
@@ -81,8 +89,19 @@ const showIdentity = ref(false)
 const showAvalonRules = ref(false)
 const sharedChat = ref<{ openChat: () => Promise<void> } | null>(null)
 const activeGameSkin = ref<GameSkinId>(storedGameSkin())
-const selectedRoleSkin = ref<RoleSkinId>(storedRoleSkin())
-const lockedRoleSkin = ref<RoleSkinId | null>(null)
+const roleSkinAccountId = computed(() => (
+  props.snapshot.self.accountId ?? props.snapshot.self.id
+))
+const selectedRoleSkinLoadout = ref<RoleSkinLoadout>(
+  props.snapshot.self.isGuest
+    ? defaultRoleSkinLoadout()
+    : storedRoleSkinLoadout(roleSkinAccountId.value),
+)
+const lockedRoleSkinLoadout = ref<RoleSkinLoadout | null>(null)
+const roleSkinProgress = ref(emptyAvalonRoleSkinProgress())
+const roleSkinProgressLoading = ref(false)
+const roleSkinProgressError = ref<string | null>(null)
+let roleSkinProgressRequest = 0
 const missingPlayers = computed(
   () => Math.max(0, (props.snapshot.minimumPlayers ?? props.snapshot.requiredPlayers) - props.snapshot.players.length),
 )
@@ -118,19 +137,56 @@ const activeGameSkinKind = computed(() => gameSkinKind(props.snapshot.gameKey))
 const activeGameSkinStyle = computed(() => (
   activeGameSkinKind.value ? gameSkinCssVariables(activeGameSkin.value) : undefined
 ))
-const activeRoleSkin = computed(
-  () => lockedRoleSkin.value ?? selectedRoleSkin.value,
-)
-const roleArtworkOptions: ArtworkSkinOption[] = ROLE_SKINS.map((skin) => ({
-  ...skin,
-  items: roleSkinPreviewRoles(skin.id).map((role) => ({
-    id: role.code,
-    name: role.name,
-    group: role.alignment === 'good' ? '亚瑟阵营' : '莫德雷德阵营',
-    artwork: role.artwork,
-    framing: role.framing,
-  })),
-}))
+const activeRoleFamily = computed(() => roleSkinRoleCode(
+  avalonSnapshot.value?.self.role?.code ?? '',
+))
+const activeRoleSkin = computed<RoleSkinId>(() => {
+  const role = activeRoleFamily.value
+  if (!role) return 'classic-tabletop'
+  const candidate = (
+    lockedRoleSkinLoadout.value ?? selectedRoleSkinLoadout.value
+  )[role]
+  return isRoleSkinUnlocked(roleSkinProgress.value, role, candidate)
+    ? candidate
+    : 'classic-tabletop'
+})
+const roleSkinLoadoutOptions = computed<RoleSkinLoadoutRoleOption[]>(() => (
+  ROLE_SKIN_ROLES.map((role) => {
+    const progress = roleSkinProgress.value.roles[role.code]
+    const selectedSkinId = selectedRoleSkinLoadout.value[role.code]
+    const selectedSkin = ROLE_SKINS.find((skin) => skin.id === selectedSkinId)
+      ?? ROLE_SKINS[0]!
+    return {
+      code: role.code,
+      name: role.name,
+      group: role.alignment === 'good' ? '亚瑟阵营' : '莫德雷德阵营',
+      wins: progress.wins,
+      currentSkinName: selectedSkin.name,
+      currentArtwork: roleArtwork(role.code, selectedSkin.id) ?? selectedSkin.preview,
+      currentFraming: roleArtworkFraming(role.code, selectedSkin.id),
+      legacyAllUnlocked: roleSkinProgress.value.legacyAllUnlocked,
+      upgradeWinsRequired: roleSkinProgress.value.upgradeWinsRequired,
+      ultimateWinsRequired: roleSkinProgress.value.ultimateWinsRequired,
+      choices: ROLE_SKINS.map((skin) => {
+        const requiredWins = skin.tier === '终极'
+          ? roleSkinProgress.value.ultimateWinsRequired
+          : skin.tier === '升级'
+            ? roleSkinProgress.value.upgradeWinsRequired
+            : 0
+        return {
+          id: skin.id,
+          name: skin.name,
+          description: skin.description,
+          tier: skin.tier,
+          artwork: roleArtwork(role.code, skin.id) ?? skin.preview,
+          framing: roleArtworkFraming(role.code, skin.id),
+          unlocked: isRoleSkinUnlocked(roleSkinProgress.value, role.code, skin.id),
+          remainingWins: Math.max(0, requiredWins - progress.wins),
+        }
+      }),
+    }
+  })
+))
 const avalonPhaseLabel = computed(() => {
   const phase = avalonSnapshot.value?.phase
   if (!phase) return ''
@@ -179,6 +235,50 @@ const roomStatsMode = computed(() => (
     ? String(props.snapshot.options.difficulty ?? 'beginner')
     : undefined
 ))
+
+function reconciledRoleSkinLoadout(loadout: RoleSkinLoadout): RoleSkinLoadout {
+  return Object.fromEntries(
+    ROLE_SKIN_ROLES.map((role) => {
+      const skin = loadout[role.code]
+      return [
+        role.code,
+        isRoleSkinUnlocked(roleSkinProgress.value, role.code, skin)
+          ? skin
+          : 'classic-tabletop',
+      ]
+    }),
+  ) as RoleSkinLoadout
+}
+
+async function refreshRoleSkinProgress() {
+  if (!avalonSnapshot.value) return
+  const request = ++roleSkinProgressRequest
+  roleSkinProgressError.value = null
+  if (props.snapshot.self.isGuest) {
+    roleSkinProgress.value = emptyAvalonRoleSkinProgress()
+    selectedRoleSkinLoadout.value = defaultRoleSkinLoadout()
+    return
+  }
+  roleSkinProgressLoading.value = true
+  try {
+    const progress = await loadAvalonRoleSkinProgress()
+    if (request !== roleSkinProgressRequest) return
+    roleSkinProgress.value = progress
+    const reconciled = reconciledRoleSkinLoadout(selectedRoleSkinLoadout.value)
+    selectedRoleSkinLoadout.value = reconciled
+    rememberRoleSkinLoadout(roleSkinAccountId.value, reconciled)
+  } catch (error) {
+    if (request !== roleSkinProgressRequest) return
+    roleSkinProgress.value = emptyAvalonRoleSkinProgress()
+    selectedRoleSkinLoadout.value = defaultRoleSkinLoadout()
+    roleSkinProgressError.value = error instanceof Error
+      ? error.message
+      : '身份皮肤进度读取失败'
+  } finally {
+    if (request === roleSkinProgressRequest) roleSkinProgressLoading.value = false
+  }
+}
+
 watch(
   () => [props.snapshot.phase, props.snapshot.gameKey] as const,
   ([phase]) => {
@@ -190,16 +290,41 @@ watch(
   ([roomCode, phase]) => {
     if (!phase) return
     if (phase === 'lobby') {
-      clearRoleSkinLock(roomCode)
-      lockedRoleSkin.value = null
-      selectedRoleSkin.value = storedRoleSkin()
+      clearRoleSkinLoadoutLock(roomCode)
+      lockedRoleSkinLoadout.value = null
+      selectedRoleSkinLoadout.value = props.snapshot.self.isGuest
+        ? defaultRoleSkinLoadout()
+        : storedRoleSkinLoadout(roleSkinAccountId.value)
       return
     }
-    lockedRoleSkin.value =
-      storedRoleSkinLock(roomCode) ??
-      lockRoleSkin(roomCode, selectedRoleSkin.value)
+    lockedRoleSkinLoadout.value =
+      storedRoleSkinLoadoutLock(roomCode) ??
+      lockRoleSkinLoadout(roomCode, selectedRoleSkinLoadout.value)
   },
   { immediate: true },
+)
+watch(
+  () => [
+    props.snapshot.gameKey,
+    roleSkinAccountId.value,
+    Boolean(props.snapshot.self.isGuest),
+  ] as const,
+  ([gameKey]) => {
+    if (gameKey !== 'avalon') return
+    selectedRoleSkinLoadout.value = props.snapshot.self.isGuest
+      ? defaultRoleSkinLoadout()
+      : storedRoleSkinLoadout(roleSkinAccountId.value)
+    void refreshRoleSkinProgress()
+  },
+  { immediate: true },
+)
+watch(
+  () => avalonSnapshot.value?.phase,
+  (phase, previousPhase) => {
+    if (phase === 'lobby' && previousPhase && previousPhase !== 'lobby') {
+      void refreshRoleSkinProgress()
+    }
+  },
 )
 const exitDescription = computed(() => {
   if (props.snapshot.actions.canAct && isSolo.value) {
@@ -238,12 +363,16 @@ function selectGameSkin(skin: GameSkinId) {
   rememberGameSkin(skin)
 }
 
-function selectRoleSkin(skin: string) {
+function selectRoleSkin(roleCode: string, skinId: string) {
   if (avalonSnapshot.value?.phase !== 'lobby') return
-  const selected = ROLE_SKINS.find((option) => option.id === skin)?.id
-  if (!selected) return
-  selectedRoleSkin.value = selected
-  rememberRoleSkin(selected)
+  const role = roleSkinRoleCode(roleCode)
+  const skin = ROLE_SKINS.find((option) => option.id === skinId)?.id
+  if (!role || !skin || !isRoleSkinUnlocked(roleSkinProgress.value, role, skin)) return
+  const next = { ...selectedRoleSkinLoadout.value, [role]: skin }
+  selectedRoleSkinLoadout.value = next
+  if (!props.snapshot.self.isGuest) {
+    rememberRoleSkinLoadout(roleSkinAccountId.value, next)
+  }
 }
 
 function playerNumber(playerId: string): number | null {
@@ -450,14 +579,13 @@ function openSharedChat() {
       @update:model-value="selectGameSkin"
     />
 
-    <ArtworkSkinPicker
+    <RoleSkinLoadoutPicker
       v-if="avalonSnapshot?.phase === 'lobby'"
-      :model-value="selectedRoleSkin"
-      :options="roleArtworkOptions"
-      title="我的身份卡画风"
-      description="仅影响你看到的身份卡 · 开局后锁定"
-      item-name="身份"
-      @update:model-value="selectRoleSkin"
+      :roles="roleSkinLoadoutOptions"
+      :loading="roleSkinProgressLoading"
+      :error="roleSkinProgressError"
+      @select="selectRoleSkin"
+      @retry="refreshRoleSkinProgress"
     />
 
     <section v-if="snapshot.phase === 'lobby'" class="surface arcade-waiting">
@@ -696,7 +824,7 @@ function openSharedChat() {
 .room-rule-actions { flex: 0 0 auto; display: flex; gap: 8px; }
 .room-rule-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; border: 1px solid color-mix(in srgb, var(--gold) 38%, var(--line)); border-radius: 10px; padding: 0 11px; color: var(--gold); background: color-mix(in srgb, var(--gold) 7%, transparent); font-weight: 850; }
 .game-skin-card + .arcade-waiting,
-.artwork-skin-picker + .arcade-waiting { margin-top: 18px; }
+.role-skin-loadout + .arcade-waiting { margin-top: 18px; }
 .arcade-waiting { min-height: min(390px, 48dvh); display: grid; place-items: center; align-content: center; gap: 12px; padding: 30px 18px; text-align: center; }
 .arcade-waiting > svg { color: var(--gold); }
 .arcade-waiting h2, .arcade-waiting p { margin: 0; }

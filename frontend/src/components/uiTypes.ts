@@ -15,21 +15,29 @@ export interface RevealArtworkFraming {
   treatment?: 'codex-ink-wash'
 }
 
-export interface ArtworkSkinPreviewItem {
-  id: string
-  name: string
-  group: string
-  artwork: string
-  framing: RevealArtworkFraming
-}
-
-export interface ArtworkSkinOption {
+export interface RoleSkinChoiceOption {
   id: string
   name: string
   description: string
   tier: string
-  preview: string
-  items: ArtworkSkinPreviewItem[]
+  artwork: string
+  framing: RevealArtworkFraming
+  unlocked: boolean
+  remainingWins: number
+}
+
+export interface RoleSkinLoadoutRoleOption {
+  code: string
+  name: string
+  group: string
+  wins: number
+  currentSkinName: string
+  currentArtwork: string
+  currentFraming: RevealArtworkFraming
+  legacyAllUnlocked: boolean
+  upgradeWinsRequired: number
+  ultimateWinsRequired: number
+  choices: RoleSkinChoiceOption[]
 }
 
 export interface ModeGuideContent {

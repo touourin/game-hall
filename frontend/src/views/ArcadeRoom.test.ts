@@ -10,6 +10,43 @@ import RoomPageHeader from '../components/RoomPageHeader.vue'
 import { useArcadeStore } from '../stores/arcade'
 import type { RoomSnapshot as AvalonRoomSnapshot } from '../types/avalon'
 import ArcadeRoom from './ArcadeRoom.vue'
+import AvalonTable from '../games/avalon/AvalonTable.vue'
+import { rememberAccessToken } from '../access'
+import { rememberAccountToken } from '../account'
+import {
+  defaultRoleSkinLoadout,
+  rememberRoleSkinLoadout,
+  storedRoleSkinLoadout,
+} from '../gameRoleSkins'
+
+function roleSkinProgressResponse(legacyAllUnlocked = true): Response {
+  const roleProgress = {
+    wins: legacyAllUnlocked ? 0 : 2,
+    upgradeUnlocked: true,
+    ultimateUnlocked: legacyAllUnlocked,
+  }
+  return new Response(JSON.stringify({
+    ok: true,
+    progress: {
+      legacyAllUnlocked,
+      rankedOnly: true,
+      upgradeWinsRequired: 2,
+      ultimateWinsRequired: 5,
+      roles: Object.fromEntries(
+        [
+          'merlin',
+          'percival',
+          'loyal_servant',
+          'assassin',
+          'morgana',
+          'mordred',
+          'oberon',
+          'minion',
+        ].map((role) => [role, roleProgress]),
+      ),
+    },
+  }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+}
 
 function snapshot(gameKey: ArcadeGameKey): ArcadeSnapshot {
   return {
@@ -175,7 +212,12 @@ function avalonSnapshot(
 }
 
 describe('ArcadeRoom', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => {
+    localStorage.clear()
+    sessionStorage.clear()
+  })
+
+  afterEach(() => vi.unstubAllGlobals())
 
   it('offers five local skins for supported multiplayer games', async () => {
     const wrapper = mount(ArcadeRoom, {
@@ -264,7 +306,8 @@ describe('ArcadeRoom', () => {
     expect(wrapper.findAll('main.arcade-room')).toHaveLength(1)
     expect(wrapper.find('.game-page').exists()).toBe(false)
     expect(wrapper.get('.arcade-player-strip').text()).toContain('AI玩家 1')
-    expect(wrapper.get('.artwork-skin-card').text()).toContain('开局后锁定')
+    expect(wrapper.get('.role-skin-loadout').text()).toContain('开局后锁定')
+    expect(wrapper.findAll('[data-role-skin-role]')).toHaveLength(8)
     expect(wrapper.findAll('.exit-room-trigger')).toHaveLength(1)
     expect(
       wrapper.find('.room-page-navigation .exit-room-trigger').exists(),
@@ -277,6 +320,50 @@ describe('ArcadeRoom', () => {
     expect(wrapper.get('.player-number-list').text()).toContain('AI玩家 1')
     await wrapper.get('.room-rule-actions button').trigger('click')
     expect(action).toHaveBeenCalledWith('add_ai')
+  })
+
+  it('stores a separate selected style for each Avalon role', async () => {
+    rememberAccessToken('access-token')
+    rememberAccountToken('account-token')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(roleSkinProgressResponse()))
+    const wrapper = mount(ArcadeRoom, {
+      props: { snapshot: avalonSnapshot() },
+      global: { plugins: [createPinia()] },
+    })
+    await flushPromises()
+
+    await wrapper.get('[data-role-skin-role="merlin"]').trigger('click')
+    document.body.querySelector<HTMLButtonElement>(
+      '[data-role-skin-choice="dark-chronicle"]',
+    )?.click()
+    await flushPromises()
+
+    const saved = storedRoleSkinLoadout('account-1')
+    expect(saved.merlin).toBe('dark-chronicle')
+    expect(saved.percival).toBe('classic-tabletop')
+    wrapper.unmount()
+  })
+
+  it('uses the loyal-servant selection for the dissenting courtier in play', async () => {
+    rememberAccessToken('access-token')
+    rememberAccountToken('account-token')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(roleSkinProgressResponse()))
+    const loadout = defaultRoleSkinLoadout()
+    loadout.loyal_servant = 'royal-codex'
+    rememberRoleSkinLoadout('account-1', loadout)
+    const room = avalonSnapshot('role_reveal')
+    const role = room.game.self.role
+    if (role) {
+      role.code = 'dissenting_courtier'
+      role.label = '心怀异念之臣'
+    }
+    const wrapper = shallowMount(ArcadeRoom, {
+      props: { snapshot: room },
+      global: { plugins: [createPinia()] },
+    })
+    await flushPromises()
+
+    expect(wrapper.getComponent(AvalonTable).props('roleSkin')).toBe('royal-codex')
   })
 
   it('balances a seven-player Avalon lobby instead of leaving one orphan card', () => {

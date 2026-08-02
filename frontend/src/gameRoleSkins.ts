@@ -64,15 +64,17 @@ export type AvalonRoleCode =
   | 'oberon'
   | 'minion'
 
+export type RoleSkinRoleCode = Exclude<AvalonRoleCode, 'dissenting_courtier'>
+
 export type AvalonRoleAlignment = 'good' | 'evil'
 
-export interface RoleSkinPreviewRole {
-  code: AvalonRoleCode
+export interface RoleSkinRoleDefinition {
+  code: RoleSkinRoleCode
   name: string
   alignment: AvalonRoleAlignment
-  artwork: string
-  framing: RoleArtworkFraming
 }
+
+export type RoleSkinLoadout = Record<RoleSkinRoleCode, RoleSkinId>
 
 export interface RoleArtworkFraming {
   scale: number
@@ -84,6 +86,8 @@ export interface RoleArtworkFraming {
 
 export const ROLE_SKIN_STORAGE_KEY = 'avalon:role-skin'
 const ROLE_SKIN_LOCK_STORAGE_PREFIX = 'avalon:role-skin-lock:'
+const ROLE_SKIN_LOADOUT_STORAGE_PREFIX = 'avalon:role-skin-loadout:'
+const ROLE_SKIN_LOADOUT_LOCK_STORAGE_PREFIX = 'avalon:role-skin-loadout-lock:'
 
 export const ROLE_SKINS: Array<{
   id: RoleSkinId
@@ -242,9 +246,7 @@ const ROLE_ARTWORK_FRAMING: Partial<
   },
 }
 
-const ROLE_PREVIEW_DEFINITIONS: Array<
-  Omit<RoleSkinPreviewRole, 'artwork' | 'framing'>
-> = [
+export const ROLE_SKIN_ROLES: RoleSkinRoleDefinition[] = [
   { code: 'merlin', name: '梅林', alignment: 'good' },
   { code: 'percival', name: '派西维尔', alignment: 'good' },
   { code: 'loyal_servant', name: '亚瑟的忠臣', alignment: 'good' },
@@ -255,12 +257,94 @@ const ROLE_PREVIEW_DEFINITIONS: Array<
   { code: 'minion', name: '莫德雷德的爪牙', alignment: 'evil' },
 ]
 
-function isRoleSkinId(value: string | null): value is RoleSkinId {
+export function isRoleSkinId(value: string | null): value is RoleSkinId {
   return ROLE_SKINS.some((skin) => skin.id === value)
 }
 
 function roleSkinLockKey(roomCode: string): string {
   return `${ROLE_SKIN_LOCK_STORAGE_PREFIX}${roomCode.trim().toUpperCase()}`
+}
+
+function roleSkinLoadoutKey(accountId: string): string {
+  return `${ROLE_SKIN_LOADOUT_STORAGE_PREFIX}${accountId.trim() || 'guest'}`
+}
+
+function roleSkinLoadoutLockKey(roomCode: string): string {
+  return `${ROLE_SKIN_LOADOUT_LOCK_STORAGE_PREFIX}${roomCode.trim().toUpperCase()}`
+}
+
+function parsedRoleSkinLoadout(value: string | null): RoleSkinLoadout | null {
+  if (!value) return null
+  try {
+    const parsed = JSON.parse(value) as Partial<Record<RoleSkinRoleCode, string>>
+    if (!parsed || typeof parsed !== 'object') return null
+    const loadout = {} as RoleSkinLoadout
+    for (const role of ROLE_SKIN_ROLES) {
+      const skin = parsed[role.code]
+      if (!skin || !isRoleSkinId(skin)) return null
+      loadout[role.code] = skin
+    }
+    return loadout
+  } catch {
+    return null
+  }
+}
+
+export function defaultRoleSkinLoadout(
+  skin: RoleSkinId = 'classic-tabletop',
+): RoleSkinLoadout {
+  return Object.fromEntries(
+    ROLE_SKIN_ROLES.map((role) => [role.code, skin]),
+  ) as RoleSkinLoadout
+}
+
+export function roleSkinRoleCode(roleCode: string): RoleSkinRoleCode | null {
+  if (roleCode === 'dissenting_courtier') return 'loyal_servant'
+  return ROLE_SKIN_ROLES.some((role) => role.code === roleCode)
+    ? roleCode as RoleSkinRoleCode
+    : null
+}
+
+export function storedRoleSkinLoadout(accountId: string): RoleSkinLoadout {
+  const key = roleSkinLoadoutKey(accountId)
+  const saved = parsedRoleSkinLoadout(localStorage.getItem(key))
+  if (saved) return saved
+  const migrated = defaultRoleSkinLoadout(storedRoleSkin())
+  localStorage.setItem(key, JSON.stringify(migrated))
+  return migrated
+}
+
+export function rememberRoleSkinLoadout(
+  accountId: string,
+  loadout: RoleSkinLoadout,
+): void {
+  localStorage.setItem(roleSkinLoadoutKey(accountId), JSON.stringify(loadout))
+}
+
+export function storedRoleSkinLoadoutLock(
+  roomCode: string,
+): RoleSkinLoadout | null {
+  const key = roleSkinLoadoutLockKey(roomCode)
+  const saved = parsedRoleSkinLoadout(localStorage.getItem(key))
+  if (saved) return saved
+  const legacySkin = storedRoleSkinLock(roomCode)
+  if (!legacySkin) return null
+  const migrated = defaultRoleSkinLoadout(legacySkin)
+  localStorage.setItem(key, JSON.stringify(migrated))
+  return migrated
+}
+
+export function lockRoleSkinLoadout(
+  roomCode: string,
+  loadout: RoleSkinLoadout,
+): RoleSkinLoadout {
+  localStorage.setItem(roleSkinLoadoutLockKey(roomCode), JSON.stringify(loadout))
+  return loadout
+}
+
+export function clearRoleSkinLoadoutLock(roomCode: string): void {
+  localStorage.removeItem(roleSkinLoadoutLockKey(roomCode))
+  clearRoleSkinLock(roomCode)
 }
 
 export function storedRoleSkin(): RoleSkinId {
@@ -291,16 +375,6 @@ export function clearRoleSkinLock(roomCode: string): void {
 
 export function roleSkinName(skin: RoleSkinId): string {
   return ROLE_SKINS.find((choice) => choice.id === skin)?.name ?? '身份卡'
-}
-
-export function roleSkinPreviewRoles(
-  skin: RoleSkinId,
-): RoleSkinPreviewRole[] {
-  return ROLE_PREVIEW_DEFINITIONS.map((role) => ({
-    ...role,
-    artwork: ROLE_ART[skin][role.code],
-    framing: roleArtworkFraming(role.code, skin),
-  }))
 }
 
 export function roleArtworkFraming(

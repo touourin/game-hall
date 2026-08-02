@@ -1,11 +1,21 @@
 import {
   ROLE_SKINS,
+  ROLE_SKIN_ROLES,
+  ROLE_SKIN_STORAGE_KEY,
+  clearRoleSkinLoadoutLock,
+  defaultRoleSkinLoadout,
+  lockRoleSkinLoadout,
+  rememberRoleSkinLoadout,
   roleArtwork,
   roleArtworkFraming,
-  roleSkinPreviewRoles,
+  roleSkinRoleCode,
+  storedRoleSkinLoadout,
+  storedRoleSkinLoadoutLock,
 } from './gameRoleSkins'
 
 describe('Avalon role skin artwork framing', () => {
+  beforeEach(() => localStorage.clear())
+
   it('brings the smaller classic Merlin portrait up to the base-set scale', () => {
     expect(roleArtworkFraming('merlin', 'classic-tabletop')).toEqual({
       scale: 1.1,
@@ -47,11 +57,9 @@ describe('Avalon role skin artwork framing', () => {
       scale: 1.15,
       treatment: 'codex-ink-wash',
     })
-    expect(
-      roleSkinPreviewRoles('royal-codex').every(
-        (role) => role.framing.treatment === 'codex-ink-wash',
-      ),
-    ).toBe(true)
+    expect(ROLE_SKIN_ROLES.every(
+      (role) => roleArtworkFraming(role.code, 'royal-codex').treatment === 'codex-ink-wash',
+    )).toBe(true)
   })
 
   it('keeps the established ultimate heroes unchanged and corrects the oversized Assassin', () => {
@@ -81,7 +89,10 @@ describe('Avalon role skin artwork framing', () => {
   })
 
   it('uses the same framing data in the eight-role preview model', () => {
-    const roles = roleSkinPreviewRoles('grail-myth')
+    const roles = ROLE_SKIN_ROLES.map((role) => ({
+      ...role,
+      framing: roleArtworkFraming(role.code, 'grail-myth'),
+    }))
     expect(roles).toHaveLength(8)
     expect(roles.find((role) => role.code === 'merlin')?.framing.scale).toBe(1)
     expect(roles.find((role) => role.code === 'morgana')?.framing.scale).toBe(1.1)
@@ -93,5 +104,42 @@ describe('Avalon role skin artwork framing', () => {
         roleArtwork('loyal_servant', skin.id),
       )
     }
+  })
+
+  it('maps the dissenting courtier into the loyal-servant skin family', () => {
+    expect(roleSkinRoleCode('dissenting_courtier')).toBe('loyal_servant')
+    expect(roleSkinRoleCode('loyal_servant')).toBe('loyal_servant')
+    expect(roleSkinRoleCode('unknown')).toBeNull()
+  })
+
+  it('stores an independent eight-role loadout per account', () => {
+    const loadout = defaultRoleSkinLoadout()
+    loadout.merlin = 'dark-chronicle'
+    loadout.assassin = 'grail-myth'
+
+    rememberRoleSkinLoadout('account-a', loadout)
+
+    expect(storedRoleSkinLoadout('account-a')).toEqual(loadout)
+    expect(storedRoleSkinLoadout('account-b')).toEqual(
+      defaultRoleSkinLoadout(),
+    )
+  })
+
+  it('migrates the previous whole-set preference into all eight roles', () => {
+    localStorage.setItem(ROLE_SKIN_STORAGE_KEY, 'stained-glass')
+
+    expect(storedRoleSkinLoadout('legacy-account')).toEqual(
+      defaultRoleSkinLoadout('stained-glass'),
+    )
+  })
+
+  it('locks and clears the full role loadout for one room', () => {
+    const loadout = defaultRoleSkinLoadout()
+    loadout.loyal_servant = 'royal-codex'
+
+    expect(lockRoleSkinLoadout(' test ', loadout)).toEqual(loadout)
+    expect(storedRoleSkinLoadoutLock('TEST')).toEqual(loadout)
+    clearRoleSkinLoadoutLock('TEST')
+    expect(storedRoleSkinLoadoutLock('TEST')).toBeNull()
   })
 })

@@ -1,6 +1,15 @@
-import pytest
+from datetime import timedelta
 
-from backend.app.accounts import AVATAR_PRESET_IDS, AccountError, AccountStore
+import pytest
+from sqlalchemy import update
+
+from backend.app.accounts import (
+    AVALON_ROLE_SKIN_PROGRESSION_START,
+    AVATAR_PRESET_IDS,
+    AccountError,
+    AccountStore,
+)
+from backend.app.database import users
 from backend.app.games.avalon.models import Alignment, AvalonMode, Phase, Role
 
 from .test_engine import start_room
@@ -114,6 +123,124 @@ def completed_room_with_accounts(
     room.phase = Phase.ASSASSINATION
     engine.assassinate(room, assassin.id, merlin.id)
     return room
+
+
+def record_avalon_role_result(
+    store: AccountStore,
+    account_id: str,
+    *,
+    match_id: str,
+    role: str,
+    won: bool = True,
+    ranked: bool = True,
+) -> None:
+    assert store.record_game_match(
+        game_key="avalon",
+        match_id=match_id,
+        room_code="SKIN",
+        winner="good" if won else "evil",
+        reason="皮肤进度测试",
+        started_at="2026-08-03T00:00:00+00:00",
+        ended_at="2026-08-03T00:10:00+00:00",
+        details={},
+        ranked=ranked,
+        players=[
+            {
+                "accountId": account_id,
+                "playerName": "皮肤玩家",
+                "seat": 0,
+                "role": role,
+                "alignment": "good",
+                "won": won,
+                "isHost": True,
+            }
+        ],
+    )
+
+
+def test_existing_accounts_keep_every_avalon_role_skin(tmp_path):
+    store = AccountStore(tmp_path / "legacy-role-skins.sqlite3")
+    account, _ = store.register("legacy_skin", "secret123", "旧皮肤玩家")
+    with store.engine.begin() as connection:
+        connection.execute(
+            update(users)
+            .where(users.c.id == account.id)
+            .values(
+                created_at=(
+                    AVALON_ROLE_SKIN_PROGRESSION_START
+                    - timedelta(seconds=1)
+                )
+            )
+        )
+
+    progress = store.avalon_role_skin_progress(account.id)
+
+    assert progress["legacyAllUnlocked"] is True
+    assert all(
+        role["upgradeUnlocked"] and role["ultimateUnlocked"]
+        for role in progress["roles"].values()
+    )
+
+
+def test_new_accounts_unlock_role_skins_from_ranked_family_wins(tmp_path):
+    store = AccountStore(tmp_path / "role-skin-progress.sqlite3")
+    account, _ = store.register("new_skin", "secret123", "新皮肤玩家")
+    with store.engine.begin() as connection:
+        connection.execute(
+            update(users)
+            .where(users.c.id == account.id)
+            .values(
+                created_at=(
+                    AVALON_ROLE_SKIN_PROGRESSION_START
+                    + timedelta(seconds=1)
+                )
+            )
+        )
+
+    record_avalon_role_result(
+        store,
+        account.id,
+        match_id="skin-loyal-1",
+        role="loyal_servant",
+    )
+    record_avalon_role_result(
+        store,
+        account.id,
+        match_id="skin-dissenting-2",
+        role="dissenting_courtier",
+    )
+    record_avalon_role_result(
+        store,
+        account.id,
+        match_id="skin-ai-unranked",
+        role="loyal_servant",
+        ranked=False,
+    )
+
+    progress = store.avalon_role_skin_progress(account.id)
+    loyal = progress["roles"]["loyal_servant"]
+    assert progress["legacyAllUnlocked"] is False
+    assert progress["rankedOnly"] is True
+    assert loyal == {
+        "wins": 2,
+        "upgradeUnlocked": True,
+        "ultimateUnlocked": False,
+    }
+    assert progress["roles"]["merlin"]["wins"] == 0
+
+    for index in range(3, 6):
+        record_avalon_role_result(
+            store,
+            account.id,
+            match_id=f"skin-loyal-{index}",
+            role="loyal_servant",
+        )
+
+    completed = store.avalon_role_skin_progress(account.id)["roles"][
+        "loyal_servant"
+    ]
+    assert completed["wins"] == 5
+    assert completed["ultimateUnlocked"] is True
 
 
 def test_completed_match_is_saved_once_with_personal_history(tmp_path):

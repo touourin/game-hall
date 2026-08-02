@@ -148,6 +148,57 @@ def test_account_registration_login_and_session(monkeypatch, tmp_path) -> None:
     assert current_profile.status_code == 200
 
 
+def test_avalon_role_skin_progress_endpoint_requires_account_session(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv(
+        "GAME_HALL_DB_PATH",
+        str(tmp_path / "role-skin-progress.sqlite3"),
+    )
+    access_header = {"X-Game-Hall-Access": access_token()}
+
+    with TestClient(api) as client:
+        registered = client.post(
+            "/api/auth/register",
+            headers=access_header,
+            json={
+                "username": "skin_progress",
+                "password": "secret123",
+                "player_name": "皮肤进度玩家",
+            },
+        )
+        token = registered.json()["token"]
+        unauthorized = client.get(
+            "/api/games/avalon/role-skins/me",
+            headers=access_header,
+        )
+        progress = client.get(
+            "/api/games/avalon/role-skins/me",
+            headers={
+                **access_header,
+                "Authorization": f"Bearer {token}",
+            },
+        )
+
+    assert unauthorized.status_code == 401
+    assert progress.status_code == 200
+    payload = progress.json()["progress"]
+    assert payload["rankedOnly"] is True
+    assert payload["upgradeWinsRequired"] == 2
+    assert payload["ultimateWinsRequired"] == 5
+    assert set(payload["roles"]) == {
+        "merlin",
+        "percival",
+        "loyal_servant",
+        "assassin",
+        "morgana",
+        "mordred",
+        "oberon",
+        "minion",
+    }
+
+
 def test_login_still_returns_new_token_when_old_socket_notice_fails(
     monkeypatch,
     tmp_path,

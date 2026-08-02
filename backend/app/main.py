@@ -529,6 +529,18 @@ def personal_stats(
     }
 
 
+@api.get("/api/games/avalon/role-skins/me")
+def avalon_role_skin_progress(
+    authorization: str | None = Header(default=None),
+    game_hall_access: str | None = Depends(game_hall_access_header),
+) -> dict:
+    account = require_account_session(authorization, game_hall_access)
+    return {
+        "ok": True,
+        "progress": account_store().avalon_role_skin_progress(account.id),
+    }
+
+
 @api.get("/api/leaderboard")
 def leaderboard(
     game: str,
