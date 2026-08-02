@@ -36,6 +36,12 @@ export interface ModeGuideContent {
   eyebrow: string
   title: string
   story: string
+  quickStart: {
+    label: string
+    title: string
+    description: string
+    steps: Array<{ title: string; text: string }>
+  }
   feature: {
     label: string
     title: string
@@ -44,5 +50,19 @@ export interface ModeGuideContent {
   }
   flowTitle: string
   steps: Array<{ title: string; text: string }>
+  ruleSections: Array<{
+    title: string
+    description?: string
+    bullets?: Array<{ label?: string; text: string }>
+    table?: {
+      headers: string[]
+      rows: string[][]
+    }
+  }>
+  background: {
+    label: string
+    title: string
+    paragraphs: string[]
+  }
   footer: string
 }

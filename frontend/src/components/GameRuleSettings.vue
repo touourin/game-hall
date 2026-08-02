@@ -49,7 +49,7 @@ function setOption(key: string, value: unknown) {
       open
     >
       <summary>
-        <span><strong>王庭暗流完整说明</strong><small>背景故事 · 异志之臣 · 新模式规则</small></span>
+        <span><strong>王庭暗流完整说明</strong><small>一分钟导读 · 完整规则 · 完整背景故事</small></span>
         <b>展开 / 收起</b>
       </summary>
       <ModeGuide :content="AVALON_COURT_GUIDE" />
