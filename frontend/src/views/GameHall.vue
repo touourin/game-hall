@@ -29,17 +29,17 @@ const showStats = ref(false)
 const showSettings = ref(false)
 
 const games: Array<GameCatalogItem & { tone: string; category: string }> = [
-  { key: 'avalon', name: '阿瓦隆', players: '5–10 人', description: '身份推理、组队投票与湖中仙女', tone: 'gold', category: '社交推理' },
-  { key: 'gomoku', name: '五子棋', players: '2 人', description: '15 路棋盘，Swap2 与有禁手连珠', tone: 'ink', category: '棋类竞技' },
-  { key: 'xiangqi', name: '中国象棋', players: '2 人', description: '楚河汉界，完整走子与重复局面限制', tone: 'red', category: '棋类竞技' },
-  { key: 'go', name: '围棋', players: '2 人', description: '9/13/19 路可选，中国数子与贴目', tone: 'jade', category: '棋类竞技' },
-  { key: 'poker', name: '德州扑克', players: '2–8 人', description: '大小盲、四轮下注与全押边池', tone: 'poker', category: '扑克对战' },
-  { key: 'doudizhu', name: '斗地主', players: '3 人', description: '叫抢地主、三种玩法与倍数结算', tone: 'blue', category: '扑克对战' },
-  { key: 'junqi', name: '军旗', players: '2 人', description: '暗军旗布阵，或翻棋决定阵营', tone: 'army', category: '棋类竞技' },
-  { key: 'reaction', name: '反应挑战', players: '1 人', description: '等待信号变色，测出三轮真实反应', tone: 'pulse', category: '个人挑战' },
-  { key: 'schulte', name: '舒尔特方格', players: '1 人', description: '按顺序寻找 1–25，训练专注与视觉搜索', tone: 'focus', category: '个人挑战' },
-  { key: 'minesweeper', name: '扫雷', players: '1 人', description: '初、中、高三种经典难度，首次点击安全', tone: 'mine', category: '个人挑战' },
-  { key: 'hanoi', name: '汉诺塔', players: '1 人', description: '3–8 层经典益智挑战，争取最少步数', tone: 'tower', category: '个人挑战' },
+  { key: 'avalon', name: '阿瓦隆', players: '5–10 人', description: '谎言上桌，忠诚接受考验', tone: 'gold', category: '社交推理' },
+  { key: 'gomoku', name: '五子棋', players: '2 人', description: '一子定势，五子连珠', tone: 'ink', category: '棋类竞技' },
+  { key: 'xiangqi', name: '中国象棋', players: '2 人', description: '隔河列阵，步步攻守', tone: 'red', category: '棋类竞技' },
+  { key: 'go', name: '围棋', players: '2 人', description: '方寸之间，围地争先', tone: 'jade', category: '棋类竞技' },
+  { key: 'poker', name: '德州扑克', players: '2–8 人', description: '读懂对手，把筹码推向终局', tone: 'poker', category: '扑克对战' },
+  { key: 'doudizhu', name: '斗地主', players: '3 人', description: '抢下地主，三人斗到底', tone: 'blue', category: '扑克对战' },
+  { key: 'junqi', name: '军旗', players: '2 人', description: '秘密布阵，沿铁路突袭敌旗', tone: 'army', category: '棋类竞技' },
+  { key: 'reaction', name: '反应挑战', players: '1 人', description: '盯住信号，挑战毫秒反应', tone: 'pulse', category: '个人挑战' },
+  { key: 'schulte', name: '舒尔特方格', players: '1 人', description: '从 1 找到 25，练速度与专注', tone: 'focus', category: '个人挑战' },
+  { key: 'minesweeper', name: '扫雷', players: '1 人', description: '排除危险，清空整片雷区', tone: 'mine', category: '个人挑战' },
+  { key: 'hanoi', name: '汉诺塔', players: '1 人', description: '移动圆盘，用最少步数通关', tone: 'tower', category: '个人挑战' },
 ]
 </script>
 
@@ -151,7 +151,7 @@ const games: Array<GameCatalogItem & { tone: string; category: string }> = [
 .game-card:first-child .game-card-topline { top: 26px; right: 28px; left: 28px; }.game-card:first-child .game-card-topline small,.game-card:first-child .game-card-topline em { color: #d6b76e; font-size: 10px; }
 .game-copy { position: relative; z-index: 2; display: grid; gap: 4px; min-width: 0; padding-right: 19px; }
 .game-copy strong { font-family: "Songti SC", "STSong", serif; font-size: 20px; letter-spacing: .01em; }
-.game-copy em { overflow: hidden; color: var(--muted); font-size: 10px; font-style: normal; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.game-copy em { overflow: hidden; color: var(--text-soft); font-size: 11px; font-style: normal; line-height: 1.4; letter-spacing: .015em; text-overflow: ellipsis; white-space: nowrap; }
 .game-card:first-child .game-copy { align-self: end; max-width: 55%; gap: 10px; padding: 0 0 42px; }.game-card:first-child .game-copy strong { color: #f4efe1; font-size: clamp(38px,5vw,58px); }.game-card:first-child .game-copy em { color: #aab5aa; font-size: 14px; line-height: 1.6; white-space: normal; }
 .featured-label { position: absolute; z-index: 3; left: 32px; bottom: 28px; border: 1px solid rgba(214,183,110,.4); border-radius: 999px; padding: 6px 10px; color: #d6b76e; background: rgba(6,19,16,.58); font-size: 9px; font-weight: 850; letter-spacing: .1em; backdrop-filter: blur(8px); }
 .enter-game { position: absolute; z-index: 3; right: 13px; bottom: 14px; width: 24px; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--card-tone) 34%, transparent); border-radius: 50%; color: var(--card-tone); font-size: 21px; line-height: 1; }
