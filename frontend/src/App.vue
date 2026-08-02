@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { RouterView, useRoute, useRouter } from 'vue-router'
 import { WifiOff, X } from '@lucide/vue'
 import {
   clearAccountToken,
@@ -28,14 +29,15 @@ import {
   socket,
 } from './socket'
 import { useArcadeStore } from './stores/arcade'
-import type { GameCatalogItem } from './types/arcade'
+import { gameCatalogItem } from './gameCatalog'
+import type { ArcadeGameKey, GameCatalogItem } from './types/arcade'
 import AccessGate from './views/AccessGate.vue'
 import AccountGate from './views/AccountGate.vue'
-import GameHall from './views/GameHall.vue'
 import ArcadeHome from './views/ArcadeHome.vue'
-import ArcadeRoom from './views/ArcadeRoom.vue'
 
 const arcade = useArcadeStore()
+const route = useRoute()
+const router = useRouter()
 const accessState = ref<'checking' | 'locked' | 'unlocked'>('checking')
 const accessBusy = ref(false)
 const accessError = ref<string | null>(null)
@@ -44,35 +46,82 @@ const accountState = ref<'checking' | 'locked' | 'authenticated'>('checking')
 const accountBusy = ref(false)
 const accountError = ref<string | null>(null)
 const account = ref<AccountProfile | null>(null)
-const selectedGame = ref<GameCatalogItem | null>(initialSelectedGame())
+const selectedGame = computed(() => gameCatalogItem(route.params.gameKey))
+const invitedRoomCode = computed(() => (
+  route.name === 'room' && typeof route.params.roomCode === 'string'
+    ? route.params.roomCode
+    : ''
+))
+const routedRoomSnapshot = computed(() => {
+  if (route.name !== 'room' || !arcade.snapshot || !selectedGame.value) return null
+  return arcade.snapshot.gameKey === selectedGame.value.key &&
+    arcade.snapshot.roomCode === invitedRoomCode.value
+    ? arcade.snapshot
+    : null
+})
 
-function initialSelectedGame(): GameCatalogItem | null {
-  const params = new URLSearchParams(window.location.search)
-  const gameKey = params.get('game')
-  const catalog: Record<string, GameCatalogItem> = {
-    avalon: { key: 'avalon', name: '阿瓦隆', players: '5–10 人', description: '身份推理与团队博弈' },
-    gomoku: { key: 'gomoku', name: '五子棋', players: '2 人', description: '15 路棋盘，Swap2 与有禁手连珠' },
-    xiangqi: { key: 'xiangqi', name: '中国象棋', players: '2 人', description: '楚河汉界，完整走子与重复局面限制' },
-    go: { key: 'go', name: '围棋', players: '2 人', description: '19 路中国规则' },
-    poker: { key: 'poker', name: '德州扑克', players: '2–8 人', description: '大小盲、四轮下注与全押边池' },
-    doudizhu: { key: 'doudizhu', name: '斗地主', players: '3 人', description: '叫抢地主、三种玩法与倍数结算' },
-    junqi: { key: 'junqi', name: '军旗', players: '2 人', description: '暗军旗布阵与翻棋对战' },
-    reaction: { key: 'reaction', name: '反应挑战', players: '1 人', description: '三轮高精度反应测试' },
-    schulte: { key: 'schulte', name: '舒尔特方格', players: '1 人', description: '按顺序寻找 1–25，训练专注与视觉搜索' },
-    minesweeper: { key: 'minesweeper', name: '扫雷', players: '1 人', description: '三种经典难度，首次点击安全' },
-    hanoi: { key: 'hanoi', name: '汉诺塔', players: '1 人', description: '3–8 层经典益智挑战' },
-  }
-  if (gameKey && catalog[gameKey]) return catalog[gameKey]
-  if (params.get('room')) return catalog.avalon
-  return null
+function openGame(game: GameCatalogItem) {
+  void router.push({ name: 'game', params: { gameKey: game.key } })
 }
+
+function openHall() {
+  void router.push({ name: 'hall' })
+}
+
+function openRoom(payload: { gameKey: ArcadeGameKey; roomCode: string }) {
+  void router.push({
+    name: 'room',
+    params: { gameKey: payload.gameKey, roomCode: payload.roomCode },
+  })
+}
+
+async function resumeRoom() {
+  const gameKey = arcade.activeGame
+  const roomCode = arcade.activeRoomCode
+  if (!gameKey || !roomCode) return
+  if (await arcade.returnToRoom()) openRoom({ gameKey, roomCode })
+}
+
+watch(
+  () => arcade.snapshot,
+  (next, previous) => {
+    if (next && !previous) {
+      // 房间邀请地址优先，不能被浏览器中保存的另一局自动恢复覆盖。
+      if (route.name !== 'room') {
+        void router.replace({
+          name: 'room',
+          params: { gameKey: next.gameKey, roomCode: next.roomCode },
+        })
+      }
+      return
+    }
+    if (!next && previous && route.name === 'room') {
+      const routeRoomCode = typeof route.params.roomCode === 'string'
+        ? route.params.roomCode
+        : ''
+      if (routeRoomCode === previous.roomCode) {
+        void router.replace({
+          name: 'game',
+          params: { gameKey: previous.gameKey },
+        })
+      }
+    }
+  },
+)
+
+watch(
+  selectedGame,
+  (game) => {
+    document.title = game ? `${game.name} · 游戏大厅` : '游戏大厅'
+  },
+  { immediate: true },
+)
 
 function enterGame(profile: AccountProfile, token: string) {
   account.value = profile
   accountState.value = 'authenticated'
   rememberAccountToken(token)
   setSocketAccountToken(token)
-  document.title = '游戏大厅'
   arcade.init()
   if (!socket.connected) socket.connect()
 }
@@ -226,6 +275,7 @@ async function logout() {
   account.value = null
   accountError.value = null
   accountState.value = 'locked'
+  await router.replace({ name: 'hall' })
 }
 
 onMounted(async () => {
@@ -263,24 +313,44 @@ onMounted(async () => {
       正在重新连接游戏服务器…
     </div>
 
-    <ArcadeRoom v-if="arcade.snapshot" :snapshot="arcade.snapshot" />
-    <GameHall
-      v-else-if="!selectedGame"
-      :account="account"
-      :busy="accountBusy"
-      :error="accountError"
-      @logout="logout"
-      @rename="changePlayerName"
-      @avatar-preset="changeAvatarPreset"
-      @avatar-upload="changeCustomAvatar"
-      @select="selectedGame = $event"
-    />
-    <ArcadeHome
-      v-else
-      :account="account"
-      :game="selectedGame"
-      @back="selectedGame = null"
-    />
+    <RouterView v-slot="{ Component }">
+      <component
+        :is="Component"
+        v-if="route.name === 'hall'"
+        :account="account"
+        :busy="accountBusy"
+        :error="accountError"
+        @logout="logout"
+        @rename="changePlayerName"
+        @avatar-preset="changeAvatarPreset"
+        @avatar-upload="changeCustomAvatar"
+        @select="openGame"
+        @resume-room="resumeRoom"
+      />
+      <component
+        :is="Component"
+        v-else-if="route.name === 'game' && selectedGame"
+        :account="account"
+        :game="selectedGame"
+        @back="openHall"
+        @room-entered="openRoom"
+        @resume-room="resumeRoom"
+      />
+      <component
+        :is="Component"
+        v-else-if="routedRoomSnapshot"
+        :snapshot="routedRoomSnapshot"
+      />
+      <ArcadeHome
+        v-else-if="route.name === 'room' && selectedGame"
+        :account="account"
+        :game="selectedGame"
+        :invited-room="invitedRoomCode"
+        @back="openHall"
+        @room-entered="openRoom"
+        @resume-room="resumeRoom"
+      />
+    </RouterView>
 
     <div v-if="arcade.error" class="toast" role="alert">
       <span>{{ arcade.error }}</span>

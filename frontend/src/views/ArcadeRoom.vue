@@ -89,9 +89,9 @@ const availableSeats = computed(
 )
 const inviteUrl = computed(() => {
   const url = new URL(window.location.href)
+  url.pathname = `/games/${props.snapshot.gameKey}/rooms/${props.snapshot.roomCode}`
   url.search = ''
-  url.searchParams.set('game', props.snapshot.gameKey)
-  url.searchParams.set('room', props.snapshot.roomCode)
+  url.hash = ''
   return url.toString()
 })
 const selfRematchReady = computed(() =>

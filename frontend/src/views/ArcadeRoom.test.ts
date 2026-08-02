@@ -311,14 +311,14 @@ describe('ArcadeRoom', () => {
     })
 
     expect(wrapper.get('.invite-link-field input').attributes('value')).toContain(
-      'game=xiangqi',
+      '/games/xiangqi/rooms/TEST',
     )
     await wrapper.get('.invite-link-actions button').trigger('click')
     await flushPromises()
 
     const invitation = new URL(String(copyText.mock.calls[0]?.[0]))
-    expect(invitation.searchParams.get('game')).toBe('xiangqi')
-    expect(invitation.searchParams.get('room')).toBe('TEST')
+    expect(invitation.pathname).toBe('/games/xiangqi/rooms/TEST')
+    expect(invitation.search).toBe('')
     expect(wrapper.get('.invite-link-actions button').text()).toContain('已复制')
     copyText.mockRestore()
   })
@@ -374,7 +374,7 @@ describe('ArcadeRoom', () => {
 
     expect(wrapper.get('.invite-link-actions button').text()).toContain('复制失败')
     expect(wrapper.get('.invite-link-field input').attributes('value')).toContain(
-      'game=gomoku',
+      '/games/gomoku/rooms/TEST',
     )
     expect(wrapper.text()).toContain('自动复制失败')
     copyText.mockRestore()

@@ -52,12 +52,10 @@ export const useArcadeStore = defineStore('arcade', () => {
   const session = ref<StoredArcadeSession | null>(readSession())
   let initialized = false
 
-  const resumableGame = computed(() =>
-    snapshot.value === null ? session.value?.gameKey ?? null : null,
-  )
-  const resumableRoomCode = computed(() =>
-    snapshot.value === null ? session.value?.roomCode ?? null : null,
-  )
+  const activeGame = computed(() => snapshot.value?.gameKey ?? session.value?.gameKey ?? null)
+  const activeRoomCode = computed(() => snapshot.value?.roomCode ?? session.value?.roomCode ?? null)
+  const resumableGame = computed(() => session.value?.gameKey ?? null)
+  const resumableRoomCode = computed(() => session.value?.roomCode ?? null)
 
   function init() {
     if (initialized) return
@@ -151,11 +149,13 @@ export const useArcadeStore = defineStore('arcade', () => {
         playerId: response.playerId,
         resumeToken: response.resumeToken,
       })
+      return true
     }
+    return false
   }
 
   async function resume() {
-    if (!session.value) return
+    if (!session.value) return false
     const response = await perform('arcade:resume', {
       room_code: session.value.roomCode,
       token: session.value.resumeToken,
@@ -164,7 +164,9 @@ export const useArcadeStore = defineStore('arcade', () => {
       snapshot.value = null
       clearSession()
       error.value = null
+      return false
     }
+    return true
   }
 
   async function leaveRoom() {
@@ -254,7 +256,9 @@ export const useArcadeStore = defineStore('arcade', () => {
   }
 
   async function returnToRoom() {
-    if (session.value && !snapshot.value) await resume()
+    if (snapshot.value) return true
+    if (session.value) return resume()
+    return false
   }
 
   function saveSession(next: StoredArcadeSession) {
@@ -289,6 +293,8 @@ export const useArcadeStore = defineStore('arcade', () => {
     connected,
     busy,
     error,
+    activeGame,
+    activeRoomCode,
     resumableGame,
     resumableRoomCode,
     init,

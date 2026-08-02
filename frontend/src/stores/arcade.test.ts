@@ -88,6 +88,22 @@ describe('arcade room store', () => {
       token: storedSession.resumeToken,
     })
     expect(arcade.snapshot?.roomCode).toBe('TEST')
+    expect(arcade.resumableRoomCode).toBe('TEST')
+    expect(arcade.activeRoomCode).toBe('TEST')
+  })
+
+  it('reports a successful routed room join', async () => {
+    socketMocks.emitWithAck.mockResolvedValue({
+      ok: true,
+      roomCode: 'A1B2',
+      playerId: 'player-2',
+      resumeToken: 'resume-token-for-player-2',
+    })
+    const arcade = useArcadeStore()
+
+    expect(await arcade.joinRoom('junqi', 'a1b2')).toBe(true)
+    expect(arcade.activeGame).toBe('junqi')
+    expect(arcade.activeRoomCode).toBe('A1B2')
   })
 
   it('clears the stale room screen when reconnecting cannot restore the seat', async () => {

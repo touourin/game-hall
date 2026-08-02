@@ -7,6 +7,31 @@ import ArcadeHome from './ArcadeHome.vue'
 describe('ArcadeHome', () => {
   beforeEach(() => localStorage.clear())
 
+  it('opens a routed invitation in join mode with its room code', () => {
+    const wrapper = mount(ArcadeHome, {
+      props: {
+        game: {
+          key: 'junqi',
+          name: '军旗',
+          players: '2 人',
+          description: '测试',
+        },
+        account: {
+          id: 'account-1',
+          username: 'tester',
+          playerName: '测试玩家',
+          nextRenameAt: null,
+          createdAt: '2026-08-01T00:00:00Z',
+        },
+        invitedRoom: 'a1b2',
+      },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.get('.segmented-control .active').text()).toBe('加入房间')
+    expect((wrapper.get('.room-code-input').element as HTMLInputElement).value).toBe('A1B2')
+  })
+
   it('submits the selected room rules when creating a game', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)

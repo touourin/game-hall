@@ -12,13 +12,19 @@ import GameHomeHeader from '../components/GameHomeHeader.vue'
 import { defaultGameRules, gameRuleSummary } from '../gameRules'
 import AvatarImage from '../components/AvatarImage.vue'
 
-const props = defineProps<{ game: GameCatalogItem; account: AccountProfile }>()
-defineEmits<{ back: [] }>()
+const props = withDefaults(defineProps<{
+  game: GameCatalogItem
+  account: AccountProfile
+  invitedRoom?: string
+}>(), { invitedRoom: '' })
+const emit = defineEmits<{
+  back: []
+  roomEntered: [payload: { gameKey: ArcadeGameKey; roomCode: string }]
+  resumeRoom: []
+}>()
 const arcade = useArcadeStore()
-const params = new URLSearchParams(window.location.search)
-const invitedRoom = params.get('game') === props.game.key ? params.get('room') ?? '' : ''
-const mode = ref<'create' | 'join'>(invitedRoom ? 'join' : 'create')
-const roomCode = ref(invitedRoom.toUpperCase())
+const mode = ref<'create' | 'join'>(props.invitedRoom ? 'join' : 'create')
+const roomCode = ref(props.invitedRoom.toUpperCase())
 const joinCard = ref<HTMLElement | null>(null)
 const showStats = ref(false)
 const showLeaderboard = ref(false)
@@ -63,21 +69,38 @@ const gameRooms = computed(() =>
 const rooms = computed(() => gameRooms.value.filter((room) => !room.cleanupAvailable))
 const cleanupRooms = computed(() => gameRooms.value.filter((room) => room.cleanupAvailable))
 const canSubmit = computed(
-  () => isSolo.value || mode.value === 'create' || roomCode.value.trim().length >= 4,
+  () => !arcade.activeRoomCode && (
+    isSolo.value || mode.value === 'create' || roomCode.value.trim().length >= 4
+  ),
 )
 
 watch(gameKey, (key) => {
   rules.value = defaultGameRules(key)
 })
 
+watch(
+  () => props.invitedRoom,
+  (invitedRoom) => {
+    if (!invitedRoom) return
+    mode.value = 'join'
+    roomCode.value = invitedRoom.toUpperCase()
+  },
+)
+
 async function submit() {
   if (!canSubmit.value) return
   const key = props.game.key as ArcadeGameKey
   if (isSolo.value || mode.value === 'create') {
     const created = await arcade.createRoom(key, rules.value)
-    if (created && isSolo.value) await arcade.startGame()
+    if (!created) return
+    if (isSolo.value) await arcade.startGame()
   }
-  else await arcade.joinRoom(key, roomCode.value)
+  else if (!await arcade.joinRoom(key, roomCode.value)) return
+
+  const enteredRoomCode = arcade.activeRoomCode
+  if (enteredRoomCode) {
+    emit('roomEntered', { gameKey: key, roomCode: enteredRoomCode })
+  }
 }
 
 async function chooseRoom(code: string) {
@@ -101,6 +124,14 @@ async function chooseRoom(code: string) {
         <button type="button" @click="showLeaderboard = true"><Trophy :size="17" />排行榜</button>
       </template>
     </GameHomeHeader>
+
+    <section
+      v-if="arcade.activeRoomCode && arcade.activeGame === game.key"
+      class="surface resume-arcade-card"
+    >
+      <div><History :size="20" /><span><strong>你有一局尚未结束</strong><small>房间 {{ arcade.activeRoomCode }}</small></span></div>
+      <button type="button" class="primary-button" @click="emit('resumeRoom')">返回对局</button>
+    </section>
 
     <section v-if="!isSolo" class="surface room-browser">
       <header>
@@ -151,6 +182,7 @@ async function chooseRoom(code: string) {
           class="create-rule-settings"
         />
         <label v-if="!isSolo && mode === 'join'" class="field"><span>房间代码</span><input v-model="roomCode" maxlength="8" class="room-code-input" @input="roomCode = roomCode.toUpperCase()" /></label>
+        <p v-if="arcade.activeRoomCode" class="active-room-hint">请先返回并退出当前房间，再开始或加入其他对局。</p>
         <button type="submit" class="primary-button wide-button" :disabled="!canSubmit">
           <Plus v-if="isSolo || mode === 'create'" :size="19" /><LogIn v-else :size="19" />
           {{ isSolo ? soloIntro.button : mode === 'create' ? `创建${game.name}房间` : '进入房间' }}
@@ -178,6 +210,9 @@ async function chooseRoom(code: string) {
 
 <style scoped>
 .arcade-home { width: min(100%, 980px); padding-bottom: 80px; }
+.resume-arcade-card { margin-bottom: 18px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.resume-arcade-card > div { display: flex; align-items: center; gap: 11px; color: var(--gold); }
+.resume-arcade-card strong,.resume-arcade-card small { display: block; }.resume-arcade-card small { margin-top: 3px; color: var(--muted); }
 .arcade-home .room-browser { margin-bottom: 18px; }
 .arcade-home .join-card { width: min(100%, 760px); margin: 28px auto 0; padding: 10px 26px 26px; }
 .cleanup-room-browser { width: min(100%, 760px); margin: 0 auto; padding: 16px; }
@@ -193,6 +228,7 @@ async function chooseRoom(code: string) {
 .solo-game-intro { margin: 4px 0 20px; padding: 14px 4px 4px; display: flex; align-items: center; gap: 12px; }
 .solo-game-mark { width: 46px; aspect-ratio: 1; display: grid; flex: 0 0 auto; place-items: center; border: 1px solid #78d2aa55; border-radius: 14px; color: #8fe0bd; background: #62c69b16; font-size: 22px; }
 .solo-game-intro strong, .solo-game-intro small { display: block; }.solo-game-intro small { margin-top: 4px; color: var(--muted); line-height: 1.5; }
+.active-room-hint { margin: 0 0 12px; color: var(--muted); font-size: 12px; text-align: center; }
 @media (max-width: 600px) {
   .arcade-home { padding-right: 12px; padding-left: 12px; }
   .arcade-home .join-card { margin-top: 18px; padding: 8px 14px 16px; }
@@ -201,5 +237,6 @@ async function chooseRoom(code: string) {
   .cleanup-room-browser > header { align-items: flex-start; gap: 8px; }
   .cleanup-room-browser header small { font-size: 10px; line-height: 1.45; }
   .cleanup-room-item { grid-template-columns: auto minmax(0, 1fr); }.cleanup-room-item :deep(.cleanup-room-button) { grid-column: 1 / -1; width: 100%; }
+  .resume-arcade-card { align-items: stretch; flex-direction: column; }
 }
 </style>
