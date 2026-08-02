@@ -48,7 +48,7 @@ const games = GAME_CATALOG
         </span>
       </div>
       <div class="account-bar-actions">
-        <button type="button" aria-label="查看战绩" @click="showStats = true"><History :size="16" /><span>战绩</span></button>
+        <button type="button" aria-label="查看全部战绩" @click="showStats = true"><History :size="16" /><span>全部战绩</span></button>
         <button type="button" aria-label="打开设置" @click="showSettings = true"><Settings :size="16" /><span>设置</span></button>
         <button type="button" aria-label="退出登录" @click="emit('logout')"><LogOut :size="16" /><span>退出</span></button>
       </div>
@@ -97,7 +97,7 @@ const games = GAME_CATALOG
 
     <nav class="mobile-salon-dock surface" aria-label="大厅快捷导航">
       <button type="button" class="active"><Gamepad2 :size="20" /><span>大厅</span></button>
-      <button type="button" @click="showStats = true"><History :size="20" /><span>战绩</span></button>
+      <button type="button" aria-label="查看全部战绩" @click="showStats = true"><History :size="20" /><span>全部战绩</span></button>
       <button type="button" @click="showSettings = true"><Settings :size="20" /><span>设置</span></button>
     </nav>
 

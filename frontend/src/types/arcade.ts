@@ -69,7 +69,7 @@ export interface ArcadeSnapshot {
   hostTransferAt?: string | null
   options: Record<string, unknown>
   hostId: string
-  self: { id: string; name: string; seat: number; avatarUrl?: string | null }
+  self: { id: string; accountId?: string; name: string; seat: number; avatarUrl?: string | null }
   players: ArcadePlayer[]
   requiredPlayers: number
   minimumPlayers?: number

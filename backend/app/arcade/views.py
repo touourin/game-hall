@@ -76,6 +76,7 @@ def build_room_view(
         "hostId": room.host_id,
         "self": {
             "id": viewer.id,
+            "accountId": viewer.account_id,
             "name": viewer.name,
             "seat": viewer.seat,
             "avatarUrl": getattr(viewer, "avatar_url", None),

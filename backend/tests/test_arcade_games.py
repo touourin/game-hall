@@ -1432,6 +1432,7 @@ def test_arcade_chat_is_shared_and_bounded() -> None:
     lobby = build_arcade_lobby_view([room], manager.engines)
     view = build_arcade_room_view(room, host, manager.engines["gomoku"])
     assert lobby[0]["hostAvatarUrl"] == "/avatars/jade-owl.webp"
+    assert view["self"]["accountId"] == "account-1"
     assert view["self"]["avatarUrl"] == "/avatars/jade-owl.webp"
     assert view["players"][0]["avatarUrl"] == "/avatars/jade-owl.webp"
     assert (

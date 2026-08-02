@@ -23,6 +23,7 @@ import HostTransferNotice from '../components/HostTransferNotice.vue'
 import RoomExitButton from '../components/RoomExitButton.vue'
 import RoomDissolveButton from '../components/RoomDissolveButton.vue'
 import RoomPageHeader from '../components/RoomPageHeader.vue'
+import RoomRecordActions from '../components/RoomRecordActions.vue'
 import RoomInviteModal from '../components/RoomInviteModal.vue'
 import RoomKickButton from '../components/RoomKickButton.vue'
 import ModeGuide from '../components/ModeGuide.vue'
@@ -158,6 +159,11 @@ const roomHeaderTitle = computed(() => {
   }
   return soloTitles[props.snapshot.gameKey] ?? `房间 ${props.snapshot.roomCode}`
 })
+const roomStatsMode = computed(() => (
+  props.snapshot.gameKey === 'minesweeper'
+    ? String(props.snapshot.options.difficulty ?? 'beginner')
+    : undefined
+))
 watch(
   () => [props.snapshot.phase, props.snapshot.gameKey] as const,
   ([phase]) => {
@@ -272,6 +278,12 @@ function openSharedChat() {
         </button>
       </template>
       <template #actions>
+        <RoomRecordActions
+          :account-id="snapshot.self.accountId"
+          :game-key="snapshot.gameKey"
+          :game-name="snapshot.gameName"
+          :game-mode="roomStatsMode"
+        />
         <button
           v-if="snapshot.phase === 'lobby' && !isSolo"
           type="button"

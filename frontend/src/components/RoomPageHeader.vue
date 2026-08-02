@@ -23,6 +23,7 @@ defineProps<{
 <style scoped>
 .room-page-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
@@ -30,6 +31,7 @@ defineProps<{
 }
 
 .room-page-copy {
+  flex: 1 1 280px;
   min-width: 0;
 }
 
@@ -56,6 +58,7 @@ defineProps<{
 .room-page-actions {
   display: flex;
   flex: 0 0 auto;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
@@ -70,6 +73,7 @@ defineProps<{
 
   .room-page-actions {
     width: 100%;
+    justify-content: flex-start;
   }
 }
 </style>

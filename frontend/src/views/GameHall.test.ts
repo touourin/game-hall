@@ -27,6 +27,8 @@ describe('GameHall', () => {
     expect(wrapper.find('.featured-art-royal').exists()).toBe(true)
     expect(wrapper.find('.mobile-salon-dock').exists()).toBe(true)
     expect(wrapper.findAll('.account-bar-actions button')).toHaveLength(3)
+    expect(wrapper.get('.account-bar-actions [aria-label="查看全部战绩"]').text()).toContain('全部战绩')
+    expect(wrapper.get('.mobile-salon-dock [aria-label="查看全部战绩"]').text()).toContain('全部战绩')
     expect(wrapper.get('[aria-label="退出登录"]').text()).toContain('退出')
     expect(wrapper.get('[aria-label="打开设置"]').attributes('aria-label')).toBe('打开设置')
     expect(wrapper.get('.account-identity-copy').text()).toContain('玩家账号 · tester')

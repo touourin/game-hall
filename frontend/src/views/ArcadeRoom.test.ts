@@ -20,7 +20,7 @@ function snapshot(gameKey: ArcadeGameKey): ArcadeSnapshot {
     options: {},
     phase: 'lobby',
     hostId: 'p1',
-    self: { id: 'p1', name: '玩家一', seat: 0 },
+    self: { id: 'p1', accountId: 'account-1', name: '玩家一', seat: 0 },
     players: [
       { id: 'p1', name: '玩家一', seat: 0, connected: true, isHost: true },
     ],
@@ -268,11 +268,16 @@ describe('ArcadeRoom', () => {
       global: { plugins: [createPinia()] },
     })
 
+    expect(wrapper.get('[aria-label="查看我的战绩"]').text()).toContain('我的战绩')
+    expect(wrapper.get('[aria-label="查看排行榜"]').text()).toContain('排行榜')
+
     await wrapper.get('[aria-label="查看玩法说明"]').trigger('click')
     expect(wrapper.get('.rules-modal').text()).toContain('胜势已成，暗流未息')
     expect(wrapper.get('.rules-modal').text()).toContain('异志之臣')
 
     await wrapper.setProps({ snapshot: avalonSnapshot('role_reveal') })
+    expect(wrapper.find('[aria-label="查看我的战绩"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="查看排行榜"]').exists()).toBe(true)
     expect(wrapper.get('.avalon-table').text()).toContain('只让自己看到')
     expect(wrapper.get('.arcade-player-strip').text()).toContain('玩家一')
     await wrapper.get('[aria-label="查看我的身份"]').trigger('click')
