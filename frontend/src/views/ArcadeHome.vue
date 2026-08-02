@@ -9,6 +9,7 @@ import StatsModal from '../components/StatsModal.vue'
 import GameRuleSettings from '../components/GameRuleSettings.vue'
 import CleanupRoomButton from '../components/CleanupRoomButton.vue'
 import GameHomeHeader from '../components/GameHomeHeader.vue'
+import SoloChallengeLauncher from '../components/SoloChallengeLauncher.vue'
 import { defaultGameRules, gameRuleSummary } from '../gameRules'
 import AvatarImage from '../components/AvatarImage.vue'
 
@@ -32,38 +33,6 @@ const showLeaderboard = ref(false)
 const gameKey = computed(() => props.game.key as ArcadeGameKey)
 const rules = ref<Record<string, unknown>>(defaultGameRules(gameKey.value))
 const isSolo = computed(() => ['reaction', 'schulte', 'minesweeper', 'hanoi'].includes(props.game.key))
-const soloIntro = computed(() => {
-  if (props.game.key === 'hanoi') {
-    return {
-      mark: '塔',
-      title: '把整座圆盘移到最右侧',
-      description: '每次只能移动最上方一块，大圆盘不能压在小圆盘上',
-      button: '开始汉诺塔挑战',
-    }
-  }
-  if (props.game.key === 'schulte') {
-    return {
-      mark: '格',
-      title: '按顺序找到 1–25',
-      description: '5×5 标准挑战，服务端计时并验证每一次点击',
-      button: '开始舒尔特挑战',
-    }
-  }
-  if (props.game.key === 'minesweeper') {
-    return {
-      mark: '雷',
-      title: '清除所有安全方格',
-      description: '首次点击安全；电脑右键、手机长按或插旗模式均可标记地雷',
-      button: '开始扫雷挑战',
-    }
-  }
-  return {
-      mark: '⚡',
-      title: '准备测试你的反应速度',
-      description: '共三轮；看到按钮变绿后，按空格键或直接点击',
-      button: '开始反应挑战',
-    }
-})
 const gameRooms = computed(() =>
   arcade.availableRooms.filter((room) => room.gameKey === props.game.key),
 )
@@ -113,7 +82,7 @@ async function chooseRoom(code: string) {
 </script>
 
 <template>
-  <main class="arcade-home page-container" :class="`game-home-${game.key}`">
+  <main class="arcade-home page-container" :class="[`game-home-${game.key}`, { 'solo-arcade-home': isSolo }]">
     <GameHomeHeader
       :eyebrow="game.players"
       :title="game.name"
@@ -164,30 +133,32 @@ async function chooseRoom(code: string) {
       </div>
     </section>
 
-    <section ref="joinCard" class="surface join-card">
-      <div v-if="!isSolo" class="segmented-control">
+    <SoloChallengeLauncher
+      v-if="isSolo"
+      v-model="rules"
+      :game-key="gameKey"
+      :disabled="!canSubmit"
+      :active-room="Boolean(arcade.activeRoomCode)"
+      @start="submit"
+    />
+
+    <section v-else ref="joinCard" class="surface join-card">
+      <div class="segmented-control">
         <button type="button" :class="{ active: mode === 'create' }" @click="mode = 'create'">创建房间</button>
         <button type="button" :class="{ active: mode === 'join' }" @click="mode = 'join'">加入房间</button>
       </div>
-      <div v-else class="solo-game-intro">
-        <span class="solo-game-mark">{{ soloIntro.mark }}</span>
-        <div>
-          <strong>{{ soloIntro.title }}</strong>
-          <small>{{ soloIntro.description }}</small>
-        </div>
-      </div>
       <form @submit.prevent="submit">
         <GameRuleSettings
-          v-if="mode === 'create' && !['reaction', 'schulte'].includes(gameKey)"
+          v-if="mode === 'create'"
           v-model="rules"
           :game-key="gameKey"
           class="create-rule-settings"
         />
-        <label v-if="!isSolo && mode === 'join'" class="field"><span>房间代码</span><input v-model="roomCode" maxlength="8" class="room-code-input" @input="roomCode = roomCode.toUpperCase()" /></label>
+        <label v-if="mode === 'join'" class="field"><span>房间代码</span><input v-model="roomCode" maxlength="8" class="room-code-input" @input="roomCode = roomCode.toUpperCase()" /></label>
         <p v-if="arcade.activeRoomCode" class="active-room-hint">请先返回并退出当前房间，再开始或加入其他对局。</p>
         <button type="submit" class="primary-button wide-button" :disabled="!canSubmit">
-          <Plus v-if="isSolo || mode === 'create'" :size="19" /><LogIn v-else :size="19" />
-          {{ isSolo ? soloIntro.button : mode === 'create' ? `创建${game.name}房间` : '进入房间' }}
+          <Plus v-if="mode === 'create'" :size="19" /><LogIn v-else :size="19" />
+          {{ mode === 'create' ? `创建${game.name}房间` : '进入房间' }}
         </button>
       </form>
     </section>
@@ -212,6 +183,9 @@ async function chooseRoom(code: string) {
 
 <style scoped>
 .arcade-home { width: min(100%, 980px); padding-bottom: 80px; }
+.arcade-home.solo-arcade-home { width: min(100%, 1120px); }
+.solo-arcade-home :deep(.game-home-header) { min-height: 178px; padding-bottom: 35px; }
+.solo-arcade-home :deep(.game-home-header::after) { bottom: 14px; }
 .resume-arcade-card { margin-bottom: 18px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .resume-arcade-card > div { display: flex; align-items: center; gap: 11px; color: var(--gold); }
 .resume-arcade-card strong,.resume-arcade-card small { display: block; }.resume-arcade-card small { margin-top: 3px; color: var(--muted); }
@@ -227,9 +201,6 @@ async function chooseRoom(code: string) {
 .cleanup-room-list { display: grid; gap: 8px; }
 .cleanup-room-item { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 11px; border: 1px solid rgba(231, 119, 119, .24); border-radius: 13px; padding: 11px 12px; background: rgba(96, 32, 36, .1); }
 .create-rule-settings { margin-bottom: 22px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 21px 2px; }
-.solo-game-intro { margin: 4px 0 20px; padding: 14px 4px 4px; display: flex; align-items: center; gap: 12px; }
-.solo-game-mark { width: 46px; aspect-ratio: 1; display: grid; flex: 0 0 auto; place-items: center; border: 1px solid #78d2aa55; border-radius: 14px; color: #8fe0bd; background: #62c69b16; font-size: 22px; }
-.solo-game-intro strong, .solo-game-intro small { display: block; }.solo-game-intro small { margin-top: 4px; color: var(--muted); line-height: 1.5; }
 .active-room-hint { margin: 0 0 12px; color: var(--muted); font-size: 12px; text-align: center; }
 @media (max-width: 600px) {
   .arcade-home { padding-right: 12px; padding-left: 12px; }
@@ -240,5 +211,6 @@ async function chooseRoom(code: string) {
   .cleanup-room-browser header small { font-size: 10px; line-height: 1.45; }
   .cleanup-room-item { grid-template-columns: auto minmax(0, 1fr); }.cleanup-room-item :deep(.cleanup-room-button) { grid-column: 1 / -1; width: 100%; }
   .resume-arcade-card { align-items: stretch; flex-direction: column; }
+  .solo-arcade-home :deep(.game-home-header) { padding-bottom: 27px; }
 }
 </style>

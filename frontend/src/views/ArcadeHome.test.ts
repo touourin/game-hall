@@ -170,6 +170,8 @@ describe('ArcadeHome', () => {
     expect(createRoom).toHaveBeenCalledWith('hanoi', { discCount: 6 })
     expect(startGame).toHaveBeenCalledOnce()
     expect(wrapper.text()).toContain('把整座圆盘移到最右侧')
+    expect(wrapper.find('[data-testid="solo-challenge-icon"] svg').exists()).toBe(true)
+    expect(wrapper.find('.solo-game-mark').exists()).toBe(false)
   })
 
   it('starts an expert Minesweeper challenge with classic rules', async () => {
@@ -206,6 +208,35 @@ describe('ArcadeHome', () => {
     expect(createRoom).toHaveBeenCalledWith('minesweeper', { difficulty: 'expert' })
     expect(startGame).toHaveBeenCalledOnce()
     expect(wrapper.text()).toContain('清除所有安全方格')
+    expect(wrapper.find('[data-testid="solo-challenge-icon"] svg').exists()).toBe(true)
+    expect(wrapper.find('.solo-game-mark').exists()).toBe(false)
+  })
+
+  it('renders the reaction challenge with a vector identity and complete console', () => {
+    const wrapper = mount(ArcadeHome, {
+      props: {
+        game: {
+          key: 'reaction',
+          name: '反应挑战',
+          players: '1 人',
+          description: '盯住信号，挑战毫秒反应',
+        },
+        account: {
+          id: 'account-1',
+          username: 'tester',
+          playerName: '测试玩家',
+          nextRenameAt: null,
+          createdAt: '2026-08-01T00:00:00Z',
+        },
+      },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.find('[data-testid="solo-challenge-icon"] svg').exists()).toBe(true)
+    expect(wrapper.find('.solo-game-mark').exists()).toBe(false)
+    expect(wrapper.text()).toContain('挑战你的毫秒反应')
+    expect(wrapper.text()).toContain('保持待命')
+    expect(wrapper.text()).toContain('三轮平均计榜')
   })
 
   it('shows and cleans an abandoned room without joining it', async () => {
