@@ -5,7 +5,13 @@ import CleanupRoomButton from '../components/CleanupRoomButton.vue'
 import ArcadeHome from './ArcadeHome.vue'
 
 describe('ArcadeHome', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => {
+    localStorage.clear()
+    document.body.innerHTML = ''
+  })
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
 
   it('keeps account settings available from every game home', async () => {
     const wrapper = mount(ArcadeHome, {
@@ -80,12 +86,14 @@ describe('ArcadeHome', () => {
       global: { plugins: [pinia] },
     })
     await wrapper.get('.match-rule-summary button').trigger('click')
-    const renju = wrapper
-      .findAll('.game-rule-settings button')
-      .find((button) => button.text().includes('有禁手连珠'))
+    const renju = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('.game-rule-settings button'),
+    ).find((button) => button.textContent?.includes('有禁手连珠'))
 
-    await renju?.trigger('click')
-    await wrapper.get('.match-rule-modal > footer button').trigger('click')
+    renju?.click()
+    await wrapper.vm.$nextTick()
+    document.querySelector<HTMLButtonElement>('.match-rule-modal > footer button')?.click()
+    await wrapper.vm.$nextTick()
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
@@ -123,12 +131,14 @@ describe('ArcadeHome', () => {
       global: { plugins: [pinia] },
     })
     await wrapper.get('.match-rule-summary button').trigger('click')
-    const courtUndercurrent = wrapper
-      .findAll('.game-rule-settings button')
-      .find((button) => button.text().includes('王庭暗流'))
+    const courtUndercurrent = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('.game-rule-settings button'),
+    ).find((button) => button.textContent?.includes('王庭暗流'))
 
-    await courtUndercurrent?.trigger('click')
-    await wrapper.get('.match-rule-modal > footer button').trigger('click')
+    courtUndercurrent?.click()
+    await wrapper.vm.$nextTick()
+    document.querySelector<HTMLButtonElement>('.match-rule-modal > footer button')?.click()
+    await wrapper.vm.$nextTick()
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 

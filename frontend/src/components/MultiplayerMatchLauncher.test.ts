@@ -9,6 +9,10 @@ const game = {
 }
 
 describe('MultiplayerMatchLauncher', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
   it('renders the premium game identity and rule summary', () => {
     const wrapper = mount(MultiplayerMatchLauncher, {
       props: {
@@ -61,6 +65,7 @@ describe('MultiplayerMatchLauncher', () => {
 
   it('edits room rules in a focused modal and saves them explicitly', async () => {
     const wrapper = mount(MultiplayerMatchLauncher, {
+      attachTo: document.body,
       props: {
         game,
         gameKey: 'xiangqi',
@@ -77,16 +82,21 @@ describe('MultiplayerMatchLauncher', () => {
     })
 
     await wrapper.get('.match-rule-summary button').trigger('click')
-    expect(wrapper.get('.match-rule-modal').text()).toContain('中国象棋房间规则')
+    const dialog = document.body.querySelector<HTMLElement>('.match-rule-modal')
+    expect(dialog?.textContent).toContain('中国象棋房间规则')
+    expect(wrapper.element.contains(dialog)).toBe(false)
 
-    const hostFirst = wrapper
-      .findAll('.game-rule-settings button')
-      .find((button) => button.find('strong').text() === '房主')
-    await hostFirst?.trigger('click')
-    await wrapper.get('.match-rule-modal > footer button').trigger('click')
+    const hostFirst = Array.from(
+      dialog?.querySelectorAll<HTMLButtonElement>('.game-rule-settings button') ?? [],
+    ).find((button) => button.querySelector('strong')?.textContent === '房主')
+    hostFirst?.click()
+    await wrapper.vm.$nextTick()
+    dialog?.querySelector<HTMLButtonElement>('footer button')?.click()
+    await wrapper.vm.$nextTick()
 
     expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toMatchObject({
       firstPlayer: 'host',
     })
+    expect(document.body.querySelector('.match-rule-modal')).toBeNull()
   })
 })
