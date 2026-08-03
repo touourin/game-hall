@@ -411,7 +411,7 @@ describe('ArcadeRoom', () => {
     expect(wrapper.emitted('settings')).toHaveLength(1)
 
     await wrapper.get('[aria-label="查看玩法说明"]').trigger('click')
-    expect(wrapper.get('.rules-modal').text()).toContain('胜势已成，暗流未息')
+    expect(wrapper.get('.rules-modal').text()).toContain('光明渐盛，暗流未息')
     expect(wrapper.get('.rules-modal').text()).toContain('心怀异念之臣')
 
     await wrapper.setProps({ snapshot: avalonSnapshot('role_reveal') })

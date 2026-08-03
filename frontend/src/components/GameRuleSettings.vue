@@ -47,7 +47,6 @@ function setOption(key: string, value: unknown) {
     <details
       v-if="gameKey === 'avalon' && option('mode') === 'court_undercurrent'"
       class="avalon-mode-guide-disclosure"
-      open
     >
       <summary>
         <span><strong>王庭暗流完整说明</strong><small>一分钟导读 · 完整规则 · 完整背景故事</small></span>

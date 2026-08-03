@@ -337,11 +337,74 @@ def test_court_undercurrent_starts_dagger_grant_with_balanced_candidates(
     assert len(room.dagger_candidate_ids) == candidate_count
     assert dissenting.id in room.dagger_candidate_ids
     assert all(
-        room.player(player_id).alignment == Alignment.GOOD
+        room.player(player_id).role
+        not in {Role.ASSASSIN, Role.MORGANA, Role.MORDRED, Role.MINION}
         for player_id in room.dagger_candidate_ids
     )
     assert room.settings.lady_enabled is False
     assert room.settings.early_assassination_enabled is False
+
+
+@pytest.mark.parametrize(
+    ("player_count", "grant_seed"),
+    [(7, 5), (10, 4)],
+)
+def test_oberon_can_be_random_dagger_decoy_without_being_forced(
+    player_count: int, grant_seed: int
+):
+    engine, room = start_room(
+        player_count, mode=AvalonMode.COURT_UNDERCURRENT
+    )
+    engine.rng = random.Random(grant_seed)
+    complete_three_successes(room)
+
+    engine.continue_after_mission(room, room.host_id)
+
+    candidate_roles = {
+        room.player(player_id).role
+        for player_id in room.dagger_candidate_ids
+    }
+    assert Role.DISSENTING_COURTIER in candidate_roles
+    assert Role.OBERON in candidate_roles
+
+
+@pytest.mark.parametrize("player_count", [7, 10])
+def test_oberon_is_not_a_required_dagger_candidate(player_count: int):
+    engine, room = start_room(
+        player_count, mode=AvalonMode.COURT_UNDERCURRENT
+    )
+    engine.rng = random.Random(0)
+    complete_three_successes(room)
+
+    engine.continue_after_mission(room, room.host_id)
+
+    candidate_roles = {
+        room.player(player_id).role
+        for player_id in room.dagger_candidate_ids
+    }
+    assert Role.DISSENTING_COURTIER in candidate_roles
+    assert Role.OBERON not in candidate_roles
+
+
+def test_selecting_oberon_is_a_generic_dagger_miss():
+    engine, room = start_room(7, mode=AvalonMode.COURT_UNDERCURRENT)
+    engine.rng = random.Random(5)
+    complete_three_successes(room)
+    engine.continue_after_mission(room, room.host_id)
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    oberon = next(
+        player for player in room.players if player.role == Role.OBERON
+    )
+
+    engine.grant_dagger(room, assassin.id, oberon.id)
+
+    assert room.phase == Phase.GAME_OVER
+    assert room.winner == Alignment.GOOD
+    assert room.dagger_hit is False
+    assert room.ending_route == "dagger_miss"
+    assert "奥伯伦" not in (room.win_reason or "")
 
 
 def test_wrong_dagger_target_gives_good_the_win_without_assassination():

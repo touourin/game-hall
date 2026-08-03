@@ -448,8 +448,8 @@ class GameEngine:
         decoys = [
             player
             for player in room.players
-            if player.alignment == Alignment.GOOD
-            and player.id != dissenting.id
+            if player.id != dissenting.id
+            and player.role not in KNOWN_EVIL_ROLES
         ]
         candidate_count = 3 if len(room.players) == 10 else 2
         candidates = [

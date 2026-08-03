@@ -251,11 +251,14 @@ def test_court_undercurrent_initial_knowledge_is_private():
         "role"
     ]["knowledge"]
 
-    assert any(
-        item["playerId"] == dissenting.id
-        and item["kind"] == "dissenting_courtier"
+    assert all(
+        item["playerId"] != dissenting.id
         for item in merlin_knowledge
     )
+    merlin_description = build_player_view(room, merlin, engine)["self"][
+        "role"
+    ]["description"]
+    assert "心怀异念之臣" not in merlin_description
     assert dissenting_knowledge == [
         {
             "playerId": assassin.id,
@@ -268,6 +271,34 @@ def test_court_undercurrent_initial_knowledge_is_private():
         item["playerId"] != dissenting.id
         for item in assassin_knowledge
     )
+
+
+def test_five_player_merlin_cannot_identify_dissenting_or_percival():
+    engine, room = start_room(5, mode=AvalonMode.COURT_UNDERCURRENT)
+    merlin = next(player for player in room.players if player.role == Role.MERLIN)
+    percival = next(
+        player for player in room.players if player.role == Role.PERCIVAL
+    )
+    dissenting = next(
+        player
+        for player in room.players
+        if player.role == Role.DISSENTING_COURTIER
+    )
+
+    knowledge_ids = {
+        item["playerId"]
+        for item in build_player_view(room, merlin, engine)["self"]["role"][
+            "knowledge"
+        ]
+    }
+
+    assert percival.id not in knowledge_ids
+    assert dissenting.id not in knowledge_ids
+    assert knowledge_ids == {
+        player.id
+        for player in room.players
+        if player.alignment == Alignment.EVIL
+    }
 
 
 def test_only_assassin_sees_dagger_candidates():
@@ -325,6 +356,28 @@ def test_successful_dagger_grant_reunites_evil_except_oberon():
     morgana_view = build_player_view(room, morgana, engine)
     dissenting_view = build_player_view(room, dissenting, engine)
     oberon_view = build_player_view(room, oberon, engine)
+    good_view = build_player_view(
+        room,
+        next(player for player in room.players if player.alignment == Alignment.GOOD),
+        engine,
+    )
+
+    for view in (
+        assassin_view,
+        morgana_view,
+        dissenting_view,
+        oberon_view,
+        good_view,
+    ):
+        assert view["courtUndercurrent"]["daggerHit"] is True
+        assert (
+            view["courtUndercurrent"]["daggerTargetId"]
+            == dissenting.id
+        )
+        assert (
+            view["courtUndercurrent"]["transformedPlayerId"]
+            == dissenting.id
+        )
 
     assert any(
         item["playerId"] == dissenting.id

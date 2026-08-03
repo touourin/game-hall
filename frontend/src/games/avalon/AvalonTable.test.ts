@@ -567,7 +567,9 @@ describe('AvalonTable role reveal', () => {
     snapshot.phase = 'final_council'
     snapshot.settings.mode = 'court_undercurrent'
     snapshot.courtUndercurrent.enabled = true
+    snapshot.courtUndercurrent.daggerTargetId = 'p1'
     snapshot.courtUndercurrent.daggerHit = true
+    snapshot.courtUndercurrent.transformedPlayerId = 'p1'
     snapshot.courtUndercurrent.eligibleTargetIds = ['p2', 'p3']
     snapshot.actions.canConfirmRole = false
     snapshot.actions.canDissentingAssassinate = true
@@ -609,6 +611,7 @@ describe('AvalonTable role reveal', () => {
     })
 
     expect(wrapper.text()).toContain('王庭最后议事')
+    expect(wrapper.text()).toContain('1号 测试玩家 已接过黑誓之刃')
     expect(wrapper.text()).toContain('你已必定转化为邪恶阵营')
     await wrapper.findAll('.player-grid .player-tile')[1]!.trigger('click')
     await wrapper.get('.danger-button').trigger('click')

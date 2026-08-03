@@ -984,7 +984,10 @@ function selfRoleArtworkFraming() {
         <span><Crown :size="29" /></span>
         <p>黑誓授刃成功</p>
         <h2>王庭最后议事</h2>
-        <strong>所有人仍可发言，梅林必须隐藏到最后</strong>
+        <strong>
+          {{ playerLabel(snapshot.courtUndercurrent.transformedPlayerId) }}
+          已接过黑誓之刃；所有人仍可发言，梅林必须隐藏到最后
+        </strong>
       </div>
 
       <button class="surface final-council-chat" type="button" @click="openSharedChat">
@@ -1040,8 +1043,11 @@ function selfRoleArtworkFraming() {
       </template>
       <div v-else class="waiting-card tall">
         <span class="pulse-dot danger-dot" />
-        <strong>心怀异念之臣正在判断梅林</strong>
-        <small>他的身份仍未向好人公开，所有人都可以继续发言</small>
+        <strong>
+          {{ playerLabel(snapshot.courtUndercurrent.transformedPlayerId) }}
+          正在判断梅林
+        </strong>
+        <small>持刃者已向全场公开，所有人都可以继续发言</small>
       </div>
     </section>
 

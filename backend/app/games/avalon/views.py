@@ -103,13 +103,6 @@ def build_player_view(
         role_description = ROLE_DESCRIPTIONS[viewer.role]
         if (
             room.settings.mode == AvalonMode.COURT_UNDERCURRENT
-            and viewer.role == Role.MERLIN
-        ):
-            role_description += (
-                " 你还知道心怀异念之臣是谁，必须同时向他隐藏身份。"
-            )
-        if (
-            room.settings.mode == AvalonMode.COURT_UNDERCURRENT
             and viewer.role == Role.ASSASSIN
         ):
             role_description = (
@@ -334,7 +327,7 @@ def build_player_view(
             ),
             "daggerTargetId": (
                 room.dagger_target_id
-                if room.phase == Phase.GAME_OVER
+                if room.phase in {Phase.FINAL_COUNCIL, Phase.GAME_OVER}
                 or viewer.role == Role.ASSASSIN
                 or viewer.id == room.transformed_player_id
                 else None
@@ -346,7 +339,7 @@ def build_player_view(
             ),
             "transformedPlayerId": (
                 room.transformed_player_id
-                if room.phase == Phase.GAME_OVER
+                if room.phase in {Phase.FINAL_COUNCIL, Phase.GAME_OVER}
                 else None
             ),
             "eligibleTargetIds": (
@@ -393,24 +386,6 @@ def _knowledge_for_player(room: Room, viewer: Player) -> list[dict[str, str]]:
                         "playerName": player.name,
                         "kind": "evil",
                         "label": "你看到的邪恶势力",
-                    }
-                )
-        if room.settings.mode == AvalonMode.COURT_UNDERCURRENT:
-            dissenting = next(
-                (
-                    player
-                    for player in room.players
-                    if player.role == Role.DISSENTING_COURTIER
-                ),
-                None,
-            )
-            if dissenting is not None:
-                knowledge.append(
-                    {
-                        "playerId": dissenting.id,
-                        "playerName": dissenting.name,
-                        "kind": "dissenting_courtier",
-                        "label": "你察觉到的心怀异念之臣",
                     }
                 )
     elif viewer.role == Role.PERCIVAL:
