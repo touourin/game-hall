@@ -254,6 +254,9 @@ def build_player_view(
                     "teamIds": record.team_ids,
                     "success": record.success,
                     "failCount": record.fail_count,
+                    "failedByRejections": getattr(
+                        record, "failed_by_rejections", False
+                    ),
                 }
                 for record in room.mission_history
             ],

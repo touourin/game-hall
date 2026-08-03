@@ -767,7 +767,7 @@ function openSharedChat() {
           <ul>
             <li>好人只能提交任务成功，坏人可选择成功或失败。</li>
             <li>队伍表决需要过半赞成，平票视为否决。</li>
-            <li>连续五次组队被否决，坏人直接获胜。</li>
+            <li>同一任务连续五次组队被否决，当前任务直接失败。</li>
             <li>部分玩家掉线超过 10 分钟，其所属阵营弃权；全员离线只进入房间清理流程。</li>
             <li v-if="snapshot.players.length >= 7">第四次任务需要两张失败票才会失败。</li>
             <li v-if="avalonSnapshot.settings.ladyEnabled">仙女只查阵营，持有者可以谎报查验结果。</li>

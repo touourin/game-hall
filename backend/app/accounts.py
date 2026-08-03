@@ -1211,6 +1211,9 @@ class AccountStore:
                     "teamIds": mission.team_ids,
                     "success": mission.success,
                     "failCount": mission.fail_count,
+                    "failedByRejections": getattr(
+                        mission, "failed_by_rejections", False
+                    ),
                 }
                 for mission in room.mission_history
             ],

@@ -204,8 +204,22 @@ watch(activeGameMode, loadStats)
               :class="mission.success ? 'success' : 'failed'"
             >
               <strong>第 {{ mission.number }} 次任务</strong>
-              <span>{{ mission.success ? '成功' : `失败 · ${mission.failCount} 张失败票` }}</span>
-              <small>队伍：{{ seatList(selectedMatch, mission.teamIds) }}</small>
+              <span>
+                {{
+                  mission.success
+                    ? '成功'
+                    : mission.failedByRejections
+                      ? '失败 · 五次组队均被否决'
+                      : `失败 · ${mission.failCount} 张失败票`
+                }}
+              </span>
+              <small>
+                {{
+                  mission.failedByRejections
+                    ? '本次任务未执行'
+                    : `队伍：${seatList(selectedMatch, mission.teamIds)}`
+                }}
+              </small>
             </div>
           </div>
         </div>

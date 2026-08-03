@@ -666,4 +666,32 @@ describe('AvalonTable role reveal', () => {
     expect(record).toContain('真实身份为 梅林')
   })
 
+  it('shows five rejected proposals as one failed mission', () => {
+    const snapshot = roleRevealSnapshot(1)
+    snapshot.phase = 'round_result'
+    snapshot.actions.canConfirmRole = false
+    snapshot.actions.canContinueRound = true
+    snapshot.game.missionHistory = [
+      {
+        number: 1,
+        teamIds: [],
+        success: false,
+        failCount: 0,
+        failedByRejections: true,
+      },
+    ]
+    snapshot.game.failCount = 1
+
+    const wrapper = mount(AvalonTable, {
+      props: { snapshot },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.get('.result-hero').text()).toContain('任务失败')
+    expect(wrapper.get('.result-hero').text()).toContain(
+      '连续五次组队被否决，本次任务直接失败',
+    )
+    expect(wrapper.get('.score-summary').text()).toContain('莫德雷德阵营1次失败')
+  })
+
 })

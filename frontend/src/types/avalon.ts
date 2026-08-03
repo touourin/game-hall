@@ -57,6 +57,7 @@ export interface MissionRecord {
   teamIds: string[]
   success: boolean
   failCount: number
+  failedByRejections: boolean
 }
 
 export interface ProposalRecord {

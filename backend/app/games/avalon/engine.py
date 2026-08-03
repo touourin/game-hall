@@ -156,12 +156,18 @@ class GameEngine:
                 room.phase = Phase.MISSION_VOTING
             else:
                 if room.proposal_attempt >= 5:
-                    self._finish(
-                        room,
-                        Alignment.EVIL,
-                        "同一任务连续五次组队被否决",
-                        ending_route="proposal_rejections",
+                    room.mission_history.append(
+                        MissionRecord(
+                            number=room.mission_index + 1,
+                            team_ids=[],
+                            success=False,
+                            fail_count=0,
+                            failed_by_rejections=True,
+                        )
                     )
+                    room.selected_team_ids.clear()
+                    room.mission_votes.clear()
+                    room.phase = Phase.ROUND_RESULT
                 else:
                     room.proposal_attempt += 1
                     self._rotate_leader(room)

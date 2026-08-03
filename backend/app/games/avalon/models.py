@@ -84,6 +84,7 @@ class MissionRecord:
     team_ids: list[str]
     success: bool
     fail_count: int
+    failed_by_rejections: bool = False
 
 
 @dataclass

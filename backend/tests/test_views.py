@@ -126,6 +126,32 @@ def test_lady_result_is_only_visible_to_inspector():
     assert "alignment" not in other_view["lady"]["history"][-1]
 
 
+def test_mission_view_marks_failure_caused_by_five_rejections():
+    engine, room = start_room(5)
+    room.mission_history = [
+        MissionRecord(
+            1,
+            [],
+            False,
+            0,
+            failed_by_rejections=True,
+        )
+    ]
+    room.phase = Phase.ROUND_RESULT
+
+    view = build_player_view(room, room.players[0], engine)
+
+    assert view["game"]["missionHistory"] == [
+        {
+            "number": 1,
+            "teamIds": [],
+            "success": False,
+            "failCount": 0,
+            "failedByRejections": True,
+        }
+    ]
+
+
 def test_chat_history_is_visible_to_every_room_member():
     engine, room = start_room(5)
     sender = room.players[0]

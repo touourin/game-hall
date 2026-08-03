@@ -77,8 +77,12 @@ def test_good_player_cannot_sabotage_mission():
         engine.vote_mission(room, good_player.id, success=False)
 
 
-def test_five_rejected_teams_give_evil_the_win():
-    engine, room = start_room()
+@pytest.mark.parametrize(
+    "mode",
+    [AvalonMode.STANDARD, AvalonMode.COURT_UNDERCURRENT],
+)
+def test_five_rejected_teams_fail_only_the_current_mission(mode):
+    engine, room = start_room(mode=mode)
     confirm_all_roles(engine, room)
 
     for _ in range(5):
@@ -91,11 +95,56 @@ def test_five_rejected_teams_give_evil_the_win():
         for player in room.players:
             engine.vote_team(room, player.id, approve=False)
 
-    assert room.phase == Phase.GAME_OVER
-    assert room.winner == Alignment.EVIL
-    assert "五次" in room.win_reason
+    assert room.phase == Phase.ROUND_RESULT
+    assert room.winner is None
+    assert room.fail_count == 1
+    assert room.mission_history == [
+        MissionRecord(
+            number=1,
+            team_ids=[],
+            success=False,
+            fail_count=0,
+            failed_by_rejections=True,
+        )
+    ]
     assert len(room.proposal_history) == 5
     assert all(not record.accepted for record in room.proposal_history)
+
+    engine.continue_after_mission(room, room.host_id)
+
+    assert room.phase == Phase.TEAM_BUILDING
+    assert room.mission_index == 1
+    assert room.proposal_attempt == 1
+
+
+def test_fifth_rejection_on_third_failed_mission_gives_evil_the_win():
+    engine, room = start_room()
+    confirm_all_roles(engine, room)
+    room.mission_history = [
+        MissionRecord(1, ["p0", "p1"], False, 1),
+        MissionRecord(2, ["p0", "p1", "p2"], False, 1),
+    ]
+    room.mission_index = 2
+
+    for _ in range(5):
+        required = 2
+        engine.propose_team(
+            room,
+            room.leader.id,
+            [player.id for player in room.players[:required]],
+        )
+        for player in room.players:
+            engine.vote_team(room, player.id, approve=False)
+
+    assert room.phase == Phase.ROUND_RESULT
+    assert room.fail_count == 3
+    assert room.winner is None
+
+    engine.continue_after_mission(room, room.host_id)
+
+    assert room.phase == Phase.GAME_OVER
+    assert room.winner == Alignment.EVIL
+    assert room.ending_route == "missions"
 
 
 def test_completed_team_vote_is_recorded_for_replay():

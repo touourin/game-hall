@@ -719,7 +719,13 @@ function selfRoleArtworkFraming() {
         </span>
         <p>第 {{ latestMission.number }} 次任务</p>
         <h2>{{ latestMission.success ? '任务成功' : '任务失败' }}</h2>
-        <strong>出现 {{ latestMission.failCount }} 张失败票</strong>
+        <strong>
+          {{
+            latestMission.failedByRejections
+              ? '连续五次组队被否决，本次任务直接失败'
+              : `出现 ${latestMission.failCount} 张失败票`
+          }}
+        </strong>
       </div>
 
       <div class="score-summary">
@@ -1485,7 +1491,12 @@ function selfRoleArtworkFraming() {
             </div>
 
             <div
-              v-if="proposal.accepted && missionOutcome(proposal.missionNumber)"
+              v-if="
+                missionOutcome(proposal.missionNumber) &&
+                (proposal.accepted ||
+                  (proposal.attempt === 5 &&
+                    missionOutcome(proposal.missionNumber)?.failedByRejections))
+              "
               class="replay-mission-result"
               :class="
                 missionOutcome(proposal.missionNumber)?.success
@@ -1501,7 +1512,11 @@ function selfRoleArtworkFraming() {
                 }}
               </span>
               <strong>
-                {{ missionOutcome(proposal.missionNumber)?.failCount }} 张失败票
+                {{
+                  missionOutcome(proposal.missionNumber)?.failedByRejections
+                    ? '五次组队均被否决'
+                    : `${missionOutcome(proposal.missionNumber)?.failCount} 张失败票`
+                }}
               </strong>
             </div>
           </article>

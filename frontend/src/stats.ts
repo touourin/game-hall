@@ -76,6 +76,7 @@ export interface MatchDetail {
       teamIds: string[]
       success: boolean
       failCount: number
+      failedByRejections?: boolean
     }>
     proposals?: Array<{
       missionNumber: number
