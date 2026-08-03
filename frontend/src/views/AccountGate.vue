@@ -22,15 +22,19 @@ const localError = ref<string | null>(null)
 
 const canSubmit = computed(() => {
   if (mode.value === 'guest') {
-    return playerName.value.trim().length >= 2
+    return playerName.value.trim().length >= 1
       && playerName.value.trim().length <= 12
   }
-  if (username.value.trim().length < 2 || password.value.length < 6) {
+  if (
+    username.value.trim().length < 2
+    || username.value.trim().length > 64
+    || password.value.length < 6
+  ) {
     return false
   }
   if (mode.value === 'register') {
     return (
-      playerName.value.trim().length >= 2
+      playerName.value.trim().length >= 1
       && password.value === confirmPassword.value
     )
   }
@@ -115,9 +119,9 @@ function submit() {
           <input
             v-model="username"
             minlength="2"
-            maxlength="20"
+            maxlength="64"
             autocomplete="username"
-            placeholder="2–20 个字符，用于登录"
+            placeholder="2–64 个字符，可使用邮箱"
           />
         </label>
 
@@ -125,10 +129,10 @@ function submit() {
           <span>游戏昵称</span>
           <input
             v-model="playerName"
-            minlength="2"
+            minlength="1"
             maxlength="12"
             autocomplete="nickname"
-            :placeholder="mode === 'guest' ? '2–12 个字符，本次游客身份使用' : '2–12 个字符，对局中显示'"
+            :placeholder="mode === 'guest' ? '1–12 个字符，本次游客身份使用' : '1–12 个字符，对局中显示'"
           />
         </label>
 

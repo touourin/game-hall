@@ -56,6 +56,43 @@ describe('AccountGate', () => {
     ])
   })
 
+  it('allows an email-style login name up to 64 characters', async () => {
+    const wrapper = mount(AccountGate, {
+      props: { busy: false, error: null },
+    })
+    const usernameInput = wrapper.get('input[autocomplete="username"]')
+
+    expect(usernameInput.attributes('maxlength')).toBe('64')
+    expect(usernameInput.attributes('placeholder')).toContain('可使用邮箱')
+    await usernameInput.setValue('gantianyu+game.account@sinodata.example')
+
+    expect((usernameInput.element as HTMLInputElement).value).toBe(
+      'gantianyu+game.account@sinodata.example',
+    )
+  })
+
+  it('allows a one-character game nickname for registration and guests', async () => {
+    const wrapper = mount(AccountGate, {
+      props: { busy: false, error: null },
+    })
+    await wrapper.findAll('.account-mode button')[1]!.trigger('click')
+    const registerInputs = wrapper.findAll('input')
+    await registerInputs[0]!.setValue('single_name')
+    await registerInputs[1]!.setValue('王')
+    await registerInputs[2]!.setValue('secret123')
+    await registerInputs[3]!.setValue('secret123')
+    await wrapper.get('form').trigger('submit')
+
+    expect(wrapper.emitted('register')?.[0]?.[0]).toMatchObject({
+      playerName: '王',
+    })
+
+    await wrapper.findAll('.account-mode button')[2]!.trigger('click')
+    await wrapper.get('input').setValue('李')
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.emitted('guest')?.[0]?.[0]).toEqual({ playerName: '李' })
+  })
+
   it('enters with only a temporary guest nickname', async () => {
     const wrapper = mount(AccountGate, {
       props: { busy: false, error: null },

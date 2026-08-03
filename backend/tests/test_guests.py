@@ -186,3 +186,10 @@ def test_avalon_keeps_platform_guest_access_without_changing_game_rules() -> Non
     manager.start(room, host.id)
     assert room.options["allowGuests"] is False
     assert room.stats_eligible is True
+
+
+def test_single_character_guest_nickname_is_allowed() -> None:
+    guest, token = issue_guest_session("王")
+
+    assert guest.player_name == "王"
+    assert guest_for_token(token) is not None

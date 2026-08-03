@@ -66,7 +66,7 @@ const renameLocked = computed(() =>
 const canRename = computed(() => {
   const normalized = playerName.value.trim()
   return !renameLocked.value
-    && normalized.length >= 2
+    && normalized.length >= 1
     && normalized.length <= 12
     && normalized !== props.account.playerName
 })
@@ -254,7 +254,7 @@ function confirmAvatarCrop(file: File) {
             <span>游戏昵称</span>
             <input
               v-model="playerName"
-              minlength="2"
+              minlength="1"
               maxlength="12"
               autocomplete="username"
               :disabled="renameLocked"

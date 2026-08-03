@@ -32,6 +32,8 @@ from .games.avalon.models import ROLE_ALIGNMENT, Room, Role
 logger = logging.getLogger(__name__)
 SESSION_LIFETIME = timedelta(days=30)
 PLAYER_NAME_CHANGE_INTERVAL = timedelta(days=30)
+USERNAME_MIN_LENGTH = 2
+USERNAME_MAX_LENGTH = 64
 GAME_KEY = "avalon"
 # Accounts present when role progression shipped retain the complete skin library.
 AVALON_ROLE_SKIN_PROGRESSION_START = datetime(2026, 8, 2, 17, 18, 0)
@@ -1298,19 +1300,22 @@ class AccountStore:
     @staticmethod
     def _normalize_username(username: str) -> tuple[str, str]:
         normalized = username.strip()
-        if not 2 <= len(normalized) <= 20:
-            raise AccountError("账号名需要 2–20 个字符")
+        if not USERNAME_MIN_LENGTH <= len(normalized) <= USERNAME_MAX_LENGTH:
+            raise AccountError("账号名需要 2–64 个字符")
         if not all(
-            character.isalnum() or character in "_-" for character in normalized
+            character.isalnum() or character in "._@+-"
+            for character in normalized
         ):
-            raise AccountError("账号名只能使用文字、数字、下划线或短横线")
+            raise AccountError(
+                "账号名只能使用文字、数字及 . _ @ + -"
+            )
         return normalized, normalized.casefold()
 
     @staticmethod
     def _normalize_player_name(player_name: str) -> tuple[str, str]:
         normalized = " ".join(player_name.strip().split())
-        if not 2 <= len(normalized) <= 12:
-            raise AccountError("游戏昵称需要 2–12 个字符")
+        if not 1 <= len(normalized) <= 12:
+            raise AccountError("游戏昵称需要 1–12 个字符")
         return normalized, normalized.casefold()
 
     @staticmethod

@@ -35,6 +35,34 @@ def test_username_stays_stable_when_game_nickname_changes(tmp_path):
     assert logged_in.player_name == "王五玩家"
 
 
+def test_email_style_username_can_be_registered_and_used_to_login(tmp_path):
+    store = AccountStore(tmp_path / "email-username.sqlite3")
+    username = "gantianyu+game.account@sinodata.example"
+
+    account, _ = store.register(username, "secret123", "邮箱玩家")
+    logged_in, _ = store.login(username.upper(), "secret123")
+
+    assert account.username == username
+    assert logged_in.id == account.id
+
+
+def test_single_character_game_nickname_is_allowed(tmp_path):
+    store = AccountStore(tmp_path / "single-character-nickname.sqlite3")
+
+    account, _ = store.register("single_name", "secret123", "王")
+    renamed = store.rename_player(account.id, "李")
+
+    assert account.player_name == "王"
+    assert renamed.player_name == "李"
+
+
+def test_username_rejects_more_than_sixty_four_characters(tmp_path):
+    store = AccountStore(tmp_path / "long-username.sqlite3")
+
+    with pytest.raises(AccountError, match="2–64"):
+        store.register("a" * 65, "secret123", "超长账号")
+
+
 def test_new_login_replaces_the_previous_account_session(tmp_path):
     store = AccountStore(tmp_path / "single-session.sqlite3")
     account, first_token = store.register(

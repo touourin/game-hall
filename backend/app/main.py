@@ -16,7 +16,13 @@ from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from .access import access_password, access_token, verify_access_token, verify_password
-from .accounts import AccountError, GAME_NAMES, account_store
+from .accounts import (
+    GAME_NAMES,
+    USERNAME_MAX_LENGTH,
+    USERNAME_MIN_LENGTH,
+    AccountError,
+    account_store,
+)
 from .avatars import (
     MAX_AVATAR_UPLOAD_BYTES,
     AvatarValidationError,
@@ -148,22 +154,28 @@ class AccessRequest(BaseModel):
 
 
 class RegisterRequest(BaseModel):
-    username: str = Field(min_length=2, max_length=20)
-    player_name: str = Field(min_length=2, max_length=12)
+    username: str = Field(
+        min_length=USERNAME_MIN_LENGTH,
+        max_length=USERNAME_MAX_LENGTH,
+    )
+    player_name: str = Field(min_length=1, max_length=12)
     password: str = Field(min_length=6, max_length=128)
 
 
 class LoginRequest(BaseModel):
-    username: str = Field(min_length=2, max_length=20)
+    username: str = Field(
+        min_length=USERNAME_MIN_LENGTH,
+        max_length=USERNAME_MAX_LENGTH,
+    )
     password: str = Field(min_length=6, max_length=128)
 
 
 class GuestRequest(BaseModel):
-    player_name: str = Field(min_length=2, max_length=12)
+    player_name: str = Field(min_length=1, max_length=12)
 
 
 class RenamePlayerRequest(BaseModel):
-    player_name: str = Field(min_length=2, max_length=12)
+    player_name: str = Field(min_length=1, max_length=12)
 
 
 class AvatarPresetRequest(BaseModel):

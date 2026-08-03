@@ -10,6 +10,35 @@ const AvatarCropStub = defineComponent({
 })
 
 describe('SettingsModal', () => {
+  it('allows renaming to a one-character game nickname', async () => {
+    const wrapper = mount(SettingsModal, {
+      props: {
+        account: {
+          id: 'account-1',
+          username: 'login_account',
+          playerName: '旧昵称',
+          nextRenameAt: null,
+          avatarType: 'preset',
+          avatarPreset: 'moon-fox',
+          avatarUrl: '/avatars/moon-fox.webp',
+          createdAt: '2026-08-01T00:00:00Z',
+          isGuest: false,
+        },
+        busy: false,
+        error: null,
+      },
+    })
+    const nameInput = wrapper.get(
+      '.settings-section form input:not([disabled])',
+    )
+
+    expect(nameInput.attributes('minlength')).toBe('1')
+    await nameInput.setValue('王')
+    await wrapper.get('form').trigger('submit')
+
+    expect(wrapper.emitted('rename')).toEqual([['王']])
+  })
+
   it('keeps the account name fixed and submits a new game nickname', async () => {
     const wrapper = mount(SettingsModal, {
       props: {

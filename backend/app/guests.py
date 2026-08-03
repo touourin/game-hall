@@ -130,8 +130,8 @@ def guest_for_token(
 
 def _normalize_player_name(player_name: str) -> str:
     normalized = " ".join(player_name.strip().split())
-    if not 2 <= len(normalized) <= 12:
-        raise GuestSessionError("游客昵称需要 2–12 个字符")
+    if not 1 <= len(normalized) <= 12:
+        raise GuestSessionError("游客昵称需要 1–12 个字符")
     return normalized
 
 
