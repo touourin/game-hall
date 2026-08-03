@@ -21,7 +21,6 @@ interface ChallengeMetric {
 interface SoloChallengeConfig {
   icon: Component
   protocol: string
-  index: string
   kicker: string
   title: string
   description: string
@@ -56,7 +55,6 @@ const challenge = computed<SoloChallengeConfig>(() => {
     return {
       icon: Grid3X3,
       protocol: 'FOCUS GRID',
-      index: '02',
       kicker: '视觉搜索与持续专注',
       title: '按顺序找到 1–25',
       description: '让视线覆盖整张方格，在不漏号、不跳号的前提下压缩每一次搜索时间。',
@@ -94,7 +92,6 @@ const challenge = computed<SoloChallengeConfig>(() => {
     return {
       icon: Bomb,
       protocol: 'MINEFIELD',
-      index: '03',
       kicker: '逻辑排雷与风险控制',
       title: '清除所有安全方格',
       description: '从数字线索推演雷区结构；首次点击必定安全，插旗与清除均为经典规则。',
@@ -111,7 +108,6 @@ const challenge = computed<SoloChallengeConfig>(() => {
     return {
       icon: Layers3,
       protocol: 'TOWER LOGIC',
-      index: '04',
       kicker: '递归推演与最短路径',
       title: '把整座圆盘移到最右侧',
       description: '每次只能移动最上方一块圆盘，大圆盘不能压在小圆盘上。',
@@ -130,7 +126,6 @@ const challenge = computed<SoloChallengeConfig>(() => {
   return {
     icon: Zap,
     protocol: 'REFLEX SIGNAL',
-    index: '01',
     kicker: '视觉信号与瞬时反应',
     title: '挑战你的毫秒反应',
     description: '保持专注，等待信号真正亮起后再行动；抢跑同样会被准确记录。',
@@ -151,7 +146,6 @@ const challenge = computed<SoloChallengeConfig>(() => {
   <section class="solo-launcher surface" :class="`solo-launcher-${gameKey}`">
     <div class="solo-story">
       <div class="solo-visual" aria-hidden="true">
-        <span class="solo-visual-index">{{ challenge.index }}</span>
         <span class="solo-orbit solo-orbit-outer"></span>
         <span class="solo-orbit solo-orbit-inner"></span>
         <span class="solo-emblem" data-testid="solo-challenge-icon">
@@ -162,7 +156,7 @@ const challenge = computed<SoloChallengeConfig>(() => {
       </div>
 
       <div class="solo-story-copy">
-        <p class="solo-protocol"><span>{{ challenge.protocol }}</span><b>SOLO / {{ challenge.index }}</b></p>
+        <p class="solo-protocol"><span>{{ challenge.protocol }}</span><b>SOLO</b></p>
         <p class="solo-kicker">{{ challenge.kicker }}</p>
         <h2>{{ challenge.title }}</h2>
         <p class="solo-description">{{ challenge.description }}</p>
@@ -279,16 +273,6 @@ const challenge = computed<SoloChallengeConfig>(() => {
   box-shadow: 0 0 42px var(--solo-glow);
   content: '';
   transform: rotate(45deg);
-}
-
-.solo-visual-index {
-  position: absolute;
-  top: 6px;
-  left: 2px;
-  color: color-mix(in srgb, var(--solo-accent) 78%, var(--muted));
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: .16em;
 }
 
 .solo-orbit {
