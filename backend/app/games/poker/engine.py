@@ -227,15 +227,6 @@ class PokerState:
     last_hand_reason: str | None = None
 
 
-def repair_poker_state(state: PokerState) -> PokerState:
-    """Backfill fields that are absent from rooms persisted by older releases."""
-    defaults = PokerState()
-    for name, default_value in vars(defaults).items():
-        if name not in vars(state):
-            setattr(state, name, default_value)
-    return state
-
-
 class PokerEngine:
     key = "poker"
     name = "德州扑克"
