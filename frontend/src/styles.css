@@ -30,6 +30,9 @@
   --radius-sm: 10px;
   --radius-md: 16px;
   --radius-lg: 24px;
+  --layout-gutter: clamp(12px, 2vw, 24px);
+  --layout-section-gap: clamp(16px, 1.5vw, 22px);
+  --layout-control-min: 44px;
   --shadow: 0 30px 90px rgba(0, 0, 0, 0.38);
   --shadow-card: 0 20px 54px rgba(0, 0, 0, 0.2);
   --material-pattern:
@@ -112,7 +115,7 @@ html {
 }
 
 body {
-  min-width: 320px;
+  min-width: 0;
   min-height: 100vh;
   min-height: 100dvh;
   margin: 0;
@@ -377,6 +380,49 @@ button:disabled {
     calc(18px + env(safe-area-inset-top))
     18px
     calc(36px + env(safe-area-inset-bottom));
+}
+
+.adaptive-layout-root {
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.adaptive-action-stack {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--adaptive-action-gap, var(--layout-section-gap));
+}
+
+.adaptive-action-stack > * {
+  min-width: 0;
+}
+
+.adaptive-action-push {
+  margin-block-start: auto;
+}
+
+.adaptive-dialog {
+  max-width: 100%;
+  max-height: calc(100dvh - var(--layout-gutter) - var(--layout-gutter));
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.adaptive-scroll-region {
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.adaptive-touch-target {
+  min-width: var(--layout-control-min);
+  min-height: var(--layout-control-min);
+  touch-action: manipulation;
 }
 
 .connection-banner {
@@ -2494,7 +2540,9 @@ button:disabled {
   inset: 0;
   display: grid;
   place-items: center;
-  padding: 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--layout-gutter);
   background: color-mix(in srgb, var(--bg) 78%, transparent);
   backdrop-filter: blur(12px);
   animation: phase-in 160ms ease-out;
@@ -2507,6 +2555,12 @@ button:disabled {
 .modal-card {
   position: relative;
   width: min(100%, 410px);
+  max-width: 100%;
+  max-height: calc(100dvh - var(--layout-gutter) - var(--layout-gutter));
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   padding: 28px 22px 22px;

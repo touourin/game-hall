@@ -87,7 +87,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
 
   <Teleport to="body">
     <div v-if="activeRole" class="role-skin-picker-backdrop" @click.self="closePicker">
-      <section class="role-skin-picker-modal" role="dialog" aria-modal="true" :aria-labelledby="`role-skin-picker-${activeRole.code}`">
+      <section class="role-skin-picker-modal adaptive-dialog" role="dialog" aria-modal="true" :aria-labelledby="`role-skin-picker-${activeRole.code}`">
         <header>
           <div>
             <small>{{ activeRole.group }} · 排位胜场 {{ activeRole.wins }}</small>
@@ -95,10 +95,17 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
             <p v-if="activeRole.legacyAllUnlocked">老账号已保留全部画风，可自由选择。</p>
             <p v-else>赢 {{ activeRole.upgradeWinsRequired }} 局解锁全部升级款，赢 {{ activeRole.ultimateWinsRequired }} 局解锁终极款。</p>
           </div>
-          <button type="button" aria-label="关闭角色画风选择" @click="closePicker"><X :size="20" /></button>
+          <button
+            type="button"
+            class="adaptive-touch-target"
+            aria-label="关闭角色画风选择"
+            @click="closePicker"
+          >
+            <X :size="20" />
+          </button>
         </header>
 
-        <div class="role-skin-choice-grid">
+        <div class="role-skin-choice-grid adaptive-scroll-region">
           <button
             v-for="choice in activeRole.choices"
             :key="choice.id"
@@ -176,7 +183,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
 .role-skin-choice-copy { display: grid; gap: 3px; min-width: 0; padding-inline: 3px; }
 .role-skin-choice-copy strong { overflow: hidden; font-family: "Songti SC", "STSong", serif; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .role-skin-choice-copy small { display: flex; align-items: center; gap: 4px; min-height: 26px; color: var(--muted); font-size: 8px; line-height: 1.4; }
-@media (max-width: 980px) { .role-skin-role-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .role-skin-choice-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 620px) { .role-skin-loadout { padding-inline: 13px; } .role-skin-role-grid { grid-template-columns: 1fr 1fr; gap: 7px; } .role-skin-role { grid-template-columns: 44px minmax(0, 1fr); min-height: 62px; gap: 8px; padding: 6px; } .role-skin-role > svg { display: none; } .role-skin-role-art { min-height: 50px; } .role-skin-role-copy > span { grid-template-columns: 1fr; } .role-skin-role-copy em { font-size: 7px; } .role-skin-role-copy > small { white-space: normal; } .role-skin-picker-backdrop { align-items: end; padding: 8px; } .role-skin-picker-modal { width: 100%; max-height: calc(100dvh - 8px); border-radius: 20px 20px 0 0; } .role-skin-picker-modal > header { padding: 14px; } .role-skin-choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; padding: 12px 12px 20px; } }
-@media (max-width: 370px) { .role-skin-role-grid { grid-template-columns: 1fr; } }
+@container (max-width: 980px) { .role-skin-role-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container (max-width: 620px) { .role-skin-loadout { padding-inline: 13px; } .role-skin-role-grid { grid-template-columns: 1fr 1fr; gap: 7px; } .role-skin-role { grid-template-columns: 44px minmax(0, 1fr); min-height: 62px; gap: 8px; padding: 6px; } .role-skin-role > svg { display: none; } .role-skin-role-art { min-height: 50px; } .role-skin-role-copy > span { grid-template-columns: 1fr; } .role-skin-role-copy em { font-size: 7px; } .role-skin-role-copy > small { white-space: normal; } }
+@container (max-width: 370px) { .role-skin-role-grid { grid-template-columns: 1fr; } }
+@media (max-width: 980px) { .role-skin-choice-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 620px) { .role-skin-picker-backdrop { align-items: end; padding: 8px; } .role-skin-picker-modal { width: 100%; max-height: calc(100dvh - 8px); border-radius: 20px 20px 0 0; } .role-skin-picker-modal > header { padding: 14px; } .role-skin-choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; padding: 12px 12px 20px; } }
 </style>

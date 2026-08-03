@@ -98,7 +98,7 @@ defineEmits<{
   .game-home-actions :deep(button:hover) { border-color: var(--line-strong); color: var(--gold); background: var(--surface-soft); }
 }
 
-@media (max-width: 600px) {
+@container (max-width: 600px) {
   .game-home-header {
     grid-template-columns: auto minmax(0, 1fr);
     gap: 14px;

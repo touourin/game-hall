@@ -87,6 +87,9 @@ describe('RoleSkinLoadoutPicker', () => {
     const wrapper = mount(RoleSkinLoadoutPicker, { props: { roles: roles() } })
     await wrapper.get('[data-role-skin-role="merlin"]').trigger('click')
 
+    expect(document.body.querySelector('.role-skin-picker-modal')?.classList.contains('adaptive-dialog')).toBe(true)
+    expect(document.body.querySelector('.role-skin-choice-grid')?.classList.contains('adaptive-scroll-region')).toBe(true)
+
     const upgrade = document.body.querySelector<HTMLButtonElement>(
       '[data-role-skin-choice="dark-chronicle"]',
     )

@@ -33,6 +33,8 @@ describe('ArcadeHome', () => {
       global: { plugins: [createPinia()] },
     })
 
+    expect(wrapper.get('.arcade-home').classes()).toContain('adaptive-layout-root')
+
     await wrapper.get('[aria-label="打开设置"]').trigger('click')
 
     expect(wrapper.emitted('settings')).toHaveLength(1)

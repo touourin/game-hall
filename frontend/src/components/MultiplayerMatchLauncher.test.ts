@@ -37,6 +37,8 @@ describe('MultiplayerMatchLauncher', () => {
     expect(wrapper.text()).toContain('CREATE GAME ROOM')
     expect(wrapper.text()).not.toContain('PRIVATE')
     expect(wrapper.find('.match-primary-arrow').exists()).toBe(true)
+    expect(wrapper.get('form').classes()).toContain('adaptive-action-stack')
+    expect(wrapper.get('.match-primary-action').classes()).toContain('adaptive-action-push')
     expect(wrapper.find('.room-browser').exists()).toBe(false)
   })
 
@@ -87,6 +89,8 @@ describe('MultiplayerMatchLauncher', () => {
     await wrapper.get('.match-rule-summary button').trigger('click')
     const dialog = document.body.querySelector<HTMLElement>('.match-rule-modal')
     expect(dialog?.textContent).toContain('中国象棋房间规则')
+    expect(dialog?.classList.contains('adaptive-dialog')).toBe(true)
+    expect(dialog?.querySelector('.match-rule-body')?.classList.contains('adaptive-scroll-region')).toBe(true)
     expect(wrapper.element.contains(dialog)).toBe(false)
 
     const hostFirst = Array.from(

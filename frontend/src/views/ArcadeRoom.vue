@@ -407,7 +407,7 @@ function openSharedChat() {
 
 <template>
   <main
-    class="arcade-room page-container"
+    class="arcade-room page-container adaptive-layout-root"
     :class="{
       'arcade-room--wide': ['avalon', 'poker', 'doudizhu', 'junqi', 'minesweeper'].includes(snapshot.gameKey),
       'arcade-room--active': snapshot.phase !== 'lobby',
