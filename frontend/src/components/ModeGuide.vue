@@ -83,7 +83,8 @@ defineProps<{ content: ModeGuideContent }>()
 </template>
 
 <style scoped>
-.mode-guide { container-type: inline-size; display: grid; gap: 12px; color: var(--text); text-align: left; }
+.mode-guide { min-width: 0; container-type: inline-size; display: grid; gap: 12px; color: var(--text); text-align: left; }
+.mode-guide > *, .mode-guide-complete-rules, .mode-guide-complete-rules > section { min-width: 0; }
 .mode-guide > header { border: 1px solid color-mix(in srgb, var(--gold) 24%, var(--line)); border-radius: 15px; padding: 15px; background: radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--gold) 12%, transparent), transparent 40%), rgba(var(--surface-deep-rgb), .72); }
 .mode-guide > header small, .mode-guide-feature small { color: var(--gold); font-size: 9px; font-weight: 850; letter-spacing: .12em; }
 .mode-guide h3 { margin: 7px 0 8px; font-family: "Songti SC", "STSong", serif; font-size: 20px; letter-spacing: .04em; }
@@ -112,7 +113,7 @@ defineProps<{ content: ModeGuideContent }>()
 .mode-guide-complete-rules h5 { margin: 0 0 7px; color: var(--gold); font-size: 12px; }
 .mode-guide-complete-rules ul { display: grid; gap: 7px; margin: 10px 0 0; padding-left: 18px; color: var(--text-soft); font-size: 10px; line-height: 1.65; }
 .mode-guide-complete-rules li b { color: var(--text); }
-.mode-guide-table-wrap { max-width: 100%; margin-top: 10px; overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+.mode-guide-table-wrap { width: 100%; max-width: 100%; margin-top: 10px; overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
 .mode-guide-table-wrap table { width: 100%; min-width: 620px; border-collapse: collapse; color: var(--text-soft); background: color-mix(in srgb, var(--surface-inset) 72%, transparent); font-size: 9px; line-height: 1.45; }
 .mode-guide-table-wrap th, .mode-guide-table-wrap td { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
 .mode-guide-table-wrap th:last-child, .mode-guide-table-wrap td:last-child { border-right: 0; }
@@ -128,7 +129,7 @@ defineProps<{ content: ModeGuideContent }>()
   .mode-guide-quick-start li, .mode-guide-flow li { min-height: 42px; align-items: center; border-radius: 10px; padding: 8px 10px; background: color-mix(in srgb, var(--surface-inset) 42%, transparent); }
   .mode-guide-quick-start li:last-child:nth-child(odd) { grid-column: 1 / -1; width: calc(50% - 14px); justify-self: center; }
 }
-@media (max-width: 480px) {
+@container (max-width: 680px) {
   .mode-guide > header, .mode-guide-quick-start, .mode-guide-feature, .mode-guide-flow, .mode-guide-complete-rules > section, .mode-guide-background { padding: 12px; }
   .mode-guide h3 { font-size: 18px; }
   .mode-guide-quick-start h4, .mode-guide-complete-rules h4, .mode-guide-background h4 { font-size: 17px; }

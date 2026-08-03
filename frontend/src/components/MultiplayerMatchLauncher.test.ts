@@ -34,6 +34,9 @@ describe('MultiplayerMatchLauncher', () => {
     expect(wrapper.text()).toContain('对局控制台')
     expect(wrapper.text()).toContain('随机先手')
     expect(wrapper.text()).toContain('掉线保护 10 分钟')
+    expect(wrapper.text()).toContain('CREATE GAME ROOM')
+    expect(wrapper.text()).not.toContain('PRIVATE')
+    expect(wrapper.find('.match-primary-arrow').exists()).toBe(true)
     expect(wrapper.find('.room-browser').exists()).toBe(false)
   })
 

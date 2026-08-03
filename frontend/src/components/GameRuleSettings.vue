@@ -227,7 +227,7 @@ function setOption(key: string, value: unknown) {
 </template>
 
 <style scoped>
-.game-rule-settings { display: grid; gap: 0; }
+.game-rule-settings { min-width: 0; display: grid; gap: 0; }
 .rule-setting-group { display: grid; gap: 11px; padding: 18px 0; border-bottom: 1px solid var(--line); }
 .rule-setting-group:first-child { padding-top: 0; }
 .rule-setting-group:last-child { padding-bottom: 0; border-bottom: 0; }
@@ -255,10 +255,10 @@ function setOption(key: string, value: unknown) {
 .rule-toggle-list small { color: var(--muted); }
 .rule-toggle-list b { min-width: 38px; border-radius: 999px; padding: 5px 8px; color: var(--muted); background: rgba(255, 255, 255, .06); text-align: center; }
 .rule-toggle-list button.active b { color: var(--accent-contrast); background: var(--gold); }
-.avalon-mode-guide-disclosure { margin: 0; border-bottom: 1px solid var(--line); padding: 14px 0 18px; }
+.avalon-mode-guide-disclosure { min-width: 0; margin: 0; border-bottom: 1px solid var(--line); padding: 14px 0 18px; }
 .avalon-mode-guide-disclosure summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid color-mix(in srgb, var(--gold) 30%, var(--line)); border-radius: 13px; padding: 11px 13px; color: var(--text); background: color-mix(in srgb, var(--gold) 7%, var(--surface-inset)); cursor: pointer; list-style: none; }
 .avalon-mode-guide-disclosure summary::-webkit-details-marker { display: none; }
-.avalon-mode-guide-disclosure summary > span { display: grid; gap: 2px; }
+.avalon-mode-guide-disclosure summary > span { min-width: 0; display: grid; gap: 2px; }
 .avalon-mode-guide-disclosure summary strong { color: var(--gold); font-size: 12px; }
 .avalon-mode-guide-disclosure summary small { color: var(--muted); font-size: 10px; }
 .avalon-mode-guide-disclosure summary b { flex: 0 0 auto; color: var(--muted); font-size: 9px; }
