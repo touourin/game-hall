@@ -13,6 +13,7 @@ from .arcade.models import ArcadeRoom
 from .arcade.realtime import arcade_realtime
 from .games.avalon.arcade import AvalonEngine
 from .games.avalon.models import AvalonMode, Room
+from .games.poker.engine import PokerState, repair_poker_state
 from .guests import guest_for_token
 from .infrastructure import redis_url
 from .room_state import RedisRoomStateStore
@@ -94,6 +95,8 @@ async def restore_room_state() -> None:
         room.host_offline_since = None
         if room.game_key == "avalon" and isinstance(room.state, Room):
             _repair_avalon_domain(room.state)
+        elif room.game_key == "poker" and isinstance(room.state, PokerState):
+            repair_poker_state(room.state)
 
         had_connected_human = any(
             player.connected and not getattr(player, "is_bot", False)

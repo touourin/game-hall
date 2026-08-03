@@ -9,10 +9,12 @@ from backend.app.games.base import GameRuleError
 from backend.app.games.poker.engine import (
     PokerCard,
     PokerEngine,
+    PokerState,
     build_side_pots,
     evaluate_best,
     evaluate_five,
     hand_name,
+    repair_poker_state,
 )
 
 
@@ -65,6 +67,32 @@ def make_room(player_count: int = 3) -> tuple[PokerEngine, ArcadeRoom]:
     )
     engine.start(room)
     return engine, room
+
+
+def test_repair_poker_state_backfills_fields_added_after_persistence() -> None:
+    state = PokerState()
+    missing_fields = {
+        "departing_ids",
+        "eliminated_ids",
+        "hand_number",
+        "hand_start_chips",
+        "hand_summaries",
+        "last_hand_reason",
+        "next_hand_ready_ids",
+    }
+    for name in missing_fields:
+        delattr(state, name)
+
+    repaired = repair_poker_state(state)
+
+    assert repaired is state
+    assert state.departing_ids == []
+    assert state.eliminated_ids == []
+    assert state.hand_number == 0
+    assert state.hand_start_chips == {}
+    assert state.hand_summaries == []
+    assert state.last_hand_reason is None
+    assert state.next_hand_ready_ids == []
 
 
 def test_poker_hand_evaluator_covers_major_categories_and_wheel() -> None:
