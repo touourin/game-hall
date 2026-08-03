@@ -27,7 +27,7 @@ const canSubmit = computed(() => {
   }
   if (
     username.value.trim().length < 2
-    || username.value.trim().length > 64
+    || username.value.trim().length > 50
     || password.value.length < 6
   ) {
     return false
@@ -119,9 +119,9 @@ function submit() {
           <input
             v-model="username"
             minlength="2"
-            maxlength="64"
+            maxlength="50"
             autocomplete="username"
-            placeholder="2–64 个字符，可使用邮箱"
+            placeholder="2–50 个字符，可使用邮箱"
           />
         </label>
 

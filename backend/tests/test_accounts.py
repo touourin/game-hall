@@ -56,11 +56,11 @@ def test_single_character_game_nickname_is_allowed(tmp_path):
     assert renamed.player_name == "李"
 
 
-def test_username_rejects_more_than_sixty_four_characters(tmp_path):
+def test_username_rejects_more_than_fifty_characters(tmp_path):
     store = AccountStore(tmp_path / "long-username.sqlite3")
 
-    with pytest.raises(AccountError, match="2–64"):
-        store.register("a" * 65, "secret123", "超长账号")
+    with pytest.raises(AccountError, match="2–50"):
+        store.register("a" * 51, "secret123", "超长账号")
 
 
 def test_new_login_replaces_the_previous_account_session(tmp_path):

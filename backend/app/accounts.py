@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 SESSION_LIFETIME = timedelta(days=30)
 PLAYER_NAME_CHANGE_INTERVAL = timedelta(days=30)
 USERNAME_MIN_LENGTH = 2
-USERNAME_MAX_LENGTH = 64
+USERNAME_MAX_LENGTH = 50
 GAME_KEY = "avalon"
 # Accounts present when role progression shipped retain the complete skin library.
 AVALON_ROLE_SKIN_PROGRESSION_START = datetime(2026, 8, 2, 17, 18, 0)
@@ -1301,7 +1301,7 @@ class AccountStore:
     def _normalize_username(username: str) -> tuple[str, str]:
         normalized = username.strip()
         if not USERNAME_MIN_LENGTH <= len(normalized) <= USERNAME_MAX_LENGTH:
-            raise AccountError("账号名需要 2–64 个字符")
+            raise AccountError("账号名需要 2–50 个字符")
         if not all(
             character.isalnum() or character in "._@+-"
             for character in normalized

@@ -56,13 +56,13 @@ describe('AccountGate', () => {
     ])
   })
 
-  it('allows an email-style login name up to 64 characters', async () => {
+  it('allows an email-style login name up to 50 characters', async () => {
     const wrapper = mount(AccountGate, {
       props: { busy: false, error: null },
     })
     const usernameInput = wrapper.get('input[autocomplete="username"]')
 
-    expect(usernameInput.attributes('maxlength')).toBe('64')
+    expect(usernameInput.attributes('maxlength')).toBe('50')
     expect(usernameInput.attributes('placeholder')).toContain('可使用邮箱')
     await usernameInput.setValue('gantianyu+game.account@sinodata.example')
 
