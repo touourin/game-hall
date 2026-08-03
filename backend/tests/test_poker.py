@@ -86,6 +86,7 @@ def test_repair_poker_state_backfills_fields_added_after_persistence() -> None:
     repaired = repair_poker_state(state)
 
     assert repaired is state
+    assert missing_fields <= vars(state).keys()
     assert state.departing_ids == []
     assert state.eliminated_ids == []
     assert state.hand_number == 0
