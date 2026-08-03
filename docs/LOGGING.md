@@ -22,7 +22,7 @@
 房间生命周期还会记录以下自动事件：
 
 - `room.disconnect_forfeit`：仍有真人在线时，某位玩家掉线超过 10 分钟并被判定弃权。
-- `room.disconnect_timeout_resolved`：德州扑克玩家已经弃牌或全押，掉线保护到期但不需要额外动作。
+- `room.disconnect_timeout_resolved`：游戏已不需要对该玩家执行额外的掉线弃权动作。
 - `room.cleanup_ready`：所有真人离线满 10 分钟，房间进入可清理状态；该事件不代表产生胜负。
 - `room.abandoned`：玩家主动放弃单人挑战，或认输并退出多人对局。
 - `account.active_room_conflict`：同一账号已占用一个房间时，又尝试创建或加入其他房间。

@@ -1280,7 +1280,7 @@ def test_return_to_all_offline_room_restarts_other_players_grace() -> None:
     assert room.winner_player_ids == [host.id]
 
 
-def test_poker_disconnect_timeout_folds_the_player() -> None:
+def test_poker_disconnect_timeout_eliminates_the_player_from_the_table() -> None:
     manager = ArcadeRoomManager(
         build_engine_registry(), rng=random.Random(7)
     )
@@ -1296,6 +1296,7 @@ def test_poker_disconnect_timeout_folds_the_player() -> None:
     manager.maintain(now=disconnected_at + timedelta(minutes=10))
 
     assert guest.id in room.state.folded_ids
+    assert guest.id in room.state.eliminated_ids
     assert room.phase == "finished"
     assert room.winner_player_ids == [host.id]
 
@@ -1545,6 +1546,150 @@ def test_gomoku_players_can_accept_undo_and_draw_requests() -> None:
     assert room.phase == "finished"
     assert room.winner == "draw"
     assert room.winner_player_ids == []
+
+
+def test_end_table_request_requires_every_human_and_returns_to_lobby() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, host, _ = manager.create_room("doudizhu", "甲", "account-1")
+    _, second, _ = manager.join_room(
+        room.code, "doudizhu", "乙", "account-2"
+    )
+    _, third, _ = manager.join_room(
+        room.code, "doudizhu", "丙", "account-3"
+    )
+    manager.start(room, host.id)
+
+    assert manager.request_game_action(room, host.id, "end_table") is False
+    assert room.pending_request is not None
+    assert room.pending_request.approved_player_ids == {host.id}
+
+    assert manager.resolve_game_request(room, second.id, True) is False
+    assert room.phase == "bidding"
+    second_view = build_arcade_room_view(
+        room, second, manager.engines["doudizhu"]
+    )
+    assert second_view["request"]["hasApproved"] is True
+    assert second_view["request"]["approvalCount"] == 2
+    assert second_view["request"]["requiredApprovalCount"] == 3
+
+    assert manager.resolve_game_request(room, third.id, True) is True
+    assert room.phase == "lobby"
+    assert room.game_id is None
+    assert room.round_number == 0
+    assert room.pending_request is None
+    assert room.recorded is False
+
+
+def test_rejecting_end_table_request_keeps_the_current_game() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, host, _ = manager.create_room("gomoku", "甲", "account-1")
+    _, opponent, _ = manager.join_room(
+        room.code, "gomoku", "乙", "account-2"
+    )
+    manager.start(room, host.id)
+
+    manager.request_game_action(room, host.id, "end_table")
+    assert manager.resolve_game_request(room, opponent.id, False) is False
+
+    assert room.phase == "playing"
+    assert room.game_id is not None
+    assert room.pending_request is None
+
+
+def test_solo_game_cannot_request_end_table() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, player, _ = manager.create_room(
+        "reaction", "单人玩家", "account-solo"
+    )
+    manager.start(room, player.id)
+
+    with pytest.raises(ArcadeRoomError, match="单人挑战"):
+        manager.request_game_action(room, player.id, "end_table")
+
+
+@pytest.mark.parametrize(
+    "game_key",
+    ["avalon", "gomoku", "xiangqi", "go", "poker", "doudizhu", "junqi"],
+)
+def test_every_multiplayer_game_can_end_the_table_by_unanimous_request(
+    game_key: str,
+) -> None:
+    manager = ArcadeRoomManager(
+        build_engine_registry(), rng=random.Random(7)
+    )
+    engine = manager.engine(game_key)
+    room, host, _ = manager.create_room(game_key, "玩家1", "account-1")
+    players = [host]
+    for index in range(2, engine.min_players + 1):
+        _, player, _ = manager.join_room(
+            room.code,
+            game_key,
+            f"玩家{index}",
+            f"account-{index}",
+        )
+        players.append(player)
+    manager.start(room, host.id)
+
+    view = build_arcade_room_view(room, host, engine)
+    assert view["actions"]["canRequestEndTable"] is True
+    assert manager.request_game_action(room, host.id, "end_table") is False
+    for player in players[1:-1]:
+        assert manager.resolve_game_request(room, player.id, True) is False
+    assert manager.resolve_game_request(room, players[-1].id, True) is True
+
+    assert room.phase == "lobby"
+    assert room.game_id is None
+    assert room.winner is None
+
+
+def test_end_table_request_ignores_ai_players() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, host, _ = manager.create_room("avalon", "甲", "account-1")
+    for _ in range(4):
+        manager.act(room, host.id, "add_ai", {})
+    manager.start(room, host.id)
+
+    assert manager.request_game_action(room, host.id, "end_table") is True
+    assert room.phase == "lobby"
+    assert room.pending_request is None
+
+
+def test_poker_end_table_request_only_needs_surviving_players() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, host, _ = manager.create_room("poker", "甲", "account-1")
+    _, second, _ = manager.join_room(
+        room.code, "poker", "乙", "account-2"
+    )
+    _, third, _ = manager.join_room(
+        room.code, "poker", "丙", "account-3"
+    )
+    manager.start(room, host.id)
+    manager.act(room, room.state.action_player_id, "fold", {})
+    manager.act(room, room.state.action_player_id, "fold", {})
+    assert room.phase == "between_hands"
+
+    manager.engine("poker").manual_forfeit(room, host)
+    survivors = [
+        player for player in (host, second, third)
+        if player.id not in room.state.eliminated_ids
+    ]
+    eliminated_view = build_arcade_room_view(
+        room, host, manager.engine("poker")
+    )
+    assert eliminated_view["actions"]["canRequestEndTable"] is False
+    manager.request_game_action(room, survivors[0].id, "end_table")
+    view = build_arcade_room_view(room, survivors[0], manager.engine("poker"))
+
+    eliminated_view = build_arcade_room_view(
+        room, host, manager.engine("poker")
+    )
+    assert eliminated_view["request"]["canRespond"] is False
+    with pytest.raises(ArcadeRoomError, match="不需要参与"):
+        manager.resolve_game_request(room, host.id, False)
+
+    assert view["request"]["requiredApprovalCount"] == 2
+    assert manager.resolve_game_request(room, survivors[1].id, True) is True
+    assert room.phase == "lobby"
 
 
 def test_reaction_records_exactly_three_rounds_and_average() -> None:

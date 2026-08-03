@@ -285,7 +285,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     return Boolean(await perform('arcade:chat', { content }))
   }
 
-  async function requestGameAction(kind: 'undo' | 'draw') {
+  async function requestGameAction(kind: 'undo' | 'draw' | 'end_table') {
     return Boolean(await perform('arcade:request', { kind }))
   }
 

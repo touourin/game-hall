@@ -195,6 +195,7 @@ class PokerState:
     hands: dict[str, list[PokerCard]] = field(default_factory=dict)
     community: list[PokerCard] = field(default_factory=list)
     chips: dict[str, int] = field(default_factory=dict)
+    hand_start_chips: dict[str, int] = field(default_factory=dict)
     street_bets: dict[str, int] = field(default_factory=dict)
     total_bets: dict[str, int] = field(default_factory=dict)
     folded_ids: list[str] = field(default_factory=list)
@@ -218,6 +219,12 @@ class PokerState:
     side_pots: list[dict[str, Any]] = field(default_factory=list)
     winner_ids: list[str] = field(default_factory=list)
     history: list[dict[str, Any]] = field(default_factory=list)
+    hand_summaries: list[dict[str, Any]] = field(default_factory=list)
+    eliminated_ids: list[str] = field(default_factory=list)
+    departing_ids: list[str] = field(default_factory=list)
+    next_hand_ready_ids: list[str] = field(default_factory=list)
+    hand_number: int = 0
+    last_hand_reason: str | None = None
 
 
 class PokerEngine:
@@ -225,6 +232,29 @@ class PokerEngine:
     name = "德州扑克"
     min_players = 2
     max_players = 8
+    action_phases = {"playing", "between_hands"}
+
+    @staticmethod
+    def is_active_phase(phase: str) -> bool:
+        return phase in PokerEngine.action_phases
+
+    def request_voter_ids(
+        self,
+        room: ArcadeRoom,
+        kind: str,
+    ) -> set[str]:
+        state = room.state
+        if kind == "end_table" and isinstance(state, PokerState):
+            return {
+                player.id
+                for player in self._table_players(room, state)
+                if not player.is_bot
+            }
+        return {
+            player.id
+            for player in room.players
+            if not player.is_bot and not player.left_room
+        }
 
     def __init__(self, rng: random.Random | None = None) -> None:
         self.rng = rng or random.SystemRandom()
@@ -259,71 +289,9 @@ class PokerEngine:
             starting_chips=int(room.options.get("startingChips", 1000)),
             small_blind=int(room.options.get("smallBlind", 10)),
         )
-        state.big_blind = state.small_blind * 2
-        state.minimum_raise = state.big_blind
-        state.deck = create_deck()
-        self.rng.shuffle(state.deck)
         players = self._players(room)
         state.chips = {player.id: state.starting_chips for player in players}
-        state.street_bets = {player.id: 0 for player in players}
-        state.total_bets = {player.id: 0 for player in players}
-        state.hands = {player.id: [] for player in players}
-
-        dealer = players[0]
-        if len(players) == 2:
-            small_blind_player = dealer
-            big_blind_player = players[1]
-        else:
-            small_blind_player = players[1]
-            big_blind_player = players[2]
-        state.dealer_player_id = dealer.id
-        state.small_blind_player_id = small_blind_player.id
-        state.big_blind_player_id = big_blind_player.id
-
-        # Heads-up is the exception: the button/small blind receives the last
-        # card, so dealing starts with the big blind.
-        first_deal_seat = (
-            big_blind_player.seat
-            if len(players) == 2
-            else small_blind_player.seat
-        )
-        for _ in range(2):
-            for offset in range(len(players)):
-                seat = (first_deal_seat + offset) % len(players)
-                player = next(item for item in players if item.seat == seat)
-                state.hands[player.id].append(state.deck.pop())
-
-        self._contribute(state, small_blind_player.id, state.small_blind)
-        self._contribute(state, big_blind_player.id, state.big_blind)
-        state.current_bet = state.big_blind
-        state.pending_player_ids = [
-            player.id
-            for player in players
-            if player.id not in state.all_in_ids
-        ]
-        state.action_player_id = self._next_player_id(
-            room,
-            big_blind_player.seat,
-            set(state.pending_player_ids),
-        )
-        state.history.extend(
-            [
-                {
-                    "street": "preflop",
-                    "playerId": small_blind_player.id,
-                    "action": "small_blind",
-                    "amount": state.street_bets[small_blind_player.id],
-                },
-                {
-                    "street": "preflop",
-                    "playerId": big_blind_player.id,
-                    "action": "big_blind",
-                    "amount": state.street_bets[big_blind_player.id],
-                },
-            ]
-        )
-        room.state = state
-        room.phase = "playing"
+        self._start_hand(room, state, players[0].id)
 
     def act(
         self,
@@ -333,9 +301,18 @@ class PokerEngine:
         payload: dict[str, Any],
     ) -> None:
         state: PokerState = room.state
+        if action == "ready_next_hand":
+            self._ready_next_hand(room, state, player)
+            return
         if action == "resign":
+            if player.id in state.all_in_ids:
+                raise GameRuleError("你已经全押，不能再弃牌或认输")
+            if player.id not in state.departing_ids:
+                state.departing_ids.append(player.id)
             self._resign(room, state, player)
             return
+        if room.phase != "playing":
+            raise GameRuleError("请等待下一手牌开始")
         if player.id != state.action_player_id:
             raise GameRuleError("还没有轮到你行动")
         if player.id in state.folded_ids or player.id in state.all_in_ids:
@@ -429,12 +406,7 @@ class PokerEngine:
         player: ArcadePlayer,
     ) -> bool:
         state: PokerState = room.state
-        if player.id in state.folded_ids or player.id in state.all_in_ids:
-            return False
-        self._resign(room, state, player)
-        if state.history and state.history[-1].get("playerId") == player.id:
-            state.history[-1]["action"] = "disconnect_timeout"
-        return True
+        return self._leave_table(room, state, player, "disconnect_timeout")
 
     def manual_forfeit(
         self,
@@ -442,10 +414,7 @@ class PokerEngine:
         player: ArcadePlayer,
     ) -> bool:
         state: PokerState = room.state
-        if player.id in state.folded_ids or player.id in state.all_in_ids:
-            return False
-        self._resign(room, state, player)
-        return True
+        return self._leave_table(room, state, player, "resign")
 
     def view(self, room: ArcadeRoom, viewer: ArcadePlayer) -> dict[str, Any]:
         state: PokerState = room.state
@@ -477,9 +446,12 @@ class PokerEngine:
                     "cardCount": len(state.hands.get(player.id, [])),
                     "handName": state.hand_names.get(player.id),
                     "payout": state.payouts.get(player.id, 0),
+                    "eliminated": player.id in state.eliminated_ids,
+                    "readyNextHand": player.id in state.next_hand_ready_ids,
                 }
             )
         legal = self._legal_actions(state, viewer.id)
+        next_hand_voters = self._next_hand_voter_ids(room, state)
         return {
             "street": state.street,
             "streetLabel": STREET_LABELS.get(state.street, state.street),
@@ -496,6 +468,16 @@ class PokerEngine:
             "showdown": state.showdown,
             "sidePots": state.side_pots,
             "history": list(state.history),
+            "handNumber": state.hand_number,
+            "lastHandReason": state.last_hand_reason,
+            "nextHandReadyPlayerIds": list(state.next_hand_ready_ids),
+            "requiredNextHandReadyCount": len(next_hand_voters),
+            "canReadyNextHand": (
+                room.phase == "between_hands"
+                and viewer.id in next_hand_voters
+                and viewer.id not in state.next_hand_ready_ids
+            ),
+            "eliminatedIds": list(state.eliminated_ids),
         }
 
     def player_result(
@@ -521,6 +503,290 @@ class PokerEngine:
             for player_id, hand in recorded["hands"].items()
         }
         return recorded
+
+    def _start_hand(
+        self,
+        room: ArcadeRoom,
+        state: PokerState,
+        dealer_player_id: str,
+    ) -> None:
+        players = self._table_players(room, state)
+        if len(players) < 2:
+            self._finish_table(room, state)
+            return
+        if dealer_player_id not in {player.id for player in players}:
+            previous_dealer = room.player(state.dealer_player_id or dealer_player_id)
+            dealer_player_id = self._next_player_id(
+                room,
+                previous_dealer.seat,
+                {player.id for player in players},
+            ) or players[0].id
+
+        state.deck = create_deck()
+        self.rng.shuffle(state.deck)
+        state.burned = []
+        state.hands = {player.id: [] for player in players}
+        state.community = []
+        state.hand_start_chips = {
+            player.id: state.chips[player.id] for player in players
+        }
+        state.street_bets = {player.id: 0 for player in room.players}
+        state.total_bets = {player.id: 0 for player in room.players}
+        state.folded_ids = []
+        state.all_in_ids = []
+        state.pending_player_ids = []
+        state.acted_at_bet = {}
+        state.action_player_id = None
+        state.street = "preflop"
+        state.current_bet = 0
+        state.big_blind = state.small_blind * 2
+        state.minimum_raise = state.big_blind
+        state.pot = 0
+        state.showdown = False
+        state.hand_names = {}
+        state.payouts = {player.id: 0 for player in room.players}
+        state.side_pots = []
+        state.winner_ids = []
+        state.history = []
+        state.next_hand_ready_ids = []
+        state.last_hand_reason = None
+        state.hand_number += 1
+
+        dealer = room.player(dealer_player_id)
+        participant_ids = {player.id for player in players}
+        if len(players) == 2:
+            small_blind_player = dealer
+            big_blind_id = self._next_player_id(
+                room, dealer.seat, participant_ids - {dealer.id}
+            )
+            big_blind_player = room.player(big_blind_id or "")
+        else:
+            small_blind_id = self._next_player_id(
+                room, dealer.seat, participant_ids - {dealer.id}
+            )
+            small_blind_player = room.player(small_blind_id or "")
+            big_blind_id = self._next_player_id(
+                room,
+                small_blind_player.seat,
+                participant_ids - {small_blind_player.id},
+            )
+            big_blind_player = room.player(big_blind_id or "")
+        state.dealer_player_id = dealer.id
+        state.small_blind_player_id = small_blind_player.id
+        state.big_blind_player_id = big_blind_player.id
+
+        first_deal_seat = (
+            big_blind_player.seat
+            if len(players) == 2
+            else small_blind_player.seat
+        )
+        deal_order = sorted(
+            players,
+            key=lambda player: (
+                player.seat - first_deal_seat
+            ) % len(room.players),
+        )
+        for _ in range(2):
+            for player in deal_order:
+                state.hands[player.id].append(state.deck.pop())
+
+        self._contribute(state, small_blind_player.id, state.small_blind)
+        self._contribute(state, big_blind_player.id, state.big_blind)
+        state.current_bet = state.big_blind
+        state.pending_player_ids = [
+            player.id for player in players if player.id not in state.all_in_ids
+        ]
+        state.action_player_id = self._next_player_id(
+            room,
+            big_blind_player.seat,
+            set(state.pending_player_ids),
+        )
+        state.history.extend(
+            [
+                {
+                    "street": "preflop",
+                    "playerId": small_blind_player.id,
+                    "action": "small_blind",
+                    "amount": state.street_bets[small_blind_player.id],
+                },
+                {
+                    "street": "preflop",
+                    "playerId": big_blind_player.id,
+                    "action": "big_blind",
+                    "amount": state.street_bets[big_blind_player.id],
+                },
+            ]
+        )
+        room.state = state
+        room.phase = "playing"
+
+        if not state.pending_player_ids:
+            self._runout_and_showdown(room, state)
+
+    def _ready_next_hand(
+        self,
+        room: ArcadeRoom,
+        state: PokerState,
+        player: ArcadePlayer,
+    ) -> None:
+        if room.phase != "between_hands":
+            raise GameRuleError("当前不需要准备下一手牌")
+        voters = self._next_hand_voter_ids(room, state)
+        if player.id not in voters:
+            raise GameRuleError("你已经淘汰或退出本桌")
+        if player.id in state.next_hand_ready_ids:
+            raise GameRuleError("你已经准备下一手牌")
+        state.next_hand_ready_ids.append(player.id)
+        if not voters <= set(state.next_hand_ready_ids):
+            return
+        dealer = room.player(state.dealer_player_id or "")
+        next_dealer_id = self._next_player_id(
+            room,
+            dealer.seat,
+            {player.id for player in self._table_players(room, state)},
+        )
+        self._start_hand(room, state, next_dealer_id or "")
+
+    def _leave_table(
+        self,
+        room: ArcadeRoom,
+        state: PokerState,
+        player: ArcadePlayer,
+        history_action: str,
+    ) -> bool:
+        if player.id in state.eliminated_ids:
+            return False
+        if player.id not in state.departing_ids:
+            state.departing_ids.append(player.id)
+        if room.phase == "between_hands":
+            state.chips[player.id] = 0
+            self._mark_eliminated(room, state, [player.id])
+            self._finish_table_if_decided(room, state)
+            return True
+        if player.id in state.folded_ids or player.id in state.all_in_ids:
+            return True
+        self._resign(room, state, player)
+        if state.history and state.history[-1].get("playerId") == player.id:
+            state.history[-1]["action"] = history_action
+        return True
+
+    def _complete_hand(
+        self,
+        room: ArcadeRoom,
+        state: PokerState,
+        winner_ids: list[str],
+        reason: str,
+    ) -> None:
+        state.winner_ids = winner_ids
+        state.last_hand_reason = reason
+        state.hand_summaries.append(
+            {
+                "handNumber": state.hand_number,
+                "dealerPlayerId": state.dealer_player_id,
+                "communityCards": [card.as_dict() for card in state.community],
+                "pot": state.pot,
+                "totalBets": dict(state.total_bets),
+                "foldedIds": list(state.folded_ids),
+                "payouts": dict(state.payouts),
+                "winnerIds": list(winner_ids),
+                "reason": reason,
+            }
+        )
+        departing_ids = set(state.departing_ids)
+        for player_id in departing_ids:
+            state.chips[player_id] = 0
+        busted_ids = [
+            player.id
+            for player in self._players(room)
+            if state.chips.get(player.id, 0) <= 0
+            and player.id not in state.eliminated_ids
+        ]
+        self._mark_eliminated(room, state, busted_ids)
+        state.next_hand_ready_ids = []
+        if self._finish_table_if_decided(room, state):
+            return
+        room.phase = "between_hands"
+
+    def _mark_eliminated(
+        self,
+        room: ArcadeRoom,
+        state: PokerState,
+        player_ids: list[str],
+    ) -> None:
+        ordered_ids = sorted(
+            player_ids,
+            key=lambda player_id: (
+                state.hand_start_chips.get(player_id, 0),
+                room.player(player_id).seat,
+            ),
+        )
+        for player_id in ordered_ids:
+            if player_id not in state.eliminated_ids:
+                state.eliminated_ids.append(player_id)
+
+    def _finish_table_if_decided(
+        self,
+        room: ArcadeRoom,
+        state: PokerState,
+    ) -> bool:
+        players = self._table_players(room, state)
+        if len(players) > 1:
+            voters = self._next_hand_voter_ids(room, state)
+            if room.phase == "between_hands" and voters <= set(
+                state.next_hand_ready_ids
+            ):
+                dealer = room.player(state.dealer_player_id or "")
+                next_dealer_id = self._next_player_id(
+                    room,
+                    dealer.seat,
+                    {player.id for player in players},
+                )
+                self._start_hand(room, state, next_dealer_id or "")
+            return False
+        self._finish_table(room, state)
+        return True
+
+    def _finish_table(self, room: ArcadeRoom, state: PokerState) -> None:
+        players = self._table_players(room, state)
+        state.action_player_id = None
+        state.pending_player_ids = []
+        if len(players) == 1:
+            winner = players[0]
+            room.finish(
+                "poker",
+                [winner.id],
+                (
+                    f"{winner.name} 赢得本桌，最终持有 "
+                    f"{state.chips[winner.id]} 筹码"
+                ),
+            )
+        else:
+            room.finish("draw", [], "本桌没有剩余玩家，牌桌结束")
+
+    def _table_players(
+        self,
+        room: ArcadeRoom,
+        state: PokerState,
+    ) -> list[ArcadePlayer]:
+        return [
+            player
+            for player in self._players(room)
+            if state.chips.get(player.id, 0) > 0
+            and player.id not in state.eliminated_ids
+            and player.id not in state.departing_ids
+            and not player.left_room
+        ]
+
+    def _next_hand_voter_ids(
+        self,
+        room: ArcadeRoom,
+        state: PokerState,
+    ) -> set[str]:
+        return {
+            player.id
+            for player in self._table_players(room, state)
+            if not player.is_bot
+        }
 
     def _legal_actions(self, state: PokerState, player_id: str) -> dict[str, Any]:
         if player_id != state.action_player_id:
@@ -672,7 +938,10 @@ class PokerEngine:
         for player_id, amount in payouts.items():
             state.chips[player_id] += amount
         net_scores = {
-            player.id: state.chips[player.id] - state.starting_chips
+            player.id: (
+                state.chips[player.id]
+                - state.hand_start_chips.get(player.id, state.chips[player.id])
+            )
             for player in room.players
         }
         positive_winners = [
@@ -680,7 +949,6 @@ class PokerEngine:
             if net_scores[player.id] > 0
         ]
         if positive_winners:
-            state.winner_ids = positive_winners
             winner_names = "、".join(
                 room.player(player_id).name for player_id in positive_winners
             )
@@ -692,14 +960,19 @@ class PokerEngine:
                     }
                 )
             )
-            room.finish(
-                "poker",
+            self._complete_hand(
+                room,
+                state,
                 positive_winners,
-                f"{winner_names} 赢得本局（摊牌：{best_label}）",
+                f"{winner_names} 赢得本手（摊牌：{best_label}）",
             )
         else:
-            state.winner_ids = active
-            room.finish("draw", active, "所有玩家平分底池，本局不分胜负")
+            self._complete_hand(
+                room,
+                state,
+                active,
+                "所有玩家平分底池，本手不分胜负",
+            )
 
     def _finish_uncontested(
         self,
@@ -719,12 +992,12 @@ class PokerEngine:
                 "handName": "其他玩家弃牌",
             }
         ]
-        state.winner_ids = [winner_id]
         winner = room.player(winner_id)
-        room.finish(
-            "poker",
+        self._complete_hand(
+            room,
+            state,
             [winner_id],
-            f"{winner.name} 坚持到最后，赢得 {state.pot} 筹码",
+            f"{winner.name} 坚持到最后，赢得本手 {state.pot} 筹码",
         )
 
     def _deal_street(self, state: PokerState, street: str) -> None:
@@ -791,7 +1064,7 @@ class PokerEngine:
         return [
             player.id
             for player in sorted(room.players, key=lambda item: item.seat)
-            if player.id not in state.folded_ids
+            if player.id in state.hands and player.id not in state.folded_ids
         ]
 
     def _next_player_id(

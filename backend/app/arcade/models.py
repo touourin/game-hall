@@ -40,6 +40,7 @@ class ArcadeChatMessage:
 class ArcadeGameRequest:
     kind: str
     requester_id: str
+    approved_player_ids: set[str] = field(default_factory=set)
 
 
 @dataclass

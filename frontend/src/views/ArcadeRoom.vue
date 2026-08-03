@@ -6,11 +6,9 @@ import {
   CircleHelp,
   Crown,
   Eye,
-  Handshake,
   QrCode,
   RotateCcw,
   Settings2,
-  Undo2,
   UsersRound,
   X,
 } from '@lucide/vue'
@@ -19,6 +17,7 @@ import GameSkinPicker from '../components/GameSkinPicker.vue'
 import InviteLinkPanel from '../components/InviteLinkPanel.vue'
 import GameRuleSettings from '../components/GameRuleSettings.vue'
 import HostTransferNotice from '../components/HostTransferNotice.vue'
+import MatchRequestPanel from '../components/MatchRequestPanel.vue'
 import RoomExitButton from '../components/RoomExitButton.vue'
 import RoomDissolveButton from '../components/RoomDissolveButton.vue'
 import RoomPageHeader from '../components/RoomPageHeader.vue'
@@ -331,6 +330,9 @@ const exitDescription = computed(() => {
     return '退出将放弃当前进度，未完成的挑战不会记录成绩。'
   }
   if (props.snapshot.actions.canAct) {
+    if (props.snapshot.gameKey === 'poker') {
+      return '暂时返回会保留座位和筹码；退出并淘汰将放弃本桌，而且无法再返回。'
+    }
     return '暂时返回会保留座位和进度；认输并退出将放弃本局，而且无法再返回。'
   }
   if (props.snapshot.phase === 'lobby') {
@@ -423,6 +425,7 @@ function openSharedChat() {
           :busy="arcade.busy"
           :description="exitDescription"
           :mode="exitMode"
+          :abandon-label="snapshot.gameKey === 'poker' ? '退出并淘汰' : undefined"
           @leave="arcade.leaveRoom"
           @detach="arcade.detachRoom"
           @abandon="arcade.abandonRoom"
@@ -615,7 +618,7 @@ function openSharedChat() {
 
     <section v-else class="arcade-game-stage">
       <div v-if="snapshot.phase === 'finished' && !isSolo && !avalonSnapshot" class="surface result-banner">
-        <small>本局结束</small>
+        <small>{{ snapshot.gameKey === 'poker' ? '本桌结束' : '本局结束' }}</small>
         <h2>{{ snapshot.winReason }}</h2>
         <p>
           {{ snapshot.winnerPlayerIds.includes(snapshot.self.id) ? '你赢了' : '再接再厉' }}
@@ -632,7 +635,7 @@ function openSharedChat() {
           @click="arcade.restartGame"
         >
           <RotateCcw :size="18" />
-          {{ selfRematchReady ? '等待其他玩家' : '准备再来一局' }}
+          {{ selfRematchReady ? '等待其他玩家' : snapshot.gameKey === 'poker' ? '准备重新开桌' : '准备再来一局' }}
         </button>
       </div>
 
@@ -653,44 +656,16 @@ function openSharedChat() {
         @open-chat="openSharedChat"
       />
 
-      <section
-        v-if="snapshot.phase === 'playing' && (snapshot.actions.canRequestUndo || snapshot.actions.canRequestDraw || snapshot.request)"
-        class="surface match-request-panel"
-      >
-        <template v-if="snapshot.request">
-          <div>
-            <strong>{{ snapshot.request.requesterName }}</strong>
-            <span>申请{{ snapshot.request.kind === 'undo' ? '悔棋' : '和棋' }}</span>
-          </div>
-          <div v-if="snapshot.request.isMine" class="request-response-actions request-waiting-actions">
-            <p>等待其他玩家确认</p>
-            <button type="button" @click="arcade.resolveGameRequest(false)">撤回申请</button>
-          </div>
-          <div v-else class="request-response-actions">
-            <button type="button" @click="arcade.resolveGameRequest(false)">拒绝</button>
-            <button type="button" class="accept" @click="arcade.resolveGameRequest(true)">同意</button>
-          </div>
-        </template>
-        <template v-else>
-          <span>对局协商</span>
-          <div>
-            <button
-              v-if="snapshot.actions.canRequestUndo"
-              type="button"
-              @click="arcade.requestGameAction('undo')"
-            >
-              <Undo2 :size="16" />申请悔棋
-            </button>
-            <button
-              v-if="snapshot.actions.canRequestDraw"
-              type="button"
-              @click="arcade.requestGameAction('draw')"
-            >
-              <Handshake :size="16" />申请和棋
-            </button>
-          </div>
-        </template>
-      </section>
+      <MatchRequestPanel
+        v-if="snapshot.actions.canRequestUndo || snapshot.actions.canRequestDraw || snapshot.actions.canRequestEndTable || snapshot.request"
+        :request="snapshot.request"
+        :can-request-undo="snapshot.actions.canRequestUndo"
+        :can-request-draw="snapshot.actions.canRequestDraw"
+        :can-request-end-table="snapshot.actions.canRequestEndTable"
+        :busy="arcade.busy"
+        @request="arcade.requestGameAction"
+        @resolve="arcade.resolveGameRequest"
+      />
     </section>
 
     <ArcadeChatPanel
@@ -838,15 +813,6 @@ function openSharedChat() {
 .result-banner p { color: var(--muted); }
 .result-banner .rematch-progress { margin-bottom: 0; font-size: 11px; }
 .result-banner .primary-button { margin: 12px auto 0; }
-.match-request-panel { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 15px; }
-.match-request-panel > span { color: var(--muted); font-weight: 800; }
-.match-request-panel > div { display: flex; align-items: center; gap: 8px; }
-.match-request-panel > div:first-child { display: grid; gap: 2px; }
-.match-request-panel > div:first-child span { color: var(--muted); }
-.match-request-panel p { margin: 0; color: var(--gold); }
-.match-request-panel button { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; border: 1px solid var(--line); border-radius: 10px; padding: 0 11px; color: var(--text); background: transparent; font-weight: 800; }
-.request-waiting-actions { justify-content: flex-end; }
-.request-response-actions button.accept { border-color: color-mix(in srgb, var(--gold) 38%, var(--line)); color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, transparent); }
 .rule-editor-modal { width: min(94vw, 620px); max-height: min(88vh, 820px); overflow-y: auto; }
 .rule-editor-modal > p { margin: -4px 0 20px; color: var(--muted); }
 .rule-editor-modal > .wide-button { margin-top: 22px; }
@@ -868,9 +834,6 @@ function openSharedChat() {
   .arcade-room--active.arcade-room--board-game :deep(.room-page-title-row h1) { font-size: 23px; }
   .arcade-room--active.arcade-room--board-game :deep(.room-page-actions) { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; }
   .arcade-player-strip article { flex-basis: calc(50% - 5px); }
-  .match-request-panel { align-items: stretch; flex-direction: column; }
-  .match-request-panel > div { display: grid; grid-template-columns: 1fr 1fr; }
-  .match-request-panel button { justify-content: center; }
   .room-rule-bar { align-items: stretch; flex-direction: column; }
   .room-rule-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
   .room-rule-actions button { width: 100%; }

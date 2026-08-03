@@ -30,6 +30,8 @@ interface PokerPlayerState {
   cardCount: number
   handName: string | null
   payout: number
+  eliminated: boolean
+  readyNextHand: boolean
 }
 
 interface LegalActions {
@@ -63,6 +65,12 @@ const game = computed(() => props.snapshot.game as {
   showdown: boolean
   sidePots: Array<{ amount: number; winnerIds: string[]; handName: string }>
   history: Array<{ street: string; playerId: string; action: string; amount: number; streetBet?: number }>
+  handNumber: number
+  lastHandReason: string | null
+  nextHandReadyPlayerIds: string[]
+  requiredNextHandReadyCount: number
+  canReadyNextHand: boolean
+  eliminatedIds: string[]
 })
 const self = computed(() => game.value.players.find((player) => player.id === props.snapshot.self.id))
 const opponents = computed(() => game.value.players.filter((player) => player.id !== props.snapshot.self.id))
@@ -129,14 +137,14 @@ function act(action: string, payload: Record<string, unknown> = {}) {
           v-for="player in opponents"
           :key="player.id"
           class="poker-seat opponent-seat"
-          :class="{ acting: player.isActing, folded: player.folded }"
+          :class="{ acting: player.isActing, folded: player.folded, eliminated: player.eliminated }"
         >
           <header><strong>{{ player.name }}</strong><span v-if="player.isDealer">D</span><span v-if="player.isSmallBlind">SB</span><span v-if="player.isBigBlind">BB</span></header>
           <div class="mini-hand">
             <span v-for="card in player.cards" :key="card.id" class="playing-card mini" :class="{ red: card.red }"><b>{{ card.rankLabel }}</b><i>{{ card.suitSymbol }}</i></span>
             <span v-for="index in player.cards.length ? 0 : player.cardCount" :key="`back-${index}`" class="playing-card mini card-back">♠</span>
           </div>
-          <footer><span>{{ player.folded ? '已弃牌' : player.allIn ? '已全押' : `${player.chips} 筹码` }}</span><b v-if="player.streetBet">桌面 {{ player.streetBet }}</b><em v-if="player.handName">{{ player.handName }}</em></footer>
+          <footer><span>{{ player.eliminated ? '已淘汰' : player.folded ? '已弃牌' : player.allIn ? '已全押' : `${player.chips} 筹码` }}</span><b v-if="player.streetBet">桌面 {{ player.streetBet }}</b><em v-if="player.handName">{{ player.handName }}</em></footer>
         </article>
       </div>
 
@@ -150,13 +158,13 @@ function act(action: string, payload: Record<string, unknown> = {}) {
         </div>
       </div>
 
-      <article v-if="self" class="poker-seat self-seat" :class="{ acting: self.isActing, folded: self.folded }">
+      <article v-if="self" class="poker-seat self-seat" :class="{ acting: self.isActing, folded: self.folded, eliminated: self.eliminated }">
         <div class="self-hand">
           <span v-for="card in self.cards" :key="card.id" class="playing-card own-card" :class="{ red: card.red }"><b>{{ card.rankLabel }}</b><i>{{ card.suitSymbol }}</i></span>
         </div>
         <div class="self-copy">
           <header><strong>{{ self.name }} · 你</strong><span v-if="self.isDealer">庄家 D</span><span v-if="self.isSmallBlind">小盲</span><span v-if="self.isBigBlind">大盲</span></header>
-          <p><Coins :size="16" />{{ self.chips }} 筹码 <b v-if="self.streetBet">· 已下注 {{ self.streetBet }}</b></p>
+          <p><Coins :size="16" />{{ self.eliminated ? '已淘汰' : `${self.chips} 筹码` }} <b v-if="self.streetBet">· 已下注 {{ self.streetBet }}</b></p>
           <em v-if="self.handName">{{ self.handName }}<template v-if="self.payout"> · 赢得 {{ self.payout }}</template></em>
         </div>
       </article>
@@ -183,6 +191,25 @@ function act(action: string, payload: Record<string, unknown> = {}) {
       <p v-else>{{ game.actionPlayerId ? `等待 ${playerName(game.actionPlayerId)} 行动` : '正在结算牌局' }}</p>
     </section>
 
+    <section v-else-if="snapshot.phase === 'between_hands'" class="surface next-hand-panel">
+      <div>
+        <small>第 {{ game.handNumber }} 手牌结束</small>
+        <strong>{{ game.lastHandReason }}</strong>
+        <span>{{ game.nextHandReadyPlayerIds.length }} / {{ game.requiredNextHandReadyCount }} 人已准备下一手</span>
+      </div>
+      <button
+        v-if="game.canReadyNextHand"
+        type="button"
+        class="primary-button"
+        :disabled="arcade.busy"
+        @click="act('ready_next_hand')"
+      >
+        准备下一手
+      </button>
+      <p v-else-if="self?.eliminated">你已淘汰，可以继续观战</p>
+      <p v-else>等待其他玩家准备</p>
+    </section>
+
     <section v-if="lastActions.length" class="poker-history">
       <span v-for="(entry, index) in lastActions" :key="index"><b>{{ playerName(entry.playerId) }}</b>{{ actionLabel(entry.action) }}<em v-if="historyAmount(entry)"> {{ historyAmount(entry) }}</em></span>
     </section>
@@ -192,11 +219,12 @@ function act(action: string, payload: Record<string, unknown> = {}) {
 <style scoped>
 .poker-panel { display: grid; gap: 14px; }.poker-status { display: flex; align-items: end; justify-content: space-between; gap: 12px; }.poker-status div { display: grid; gap: 3px; }.poker-status small { color: var(--gold); font-weight: 850; letter-spacing: .08em; }.poker-status strong { display: flex; align-items: center; gap: 6px; font-size: 22px; }.poker-status > span { color: var(--muted); font-weight: 800; }
 .poker-felt { position: relative; min-height: 610px; overflow: hidden; display: grid; grid-template-rows: 1fr auto auto; gap: 22px; border: 8px solid var(--game-felt-border, #5d351d); border-radius: 42% / 9%; padding: clamp(24px, 5vw, 48px); background: var(--game-felt-surface, radial-gradient(ellipse at center, #176348 0%, #0d4b38 62%, #08382d 100%)); box-shadow: inset 0 0 0 3px var(--game-felt-highlight, #bc8650), inset 0 0 70px #001018aa, 0 20px 52px #0007; }.poker-felt::after { content: ''; pointer-events: none; position: absolute; inset: 14px; border: 1px solid color-mix(in srgb, var(--game-felt-highlight, #d7bd78) 45%, transparent); border-radius: inherit; }
-.opponent-grid { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); align-content: start; gap: 10px; }.poker-seat { border: 1px solid #ffffff20; border-radius: 14px; color: #effaf4; background: var(--game-seat-surface, #062e27d9); box-shadow: 0 9px 20px #001018aa; }.poker-seat.acting { border-color: #f2c862; box-shadow: 0 0 0 2px #f2c86244, 0 10px 24px #001c17; }.poker-seat.folded { opacity: .52; filter: grayscale(.45); }.opponent-seat { min-height: 112px; padding: 10px; display: grid; grid-template-rows: auto 1fr auto; gap: 6px; }.poker-seat header { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }.poker-seat header strong { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.poker-seat header span { border-radius: 5px; padding: 2px 4px; color: #241b0e; background: #e4bc67; font-size: 10px; font-weight: 900; }.opponent-seat footer { display: flex; flex-wrap: wrap; gap: 4px 7px; color: #aec8bd; font-size: 11px; }.opponent-seat footer b { color: #edca7e; }.opponent-seat footer em { width: 100%; color: #f4d58d; font-style: normal; font-weight: 800; }
+.opponent-grid { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); align-content: start; gap: 10px; }.poker-seat { border: 1px solid #ffffff20; border-radius: 14px; color: #effaf4; background: var(--game-seat-surface, #062e27d9); box-shadow: 0 9px 20px #001018aa; }.poker-seat.acting { border-color: #f2c862; box-shadow: 0 0 0 2px #f2c86244, 0 10px 24px #001c17; }.poker-seat.folded,.poker-seat.eliminated { opacity: .52; filter: grayscale(.45); }.opponent-seat { min-height: 112px; padding: 10px; display: grid; grid-template-rows: auto 1fr auto; gap: 6px; }.poker-seat header { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }.poker-seat header strong { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.poker-seat header span { border-radius: 5px; padding: 2px 4px; color: #241b0e; background: #e4bc67; font-size: 10px; font-weight: 900; }.opponent-seat footer { display: flex; flex-wrap: wrap; gap: 4px 7px; color: #aec8bd; font-size: 11px; }.opponent-seat footer b { color: #edca7e; }.opponent-seat footer em { width: 100%; color: #f4d58d; font-style: normal; font-weight: 800; }
 .mini-hand { display: flex; align-items: center; justify-content: center; }.playing-card { width: clamp(42px, 9vw, 64px); aspect-ratio: 5 / 7; display: grid; align-content: space-between; border: 1px solid var(--game-card-border, #d8d4c6); border-radius: 7px; padding: 5px; color: #17211f; background: var(--game-card-face, linear-gradient(145deg, #fffdf6, #ddd9cc)); box-shadow: 0 5px 10px #001017aa; font-family: Georgia, serif; font-style: normal; }.playing-card b { line-height: 1; font-size: clamp(16px, 3.8vw, 24px); }.playing-card i { justify-self: end; line-height: 1; font-size: clamp(18px, 4vw, 26px); font-style: normal; }.playing-card.red { color: #bd2f35; }.playing-card.mini { width: 32px; border-radius: 5px; padding: 3px; }.playing-card.mini + .playing-card.mini { margin-left: -7px; }.playing-card.mini b { font-size: 12px; }.playing-card.mini i { font-size: 13px; }.card-back { place-items: center; border-color: var(--game-card-back-accent, #d0b06a); color: var(--game-card-back-accent, #e8c978); background: var(--game-card-back, repeating-linear-gradient(45deg, #243d55 0 4px, #172c42 4px 8px)); font-size: 14px; }.playing-card.empty { border-style: dashed; border-color: color-mix(in srgb, var(--game-card-back-accent, #e6d392) 28%, transparent); background: rgba(0, 0, 0, .16); box-shadow: none; }
 .community-area { position: relative; z-index: 1; display: grid; justify-items: center; gap: 8px; }.community-cards { min-height: 70px; display: flex; justify-content: center; gap: clamp(4px, 1.3vw, 9px); }.side-pot-summary { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }.side-pot-summary span { border-radius: 999px; padding: 3px 7px; color: #ead295; background: #002c21aa; font-size: 11px; }
 .self-seat { position: relative; z-index: 1; min-height: 106px; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 14px; padding: 12px 16px; }.self-hand { display: flex; }.own-card + .own-card { margin-left: -9px; }.self-copy { min-width: 0; }.self-copy header strong { font-size: 18px; }.self-copy p { margin: 8px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 3px 5px; color: #dfeee7; }.self-copy p b { color: #e4c172; white-space: nowrap; }.self-copy > em { display: block; margin-top: 5px; color: #f0cd7b; font-style: normal; font-weight: 850; }
 .poker-controls { padding: 14px; display: grid; gap: 10px; }.poker-controls p { margin: 0; color: var(--muted); text-align: center; }.primary-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }.primary-actions button, .raise-button, .quick-raises button { min-height: 44px; border: 1px solid var(--line); border-radius: 10px; color: var(--text); background: rgba(255,255,255,.05); font-weight: 850; }.primary-actions .fold { color: #f08e8b; }.primary-actions .all-in { color: #f1ca73; border-color: #d4aa5355; background: #d4aa5314; }.raise-controls { display: grid; grid-template-columns: 1fr auto auto; align-items: end; gap: 8px; }.quick-raises { display: flex; gap: 5px; }.quick-raises button { min-height: 38px; padding: 0 9px; color: var(--muted); font-size: 12px; }.raise-controls label { display: grid; gap: 3px; color: var(--muted); font-size: 11px; }.raise-controls input { width: 100px; min-height: 38px; border: 1px solid var(--line); border-radius: 9px; padding: 0 9px; color: var(--text); background: #001f20; }.raise-button { padding: 0 13px; color: #192019; background: var(--gold); }
+.next-hand-panel { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px; }.next-hand-panel > div { display: grid; gap: 3px; }.next-hand-panel small { color: var(--gold); }.next-hand-panel span,.next-hand-panel p { margin: 0; color: var(--muted); }.next-hand-panel .primary-button { flex: 0 0 auto; }
 .poker-history { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }.poker-history span { border: 1px solid var(--line); border-radius: 999px; padding: 4px 8px; color: var(--muted); font-size: 11px; }.poker-history b { margin-right: 4px; color: var(--text); }.poker-history em { margin-left: 3px; color: var(--gold); font-style: normal; }
-@media (max-width: 600px) { .poker-status { align-items: start; }.poker-status strong { font-size: 19px; }.poker-felt { min-height: 560px; border-width: 5px; border-radius: 30px; padding: 23px 12px; gap: 16px; }.opponent-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }.opponent-seat { min-height: 102px; padding: 8px; }.playing-card { width: clamp(43px, 12vw, 52px); }.self-seat { padding: 10px 12px; gap: 9px; }.self-copy p { font-size: 12px; }.primary-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }.raise-controls { grid-template-columns: 1fr auto; }.quick-raises { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); }.quick-raises button { padding: 0 5px; }.raise-controls input { width: 100%; }.raise-button { min-width: 98px; }.poker-history { justify-content: flex-start; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 3px; }.poker-history span { flex: 0 0 auto; } }
+@media (max-width: 600px) { .poker-status { align-items: start; }.poker-status strong { font-size: 19px; }.poker-felt { min-height: 560px; border-width: 5px; border-radius: 30px; padding: 23px 12px; gap: 16px; }.opponent-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }.opponent-seat { min-height: 102px; padding: 8px; }.playing-card { width: clamp(43px, 12vw, 52px); }.self-seat { padding: 10px 12px; gap: 9px; }.self-copy p { font-size: 12px; }.primary-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }.raise-controls { grid-template-columns: 1fr auto; }.quick-raises { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); }.quick-raises button { padding: 0 5px; }.raise-controls input { width: 100%; }.raise-button { min-width: 98px; }.next-hand-panel { align-items: stretch; flex-direction: column; }.poker-history { justify-content: flex-start; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 3px; }.poker-history span { flex: 0 0 auto; } }
 </style>

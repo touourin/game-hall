@@ -58,10 +58,15 @@ export interface ArcadeChatMessage {
 }
 
 export interface ArcadeGameRequest {
-  kind: 'undo' | 'draw'
+  kind: 'undo' | 'draw' | 'end_table'
   requesterId: string
   requesterName: string
   isMine: boolean
+  hasApproved?: boolean
+  canRespond?: boolean
+  approvedPlayerIds?: string[]
+  approvalCount?: number
+  requiredApprovalCount?: number
 }
 
 export interface ArcadeSnapshot {
@@ -91,6 +96,7 @@ export interface ArcadeSnapshot {
     canEditRules: boolean
     canRequestUndo: boolean
     canRequestDraw: boolean
+    canRequestEndTable?: boolean
     canResolveRequest: boolean
   }
   rematchReadyPlayerIds: string[]
@@ -118,6 +124,7 @@ export type ArcadePhase =
   | 'setup'
   | 'bidding'
   | 'playing'
+  | 'between_hands'
   | 'scoring'
   | 'finished'
   | 'role_reveal'

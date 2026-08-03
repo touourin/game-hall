@@ -196,14 +196,14 @@ def test_short_all_in_requires_calls_without_reopening_the_raise() -> None:
         engine.act(room, room.players[0], "raise", {"raiseTo": 60})
 
 
-def test_poker_finishes_when_everyone_else_folds() -> None:
+def test_poker_finishes_the_hand_when_everyone_else_folds() -> None:
     engine, room = make_room(3)
 
     engine.act(room, room.players[0], "fold", {})
     engine.act(room, room.players[1], "fold", {})
 
-    assert room.phase == "finished"
-    assert room.winner_player_ids == ["p2"]
+    assert room.phase == "between_hands"
+    assert room.winner_player_ids == []
     assert room.state.payouts["p2"] == 30
     assert room.state.chips["p2"] == 1010
     assert room.state.showdown is False
@@ -248,12 +248,76 @@ def test_poker_checkdown_deals_all_community_cards_and_reveals_showdown() -> Non
         second = room.player(state.action_player_id)
         engine.act(room, second, "check", {})
 
-    assert room.phase == "finished"
+    assert room.phase == "between_hands"
     assert state.showdown is True
     assert state.street == "showdown"
     assert len(state.community) == 5
     assert sum(state.payouts.values()) == state.pot == 40
     assert sum(state.chips.values()) == 2000
+
+
+def test_poker_next_hand_preserves_chips_and_rotates_the_dealer() -> None:
+    engine, room = make_room(2)
+    state = room.state
+
+    engine.act(room, room.players[0], "fold", {})
+    assert room.phase == "between_hands"
+    assert state.chips == {"p0": 990, "p1": 1010}
+    assert state.dealer_player_id == "p0"
+
+    engine.act(room, room.players[0], "ready_next_hand", {})
+    assert room.phase == "between_hands"
+    engine.act(room, room.players[1], "ready_next_hand", {})
+
+    assert room.phase == "playing"
+    assert state.hand_number == 2
+    assert state.dealer_player_id == "p1"
+    assert state.chips == {"p0": 970, "p1": 1000}
+    assert state.pot == 30
+    assert sum(state.chips.values()) + state.pot == 2000
+
+
+def test_poker_resignation_eliminates_player_and_finishes_heads_up_table() -> None:
+    engine, room = make_room(2)
+
+    engine.act(room, room.players[0], "resign", {})
+
+    assert room.phase == "finished"
+    assert room.winner_player_ids == ["p1"]
+    assert room.state.eliminated_ids == ["p0"]
+    assert room.state.chips["p0"] == 0
+    assert "赢得本桌" in (room.win_reason or "")
+
+
+def test_poker_all_in_bust_finishes_the_table_with_conserved_chips() -> None:
+    engine, room = make_room(2)
+
+    engine.act(room, room.player(room.state.action_player_id), "all_in", {})
+    engine.act(room, room.player(room.state.action_player_id), "call", {})
+
+    assert room.phase == "finished"
+    assert len(room.winner_player_ids) == 1
+    assert len(room.state.eliminated_ids) == 1
+    assert sum(room.state.chips.values()) == 2000
+    assert len(room.state.hand_summaries) == 1
+
+
+def test_poker_players_can_leave_between_hands_without_resetting_the_table() -> None:
+    engine, room = make_room(3)
+    state = room.state
+    engine.act(room, room.players[0], "fold", {})
+    engine.act(room, room.players[1], "fold", {})
+
+    assert room.phase == "between_hands"
+    assert engine.manual_forfeit(room, room.players[0]) is True
+    assert room.phase == "between_hands"
+    assert state.chips["p0"] == 0
+    assert state.eliminated_ids == ["p0"]
+
+    assert engine.manual_forfeit(room, room.players[1]) is True
+    assert room.phase == "finished"
+    assert room.winner_player_ids == ["p2"]
+    assert len(state.hand_summaries) == 1
 
 
 def test_poker_side_pots_pay_each_layer_to_its_best_eligible_hand() -> None:

@@ -57,12 +57,18 @@ function snapshot(showdown = false): ArcadeSnapshot {
       showdown,
       sidePots: [],
       history: [{ street: 'preflop', playerId: 'p2', action: 'big_blind', amount: 20 }],
+      handNumber: 1,
+      lastHandReason: showdown ? '玩家一赢得本手' : null,
+      nextHandReadyPlayerIds: [],
+      requiredNextHandReadyCount: 2,
+      canReadyNextHand: false,
+      eliminatedIds: [],
       legalActions: showdown
         ? { canAct: false, canFold: false, canCheck: false, canCall: false, canRaise: false, canAllIn: false, callAmount: 0, minimumRaiseTo: 0, maximumRaiseTo: 0 }
         : { canAct: true, canFold: true, canCheck: false, canCall: true, canRaise: true, canAllIn: true, callAmount: 20, minimumRaiseTo: 40, maximumRaiseTo: 1000 },
       players: [
-        { id: 'p1', name: '玩家一', seat: 0, chips: 1000, streetBet: 0, totalBet: 0, folded: false, allIn: false, isDealer: true, isSmallBlind: true, isBigBlind: false, isActing: !showdown, cards: [card('as', 'A', '♠'), card('kh', 'K', '♥', true)], cardCount: 2, handName: showdown ? '一对' : null, payout: showdown ? 60 : 0 },
-        { id: 'p2', name: '玩家二', seat: 1, chips: 980, streetBet: 20, totalBet: 20, folded: false, allIn: false, isDealer: false, isSmallBlind: false, isBigBlind: true, isActing: false, cards: showdown ? [card('qc', 'Q', '♣'), card('jd', 'J', '♦', true)] : [], cardCount: 2, handName: showdown ? '高牌' : null, payout: 0 },
+        { id: 'p1', name: '玩家一', seat: 0, chips: 1000, streetBet: 0, totalBet: 0, folded: false, allIn: false, isDealer: true, isSmallBlind: true, isBigBlind: false, isActing: !showdown, cards: [card('as', 'A', '♠'), card('kh', 'K', '♥', true)], cardCount: 2, handName: showdown ? '一对' : null, payout: showdown ? 60 : 0, eliminated: false, readyNextHand: false },
+        { id: 'p2', name: '玩家二', seat: 1, chips: 980, streetBet: 20, totalBet: 20, folded: false, allIn: false, isDealer: false, isSmallBlind: false, isBigBlind: true, isActing: false, cards: showdown ? [card('qc', 'Q', '♣'), card('jd', 'J', '♦', true)] : [], cardCount: 2, handName: showdown ? '高牌' : null, payout: 0, eliminated: false, readyNextHand: false },
       ],
     },
   }
@@ -129,5 +135,26 @@ describe('PokerTable', () => {
     expect(wrapper.text()).toContain('一对')
     expect(wrapper.text()).toContain('高牌')
     expect(wrapper.text()).toContain('赢得 60')
+  })
+
+  it('lets surviving players prepare the next hand', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const action = vi.spyOn(arcade, 'action').mockResolvedValue()
+    const current = snapshot(true)
+    current.phase = 'between_hands'
+    current.winner = null
+    current.winnerPlayerIds = []
+    current.winReason = null
+    current.game.canReadyNextHand = true
+
+    const wrapper = mount(PokerTable, {
+      props: { snapshot: current },
+      global: { plugins: [pinia] },
+    })
+
+    expect(wrapper.get('.next-hand-panel').text()).toContain('第 1 手牌结束')
+    await wrapper.get('.next-hand-panel .primary-button').trigger('click')
+    expect(action).toHaveBeenCalledWith('ready_next_hand', {})
   })
 })

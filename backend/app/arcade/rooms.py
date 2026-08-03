@@ -45,6 +45,22 @@ MAX_UNDO_HISTORY = 100
 ACTIVE_GAME_PHASES = {"setup", "playing", "bidding", "scoring"}
 
 
+def request_voter_ids(
+    room: ArcadeRoom,
+    engine: GameEngine,
+    kind: str,
+) -> set[str]:
+    human_ids = {
+        player.id
+        for player in room.players
+        if not player.is_bot and not player.left_room
+    }
+    selector = getattr(engine, "request_voter_ids", None)
+    if selector is None:
+        return human_ids
+    return human_ids & set(selector(room, kind))
+
+
 class ArcadeRoomError(ValueError):
     pass
 
@@ -412,13 +428,14 @@ class ArcadeRoomManager:
 
     def request_game_action(
         self, room: ArcadeRoom, player_id: str, kind: str
-    ) -> None:
-        room.player(player_id)
-        if room.phase != "playing":
-            raise ArcadeRoomError("当前不能发起这个申请")
+    ) -> bool:
+        player = room.player(player_id)
+        engine = self.engine(room.game_key)
         if room.pending_request is not None:
             raise ArcadeRoomError("已经有一项申请等待处理")
         if kind == "undo":
+            if room.phase != "playing":
+                raise ArcadeRoomError("当前不能发起这个申请")
             if room.game_key not in UNDO_GAMES:
                 raise ArcadeRoomError("这个游戏不支持悔棋")
             if not room.options.get("allowUndo", True):
@@ -426,39 +443,74 @@ class ArcadeRoomManager:
             if not room.undo_history:
                 raise ArcadeRoomError("当前还没有可以撤回的操作")
         elif kind == "draw":
+            if room.phase != "playing":
+                raise ArcadeRoomError("当前不能发起这个申请")
             if room.game_key not in DRAW_GAMES:
                 raise ArcadeRoomError("这个游戏不支持和棋申请")
             if not room.options.get("allowDraw", True):
                 raise ArcadeRoomError("本房间没有开启和棋申请")
+        elif kind == "end_table":
+            if engine.max_players <= 1:
+                raise ArcadeRoomError("单人挑战不需要申请结束本桌")
+            if not self._is_active(room):
+                raise ArcadeRoomError("当前没有进行中的牌桌或对局")
+            if player.id not in request_voter_ids(room, engine, kind):
+                raise ArcadeRoomError("只有仍在本桌的玩家可以发起申请")
         else:
             raise ArcadeRoomError("不支持这个申请")
         room.pending_request = ArcadeGameRequest(
             kind=kind,
             requester_id=player_id,
+            approved_player_ids={player.id},
         )
+        if kind == "end_table" and request_voter_ids(room, engine, kind) <= {
+            player.id
+        }:
+            self._prepare_lobby(room)
+            return True
         room.revision += 1
+        return False
 
     def resolve_game_request(
         self, room: ArcadeRoom, player_id: str, accept: bool
-    ) -> None:
+    ) -> bool:
         request = room.pending_request
         if request is None:
             raise ArcadeRoomError("当前没有等待处理的申请")
-        room.player(player_id)
+        player = room.player(player_id)
         if request.requester_id == player_id:
             if accept:
                 raise ArcadeRoomError("申请需要由其他玩家确认")
             room.pending_request = None
             room.revision += 1
-            return
+            return False
+        engine = self.engine(room.game_key)
+        voters = request_voter_ids(room, engine, request.kind)
+        if player.id not in voters:
+            raise ArcadeRoomError("你不需要参与这项申请")
+        if not accept:
+            room.pending_request = None
+            room.revision += 1
+            return False
+        if player.id in request.approved_player_ids:
+            raise ArcadeRoomError("你已经同意这项申请")
+        request.approved_player_ids.add(player.id)
+        if not voters <= request.approved_player_ids:
+            room.revision += 1
+            return False
+
         room.pending_request = None
-        if accept and request.kind == "draw":
+        if request.kind == "draw":
             room.finish("draw", [], "双方同意和棋")
-        elif accept and request.kind == "undo":
+        elif request.kind == "undo":
             if not room.undo_history:
                 raise ArcadeRoomError("当前没有可以撤回的操作")
             room.state = room.undo_history.pop()
+        elif request.kind == "end_table":
+            self._prepare_lobby(room)
+            return True
         room.revision += 1
+        return False
 
     def get_room(self, code: str) -> ArcadeRoom:
         normalized = code.strip().upper()

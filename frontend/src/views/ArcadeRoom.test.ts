@@ -264,7 +264,10 @@ describe('ArcadeRoom', () => {
     room.actions.canRequestDraw = true
     const wrapper = shallowMount(ArcadeRoom, {
       props: { snapshot: room },
-      global: { plugins: [createPinia()] },
+      global: {
+        plugins: [createPinia()],
+        stubs: { MatchRequestPanel: false },
+      },
     })
 
     expect(wrapper.get('.arcade-room').classes()).toContain('arcade-room--active')
@@ -631,7 +634,10 @@ describe('ArcadeRoom', () => {
     }
     const wrapper = shallowMount(ArcadeRoom, {
       props: { snapshot: playingRoom },
-      global: { plugins: [pinia] },
+      global: {
+        plugins: [pinia],
+        stubs: { MatchRequestPanel: false },
+      },
     })
 
     expect(wrapper.text()).toContain('玩家二申请和棋')

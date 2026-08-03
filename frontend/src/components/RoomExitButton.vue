@@ -8,6 +8,7 @@ const props = withDefaults(
     description?: string
     busy?: boolean
     mode?: 'leave' | 'solo-active' | 'multiplayer-active'
+    abandonLabel?: string
   }>(),
   {
     description: '退出后将返回游戏大厅。',
@@ -28,6 +29,11 @@ const title = computed(() => ({
   'solo-active': '放弃本次挑战？',
   'multiplayer-active': '离开当前对局？',
 }[props.mode]))
+const dangerLabel = computed(() => {
+  if (props.mode === 'leave') return '确认退出'
+  if (props.mode === 'solo-active') return '放弃并退出'
+  return props.abandonLabel ?? '认输并退出'
+})
 
 function confirm(action: 'leave' | 'detach' | 'abandon') {
   showConfirmation.value = false
@@ -93,7 +99,7 @@ function confirm(action: 'leave' | 'detach' | 'abandon') {
         >
           <DoorOpen v-if="mode === 'leave'" :size="17" />
           <Flag v-else :size="17" />
-          {{ mode === 'leave' ? '确认退出' : mode === 'solo-active' ? '放弃并退出' : '认输并退出' }}
+          {{ dangerLabel }}
         </button>
       </div>
     </section>

@@ -168,7 +168,7 @@ function setOption(key: string, value: unknown) {
     </section>
 
     <section v-if="gameKey === 'poker'" class="rule-setting-group">
-      <header><strong>起始筹码</strong><small>每局重新发放，不涉及真实货币</small></header>
+      <header><strong>起始筹码</strong><small>开桌时发放，后续手牌持续继承，不涉及真实货币</small></header>
       <div class="rule-segmented three">
         <button v-for="chips in [500, 1000, 2000]" :key="chips" type="button" :class="{ active: option('startingChips') === chips }" @click="setOption('startingChips', chips)">{{ chips }}</button>
       </div>

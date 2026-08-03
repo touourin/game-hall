@@ -73,7 +73,7 @@ class ChatPayload(BaseModel):
 
 
 class GameRequestPayload(BaseModel):
-    kind: Literal["undo", "draw"]
+    kind: Literal["undo", "draw", "end_table"]
 
 
 class ResolveRequestPayload(BaseModel):
@@ -554,8 +554,12 @@ class ArcadeRealtime:
             payload = GameRequestPayload.model_validate(raw_data or {})
             room, player = await self._context(sid)
             async with room.lock:
-                self.rooms.request_game_action(room, player.id, payload.kind)
+                returned_to_lobby = self.rooms.request_game_action(
+                    room, player.id, payload.kind
+                )
             await self.broadcast_room(room)
+            if returned_to_lobby:
+                await self.broadcast_lobby()
             return {"ok": True}
         except (ValidationError, *ACTION_ERRORS) as error:
             return error_response(error)
@@ -567,7 +571,7 @@ class ArcadeRealtime:
             payload = ResolveRequestPayload.model_validate(raw_data or {})
             room, player = await self._context(sid)
             async with room.lock:
-                self.rooms.resolve_game_request(
+                returned_to_lobby = self.rooms.resolve_game_request(
                     room,
                     player.id,
                     payload.accept,
@@ -575,6 +579,8 @@ class ArcadeRealtime:
                 if room.phase == "finished":
                     self._record_room(room)
             await self.broadcast_room(room)
+            if returned_to_lobby:
+                await self.broadcast_lobby()
             return {"ok": True}
         except (ValidationError, *ACTION_ERRORS) as error:
             return error_response(error)

@@ -12,6 +12,7 @@ from .rooms import (
     HOST_TRANSFER_GRACE,
     MAX_CHAT_LENGTH,
     UNDO_GAMES,
+    request_voter_ids,
 )
 
 
@@ -63,6 +64,17 @@ def build_room_view(
         else room.phase == "finished"
         and viewer.id not in room.rematch_ready_ids
     )
+    voter_ids = request_voter_ids(
+        room,
+        engine,
+        pending_request.kind if pending_request is not None else "",
+    )
+    request_approved_ids = (
+        pending_request.approved_player_ids & voter_ids
+        if pending_request is not None
+        else set()
+    )
+    end_table_voter_ids = request_voter_ids(room, engine, "end_table")
     return {
         "revision": room.revision,
         "roomCode": room.code,
@@ -144,9 +156,16 @@ def build_room_view(
                 and room.options.get("allowDraw", True)
                 and pending_request is None
             ),
+            "canRequestEndTable": (
+                is_active_phase
+                and engine.max_players > 1
+                and viewer.id in end_table_voter_ids
+                and pending_request is None
+            ),
             "canResolveRequest": (
                 pending_request is not None
                 and pending_request.requester_id != viewer.id
+                and viewer.id not in request_approved_ids
             ),
         },
         "rematchReadyPlayerIds": sorted(room.rematch_ready_ids),
@@ -156,6 +175,15 @@ def build_room_view(
                 "requesterId": pending_request.requester_id,
                 "requesterName": requester.name,
                 "isMine": pending_request.requester_id == viewer.id,
+                "hasApproved": viewer.id in request_approved_ids,
+                "canRespond": (
+                    viewer.id in voter_ids
+                    and viewer.id != pending_request.requester_id
+                    and viewer.id not in request_approved_ids
+                ),
+                "approvedPlayerIds": sorted(request_approved_ids),
+                "approvalCount": len(request_approved_ids),
+                "requiredApprovalCount": len(voter_ids),
             }
             if pending_request is not None and requester is not None
             else None
