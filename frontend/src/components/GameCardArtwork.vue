@@ -1,12 +1,22 @@
 <script setup lang="ts">
 import type { GameCatalogItem } from '../types/arcade'
+import avalonRoundTable from '../assets/game-hall/avalon-round-table.webp'
+import avalonMidnightTable from '../assets/game-hall/avalon-midnight-table.webp'
+import avalonIvoryTable from '../assets/game-hall/avalon-ivory-table.webp'
 
 defineProps<{ gameKey: GameCatalogItem['key'] }>()
 </script>
 
 <template>
   <span class="game-card-art" :class="`art-${gameKey}`" aria-hidden="true">
-    <span v-if="gameKey === 'gomoku' || gameKey === 'go'" class="board-mini">
+    <template v-if="gameKey === 'avalon'">
+      <img class="avalon-card-art avalon-card-art-emerald" :src="avalonRoundTable" alt="" />
+      <img class="avalon-card-art avalon-card-art-midnight" :src="avalonMidnightTable" alt="" />
+      <img class="avalon-card-art avalon-card-art-royal" :src="avalonIvoryTable" alt="" />
+      <span class="avalon-card-sigil">A</span>
+    </template>
+
+    <span v-else-if="gameKey === 'gomoku' || gameKey === 'go'" class="board-mini">
       <i class="stone stone-dark" /><i class="stone stone-light" /><i class="stone stone-accent" />
     </span>
 
@@ -47,6 +57,16 @@ defineProps<{ gameKey: GameCatalogItem['key'] }>()
 <style scoped>
 .game-card-art { position: relative; width: 100%; min-height: 114px; display: grid; place-items: center; overflow: hidden; border: 1px solid color-mix(in srgb, var(--card-tone) 24%, var(--line)); border-radius: 13px; background: radial-gradient(circle at 50% 18%, color-mix(in srgb, var(--card-tone) 13%, transparent), transparent 50%), var(--surface-inset); color: var(--card-tone); }
 .game-card-art::after { position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,.035), transparent 42%), repeating-linear-gradient(135deg, transparent 0 9px, rgba(255,255,255,.012) 9px 10px); content: ''; pointer-events: none; }
+
+.art-avalon { border-color: color-mix(in srgb, var(--card-tone) 32%, var(--line)); background: #07110f; }
+.art-avalon::after { z-index: 1; background: linear-gradient(0deg, rgba(3,10,8,.7), transparent 62%), linear-gradient(135deg, rgba(255,255,255,.05), transparent 42%); }
+.avalon-card-art { position: absolute; inset: 0; display: none; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.avalon-card-art-emerald { display: block; }
+.avalon-card-sigil { position: relative; z-index: 2; width: 44px; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid rgba(230,203,136,.62); border-radius: 50%; color: #f4e8c3; background: rgba(3,12,10,.58); box-shadow: 0 0 0 6px rgba(3,12,10,.22), 0 9px 24px rgba(0,0,0,.42); font-family: "Songti SC", serif; font-size: 20px; font-weight: 800; }
+:global(:root[data-theme="midnight"] .avalon-card-art-emerald) { display: none; }
+:global(:root[data-theme="midnight"] .avalon-card-art-midnight) { display: block; }
+:global(:root[data-theme="royal"] .avalon-card-art-emerald) { display: none; }
+:global(:root[data-theme="royal"] .avalon-card-art-royal) { display: block; }
 
 .board-mini { position: absolute; inset: 10px; background-image: linear-gradient(color-mix(in srgb, var(--card-tone) 30%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--card-tone) 30%, transparent) 1px, transparent 1px); background-size: 20% 20%; background-position: center; transform: perspective(170px) rotateX(12deg) rotateZ(-4deg); }
 .stone { position: absolute; width: 22px; aspect-ratio: 1; border-radius: 50%; box-shadow: 0 4px 7px rgba(0,0,0,.48), inset -3px -3px 5px rgba(0,0,0,.32), inset 2px 2px 3px rgba(255,255,255,.25); }

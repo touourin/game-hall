@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import GameHall from './GameHall.vue'
 
 describe('GameHall', () => {
-  it('shows eleven games and selects the requested game', async () => {
+  it('keeps the existing games outside the separate board-game collection', async () => {
     const wrapper = mount(GameHall, {
       props: {
         account: {
@@ -19,10 +19,13 @@ describe('GameHall', () => {
 
     const gameCards = wrapper.findAll('.game-card')
     expect(gameCards).toHaveLength(11)
-    expect(wrapper.findAll('.game-card-art')).toHaveLength(10)
-    expect(wrapper.find('.featured-art-emerald').exists()).toBe(true)
-    expect(wrapper.find('.featured-art-midnight').exists()).toBe(true)
-    expect(wrapper.find('.featured-art-royal').exists()).toBe(true)
+    expect(wrapper.findAll('.arcade-section .game-card')).toHaveLength(7)
+    expect(wrapper.findAll('.solo-section .game-card')).toHaveLength(4)
+    expect(wrapper.findAll('.board-plugin-slot')).toHaveLength(3)
+    expect(wrapper.findAll('.game-card-art')).toHaveLength(11)
+    expect(wrapper.find('.avalon-card-art-emerald').exists()).toBe(true)
+    expect(wrapper.find('.avalon-card-art-midnight').exists()).toBe(true)
+    expect(wrapper.find('.avalon-card-art-royal').exists()).toBe(true)
     expect(wrapper.find('.mobile-salon-dock').exists()).toBe(false)
     expect(wrapper.findAll('.account-bar-actions button')).toHaveLength(3)
     expect(wrapper.get('.account-bar-actions [aria-label="查看全部战绩"]').text()).toContain('全部战绩')
@@ -34,25 +37,29 @@ describe('GameHall', () => {
     expect(wrapper.get('.hall-highlights').text()).toBe('实时联机·独立战绩')
     expect(wrapper.text()).not.toContain('PRIVATE')
     expect(wrapper.text()).not.toContain('私人席位')
-    expect(wrapper.text()).not.toContain('11 款游戏')
-    expect(wrapper.text()).not.toContain('本周主桌')
+    expect(wrapper.text()).toContain('桌游合集')
+    expect(wrapper.text()).toContain('等待桌游插件')
+    expect(wrapper.text()).toContain('独立于现有游戏的桌游插件空间')
+    expect(wrapper.text()).toContain('现有 7 款游戏，保持原有入口')
+    expect(wrapper.get('.board-game-collection-card').text()).not.toContain('阿瓦隆')
+    expect(wrapper.get('.board-game-collection-card').text()).not.toContain('五子棋')
     expect(wrapper.text()).toContain('军旗')
     expect(wrapper.text()).toContain('秘密布阵，沿铁路突袭敌旗')
-    expect(wrapper.text()).not.toContain('Swap2')
     expect(wrapper.text()).toContain('反应挑战')
     expect(wrapper.text()).toContain('舒尔特方格')
     expect(wrapper.text()).toContain('扫雷')
     expect(wrapper.text()).toContain('汉诺塔')
-    expect(gameCards.findIndex((card) => card.text().includes('德州扑克'))).toBeLessThan(
-      gameCards.findIndex((card) => card.text().includes('斗地主')),
-    )
-    const gomoku = gameCards.find((card) => card.text().includes('五子棋'))
-    expect(gomoku).toBeDefined()
-    await gomoku!.trigger('click')
+
+    await wrapper.get('.board-game-collection-card').trigger('click')
+    expect(wrapper.emitted('openBoardGames')).toHaveLength(1)
+
+    const minesweeper = gameCards.find((card) => card.text().includes('扫雷'))
+    expect(minesweeper).toBeDefined()
+    await minesweeper!.trigger('click')
 
     expect(wrapper.emitted('select')?.[0]?.[0]).toMatchObject({
-      key: 'gomoku',
-      name: '五子棋',
+      key: 'minesweeper',
+      name: '扫雷',
     })
   })
 

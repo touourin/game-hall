@@ -6,6 +6,7 @@ import {
 } from 'vue-router'
 import ArcadeHome from './views/ArcadeHome.vue'
 import ArcadeRoom from './views/ArcadeRoom.vue'
+import BoardGameCollection from './views/BoardGameCollection.vue'
 import GameHall from './views/GameHall.vue'
 import { gameCatalogItem } from './gameCatalog'
 
@@ -24,6 +25,11 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
     history,
     routes: [
       { path: '/', name: 'hall', component: GameHall },
+      {
+        path: '/collections/board-games',
+        name: 'board-games',
+        component: BoardGameCollection,
+      },
       { path: '/games/:gameKey', name: 'game', component: ArcadeHome },
       {
         path: '/games/:gameKey/rooms/:roomCode',

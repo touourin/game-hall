@@ -19,6 +19,14 @@ export const GAME_CATALOG: readonly GameCatalogEntry[] = [
   { key: 'hanoi', name: '汉诺塔', players: '1 人', description: '移动圆盘，用最少步数通关', tone: 'tower', category: '个人挑战' },
 ]
 
+export const MULTIPLAYER_GAME_CATALOG: readonly GameCatalogEntry[] = GAME_CATALOG.filter(
+  (game) => game.players !== '1 人',
+)
+
+export const SOLO_GAME_CATALOG: readonly GameCatalogEntry[] = GAME_CATALOG.filter(
+  (game) => game.players === '1 人',
+)
+
 export function gameCatalogItem(key: unknown): GameCatalogEntry | null {
   if (typeof key !== 'string') return null
   return GAME_CATALOG.find((game) => game.key === key) ?? null

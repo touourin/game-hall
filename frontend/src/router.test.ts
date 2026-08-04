@@ -2,6 +2,15 @@ import { createMemoryHistory } from 'vue-router'
 import { createAppRouter } from './router'
 
 describe('application routes', () => {
+  it('opens the board-game collection with a stable path', async () => {
+    const router = createAppRouter(createMemoryHistory())
+
+    await router.push('/collections/board-games')
+
+    expect(router.currentRoute.value.name).toBe('board-games')
+    expect(router.currentRoute.value.fullPath).toBe('/collections/board-games')
+  })
+
   it('opens a game with a stable path', async () => {
     const router = createAppRouter(createMemoryHistory())
 

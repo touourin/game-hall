@@ -32,6 +32,7 @@ import {
 } from './socket'
 import { useArcadeStore } from './stores/arcade'
 import { gameCatalogItem } from './gameCatalog'
+import type { BoardGamePlugin } from './boardGamePlugins'
 import type { ArcadeGameKey, GameCatalogItem } from './types/arcade'
 import AccessGate from './views/AccessGate.vue'
 import AccountGate from './views/AccountGate.vue'
@@ -67,6 +68,14 @@ const routedRoomSnapshot = computed(() => {
 
 function openGame(game: GameCatalogItem) {
   void router.push({ name: 'game', params: { gameKey: game.key } })
+}
+
+function openBoardGamePlugin(plugin: BoardGamePlugin) {
+  void router.push(plugin.entryPath)
+}
+
+function openBoardGames() {
+  void router.push({ name: 'board-games' })
 }
 
 function openHall() {
@@ -359,7 +368,15 @@ onMounted(async () => {
         @logout="logout"
         @settings="showSettings = true"
         @select="openGame"
+        @open-board-games="openBoardGames"
         @resume-room="resumeRoom"
+      />
+      <component
+        :is="Component"
+        v-else-if="route.name === 'board-games'"
+        @back="openHall"
+        @settings="showSettings = true"
+        @select="openBoardGamePlugin"
       />
       <component
         :is="Component"
