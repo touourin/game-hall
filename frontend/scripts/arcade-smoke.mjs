@@ -2,7 +2,6 @@ import { io } from 'socket.io-client'
 
 const baseUrl = process.env.ARCADE_SMOKE_URL ?? 'http://127.0.0.1:10618'
 const prefix = process.env.ARCADE_SMOKE_PREFIX ?? `smoke_${Date.now().toString(36)}`
-const accessPassword = 'avalon'
 const password = 'SmokePass123!'
 
 async function jsonRequest(path, options = {}) {
@@ -142,10 +141,8 @@ async function playHanoi(client) {
 
 const sockets = []
 try {
-  const access = await jsonRequest('/api/access/unlock', {
+  const access = await jsonRequest('/api/access/session', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: accessPassword }),
   })
   const accounts = await Promise.all([1, 2, 3].map((index) => register(access.token, index)))
   for (const account of accounts) {
@@ -182,7 +179,10 @@ try {
     'X-Game-Hall-Access': access.token,
   }
   const catalog = await jsonRequest('/api/games', { headers })
-  if (catalog.games.length !== 11) throw new Error('游戏目录数量不是 11')
+  const catalogKeys = new Set(catalog.games.map((game) => game.key))
+  for (const gameKey of ['avalon', 'gomoku', 'xiangqi', 'go', 'poker', 'doudizhu', 'junqi']) {
+    if (!catalogKeys.has(gameKey)) throw new Error(`游戏目录缺少 ${gameKey}`)
+  }
   for (const gameKey of ['gomoku', 'xiangqi', 'go', 'poker', 'doudizhu']) {
     const stats = await jsonRequest(`/api/stats/me?game=${gameKey}`, { headers })
     if (stats.summary.games !== 1 || stats.history[0]?.gameKey !== gameKey) {

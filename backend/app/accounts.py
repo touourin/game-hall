@@ -559,6 +559,7 @@ class AccountStore:
         self,
         *,
         game_key: str,
+        game_name: str | None = None,
         match_id: str,
         room_code: str,
         winner: str,
@@ -569,11 +570,39 @@ class AccountStore:
         players: list[dict[str, Any]],
         ranked: bool = True,
     ) -> bool:
-        if game_key not in GAME_NAMES or not players:
+        if (
+            not players
+            or len(game_key) > 32
+            or (
+                game_key not in GAME_NAMES
+                and not game_key.startswith("plugin-")
+            )
+        ):
             return False
         self.initialize()
         try:
             with self.engine.begin() as connection:
+                stored_game_name = game_name or GAME_NAMES.get(
+                    game_key, game_key
+                )
+                existing_game = connection.execute(
+                    select(games.c.name).where(games.c.key == game_key)
+                ).scalar_one_or_none()
+                if existing_game is None:
+                    connection.execute(
+                        insert(games).values(
+                            key=game_key,
+                            name=stored_game_name,
+                            enabled=True,
+                            created_at=self._now(),
+                        )
+                    )
+                elif existing_game != stored_game_name:
+                    connection.execute(
+                        update(games)
+                        .where(games.c.key == game_key)
+                        .values(name=stored_game_name, enabled=True)
+                    )
                 existing = connection.execute(
                     select(matches.c.id).where(matches.c.id == match_id)
                 ).scalar_one_or_none()

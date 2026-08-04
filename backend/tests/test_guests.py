@@ -17,7 +17,7 @@ from backend.app.realtime import connect, sio
 
 
 def test_guest_token_is_signed_and_expires(monkeypatch) -> None:
-    monkeypatch.setenv("GAME_HALL_ACCESS_PASSWORD", "guest-secret")
+    monkeypatch.setenv("GAME_HALL_SIGNING_SECRET", "guest-secret")
     now = datetime(2026, 8, 2, 8, 0, tzinfo=timezone.utc)
 
     guest, token = issue_guest_session(" 临时  玩家 ", now=now)
@@ -36,7 +36,7 @@ def test_guest_token_is_signed_and_expires(monkeypatch) -> None:
 def test_guest_http_session_can_restore_and_view_leaderboard(
     monkeypatch, tmp_path
 ) -> None:
-    monkeypatch.setenv("GAME_HALL_ACCESS_PASSWORD", "guest-secret")
+    monkeypatch.setenv("GAME_HALL_SIGNING_SECRET", "guest-secret")
     monkeypatch.setenv("GAME_HALL_DB_PATH", str(tmp_path / "guests.sqlite3"))
     access_header = {"X-Game-Hall-Access": access_token()}
 
@@ -68,7 +68,7 @@ def test_guest_http_session_can_restore_and_view_leaderboard(
 async def test_socket_accepts_a_signed_guest_identity(
     monkeypatch, tmp_path
 ) -> None:
-    monkeypatch.setenv("GAME_HALL_ACCESS_PASSWORD", "guest-secret")
+    monkeypatch.setenv("GAME_HALL_SIGNING_SECRET", "guest-secret")
     monkeypatch.setenv("GAME_HALL_DB_PATH", str(tmp_path / "socket.sqlite3"))
     guest, guest_token = issue_guest_session("临时骑士")
     emit = AsyncMock()

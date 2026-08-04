@@ -74,10 +74,12 @@ import MinesweeperBoard from '../games/minesweeper/MinesweeperBoard.vue'
 import HanoiGame from '../games/hanoi/HanoiGame.vue'
 import PokerTable from '../games/poker/PokerTable.vue'
 import AvalonTable from '../games/avalon/AvalonTable.vue'
+import { thirdPartyGameComponent } from '../thirdPartyGameRegistry'
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const emit = defineEmits<{ settings: [] }>()
 const arcade = useArcadeStore()
+const pluginGameComponent = computed(() => thirdPartyGameComponent(props.snapshot.gameKey))
 const avalonSnapshot = computed(
   () => isAvalonArcadeSnapshot(props.snapshot) ? props.snapshot.game : null,
 )
@@ -649,6 +651,7 @@ function openSharedChat() {
       <SchulteGrid v-else-if="snapshot.gameKey === 'schulte'" :snapshot="snapshot" />
       <MinesweeperBoard v-else-if="snapshot.gameKey === 'minesweeper'" :snapshot="snapshot" />
       <HanoiGame v-else-if="snapshot.gameKey === 'hanoi'" :snapshot="snapshot" />
+      <component v-else-if="pluginGameComponent" :is="pluginGameComponent" :snapshot="snapshot" />
       <AvalonTable
         v-else-if="avalonSnapshot"
         :snapshot="avalonSnapshot"

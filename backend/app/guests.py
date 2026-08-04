@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from .access import access_password
+from .access import access_signing_secret
 from .accounts import AVATAR_PRESET_IDS
 
 
@@ -153,7 +153,7 @@ def _decode_payload(encoded: str) -> dict[str, Any]:
 
 def _signature(encoded_payload: str) -> str:
     digest = hmac.new(
-        access_password().encode("utf-8"),
+        access_signing_secret().encode("utf-8"),
         GUEST_TOKEN_CONTEXT + encoded_payload.encode("ascii"),
         hashlib.sha256,
     ).digest()

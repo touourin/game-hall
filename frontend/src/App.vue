@@ -33,7 +33,6 @@ import {
 import { useArcadeStore } from './stores/arcade'
 import { gameCatalogItem } from './gameCatalog'
 import type { ArcadeGameKey, GameCatalogItem } from './types/arcade'
-import AccessGate from './views/AccessGate.vue'
 import AccountGate from './views/AccountGate.vue'
 import ArcadeHome from './views/ArcadeHome.vue'
 import SettingsModal from './components/SettingsModal.vue'
@@ -41,9 +40,6 @@ import SettingsModal from './components/SettingsModal.vue'
 const arcade = useArcadeStore()
 const route = useRoute()
 const router = useRouter()
-const accessState = ref<'checking' | 'locked' | 'unlocked'>('checking')
-const accessBusy = ref(false)
-const accessError = ref<string | null>(null)
 const activeAccessToken = ref('')
 const activeAccountToken = ref('')
 const accountState = ref<'checking' | 'locked' | 'authenticated'>('checking')
@@ -146,7 +142,6 @@ socket.on('account:replaced', handleAccountReplacement)
 async function continueAfterAccess(token: string) {
   activeAccessToken.value = token
   setSocketAccessToken(token)
-  accessState.value = 'unlocked'
   accountState.value = 'checking'
   const savedAccountToken = storedAccountToken()
   if (savedAccountToken) {
@@ -166,26 +161,24 @@ async function continueAfterAccess(token: string) {
   accountState.value = 'locked'
 }
 
-async function unlock(password: string) {
-  accessBusy.value = true
-  accessError.value = null
-  try {
-    const token = await requestAccessToken(password)
-    rememberAccessToken(token)
-    await continueAfterAccess(token)
-  } catch (caught) {
-    accessError.value =
-      caught instanceof Error ? caught.message : '验证失败，请稍后重试'
-  } finally {
-    accessBusy.value = false
-  }
+async function ensureAccessToken(): Promise<string> {
+  if (activeAccessToken.value) return activeAccessToken.value
+  const saved = storedAccessToken()
+  if (saved && await validateAccessToken(saved)) return saved
+  clearAccessToken()
+  const token = await requestAccessToken()
+  rememberAccessToken(token)
+  activeAccessToken.value = token
+  setSocketAccessToken(token)
+  return token
 }
 
 async function login(payload: { username: string; password: string }) {
   accountBusy.value = true
   accountError.value = null
   try {
-    const response = await loginAccount(activeAccessToken.value, {
+    const accessToken = await ensureAccessToken()
+    const response = await loginAccount(accessToken, {
       username: payload.username,
       password: payload.password,
     })
@@ -206,7 +199,8 @@ async function register(payload: {
   accountBusy.value = true
   accountError.value = null
   try {
-    const response = await registerAccount(activeAccessToken.value, {
+    const accessToken = await ensureAccessToken()
+    const response = await registerAccount(accessToken, {
       username: payload.username,
       player_name: payload.playerName,
       password: payload.password,
@@ -224,8 +218,9 @@ async function enterAsGuest(payload: { playerName: string }) {
   accountBusy.value = true
   accountError.value = null
   try {
+    const accessToken = await ensureAccessToken()
     const response = await createGuestSession(
-      activeAccessToken.value,
+      accessToken,
       payload.playerName,
     )
     enterGame(response.account, response.token)
@@ -316,28 +311,22 @@ async function logout() {
 }
 
 onMounted(async () => {
-  const token = storedAccessToken()
-  if (token && (await validateAccessToken(token))) {
+  try {
+    const token = await ensureAccessToken()
     await continueAfterAccess(token)
-    return
+  } catch (caught) {
+    accountState.value = 'locked'
+    accountError.value = caught instanceof Error
+      ? caught.message
+      : '无法连接服务器，请稍后重试'
   }
-  clearAccessToken()
-  accessState.value = 'locked'
 })
 </script>
 
 <template>
   <div class="app-shell">
-    <AccessGate
-      v-if="accessState !== 'unlocked'"
-      :checking="accessState === 'checking'"
-      :busy="accessBusy"
-      :error="accessError"
-      @unlock="unlock"
-    />
-
     <AccountGate
-      v-else-if="accountState !== 'authenticated'"
+      v-if="accountState !== 'authenticated'"
       :busy="accountBusy || accountState === 'checking'"
       :error="accountError"
       @login="login"

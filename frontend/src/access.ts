@@ -39,23 +39,18 @@ export async function validateAccessToken(token: string): Promise<boolean> {
   }
 }
 
-export async function requestAccessToken(password: string): Promise<string> {
+export async function requestAccessToken(): Promise<string> {
   let response: Response
   try {
-    response = await fetch('/api/access/unlock', {
+    response = await fetch('/api/access/session', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
     })
   } catch {
     throw new Error('无法连接服务器，请检查网络')
   }
 
-  if (response.status === 401) {
-    throw new Error('密码不正确，请重新输入')
-  }
   if (!response.ok) {
-    throw new Error('验证失败，请稍后重试')
+    throw new Error('无法建立访问会话，请稍后重试')
   }
 
   const data = (await response.json()) as UnlockResponse

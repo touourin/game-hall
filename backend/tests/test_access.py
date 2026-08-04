@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from backend.app.access import access_token, verify_access_token, verify_password
+from backend.app.access import access_token, verify_access_token
 from backend.app.accounts import account_store
 from backend.app.arcade.realtime import arcade_realtime
 from backend.app.arcade.rooms import ArcadeRoomManager
@@ -14,21 +14,18 @@ from backend.app.main import api, game_hall_access_header
 from backend.app.realtime import connect, sio
 
 
-def test_password_and_token_are_verified_server_side() -> None:
-    assert verify_password("avalon") is True
-    assert verify_password("wrong") is False
+def test_internal_transport_token_is_verified_server_side() -> None:
     assert verify_access_token(access_token()) is True
     assert verify_access_token("wrong-token") is False
     assert verify_access_token(None) is False
 
 
-def test_environment_cannot_override_fixed_access_password(monkeypatch) -> None:
-    monkeypatch.setenv("GAME_HALL_ACCESS_PASSWORD", "configured-secret")
-    monkeypatch.setenv("AVALON_ACCESS_PASSWORD", "legacy-secret")
-
-    assert verify_password("avalon") is True
-    assert verify_password("configured-secret") is False
-    assert verify_password("legacy-secret") is False
+def test_environment_configures_internal_signing_secret(monkeypatch) -> None:
+    monkeypatch.setenv("GAME_HALL_SIGNING_SECRET", "configured-secret")
+    configured_token = access_token()
+    assert verify_access_token(configured_token) is True
+    monkeypatch.setenv("GAME_HALL_SIGNING_SECRET", "replacement-secret")
+    assert verify_access_token(configured_token) is False
 
 
 def test_legacy_avalon_access_header_is_still_accepted() -> None:
@@ -36,18 +33,13 @@ def test_legacy_avalon_access_header_is_still_accepted() -> None:
     assert game_hall_access_header("new-token", "legacy-token") == "new-token"
 
 
-def test_access_endpoints_reject_wrong_password(monkeypatch, tmp_path) -> None:
-    monkeypatch.setenv("GAME_HALL_ACCESS_PASSWORD", "test-secret")
+def test_access_session_is_created_without_password(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GAME_HALL_SIGNING_SECRET", "test-secret")
     monkeypatch.setenv("GAME_HALL_DB_PATH", str(tmp_path / "access.sqlite3"))
     monkeypatch.setenv("LOG_DIR", str(tmp_path / "logs"))
 
     with TestClient(api) as client:
-        rejected = client.post(
-            "/api/access/unlock", json={"password": "wrong"}
-        )
-        accepted = client.post(
-            "/api/access/unlock", json={"password": "avalon"}
-        )
+        accepted = client.post("/api/access/session")
         token = accepted.json()["token"]
         unauthorized = client.get("/api/access/status")
         authorized = client.get(
@@ -55,22 +47,20 @@ def test_access_endpoints_reject_wrong_password(monkeypatch, tmp_path) -> None:
             headers={"Authorization": f"Bearer {token}"},
         )
 
-    assert rejected.status_code == 401
     assert accepted.status_code == 200
     assert unauthorized.status_code == 401
     assert authorized.status_code == 200
-    assert len(rejected.headers["X-Request-ID"]) == 16
+    assert len(accepted.headers["X-Request-ID"]) == 16
     application_log = (tmp_path / "logs" / "app.log").read_text(
         encoding="utf-8"
     )
     assert '"event": "http.completed"' in application_log
-    assert '"path": "/api/access/unlock"' in application_log
-    assert "avalon" not in application_log
+    assert '"path": "/api/access/session"' in application_log
     assert '"password"' not in application_log
 
 
 def test_account_registration_login_and_session(monkeypatch, tmp_path) -> None:
-    monkeypatch.setenv("GAME_HALL_ACCESS_PASSWORD", "test-secret")
+    monkeypatch.setenv("GAME_HALL_SIGNING_SECRET", "test-secret")
     monkeypatch.setenv("GAME_HALL_DB_PATH", str(tmp_path / "accounts.sqlite3"))
     access_header = {"X-Game-Hall-Access": access_token()}
 
@@ -227,7 +217,7 @@ def test_account_avatar_endpoints_normalize_serve_and_log_safely(
     monkeypatch,
     tmp_path,
 ) -> None:
-    monkeypatch.setenv("GAME_HALL_ACCESS_PASSWORD", "test-secret")
+    monkeypatch.setenv("GAME_HALL_SIGNING_SECRET", "test-secret")
     monkeypatch.setenv("GAME_HALL_DB_PATH", str(tmp_path / "avatars.sqlite3"))
     monkeypatch.setenv("LOG_DIR", str(tmp_path / "logs"))
     access_header = {"X-Game-Hall-Access": access_token()}
@@ -294,7 +284,7 @@ def test_account_avatar_endpoints_normalize_serve_and_log_safely(
 async def test_socket_connection_requires_both_tokens(
     monkeypatch, tmp_path
 ) -> None:
-    monkeypatch.setenv("GAME_HALL_ACCESS_PASSWORD", "test-secret")
+    monkeypatch.setenv("GAME_HALL_SIGNING_SECRET", "test-secret")
     monkeypatch.setenv("GAME_HALL_DB_PATH", str(tmp_path / "socket.sqlite3"))
     _, account_token = account_store().register(
         "socket_player", "secret123", "连接玩家"

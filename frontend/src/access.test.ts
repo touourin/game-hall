@@ -30,7 +30,7 @@ describe('access service', () => {
     expect(sessionStorage.getItem('internal:access-token')).toBeNull()
   })
 
-  it('returns the server token after a successful password check', async () => {
+  it('creates the internal transport session without asking for a password', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -41,16 +41,8 @@ describe('access service', () => {
       ),
     )
 
-    await expect(requestAccessToken('correct')).resolves.toBe('server-token')
-  })
-
-  it('shows a clear error for a wrong password', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(new Response(null, { status: 401 })),
-    )
-
-    await expect(requestAccessToken('wrong')).rejects.toThrow('密码不正确')
+    await expect(requestAccessToken()).resolves.toBe('server-token')
+    expect(fetch).toHaveBeenCalledWith('/api/access/session', { method: 'POST' })
   })
 
   it('validates a saved token with the server', async () => {

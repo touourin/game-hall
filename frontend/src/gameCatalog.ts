@@ -1,11 +1,12 @@
 import type { ArcadeGameKey, GameCatalogItem } from './types/arcade'
+import { THIRD_PARTY_GAME_PLUGINS } from './thirdPartyGameRegistry'
 
 export interface GameCatalogEntry extends GameCatalogItem {
   tone: string
   category: string
 }
 
-export const GAME_CATALOG: readonly GameCatalogEntry[] = [
+const BUILTIN_GAME_CATALOG: readonly GameCatalogEntry[] = [
   { key: 'avalon', name: '阿瓦隆', players: '5–10 人', description: '谎言上桌，忠诚接受考验', tone: 'gold', category: '社交推理' },
   { key: 'gomoku', name: '五子棋', players: '2 人', description: '一子定势，五子连珠', tone: 'ink', category: '棋类竞技' },
   { key: 'xiangqi', name: '中国象棋', players: '2 人', description: '隔河列阵，步步攻守', tone: 'red', category: '棋类竞技' },
@@ -17,6 +18,21 @@ export const GAME_CATALOG: readonly GameCatalogEntry[] = [
   { key: 'schulte', name: '舒尔特方格', players: '1 人', description: '从 1 找到 25，练速度与专注', tone: 'focus', category: '个人挑战' },
   { key: 'minesweeper', name: '扫雷', players: '1 人', description: '排除危险，清空整片雷区', tone: 'mine', category: '个人挑战' },
   { key: 'hanoi', name: '汉诺塔', players: '1 人', description: '移动圆盘，用最少步数通关', tone: 'tower', category: '个人挑战' },
+]
+
+export const GAME_CATALOG: readonly GameCatalogEntry[] = [
+  ...BUILTIN_GAME_CATALOG,
+  ...THIRD_PARTY_GAME_PLUGINS.map(({ manifest }) => ({
+    key: manifest.id,
+    name: manifest.name,
+    players: manifest.players.label
+      ?? (manifest.players.min === manifest.players.max
+        ? `${manifest.players.min} 人`
+        : `${manifest.players.min}–${manifest.players.max} 人`),
+    description: manifest.description,
+    tone: manifest.tone,
+    category: manifest.category,
+  })),
 ]
 
 export function gameCatalogItem(key: unknown): GameCatalogEntry | null {

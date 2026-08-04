@@ -30,10 +30,10 @@
 - `account.session_connections_revoked`：新登录已通知并断开旧会话仍然在线的 Socket；`connection_count` 表示断开的连接数。
 - `account.session_notification_failed`：新令牌已经生效，但旧连接的即时下线通知发生异常；旧连接后续操作仍会被会话校验拒绝。
 - `account.stale_session_rejected`：旧会话未及时断开并继续提交实时操作，服务端拒绝该操作并强制下线。
-- `guest.created`：通过访问密码后创建了临时游客身份；只记录游客标识，不记录游客 Token。
+- `guest.created`：创建了临时游客身份；只记录游客标识，不记录游客 Token。
 - `match.skipped_guest`：完成的对局包含游客，因此整局未写入 MySQL 战绩。
 
-日志不会写入访问密码、账号密码、登录或游客 Token、请求正文或聊天内容。游客的 `account_id` 使用 `guest:` 前缀，便于排查连接和房间生命周期，但不能用于恢复游客凭证。
+日志不会写入内部会话密钥、账号密码、登录或游客 Token、请求正文或聊天内容。游客的 `account_id` 使用 `guest:` 前缀，便于排查连接和房间生命周期，但不能用于恢复游客凭证。
 
 所有游戏（包括阿瓦隆）共用 `arcade:*` 实时协议。因此阿瓦隆创建、开局和玩法操作会分别记录为 `arcade:create`、`arcade:start`、`arcade:action`，具体动作写入 `action` 字段；旧的 `room:*`、`game:*` 和 `lobby:*` 事件不再产生。
 

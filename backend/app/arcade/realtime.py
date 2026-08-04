@@ -831,6 +831,7 @@ class ArcadeRealtime:
         try:
             stored = account_store().record_game_match(
                 game_key=room.game_key,
+                game_name=engine.name,
                 match_id=room.game_id,
                 room_code=room.code,
                 winner=room.winner,

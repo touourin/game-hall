@@ -1,4 +1,4 @@
-export type ArcadeGameKey =
+export type BuiltinArcadeGameKey =
   | 'avalon'
   | 'gomoku'
   | 'xiangqi'
@@ -10,6 +10,9 @@ export type ArcadeGameKey =
   | 'schulte'
   | 'minesweeper'
   | 'hanoi'
+
+export type PluginArcadeGameKey = `plugin-${string}`
+export type ArcadeGameKey = BuiltinArcadeGameKey | PluginArcadeGameKey
 
 export interface GameCatalogItem {
   key: ArcadeGameKey

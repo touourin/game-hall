@@ -12,6 +12,7 @@ from backend.app.games.poker import PokerEngine
 from backend.app.games.reaction import ReactionEngine
 from backend.app.games.schulte import SchulteEngine
 from backend.app.games.xiangqi import XiangqiEngine
+from backend.app.games.plugins import discover_game_plugins, plugin_catalog
 
 
 def build_engine_registry() -> dict[str, GameEngine]:
@@ -28,10 +29,15 @@ def build_engine_registry() -> dict[str, GameEngine]:
         MinesweeperEngine(),
         HanoiEngine(),
     ]
-    return {engine.key: engine for engine in engines}
+    registry = {engine.key: engine for engine in engines}
+    for plugin in discover_game_plugins():
+        if plugin.engine.key in registry:
+            raise ValueError(f"游戏标识重复：{plugin.engine.key}")
+        registry[plugin.engine.key] = plugin.engine
+    return registry
 
 
-GAME_CATALOG = [
+BUILTIN_GAME_CATALOG = [
     {
         "key": "avalon",
         "name": "阿瓦隆",
@@ -99,3 +105,5 @@ GAME_CATALOG = [
         "description": "3–8 层经典益智挑战，争取最少步数",
     },
 ]
+
+GAME_CATALOG = [*BUILTIN_GAME_CATALOG, *plugin_catalog()]

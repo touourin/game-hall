@@ -1,7 +1,6 @@
 import { io } from 'socket.io-client'
 
 const serverUrl = process.env.AVALON_SERVER_URL ?? 'http://127.0.0.1:10618'
-const accessPassword = 'avalon'
 const accountPrefix = process.env.AVALON_SMOKE_PREFIX ?? `smk${Date.now().toString(36)}`
 const clients = []
 const snapshots = []
@@ -54,10 +53,8 @@ async function jsonRequest(path, options = {}) {
 }
 
 async function registerAccounts() {
-  const access = await jsonRequest('/api/access/unlock', {
+  const access = await jsonRequest('/api/access/session', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: accessPassword }),
   })
   const accounts = []
   for (let index = 0; index < 5; index += 1) {

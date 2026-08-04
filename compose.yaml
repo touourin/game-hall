@@ -90,6 +90,7 @@ services:
       LOG_DIR: /var/log/game-hall
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_RETENTION_DAYS: ${LOG_RETENTION_DAYS:-30}
+      GAME_HALL_SIGNING_SECRET: ${GAME_HALL_SIGNING_SECRET:-game-hall-local-session-v1}
       TZ: ${TZ:-Asia/Shanghai}
     depends_on:
       migrate:

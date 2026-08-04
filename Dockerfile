@@ -1,10 +1,11 @@
 FROM node:24-alpine AS web-builder
 
-WORKDIR /build/frontend
-COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci --no-audit --no-fund
-COPY frontend/ ./
-RUN npm run build
+WORKDIR /build
+COPY frontend/package.json frontend/package-lock.json ./frontend/
+RUN npm --prefix frontend ci --no-audit --no-fund
+COPY frontend/ ./frontend/
+COPY third_party_games/ ./third_party_games/
+RUN npm --prefix frontend run build
 
 
 FROM python:3.13-slim AS runtime
@@ -17,6 +18,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 COPY backend/ ./backend/
 RUN pip install --no-cache-dir --index-url "$PIP_INDEX_URL" ./backend
+COPY third_party_games/ ./third_party_games/
 COPY --from=web-builder /build/frontend/dist ./frontend/dist
 
 EXPOSE 8000

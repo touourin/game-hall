@@ -1,4 +1,9 @@
 import type { ArcadeGameKey } from './types/arcade'
+import {
+  thirdPartyGameDefaultOptions,
+  thirdPartyGameDefinition,
+  thirdPartyGameRuleLabels,
+} from './thirdPartyGameRegistry'
 
 const NEGOTIATION_GAMES = new Set<ArcadeGameKey>([
   'gomoku',
@@ -9,6 +14,13 @@ const NEGOTIATION_GAMES = new Set<ArcadeGameKey>([
 export function defaultGameRules(
   gameKey: ArcadeGameKey,
 ): Record<string, unknown> {
+  if (thirdPartyGameDefinition(gameKey)) {
+    return {
+      firstPlayer: 'random',
+      allowGuests: true,
+      ...thirdPartyGameDefaultOptions(gameKey),
+    }
+  }
   if (gameKey === 'avalon') {
     return {
       mode: 'standard',
@@ -58,6 +70,11 @@ export function gameRuleLabels(
   rawOptions: Record<string, unknown>,
 ): string[] {
   const options = withDefaultGameRules(gameKey, rawOptions)
+  if (thirdPartyGameDefinition(gameKey)) {
+    const labels = thirdPartyGameRuleLabels(gameKey)
+    labels.push(options.allowGuests ? '允许游客' : '仅登录玩家')
+    return labels
+  }
   if (gameKey === 'avalon') {
     const labels = [
       options.mode === 'court_undercurrent' ? '王庭暗流' : '标准阿瓦隆',

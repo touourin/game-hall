@@ -15,9 +15,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from .access import access_password, access_token, verify_access_token, verify_password
+from .access import access_signing_secret, access_token, verify_access_token
 from .accounts import (
-    GAME_NAMES,
     USERNAME_MAX_LENGTH,
     USERNAME_MIN_LENGTH,
     AccountError,
@@ -47,6 +46,7 @@ from .realtime import (
 
 
 logger = logging.getLogger(__name__)
+GAME_NAMES = {item["key"]: item["name"] for item in GAME_CATALOG}
 
 
 @asynccontextmanager
@@ -61,7 +61,7 @@ async def lifespan(_: FastAPI):
                 "log_dir": str(log_dir),
             },
         )
-        access_password()
+        access_signing_secret()
         account_store().initialize()
         await restore_room_state()
         cleanup_task = asyncio.create_task(maintain_game_rooms())
@@ -147,10 +147,6 @@ async def log_http_request(request: Request, call_next):
         return response
     finally:
         reset_request_context(tokens)
-
-
-class AccessRequest(BaseModel):
-    password: str = Field(min_length=1, max_length=128)
 
 
 class RegisterRequest(BaseModel):
@@ -259,13 +255,9 @@ def health() -> dict[str, str]:
     }
 
 
-@api.post("/api/access/unlock")
-async def unlock_access(payload: AccessRequest) -> dict[str, str | bool]:
-    if not verify_password(payload.password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="访问密码错误",
-        )
+@api.post("/api/access/session")
+async def create_access_session() -> dict[str, str | bool]:
+    """Issue the internal transport token without a user-facing password gate."""
     return {"ok": True, "token": access_token()}
 
 
