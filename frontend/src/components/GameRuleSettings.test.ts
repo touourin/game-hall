@@ -43,6 +43,49 @@ describe('GameRuleSettings', () => {
     expect(disclosure.text()).toContain('开局属于好人阵营')
     expect(disclosure.text()).toContain('新模式终局规则')
     expect(disclosure.text()).toContain('固定关闭湖中仙女与提前刺杀')
+    expect(disclosure.text()).toContain('可选角色规则：暗影梅林')
+    expect(disclosure.text()).toContain('暗影梅林必须是唯一最高票')
+  })
+
+  it('only offers shadow Merlin inside Court Undercurrent and clears it when leaving', async () => {
+    const wrapper = mount(GameRuleSettings, {
+      props: {
+        gameKey: 'avalon',
+        modelValue: defaultGameRules('avalon'),
+      },
+    })
+    expect(wrapper.text()).not.toContain('六人及以上可用')
+
+    const court = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('心怀异念之臣可能被刺客授刃'))
+    await court?.trigger('click')
+    const courtRules = wrapper.emitted('update:modelValue')?.at(-1)?.[0]
+    await wrapper.setProps({ modelValue: courtRules as Record<string, unknown> })
+
+    const shadow = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('六人及以上可用'))
+    expect(shadow).toBeDefined()
+    await shadow?.trigger('click')
+    const shadowRules = wrapper.emitted('update:modelValue')?.at(-1)?.[0]
+    expect(shadowRules).toMatchObject({
+      mode: 'court_undercurrent',
+      shadowMerlinEnabled: true,
+    })
+    expect(
+      gameRuleLabels('avalon', shadowRules as Record<string, unknown>),
+    ).toContain('暗影梅林扩展')
+
+    await wrapper.setProps({ modelValue: shadowRules as Record<string, unknown> })
+    const standard = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('经典任务'))
+    await standard?.trigger('click')
+    expect(wrapper.emitted('update:modelValue')?.at(-1)?.[0]).toMatchObject({
+      mode: 'standard',
+      shadowMerlinEnabled: false,
+    })
   })
 
   it('offers the configured Gomoku variants', async () => {

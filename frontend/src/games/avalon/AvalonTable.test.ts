@@ -36,6 +36,7 @@ function roleRevealSnapshot(revision: number): RoomSnapshot {
     ],
     settings: {
       mode: 'standard',
+      shadowMerlinEnabled: false,
       ladyEnabled: true,
       ladyRecommended: false,
       listed: true,
@@ -88,6 +89,26 @@ function roleRevealSnapshot(revision: number): RoomSnapshot {
       eligibleTargetIds: [],
       assassinationTargetId: null,
     },
+    shadowMerlin: {
+      enabled: false,
+      transformed: false,
+      councilTriggered: false,
+      councilOpened: null,
+      ballotsSubmitted: 0,
+      myBallotSubmitted: false,
+      eligibleExileTargetIds: [],
+      assassinationDecisionsSubmitted: 0,
+      myAssassinationDecisionSubmitted: false,
+      assassinationChosen: null,
+      assassinationTargetsSubmitted: 0,
+      myAssassinationTargetSubmitted: false,
+      eligibleAssassinationTargetIds: [],
+      assassinationTargetId: null,
+      exileTargetId: null,
+      exileSuccess: null,
+      openVotes: [],
+      targetVotes: [],
+    },
     chat: {
       maxLength: 300,
       messages: [],
@@ -103,6 +124,9 @@ function roleRevealSnapshot(revision: number): RoomSnapshot {
       canVoteMission: false,
       canMissionFail: false,
       canContinueRound: false,
+      canSubmitExileCouncilBallot: false,
+      canSubmitExileCouncilAssassinationDecision: false,
+      canSubmitExileCouncilAssassinationTarget: false,
       canUseLady: false,
       canAcknowledgeLady: false,
       canAssassinate: false,
@@ -619,6 +643,72 @@ describe('AvalonTable role reveal', () => {
     expect(action).toHaveBeenCalledWith('dissenting_assassinate', {
       target_id: 'p3',
     })
+  })
+
+  it('submits the two anonymous exile-council choices together', async () => {
+    const snapshot = roleRevealSnapshot(1)
+    snapshot.phase = 'exile_council_ballot'
+    snapshot.settings.mode = 'court_undercurrent'
+    snapshot.settings.shadowMerlinEnabled = true
+    snapshot.shadowMerlin.enabled = true
+    snapshot.shadowMerlin.councilTriggered = true
+    snapshot.shadowMerlin.eligibleExileTargetIds = ['p1']
+    snapshot.actions.canConfirmRole = false
+    snapshot.actions.canSubmitExileCouncilBallot = true
+    const pinia = createPinia()
+    const room = useArcadeStore(pinia)
+    const action = vi.spyOn(room, 'action').mockResolvedValue()
+    const wrapper = mount(AvalonTable, {
+      props: { snapshot },
+      global: { plugins: [pinia] },
+    })
+
+    expect(wrapper.text()).toContain('匿名同时决定是否开会')
+    expect(wrapper.text()).toContain('系统不会提示你的票是否有效')
+    await wrapper.get('.decision-button.approve').trigger('click')
+    await wrapper.get('.player-grid .player-tile').trigger('click')
+    await wrapper.get('.primary-button').trigger('click')
+
+    expect(action).toHaveBeenCalledWith('exile_council_ballot', {
+      open_council: true,
+      target_id: 'p1',
+    })
+  })
+
+  it('gives every player the same masked council assassination control', async () => {
+    const snapshot = roleRevealSnapshot(1)
+    snapshot.phase = 'exile_council_assassination_decision'
+    snapshot.settings.mode = 'court_undercurrent'
+    snapshot.settings.shadowMerlinEnabled = true
+    snapshot.shadowMerlin.enabled = true
+    snapshot.shadowMerlin.councilTriggered = true
+    snapshot.shadowMerlin.councilOpened = true
+    snapshot.actions.canConfirmRole = false
+    snapshot.actions.canSubmitExileCouncilAssassinationDecision = true
+    snapshot.self.role = {
+      code: 'loyal_servant',
+      label: '亚瑟的忠臣',
+      alignment: 'good',
+      description: '没有额外信息。',
+      knowledge: [],
+    }
+    const pinia = createPinia()
+    const room = useArcadeStore(pinia)
+    const action = vi.spyOn(room, 'action').mockResolvedValue()
+    const wrapper = mount(AvalonTable, {
+      props: { snapshot },
+      global: { plugins: [pinia] },
+    })
+
+    expect(wrapper.text()).toContain('所有玩家看到完全相同的选择')
+    expect(wrapper.text()).toContain('只有真正刺客提交的选择会生效')
+    await wrapper.get('.decision-button.reject').trigger('click')
+    await wrapper.get('.danger-button').trigger('click')
+
+    expect(action).toHaveBeenCalledWith(
+      'exile_council_assassination_decision',
+      { assassinate: false },
+    )
   })
 
   it('renders the early assassination target in the final record', () => {

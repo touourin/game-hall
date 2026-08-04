@@ -21,6 +21,7 @@ class Role(str, Enum):
     PERCIVAL = "percival"
     LOYAL_SERVANT = "loyal_servant"
     DISSENTING_COURTIER = "dissenting_courtier"
+    SHADOW_MERLIN = "shadow_merlin"
     ASSASSIN = "assassin"
     MORGANA = "morgana"
     MORDRED = "mordred"
@@ -40,6 +41,13 @@ class Phase(str, Enum):
     ASSASSINATION = "assassination"
     DAGGER_GRANT = "dagger_grant"
     FINAL_COUNCIL = "final_council"
+    EXILE_COUNCIL_BALLOT = "exile_council_ballot"
+    EXILE_COUNCIL_ASSASSINATION_DECISION = (
+        "exile_council_assassination_decision"
+    )
+    EXILE_COUNCIL_ASSASSINATION_TARGET = (
+        "exile_council_assassination_target"
+    )
     GAME_OVER = "game_over"
 
 
@@ -48,6 +56,7 @@ ROLE_ALIGNMENT: dict[Role, Alignment] = {
     Role.PERCIVAL: Alignment.GOOD,
     Role.LOYAL_SERVANT: Alignment.GOOD,
     Role.DISSENTING_COURTIER: Alignment.GOOD,
+    Role.SHADOW_MERLIN: Alignment.EVIL,
     Role.ASSASSIN: Alignment.EVIL,
     Role.MORGANA: Alignment.EVIL,
     Role.MORDRED: Alignment.EVIL,
@@ -117,6 +126,7 @@ class ChatMessage:
 @dataclass
 class GameSettings:
     mode: AvalonMode = AvalonMode.STANDARD
+    shadow_merlin_enabled: bool = False
     lady_enabled: bool = True
     listed: bool = True
     early_assassination_enabled: bool = False
@@ -152,6 +162,21 @@ class Room:
     dagger_hit: bool | None = None
     transformed_player_id: str | None = None
     dissenting_assassination_target_id: str | None = None
+    shadow_merlin_transformed: bool = False
+    exile_council_triggered: bool = False
+    exile_council_open_votes: dict[str, bool] = field(default_factory=dict)
+    exile_council_target_votes: dict[str, str] = field(default_factory=dict)
+    exile_council_opened: bool | None = None
+    exile_council_assassination_decisions: dict[str, bool] = field(
+        default_factory=dict
+    )
+    exile_council_assassination_chosen: bool | None = None
+    exile_council_assassination_targets: dict[str, str] = field(
+        default_factory=dict
+    )
+    exile_council_assassination_target_id: str | None = None
+    exile_council_exile_target_id: str | None = None
+    exile_council_exile_success: bool | None = None
     lady_holder_id: str | None = None
     lady_used_by_ids: set[str] = field(default_factory=set)
     lady_checks: list[LadyCheck] = field(default_factory=list)

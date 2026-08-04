@@ -43,6 +43,10 @@ const assassinTargetId = ref<string | null>(null)
 const daggerTargetId = ref<string | null>(null)
 const dissentingTargetId = ref<string | null>(null)
 const earlyAssassinTargetId = ref<string | null>(null)
+const exileCouncilOpenChoice = ref<boolean | null>(null)
+const exileCouncilTargetId = ref<string | null>(null)
+const councilAssassinateChoice = ref<boolean | null>(null)
+const councilAssassinationTargetId = ref<string | null>(null)
 const roleSeen = ref(false)
 const ladySeen = ref(false)
 const showReplay = ref(false)
@@ -193,6 +197,10 @@ watch(
     daggerTargetId.value = null
     dissentingTargetId.value = null
     earlyAssassinTargetId.value = null
+    exileCouncilOpenChoice.value = null
+    exileCouncilTargetId.value = null
+    councilAssassinateChoice.value = null
+    councilAssassinationTargetId.value = null
     ladySeen.value = false
     if (phase === 'role_reveal') {
       roleSeen.value = false
@@ -314,6 +322,31 @@ async function earlyAssassinate() {
     target_id: earlyAssassinTargetId.value,
   })
   if (response) showEarlyAssassination.value = false
+}
+
+async function submitExileCouncilBallot() {
+  if (
+    exileCouncilOpenChoice.value === null ||
+    !exileCouncilTargetId.value
+  ) return
+  await room.action('exile_council_ballot', {
+    open_council: exileCouncilOpenChoice.value,
+    target_id: exileCouncilTargetId.value,
+  })
+}
+
+async function submitCouncilAssassinationDecision() {
+  if (councilAssassinateChoice.value === null) return
+  await room.action('exile_council_assassination_decision', {
+    assassinate: councilAssassinateChoice.value,
+  })
+}
+
+async function submitCouncilAssassinationTarget() {
+  if (!councilAssassinationTargetId.value) return
+  await room.action('exile_council_assassination_target', {
+    target_id: councilAssassinationTargetId.value,
+  })
 }
 
 function openSharedChat() {
@@ -691,7 +724,11 @@ function selfRoleArtworkFraming() {
           </button>
         </div>
         <p v-if="!snapshot.actions.canMissionFail" class="center-note">
-          好人阵营只能提交任务成功
+          {{
+            snapshot.self.role?.code === 'shadow_merlin'
+              ? '暗影梅林不能提交任务失败'
+              : '好人阵营只能提交任务成功'
+          }}
         </p>
       </template>
       <div v-else class="waiting-card tall">
@@ -753,6 +790,240 @@ function selfRoleArtworkFraming() {
         <span class="pulse-dot" />
         等待房主继续
       </div>
+    </section>
+
+    <section
+      v-else-if="snapshot.phase === 'exile_council_ballot'"
+      class="phase-stack"
+    >
+      <div class="assassination-hero court-hero">
+        <span><Crown :size="29" /></span>
+        <p>邪恶已经取得两次任务失败</p>
+        <h2>驱逐议会提案</h2>
+        <strong>所有人匿名同时决定是否开会，并预先锁定驱逐对象</strong>
+      </div>
+
+      <button class="surface final-council-chat" type="button" @click="openSharedChat">
+        <MessageCircle :size="21" />
+        <div>
+          <strong>打开议会讨论</strong>
+          <small>提交内容不会在游戏进行中公开；选票一经提交不能修改</small>
+        </div>
+        <ChevronRight :size="18" />
+      </button>
+
+      <template v-if="snapshot.actions.canSubmitExileCouncilBallot">
+        <div class="surface court-secret-note">
+          <Eye :size="19" />
+          <div>
+            <strong>两项选择将同时锁定</strong>
+            <small>只有忠臣、梅林、派西维尔和心怀异念之臣的票有效；系统不会提示你的票是否有效</small>
+          </div>
+        </div>
+
+        <div class="selection-counter">
+          <span>第一项 · 是否开启驱逐议会</span>
+          <strong>{{ exileCouncilOpenChoice === null ? '未选择' : '已选择' }}</strong>
+        </div>
+        <div class="vote-actions">
+          <button
+            class="decision-button reject"
+            :class="{ selected: exileCouncilOpenChoice === false }"
+            type="button"
+            @click="exileCouncilOpenChoice = false"
+          >
+            <X :size="25" />
+            <strong>反对开启</strong>
+            <span>议会不开启则继续任务</span>
+          </button>
+          <button
+            class="decision-button approve"
+            :class="{ selected: exileCouncilOpenChoice === true }"
+            type="button"
+            @click="exileCouncilOpenChoice = true"
+          >
+            <Check :size="25" />
+            <strong>赞成开启</strong>
+            <span>平票同样开启议会</span>
+          </button>
+        </div>
+
+        <div class="selection-counter">
+          <span>第二项 · 若议会开启，你要驱逐谁</span>
+          <strong>{{ exileCouncilTargetId ? '目标锁定' : '未选择' }}</strong>
+        </div>
+        <div class="player-grid">
+          <button
+            v-for="player in snapshot.players.filter((item) =>
+              snapshot.shadowMerlin.eligibleExileTargetIds.includes(item.id),
+            )"
+            :key="player.id"
+            type="button"
+            class="player-tile"
+            :class="{ selected: exileCouncilTargetId === player.id }"
+            @click="exileCouncilTargetId = player.id"
+          >
+            <AvatarImage
+              class="avatar number-avatar"
+              :src="player.avatarUrl"
+              :name="player.name"
+              :fallback="player.seat + 1"
+            />
+            <strong>{{ playerDisplayName(player) }}</strong>
+            <X v-if="exileCouncilTargetId === player.id" :size="18" />
+          </button>
+        </div>
+        <button
+          class="primary-button wide-button"
+          type="button"
+          :disabled="exileCouncilOpenChoice === null || !exileCouncilTargetId"
+          @click="submitExileCouncilBallot"
+        >
+          匿名提交两项选择 <ChevronRight :size="19" />
+        </button>
+      </template>
+      <div v-else class="waiting-card tall">
+        <span class="pulse-dot" />
+        <strong>你的匿名选票已经锁定</strong>
+        <small>等待全部玩家完成两项选择</small>
+      </div>
+      <p class="center-note">
+        已提交 {{ snapshot.shadowMerlin.ballotsSubmitted }} / {{ snapshot.players.length }}
+      </p>
+    </section>
+
+    <section
+      v-else-if="snapshot.phase === 'exile_council_assassination_decision'"
+      class="phase-stack"
+    >
+      <div class="assassination-hero court-hero">
+        <span><Swords :size="29" /></span>
+        <p>有效赞成票大于等于有效反对票</p>
+        <h2>驱逐议会正式开启</h2>
+        <strong>刺客重新获得一次刺杀梅林的机会</strong>
+      </div>
+
+      <button class="surface final-council-chat" type="button" @click="openSharedChat">
+        <MessageCircle :size="21" />
+        <div>
+          <strong>打开驱逐议会讨论</strong>
+          <small>所有人都可发言；此前锁定的驱逐目标仍不可修改</small>
+        </div>
+        <ChevronRight :size="18" />
+      </button>
+
+      <template v-if="snapshot.actions.canSubmitExileCouncilAssassinationDecision">
+        <div class="surface court-secret-note">
+          <Eye :size="19" />
+          <div>
+            <strong>所有玩家看到完全相同的选择</strong>
+            <small>这是为了隐藏刺客身份；只有真正刺客提交的选择会生效</small>
+          </div>
+        </div>
+        <div class="vote-actions">
+          <button
+            class="decision-button reject"
+            :class="{ selected: councilAssassinateChoice === false }"
+            type="button"
+            @click="councilAssassinateChoice = false"
+          >
+            <Shield :size="25" />
+            <strong>放弃刺杀</strong>
+            <span>结算锁定的驱逐选票</span>
+          </button>
+          <button
+            class="decision-button approve"
+            :class="{ selected: councilAssassinateChoice === true }"
+            type="button"
+            @click="councilAssassinateChoice = true"
+          >
+            <Swords :size="25" />
+            <strong>发动刺杀</strong>
+            <span>放弃驱逐，直接寻找梅林</span>
+          </button>
+        </div>
+        <button
+          class="danger-button wide-button"
+          type="button"
+          :disabled="councilAssassinateChoice === null"
+          @click="submitCouncilAssassinationDecision"
+        >
+          锁定选择
+        </button>
+      </template>
+      <div v-else class="waiting-card tall">
+        <span class="pulse-dot danger-dot" />
+        <strong>你的选择已经锁定</strong>
+        <small>等待全部玩家完成相同的伪装操作</small>
+      </div>
+      <p class="center-note">
+        已提交 {{ snapshot.shadowMerlin.assassinationDecisionsSubmitted }} /
+        {{ snapshot.players.length }}
+      </p>
+    </section>
+
+    <section
+      v-else-if="snapshot.phase === 'exile_council_assassination_target'"
+      class="phase-stack"
+    >
+      <div class="assassination-hero court-hero">
+        <span><Swords :size="29" /></span>
+        <p>刺客选择发动刺杀</p>
+        <h2>寻找真正的梅林</h2>
+        <strong>刺杀已经开始，暗影梅林立即转为好人阵营</strong>
+      </div>
+
+      <template v-if="snapshot.actions.canSubmitExileCouncilAssassinationTarget">
+        <div class="surface court-secret-note transformed">
+          <Eye :size="19" />
+          <div>
+            <strong>所有玩家仍需提交一个目标</strong>
+            <small>只有刺客的目标会生效，其他选择仅用于隐藏刺客身份</small>
+          </div>
+        </div>
+        <div class="selection-counter">
+          <span>选择你认为的梅林</span>
+          <strong>{{ councilAssassinationTargetId ? '目标锁定' : '谨慎选择' }}</strong>
+        </div>
+        <div class="player-grid">
+          <button
+            v-for="player in snapshot.players.filter((item) =>
+              snapshot.shadowMerlin.eligibleAssassinationTargetIds.includes(item.id),
+            )"
+            :key="player.id"
+            type="button"
+            class="player-tile"
+            :class="{ selected: councilAssassinationTargetId === player.id }"
+            @click="councilAssassinationTargetId = player.id"
+          >
+            <AvatarImage
+              class="avatar number-avatar"
+              :src="player.avatarUrl"
+              :name="player.name"
+              :fallback="player.seat + 1"
+            />
+            <strong>{{ playerDisplayName(player) }}</strong>
+            <Swords v-if="councilAssassinationTargetId === player.id" :size="18" />
+          </button>
+        </div>
+        <button
+          class="danger-button wide-button"
+          type="button"
+          :disabled="!councilAssassinationTargetId"
+          @click="submitCouncilAssassinationTarget"
+        >
+          确认目标 {{ playerLabel(councilAssassinationTargetId) }}
+        </button>
+      </template>
+      <div v-else class="waiting-card tall">
+        <span class="pulse-dot danger-dot" />
+        <strong>你的目标已经锁定</strong>
+        <small>等待全部玩家完成相同的伪装操作</small>
+      </div>
+      <p class="center-note">
+        已提交 {{ snapshot.shadowMerlin.assassinationTargetsSubmitted }} /
+        {{ snapshot.players.length }}
+      </p>
     </section>
 
     <section v-else-if="snapshot.phase === 'lady_select'" class="phase-stack">
@@ -1005,6 +1276,17 @@ function selfRoleArtworkFraming() {
         <ChevronRight :size="18" />
       </button>
 
+      <div
+        v-if="snapshot.shadowMerlin.enabled && snapshot.shadowMerlin.transformed"
+        class="surface court-secret-note transformed"
+      >
+        <Shield :size="19" />
+        <div>
+          <strong>刺杀已经开始，暗影梅林已转为好人</strong>
+          <small>梅林若被刺中，暗影梅林也会一同失败</small>
+        </div>
+      </div>
+
       <template v-if="snapshot.actions.canDissentingAssassinate">
         <div class="surface court-secret-note transformed">
           <Swords :size="19" />
@@ -1069,6 +1351,62 @@ function selfRoleArtworkFraming() {
         <p>{{ snapshot.result.winner === 'good' ? '亚瑟的荣光延续' : '阴影笼罩阿瓦隆' }}</p>
         <h2>{{ snapshot.result.winner === 'good' ? '好人阵营获胜' : '坏人阵营获胜' }}</h2>
         <strong>{{ snapshot.result.reason }}</strong>
+      </div>
+
+      <div
+        v-if="snapshot.shadowMerlin.enabled && snapshot.shadowMerlin.councilTriggered"
+        class="surface assassination-record court-ending-record"
+        :class="snapshot.shadowMerlin.exileSuccess || (snapshot.shadowMerlin.assassinationChosen && !assassinationHit) ? 'missed' : 'hit'"
+      >
+        <header>
+          <span><Crown :size="21" /></span>
+          <div>
+            <strong>驱逐议会记录</strong>
+            <small>全部匿名选票仅在游戏结束后揭示</small>
+          </div>
+          <span class="assassination-status">
+            {{
+              snapshot.shadowMerlin.councilOpened === false
+                ? '议会未开启'
+                : snapshot.shadowMerlin.assassinationChosen
+                  ? '刺客发动刺杀'
+                  : snapshot.shadowMerlin.exileSuccess
+                    ? '正确驱逐'
+                    : '驱逐失败'
+            }}
+          </span>
+        </header>
+
+        <p v-if="snapshot.shadowMerlin.councilOpened === false">
+          有效赞成票少于有效反对票，驱逐议会未开启，游戏继续。
+        </p>
+        <p v-else-if="snapshot.shadowMerlin.assassinationChosen">
+          刺客放弃驱逐并发动刺杀，暗影梅林随即转为好人；刺客最终选择
+          <strong>{{ playerLabel(snapshot.shadowMerlin.assassinationTargetId) }}</strong>。
+        </p>
+        <p v-else-if="snapshot.shadowMerlin.exileSuccess">
+          刺客放弃刺杀；暗影梅林成为有效驱逐票的唯一最高票，好人立即获胜。
+        </p>
+        <p v-else>
+          刺客放弃刺杀；暗影梅林未成为唯一最高票，好人驱逐失败。
+        </p>
+
+        <div class="court-candidate-summary">
+          <small
+            v-for="vote in snapshot.shadowMerlin.openVotes"
+            :key="`open-${vote.playerId}`"
+          >
+            {{ playerLabel(vote.playerId) }}：{{ vote.openCouncil ? '赞成' : '反对' }}
+            · {{ vote.effective ? '有效票' : '零票' }}
+          </small>
+          <small
+            v-for="vote in snapshot.shadowMerlin.targetVotes"
+            :key="`target-${vote.playerId}`"
+          >
+            {{ playerLabel(vote.playerId) }} → {{ playerLabel(vote.targetId) }}
+            · {{ vote.effective ? '有效票' : '零票' }}
+          </small>
+        </div>
       </div>
 
       <div
@@ -1178,7 +1516,9 @@ function selfRoleArtworkFraming() {
             <strong>刺杀记录</strong>
             <small>
               {{
-                snapshot.result.assassinationWasEarly
+                snapshot.result.endingRoute === 'exile_council_assassination'
+                  ? '驱逐议会开启后，刺客选择发动刺杀'
+                  : snapshot.result.assassinationWasEarly
                   ? '刺客在任务结束前发动了提前刺杀'
                   : '好人完成三次任务后的最终选择'
               }}
@@ -1239,7 +1579,12 @@ function selfRoleArtworkFraming() {
             <small
               v-if="player.id === snapshot.courtUndercurrent.transformedPlayerId"
             >
-              已转化
+              已转为邪恶
+            </small>
+            <small
+              v-if="player.role === 'shadow_merlin' && snapshot.shadowMerlin.transformed"
+            >
+              已转为好人
             </small>
           </span>
         </div>

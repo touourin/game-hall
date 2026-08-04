@@ -71,9 +71,78 @@ def advance_ai_players(room: Room, engine: GameEngine) -> None:
             success = (
                 True
                 if player.alignment == Alignment.GOOD
+                or player.role == Role.SHADOW_MERLIN
                 else engine.rng.random() < EVIL_MISSION_SUCCESS_PROBABILITY
             )
             engine.vote_mission(room, player.id, success)
+            continue
+
+        if room.phase == Phase.EXILE_COUNCIL_BALLOT:
+            player = next(
+                (
+                    candidate
+                    for candidate in room.players
+                    if candidate.is_bot
+                    and candidate.id not in room.exile_council_open_votes
+                ),
+                None,
+            )
+            if player is None:
+                return
+            engine.submit_exile_council_ballot(
+                room,
+                player.id,
+                open_council=bool(engine.rng.randrange(2)),
+                target_id=engine.rng.choice(room.players).id,
+            )
+            continue
+
+        if room.phase == Phase.EXILE_COUNCIL_ASSASSINATION_DECISION:
+            player = next(
+                (
+                    candidate
+                    for candidate in room.players
+                    if candidate.is_bot
+                    and candidate.id
+                    not in room.exile_council_assassination_decisions
+                ),
+                None,
+            )
+            if player is None:
+                return
+            engine.submit_exile_council_assassination_decision(
+                room,
+                player.id,
+                bool(engine.rng.randrange(2)),
+            )
+            continue
+
+        if room.phase == Phase.EXILE_COUNCIL_ASSASSINATION_TARGET:
+            player = next(
+                (
+                    candidate
+                    for candidate in room.players
+                    if candidate.is_bot
+                    and candidate.id
+                    not in room.exile_council_assassination_targets
+                ),
+                None,
+            )
+            if player is None:
+                return
+            if player.role == Role.ASSASSIN:
+                target_ids = engine.eligible_assassination_targets(room)
+            else:
+                target_ids = [
+                    candidate.id
+                    for candidate in room.players
+                    if candidate.id != player.id
+                ]
+            engine.submit_exile_council_assassination_target(
+                room,
+                player.id,
+                engine.rng.choice(target_ids),
+            )
             continue
 
         if room.phase == Phase.LADY_SELECT:

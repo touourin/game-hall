@@ -13,6 +13,9 @@ export type Phase =
   | 'assassination'
   | 'dagger_grant'
   | 'final_council'
+  | 'exile_council_ballot'
+  | 'exile_council_assassination_decision'
+  | 'exile_council_assassination_target'
   | 'game_over'
 
 export interface Knowledge {
@@ -24,6 +27,7 @@ export interface Knowledge {
     | 'evil_ally'
     | 'assassin'
     | 'dissenting_courtier'
+    | 'special_identity'
   label: string
 }
 
@@ -101,6 +105,9 @@ export interface RoomActions {
   canVoteMission: boolean
   canMissionFail: boolean
   canContinueRound: boolean
+  canSubmitExileCouncilBallot: boolean
+  canSubmitExileCouncilAssassinationDecision: boolean
+  canSubmitExileCouncilAssassinationTarget: boolean
   canUseLady: boolean
   canAcknowledgeLady: boolean
   canAssassinate: boolean
@@ -127,6 +134,7 @@ export interface RoomSnapshot {
   players: PlayerView[]
   settings: {
     mode: AvalonMode
+    shadowMerlinEnabled: boolean
     ladyEnabled: boolean
     ladyRecommended: boolean
     listed: boolean
@@ -193,6 +201,34 @@ export interface RoomSnapshot {
     transformedPlayerId: string | null
     eligibleTargetIds: string[]
     assassinationTargetId: string | null
+  }
+  shadowMerlin: {
+    enabled: boolean
+    transformed: boolean
+    councilTriggered: boolean
+    councilOpened: boolean | null
+    ballotsSubmitted: number
+    myBallotSubmitted: boolean
+    eligibleExileTargetIds: string[]
+    assassinationDecisionsSubmitted: number
+    myAssassinationDecisionSubmitted: boolean
+    assassinationChosen: boolean | null
+    assassinationTargetsSubmitted: number
+    myAssassinationTargetSubmitted: boolean
+    eligibleAssassinationTargetIds: string[]
+    assassinationTargetId: string | null
+    exileTargetId: string | null
+    exileSuccess: boolean | null
+    openVotes: Array<{
+      playerId: string
+      openCouncil: boolean
+      effective: boolean
+    }>
+    targetVotes: Array<{
+      playerId: string
+      targetId: string
+      effective: boolean
+    }>
   }
   chat: {
     maxLength: number

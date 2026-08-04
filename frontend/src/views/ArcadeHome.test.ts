@@ -146,6 +146,7 @@ describe('ArcadeHome', () => {
 
     expect(createRoom).toHaveBeenCalledWith('avalon', {
       mode: 'court_undercurrent',
+      shadowMerlinEnabled: false,
       ladyEnabled: false,
       listed: true,
       allowGuests: true,

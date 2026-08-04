@@ -26,6 +26,9 @@ function setOption(key: string, value: unknown) {
     nextValue.ladyEnabled = false
     nextValue.earlyAssassinationEnabled = false
   }
+  if (props.gameKey === 'avalon' && key === 'mode' && value === 'standard') {
+    nextValue.shadowMerlinEnabled = false
+  }
   emit('update:modelValue', nextValue)
 }
 </script>
@@ -54,6 +57,26 @@ function setOption(key: string, value: unknown) {
       </summary>
       <ModeGuide :content="AVALON_COURT_GUIDE" />
     </details>
+
+    <section
+      v-if="gameKey === 'avalon' && option('mode') === 'court_undercurrent'"
+      class="rule-setting-group"
+    >
+      <header><strong>扩展包角色</strong><small>暗影梅林建立在王庭暗流完整规则之上</small></header>
+      <div class="rule-toggle-list">
+        <button
+          type="button"
+          :class="{ active: option('shadowMerlinEnabled') }"
+          @click="setOption('shadowMerlinEnabled', !option('shadowMerlinEnabled'))"
+        >
+          <span>
+            <strong>暗影梅林</strong>
+            <small>六人及以上可用 · 替换一名忠臣 · 开启驱逐议会</small>
+          </span>
+          <b>{{ option('shadowMerlinEnabled') ? '开' : '关' }}</b>
+        </button>
+      </div>
+    </section>
 
     <section v-if="gameKey === 'avalon'" class="rule-setting-group">
       <header><strong>对局规则</strong><small>王庭暗流固定关闭湖中仙女和提前刺杀</small></header>

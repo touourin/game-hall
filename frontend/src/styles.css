@@ -2110,6 +2110,12 @@ button:disabled {
   background: linear-gradient(145deg, rgba(122, 43, 49, 0.5), rgba(36, 32, 34, 0.75));
 }
 
+.decision-button.selected {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(207, 169, 91, 0.22);
+  transform: translateY(-1px);
+}
+
 .private-warning {
   display: flex;
   align-items: center;

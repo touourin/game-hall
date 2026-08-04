@@ -55,16 +55,25 @@ class AvalonEngine:
         lady_enabled = options.get("ladyEnabled", True)
         listed = options.get("listed", True)
         early_assassination = options.get("earlyAssassinationEnabled", False)
+        shadow_merlin_enabled = options.get("shadowMerlinEnabled", False)
         if not all(
             isinstance(value, bool)
-            for value in (lady_enabled, listed, early_assassination)
+            for value in (
+                lady_enabled,
+                listed,
+                early_assassination,
+                shadow_merlin_enabled,
+            )
         ):
             raise GameRuleError("阿瓦隆房间规则格式不正确")
         if mode == AvalonMode.COURT_UNDERCURRENT.value:
             lady_enabled = False
             early_assassination = False
+        else:
+            shadow_merlin_enabled = False
         return {
             "mode": mode,
+            "shadowMerlinEnabled": shadow_merlin_enabled,
             "ladyEnabled": lady_enabled,
             "listed": listed,
             "earlyAssassinationEnabled": early_assassination,
@@ -81,6 +90,13 @@ class AvalonEngine:
     @staticmethod
     def can_update_options(room: ArcadeRoom) -> bool:
         return room.phase == Phase.LOBBY.value
+
+    @staticmethod
+    def can_start(room: ArcadeRoom, viewer: ArcadePlayer) -> bool:
+        return not (
+            room.options.get("shadowMerlinEnabled", False)
+            and len(room.players) < 6
+        )
 
     def start(self, room: ArcadeRoom) -> None:
         domain = self._domain(room)
@@ -119,6 +135,25 @@ class AvalonEngine:
                 )
             elif action == "continue_round":
                 self.rules.continue_after_mission(domain, actor_id)
+            elif action == "exile_council_ballot":
+                self.rules.submit_exile_council_ballot(
+                    domain,
+                    actor_id,
+                    open_council=self._boolean(payload, "open_council"),
+                    target_id=self._string(payload, "target_id"),
+                )
+            elif action == "exile_council_assassination_decision":
+                self.rules.submit_exile_council_assassination_decision(
+                    domain,
+                    actor_id,
+                    self._boolean(payload, "assassinate"),
+                )
+            elif action == "exile_council_assassination_target":
+                self.rules.submit_exile_council_assassination_target(
+                    domain,
+                    actor_id,
+                    self._string(payload, "target_id"),
+                )
             elif action == "lady_inspect":
                 self.rules.inspect_with_lady(
                     domain, actor_id, self._string(payload, "target_id")
@@ -240,6 +275,25 @@ class AvalonEngine:
             )
             room.state = domain
 
+        if not hasattr(domain.settings, "shadow_merlin_enabled"):
+            domain.settings.shadow_merlin_enabled = False
+        legacy_defaults: dict[str, Any] = {
+            "shadow_merlin_transformed": False,
+            "exile_council_triggered": False,
+            "exile_council_open_votes": {},
+            "exile_council_target_votes": {},
+            "exile_council_opened": None,
+            "exile_council_assassination_decisions": {},
+            "exile_council_assassination_chosen": None,
+            "exile_council_assassination_targets": {},
+            "exile_council_assassination_target_id": None,
+            "exile_council_exile_target_id": None,
+            "exile_council_exile_success": None,
+        }
+        for field_name, default in legacy_defaults.items():
+            if not hasattr(domain, field_name):
+                setattr(domain, field_name, default)
+
         existing = {player.id: player for player in domain.players}
         synchronized_players: list[Player] = []
         for arcade_player in room.players:
@@ -303,6 +357,9 @@ class AvalonEngine:
         room.options = self.room_options(
             {
                 "mode": domain.settings.mode.value,
+                "shadowMerlinEnabled": (
+                    domain.settings.shadow_merlin_enabled
+                ),
                 "ladyEnabled": domain.settings.lady_enabled,
                 "listed": domain.settings.listed,
                 "earlyAssassinationEnabled": (
@@ -367,6 +424,9 @@ class AvalonEngine:
     def _apply_options(domain: Room, options: dict[str, Any]) -> None:
         normalized = AvalonEngine.room_options(options)
         domain.settings.mode = AvalonMode(str(normalized["mode"]))
+        domain.settings.shadow_merlin_enabled = bool(
+            normalized["shadowMerlinEnabled"]
+        )
         domain.settings.lady_enabled = bool(normalized["ladyEnabled"])
         domain.settings.listed = bool(normalized["listed"])
         domain.settings.early_assassination_enabled = bool(
@@ -419,6 +479,11 @@ class AvalonEngine:
         options = engine.room_options(
             {
                 "mode": legacy.settings.mode.value,
+                "shadowMerlinEnabled": (
+                    getattr(
+                        legacy.settings, "shadow_merlin_enabled", False
+                    )
+                ),
                 "ladyEnabled": legacy.settings.lady_enabled,
                 "listed": legacy.settings.listed,
                 "earlyAssassinationEnabled": (

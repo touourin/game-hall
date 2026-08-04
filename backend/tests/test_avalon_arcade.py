@@ -3,6 +3,7 @@ import random
 import pytest
 
 from backend.app.arcade.rooms import ArcadeRoomError, ArcadeRoomManager
+from backend.app.games.base import GameRuleError
 from backend.app.games.avalon.arcade import AvalonEngine
 from backend.app.games.avalon.engine import GameEngine as AvalonRulesEngine
 from backend.app.games.avalon.models import Alignment, Phase
@@ -92,6 +93,7 @@ def test_court_undercurrent_keeps_its_original_fixed_rule_constraints() -> None:
     assert room.options == {
         "allowGuests": True,
         "mode": "court_undercurrent",
+        "shadowMerlinEnabled": False,
         "ladyEnabled": False,
         "listed": False,
         "earlyAssassinationEnabled": False,
@@ -104,6 +106,30 @@ def test_court_undercurrent_keeps_its_original_fixed_rule_constraints() -> None:
 
     with pytest.raises(ArcadeRoomError, match="等待房间"):
         manager.update_options(room, host.id, {"mode": "standard"})
+
+
+def test_shadow_merlin_is_a_six_player_court_only_extension() -> None:
+    manager, adapter, room, host = unified_avalon(5)
+    manager.update_options(
+        room,
+        host.id,
+        {
+            "mode": "court_undercurrent",
+            "shadowMerlinEnabled": True,
+        },
+    )
+
+    assert room.options["shadowMerlinEnabled"] is True
+    assert adapter.view(room, host)["actions"]["canStart"] is False
+    with pytest.raises(GameRuleError, match="至少需要 6"):
+        manager.start(room, host.id)
+
+    manager.update_options(
+        room,
+        host.id,
+        {"mode": "standard", "shadowMerlinEnabled": True},
+    )
+    assert room.options["shadowMerlinEnabled"] is False
 
 
 def test_avalon_ai_and_finished_room_lifecycle_remain_unchanged() -> None:

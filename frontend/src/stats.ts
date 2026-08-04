@@ -70,6 +70,7 @@ export interface MatchDetail {
       initialAlignment?: string
       finalAlignment?: string
       transformed?: boolean
+      shadowMerlinTransformed?: boolean
     }>
     missions?: Array<{
       number: number
@@ -102,6 +103,21 @@ export interface MatchDetail {
       transformedPlayerId: string | null
       eligibleTargetIds: string[]
       assassinationTargetId: string | null
+    }
+    shadowMerlinEnabled?: boolean
+    shadowMerlin?: {
+      enabled: boolean
+      transformed: boolean
+      councilTriggered: boolean
+      councilOpened: boolean | null
+      openVotes: Record<string, boolean>
+      targetVotes: Record<string, string>
+      assassinationDecisions: Record<string, boolean>
+      assassinationChosen: boolean | null
+      assassinationTargets: Record<string, string>
+      assassinationTargetId: string | null
+      exileTargetId: string | null
+      exileSuccess: boolean | null
     }
     state?: Record<string, unknown> & {
       results_ms?: number[]

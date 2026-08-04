@@ -112,6 +112,15 @@ describe('Avalon role skin artwork framing', () => {
     expect(roleSkinRoleCode('unknown')).toBeNull()
   })
 
+  it('maps shadow Merlin into the Merlin skin family', () => {
+    for (const skin of ROLE_SKINS) {
+      expect(roleArtwork('shadow_merlin', skin.id)).toBe(
+        roleArtwork('merlin', skin.id),
+      )
+    }
+    expect(roleSkinRoleCode('shadow_merlin')).toBe('merlin')
+  })
+
   it('stores an independent eight-role loadout per account', () => {
     const loadout = defaultRoleSkinLoadout()
     loadout.merlin = 'dark-chronicle'

@@ -1046,11 +1046,12 @@ class AccountStore:
         wins = {role: 0 for role in AVALON_ROLE_SKIN_ROLES}
         for row in rows:
             role = str(row["role"])
-            role_family = (
-                "loyal_servant"
-                if role == "dissenting_courtier"
-                else role
-            )
+            if role == "dissenting_courtier":
+                role_family = "loyal_servant"
+            elif role == "shadow_merlin":
+                role_family = "merlin"
+            else:
+                role_family = role
             if role_family in wins:
                 wins[role_family] += int(row["wins"])
 
@@ -1218,6 +1219,7 @@ class AccountStore:
     def _match_details(room: Room) -> dict:
         return {
             "mode": room.settings.mode.value,
+            "shadowMerlinEnabled": room.settings.shadow_merlin_enabled,
             "players": [
                 {
                     "id": player.id,
@@ -1230,6 +1232,10 @@ class AccountStore:
                     "finalAlignment": player.alignment.value,
                     "transformed": (
                         player.id == room.transformed_player_id
+                    ),
+                    "shadowMerlinTransformed": (
+                        player.role == Role.SHADOW_MERLIN
+                        and room.shadow_merlin_transformed
                     ),
                 }
                 for player in room.players
@@ -1292,6 +1298,28 @@ class AccountStore:
                 "assassinationTargetId": (
                     room.dissenting_assassination_target_id
                 ),
+            },
+            "shadowMerlin": {
+                "enabled": room.settings.shadow_merlin_enabled,
+                "transformed": room.shadow_merlin_transformed,
+                "councilTriggered": room.exile_council_triggered,
+                "councilOpened": room.exile_council_opened,
+                "openVotes": dict(room.exile_council_open_votes),
+                "targetVotes": dict(room.exile_council_target_votes),
+                "assassinationDecisions": dict(
+                    room.exile_council_assassination_decisions
+                ),
+                "assassinationChosen": (
+                    room.exile_council_assassination_chosen
+                ),
+                "assassinationTargets": dict(
+                    room.exile_council_assassination_targets
+                ),
+                "assassinationTargetId": (
+                    room.exile_council_assassination_target_id
+                ),
+                "exileTargetId": room.exile_council_exile_target_id,
+                "exileSuccess": room.exile_council_exile_success,
             },
             "endingRoute": room.ending_route,
         }

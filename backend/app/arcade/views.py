@@ -64,6 +64,17 @@ def build_room_view(
         else room.phase == "finished"
         and viewer.id not in room.rematch_ready_ids
     )
+    start_checker = getattr(engine, "can_start", None)
+    can_start = (
+        room.phase == "lobby"
+        and viewer.id == room.host_id
+        and engine.min_players <= len(room.players) <= engine.max_players
+        and (
+            bool(start_checker(room, viewer))
+            if start_checker is not None
+            else True
+        )
+    )
     voter_ids = request_voter_ids(
         room,
         engine,
@@ -130,11 +141,7 @@ def build_room_view(
         "winnerPlayerIds": room.winner_player_ids,
         "winReason": room.win_reason,
         "actions": {
-            "canStart": (
-                room.phase == "lobby"
-                and viewer.id == room.host_id
-                and engine.min_players <= len(room.players) <= engine.max_players
-            ),
+            "canStart": can_start,
             "canRestart": can_restart,
             "canAct": is_active_phase,
             "canKickPlayers": room.phase == "lobby" and viewer.id == room.host_id,

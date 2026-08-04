@@ -58,13 +58,17 @@ export type AvalonRoleCode =
   | 'percival'
   | 'loyal_servant'
   | 'dissenting_courtier'
+  | 'shadow_merlin'
   | 'assassin'
   | 'morgana'
   | 'mordred'
   | 'oberon'
   | 'minion'
 
-export type RoleSkinRoleCode = Exclude<AvalonRoleCode, 'dissenting_courtier'>
+export type RoleSkinRoleCode = Exclude<
+  AvalonRoleCode,
+  'dissenting_courtier' | 'shadow_merlin'
+>
 
 export type AvalonRoleAlignment = 'good' | 'evil'
 
@@ -139,6 +143,7 @@ const ROLE_ART: Record<RoleSkinId, Record<AvalonRoleCode, string>> = {
     percival: classicPercival,
     loyal_servant: classicLoyalServant,
     dissenting_courtier: classicLoyalServant,
+    shadow_merlin: classicMerlin,
     assassin: classicAssassin,
     morgana: classicMorgana,
     mordred: classicMordred,
@@ -150,6 +155,7 @@ const ROLE_ART: Record<RoleSkinId, Record<AvalonRoleCode, string>> = {
     percival: darkPercival,
     loyal_servant: darkLoyalServant,
     dissenting_courtier: darkLoyalServant,
+    shadow_merlin: darkMerlin,
     assassin: darkAssassin,
     morgana: darkMorgana,
     mordred: darkMordred,
@@ -161,6 +167,7 @@ const ROLE_ART: Record<RoleSkinId, Record<AvalonRoleCode, string>> = {
     percival: stainedPercival,
     loyal_servant: stainedLoyalServant,
     dissenting_courtier: stainedLoyalServant,
+    shadow_merlin: stainedMerlin,
     assassin: stainedAssassin,
     morgana: stainedMorgana,
     mordred: stainedMordred,
@@ -172,6 +179,7 @@ const ROLE_ART: Record<RoleSkinId, Record<AvalonRoleCode, string>> = {
     percival: codexPercival,
     loyal_servant: codexLoyalServant,
     dissenting_courtier: codexLoyalServant,
+    shadow_merlin: codexMerlin,
     assassin: codexAssassin,
     morgana: codexMorgana,
     mordred: codexMordred,
@@ -183,6 +191,7 @@ const ROLE_ART: Record<RoleSkinId, Record<AvalonRoleCode, string>> = {
     percival: grailPercival,
     loyal_servant: grailLoyalServant,
     dissenting_courtier: grailLoyalServant,
+    shadow_merlin: grailMerlin,
     assassin: grailAssassin,
     morgana: grailMorgana,
     mordred: grailMordred,
@@ -300,6 +309,7 @@ export function defaultRoleSkinLoadout(
 
 export function roleSkinRoleCode(roleCode: string): RoleSkinRoleCode | null {
   if (roleCode === 'dissenting_courtier') return 'loyal_servant'
+  if (roleCode === 'shadow_merlin') return 'merlin'
   return ROLE_SKIN_ROLES.some((role) => role.code === roleCode)
     ? roleCode as RoleSkinRoleCode
     : null

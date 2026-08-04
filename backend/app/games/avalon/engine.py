@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 import secrets
+from collections import Counter
 from collections.abc import Sequence
 from datetime import datetime, timezone
 
@@ -11,6 +12,7 @@ from .models import (
     LadyCheck,
     MissionRecord,
     Phase,
+    Player,
     ProposalRecord,
     Role,
     Room,
@@ -43,6 +45,13 @@ KNOWN_EVIL_ROLES = {
     Role.MINION,
 }
 
+EXILE_COUNCIL_VOTING_ROLES = {
+    Role.MERLIN,
+    Role.PERCIVAL,
+    Role.LOYAL_SERVANT,
+    Role.DISSENTING_COURTIER,
+}
+
 
 class GameEngine:
     def __init__(self, rng: random.Random | random.SystemRandom | None = None):
@@ -58,8 +67,17 @@ class GameEngine:
         if room.settings.mode == AvalonMode.COURT_UNDERCURRENT:
             room.settings.lady_enabled = False
             room.settings.early_assassination_enabled = False
+        if room.settings.shadow_merlin_enabled:
+            if room.settings.mode != AvalonMode.COURT_UNDERCURRENT:
+                raise GameRuleError("暗影梅林扩展必须先开启王庭暗流")
+            if player_count < 6:
+                raise GameRuleError("暗影梅林扩展至少需要 6 名玩家")
 
-        roles = roles_for_player_count(player_count, room.settings.mode)
+        roles = roles_for_player_count(
+            player_count,
+            room.settings.mode,
+            shadow_merlin_enabled=room.settings.shadow_merlin_enabled,
+        )
         self.rng.shuffle(roles)
         for player, role in zip(room.players, roles, strict=True):
             player.role = role
@@ -91,6 +109,17 @@ class GameEngine:
         room.dagger_hit = None
         room.transformed_player_id = None
         room.dissenting_assassination_target_id = None
+        room.shadow_merlin_transformed = False
+        room.exile_council_triggered = False
+        room.exile_council_open_votes.clear()
+        room.exile_council_target_votes.clear()
+        room.exile_council_opened = None
+        room.exile_council_assassination_decisions.clear()
+        room.exile_council_assassination_chosen = None
+        room.exile_council_assassination_targets.clear()
+        room.exile_council_assassination_target_id = None
+        room.exile_council_exile_target_id = None
+        room.exile_council_exile_success = None
         room.lady_used_by_ids.clear()
         room.lady_checks.clear()
         room.lady_pending_inspector_id = None
@@ -182,7 +211,10 @@ class GameEngine:
             raise GameRuleError("你不在本次任务队伍中")
         if actor_id in room.mission_votes:
             raise GameRuleError("你已经提交过任务票")
-        if player.alignment == Alignment.GOOD and not success:
+        if (
+            player.alignment == Alignment.GOOD
+            or player.role == Role.SHADOW_MERLIN
+        ) and not success:
             raise GameRuleError("好人阵营只能支持任务成功")
 
         room.mission_votes[actor_id] = success
@@ -214,6 +246,12 @@ class GameEngine:
                 "坏人阵营破坏了三次任务",
                 ending_route="missions",
             )
+        elif (
+            room.settings.shadow_merlin_enabled
+            and room.fail_count >= 2
+            and not room.exile_council_triggered
+        ):
+            self._start_exile_council(room)
         elif room.success_count >= 3:
             if room.settings.mode == AvalonMode.COURT_UNDERCURRENT:
                 self._start_dagger_grant(room)
@@ -227,6 +265,108 @@ class GameEngine:
             room.phase = Phase.LADY_SELECT
         else:
             self._advance_to_next_mission(room)
+        self._touch(room)
+
+    def submit_exile_council_ballot(
+        self,
+        room: Room,
+        actor_id: str,
+        *,
+        open_council: bool,
+        target_id: str,
+    ) -> None:
+        self._require_phase(room, Phase.EXILE_COUNCIL_BALLOT)
+        self._require_player(room, actor_id)
+        self._require_player(room, target_id)
+        if actor_id in room.exile_council_open_votes:
+            raise GameRuleError("你已经提交过驱逐议会选票")
+
+        room.exile_council_open_votes[actor_id] = open_council
+        room.exile_council_target_votes[actor_id] = target_id
+        if len(room.exile_council_open_votes) == len(room.players):
+            valid_voters = [
+                player
+                for player in room.players
+                if player.role in EXILE_COUNCIL_VOTING_ROLES
+            ]
+            approvals = sum(
+                room.exile_council_open_votes[player.id]
+                for player in valid_voters
+            )
+            rejections = len(valid_voters) - approvals
+            room.exile_council_opened = approvals >= rejections
+            if room.exile_council_opened:
+                room.phase = Phase.EXILE_COUNCIL_ASSASSINATION_DECISION
+            else:
+                self._advance_to_next_mission(room)
+        self._touch(room)
+
+    def submit_exile_council_assassination_decision(
+        self, room: Room, actor_id: str, assassinate: bool
+    ) -> None:
+        self._require_phase(
+            room, Phase.EXILE_COUNCIL_ASSASSINATION_DECISION
+        )
+        self._require_player(room, actor_id)
+        if actor_id in room.exile_council_assassination_decisions:
+            raise GameRuleError("你已经提交过刺杀选择")
+
+        room.exile_council_assassination_decisions[actor_id] = assassinate
+        if len(room.exile_council_assassination_decisions) == len(
+            room.players
+        ):
+            assassin = self._role_player(room, Role.ASSASSIN)
+            chosen = room.exile_council_assassination_decisions[assassin.id]
+            room.exile_council_assassination_chosen = chosen
+            if chosen:
+                self._transform_shadow_merlin(room)
+                room.phase = Phase.EXILE_COUNCIL_ASSASSINATION_TARGET
+            else:
+                self._resolve_exile_council_vote(room)
+        self._touch(room)
+
+    def submit_exile_council_assassination_target(
+        self, room: Room, actor_id: str, target_id: str
+    ) -> None:
+        self._require_phase(
+            room, Phase.EXILE_COUNCIL_ASSASSINATION_TARGET
+        )
+        actor = self._require_player(room, actor_id)
+        self._require_player(room, target_id)
+        if actor_id in room.exile_council_assassination_targets:
+            raise GameRuleError("你已经提交过刺杀目标")
+        if target_id == actor_id:
+            raise GameRuleError("不能选择自己作为刺杀目标")
+        if (
+            actor.role == Role.ASSASSIN
+            and target_id not in self.eligible_assassination_targets(room)
+        ):
+            raise GameRuleError("刺客不能选择已知的邪恶同伴")
+
+        room.exile_council_assassination_targets[actor_id] = target_id
+        if len(room.exile_council_assassination_targets) == len(room.players):
+            assassin = self._role_player(room, Role.ASSASSIN)
+            actual_target_id = room.exile_council_assassination_targets[
+                assassin.id
+            ]
+            target = self._require_player(room, actual_target_id)
+            room.exile_council_assassination_target_id = actual_target_id
+            room.assassin_target_id = actual_target_id
+            room.assassination_was_early = False
+            if target.role == Role.MERLIN:
+                self._finish(
+                    room,
+                    Alignment.EVIL,
+                    "驱逐议会中，刺客成功刺杀了梅林",
+                    ending_route="exile_council_assassination",
+                )
+            else:
+                self._finish(
+                    room,
+                    Alignment.GOOD,
+                    "驱逐议会中，刺客未能找出梅林",
+                    ending_route="exile_council_assassination",
+                )
         self._touch(room)
 
     def inspect_with_lady(
@@ -292,6 +432,8 @@ class GameEngine:
         else:
             target.alignment_override = Alignment.EVIL
             room.transformed_player_id = target.id
+            if room.settings.shadow_merlin_enabled:
+                self._transform_shadow_merlin(room)
             room.phase = Phase.FINAL_COUNCIL
         self._touch(room)
 
@@ -406,6 +548,17 @@ class GameEngine:
         room.dagger_hit = None
         room.transformed_player_id = None
         room.dissenting_assassination_target_id = None
+        room.shadow_merlin_transformed = False
+        room.exile_council_triggered = False
+        room.exile_council_open_votes.clear()
+        room.exile_council_target_votes.clear()
+        room.exile_council_opened = None
+        room.exile_council_assassination_decisions.clear()
+        room.exile_council_assassination_chosen = None
+        room.exile_council_assassination_targets.clear()
+        room.exile_council_assassination_target_id = None
+        room.exile_council_exile_target_id = None
+        room.exile_council_exile_success = None
         room.lady_holder_id = None
         room.lady_used_by_ids.clear()
         room.lady_checks.clear()
@@ -466,6 +619,62 @@ class GameEngine:
         room.dagger_candidate_ids = [player.id for player in candidates]
         room.phase = Phase.DAGGER_GRANT
 
+    def _start_exile_council(self, room: Room) -> None:
+        room.exile_council_triggered = True
+        room.exile_council_open_votes.clear()
+        room.exile_council_target_votes.clear()
+        room.exile_council_opened = None
+        room.exile_council_assassination_decisions.clear()
+        room.exile_council_assassination_chosen = None
+        room.exile_council_assassination_targets.clear()
+        room.exile_council_assassination_target_id = None
+        room.exile_council_exile_target_id = None
+        room.exile_council_exile_success = None
+        room.phase = Phase.EXILE_COUNCIL_BALLOT
+
+    def _resolve_exile_council_vote(self, room: Room) -> None:
+        valid_votes = [
+            room.exile_council_target_votes[player.id]
+            for player in room.players
+            if player.role in EXILE_COUNCIL_VOTING_ROLES
+        ]
+        counts = Counter(valid_votes)
+        highest = max(counts.values(), default=0)
+        leaders = [
+            player_id
+            for player_id, count in counts.items()
+            if count == highest
+        ]
+        unique_target_id = leaders[0] if len(leaders) == 1 else None
+        shadow_merlin = self._role_player(room, Role.SHADOW_MERLIN)
+        success = unique_target_id == shadow_merlin.id
+        room.exile_council_exile_target_id = unique_target_id
+        room.exile_council_exile_success = success
+        if success:
+            self._finish(
+                room,
+                Alignment.GOOD,
+                "驱逐议会正确驱逐了暗影梅林",
+                ending_route="exile_council_exile",
+            )
+        else:
+            reason = (
+                "驱逐议会最高票并列，好人阵营驱逐失败"
+                if unique_target_id is None
+                else "驱逐议会驱逐错误，好人阵营失败"
+            )
+            self._finish(
+                room,
+                Alignment.EVIL,
+                reason,
+                ending_route="exile_council_exile",
+            )
+
+    def _transform_shadow_merlin(self, room: Room) -> None:
+        shadow_merlin = self._role_player(room, Role.SHADOW_MERLIN)
+        shadow_merlin.alignment_override = Alignment.GOOD
+        room.shadow_merlin_transformed = True
+
     def _advance_to_next_mission(self, room: Room) -> None:
         room.mission_index += 1
         room.proposal_attempt = 1
@@ -487,6 +696,16 @@ class GameEngine:
         room.win_reason = reason
         room.ending_route = ending_route
         room.phase = Phase.GAME_OVER
+
+    @staticmethod
+    def _role_player(room: Room, role: Role) -> Player:
+        player = next(
+            (candidate for candidate in room.players if candidate.role == role),
+            None,
+        )
+        if player is None:
+            raise GameRuleError(f"本局缺少{role.value}身份")
+        return player
 
     @staticmethod
     def _rotate_leader(room: Room) -> None:

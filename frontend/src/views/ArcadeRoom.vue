@@ -203,6 +203,9 @@ const avalonPhaseLabel = computed(() => {
     assassination: '最后刺杀',
     dagger_grant: '黑誓授刃',
     final_council: '最后议事',
+    exile_council_ballot: '驱逐议会提案',
+    exile_council_assassination_decision: '驱逐议会',
+    exile_council_assassination_target: '议会刺杀',
     game_over: '本局终章',
   }[phase]
 })
@@ -596,7 +599,13 @@ function openSharedChat() {
     <section v-if="snapshot.phase === 'lobby'" class="surface arcade-waiting">
       <UsersRound :size="48" />
       <h2>等待玩家到齐</h2>
-      <p v-if="missingPlayers > 0">还需要 {{ missingPlayers }} 名玩家</p>
+      <p
+        v-if="avalonSnapshot?.settings.shadowMerlinEnabled && snapshot.players.length < 6"
+      >
+        暗影梅林扩展至少需要 6 名玩家，还需
+        {{ 6 - snapshot.players.length }} 名
+      </p>
+      <p v-else-if="missingPlayers > 0">还需要 {{ missingPlayers }} 名玩家</p>
       <p v-else-if="availableSeats > 0">已可开始，还可加入 {{ availableSeats }} 名玩家</p>
       <p v-else>人员已到齐，房主可以开始</p>
       <button v-if="!isSolo" type="button" class="room-code-share" aria-label="显示加入二维码" @click="showQr = true">

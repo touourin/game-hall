@@ -458,3 +458,71 @@ def test_court_ending_reveals_both_candidate_lists_to_everyone():
     ]
     assert view["courtUndercurrent"]["eligibleTargetIds"] == final_candidates
     assert view["courtUndercurrent"]["transformedPlayerId"] == dissenting.id
+
+
+def test_shadow_merlin_knowledge_is_exact_and_hidden_from_everyone_else():
+    engine, room = start_room(
+        10,
+        mode=AvalonMode.COURT_UNDERCURRENT,
+        shadow_merlin_enabled=True,
+    )
+    shadow = next(
+        player for player in room.players if player.role == Role.SHADOW_MERLIN
+    )
+    merlin = next(player for player in room.players if player.role == Role.MERLIN)
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    shadow_knowledge = build_player_view(room, shadow, engine)["self"][
+        "role"
+    ]["knowledge"]
+
+    assert {
+        item["label"] for item in shadow_knowledge
+    } == {"梅林", "刺客", "莫甘娜", "奥伯伦"}
+    assert all(item["kind"] == "special_identity" for item in shadow_knowledge)
+
+    merlin_knowledge_ids = {
+        item["playerId"]
+        for item in build_player_view(room, merlin, engine)["self"]["role"][
+            "knowledge"
+        ]
+    }
+    assassin_knowledge_ids = {
+        item["playerId"]
+        for item in build_player_view(room, assassin, engine)["self"]["role"][
+            "knowledge"
+        ]
+    }
+    assert shadow.id not in merlin_knowledge_ids
+    assert shadow.id not in assassin_knowledge_ids
+    assert build_player_view(room, shadow, engine)["actions"][
+        "canMissionFail"
+    ] is False
+
+
+def test_council_ballots_stay_anonymous_until_game_over():
+    engine, room = start_room(
+        6,
+        mode=AvalonMode.COURT_UNDERCURRENT,
+        shadow_merlin_enabled=True,
+    )
+    room.phase = Phase.EXILE_COUNCIL_BALLOT
+    room.exile_council_triggered = True
+    target = room.players[1]
+    engine.submit_exile_council_ballot(
+        room,
+        room.players[0].id,
+        open_council=True,
+        target_id=target.id,
+    )
+
+    during = build_player_view(room, room.players[1], engine)["shadowMerlin"]
+    assert during["ballotsSubmitted"] == 1
+    assert during["openVotes"] == []
+    assert during["targetVotes"] == []
+
+    room.phase = Phase.GAME_OVER
+    after = build_player_view(room, room.players[1], engine)["shadowMerlin"]
+    assert after["openVotes"][0]["playerId"] == room.players[0].id
+    assert after["targetVotes"][0]["targetId"] == target.id

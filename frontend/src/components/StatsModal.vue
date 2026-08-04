@@ -28,6 +28,7 @@ const roleLabels: Record<string, string> = {
   percival: '派西维尔',
   loyal_servant: '亚瑟的忠臣',
   dissenting_courtier: '心怀异念之臣',
+  shadow_merlin: '暗影梅林',
   assassin: '刺客',
   morgana: '莫甘娜',
   mordred: '莫德雷德',
@@ -269,11 +270,47 @@ watch(activeGameMode, loadStats)
         </div>
 
         <div v-if="selectedMatch.gameKey === 'avalon' && selectedMatch.details.assassinTargetId" class="match-assassination-record">
-          <strong>{{ selectedMatch.details.assassinationWasEarly ? '提前刺杀' : '最终刺杀' }}</strong>
+          <strong>
+            {{
+              selectedMatch.endingRoute === 'exile_council_assassination'
+                ? '驱逐议会刺杀'
+                : selectedMatch.details.assassinationWasEarly
+                  ? '提前刺杀'
+                  : '最终刺杀'
+            }}
+          </strong>
           <span>目标：{{ playerLabel(selectedMatch, selectedMatch.details.assassinTargetId) }}</span>
           <em :class="selectedMatch.assassinationHit ? 'hit' : 'miss'">
             {{ selectedMatch.assassinationHit ? '命中梅林' : '刺杀失败' }}
           </em>
+        </div>
+
+        <div
+          v-if="selectedMatch.gameKey === 'avalon' && selectedMatch.details.shadowMerlin?.councilTriggered"
+          class="match-detail-section"
+        >
+          <span>驱逐议会</span>
+          <div class="match-court-timeline">
+            <div>
+              <strong>议会结果</strong>
+              <span>
+                {{ selectedMatch.details.shadowMerlin.councilOpened ? '议会开启' : '议会未开启' }}
+              </span>
+            </div>
+            <div v-if="selectedMatch.details.shadowMerlin.councilOpened">
+              <strong>刺客选择</strong>
+              <span>
+                {{ selectedMatch.details.shadowMerlin.assassinationChosen ? '发动刺杀' : '放弃刺杀并结算驱逐' }}
+              </span>
+            </div>
+            <div v-if="selectedMatch.details.shadowMerlin.exileTargetId">
+              <strong>驱逐目标</strong>
+              <span>{{ playerLabel(selectedMatch, selectedMatch.details.shadowMerlin.exileTargetId) }}</span>
+              <em :class="selectedMatch.details.shadowMerlin.exileSuccess ? 'hit' : 'miss'">
+                {{ selectedMatch.details.shadowMerlin.exileSuccess ? '正确驱逐' : '驱逐错误' }}
+              </em>
+            </div>
+          </div>
         </div>
 
         <div

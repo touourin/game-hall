@@ -7,7 +7,11 @@ from backend.app.arcade.rooms import (
     HOST_TRANSFER_GRACE,
 )
 
-from .engine import EARLY_ASSASSINATION_PHASES, GameEngine
+from .engine import (
+    EARLY_ASSASSINATION_PHASES,
+    EXILE_COUNCIL_VOTING_ROLES,
+    GameEngine,
+)
 from .models import Alignment, AvalonMode, Phase, Player, Role, Room
 from .rules import (
     GOOD_EVIL_COUNTS,
@@ -22,6 +26,7 @@ ROLE_LABELS = {
     Role.PERCIVAL: "派西维尔",
     Role.LOYAL_SERVANT: "亚瑟的忠臣",
     Role.DISSENTING_COURTIER: "心怀异念之臣",
+    Role.SHADOW_MERLIN: "暗影梅林",
     Role.ASSASSIN: "刺客",
     Role.MORGANA: "莫甘娜",
     Role.MORDRED: "莫德雷德",
@@ -36,6 +41,11 @@ ROLE_DESCRIPTIONS = {
     Role.DISSENTING_COURTIER: (
         "你开局属于好人且只能支持任务成功。你知道刺客是谁，"
         "可以选择隐藏身份，也可以通过发言争取被授刃。"
+    ),
+    Role.SHADOW_MERLIN: (
+        "你开局潜伏于邪恶阵营，能够准确看见梅林、刺客、莫甘娜与"
+        "奥伯伦，但无法提交任务失败票。任何刺杀开始后，你会立刻"
+        "转为好人阵营；若梅林被刺中，你也会失败。"
     ),
     Role.ASSASSIN: "邪恶阵营。若好人完成三次任务，你可以刺杀梅林翻盘。",
     Role.MORGANA: "邪恶阵营。你会在派西维尔眼中伪装成梅林。",
@@ -109,6 +119,13 @@ def build_player_view(
                 "邪恶阵营。你知道场上存在心怀异念之臣，但不知道是谁。"
                 "好人完成三次任务后，你必须从私密候选中向他授刃。"
             )
+            if room.settings.shadow_merlin_enabled:
+                role_description += (
+                    " 邪恶累计两次任务失败后会触发驱逐议会提案；"
+                    "议会若开启，你可以选择发动一次刺杀或放弃刺杀并"
+                    "结算驱逐。所有玩家会执行相同的伪装操作，只有你的"
+                    "选择生效。"
+                )
         if (
             viewer.role == Role.DISSENTING_COURTIER
             and room.transformed_player_id == viewer.id
@@ -116,6 +133,14 @@ def build_player_view(
             role_description = (
                 "你已被黑誓之刃强制转化为邪恶阵营。"
                 "利用最后议事判断梅林，并由你亲自完成刺杀。"
+            )
+        if (
+            viewer.role == Role.SHADOW_MERLIN
+            and room.shadow_merlin_transformed
+        ):
+            role_description = (
+                "刺杀已经开始，你已转为好人阵营。保护梅林不被刺中；"
+                "若梅林死亡，你也会一同失败。"
             )
         if (
             viewer.role == Role.ASSASSIN
@@ -157,18 +182,27 @@ def build_player_view(
     ]
 
     role_preset = []
-    if player_count in GOOD_EVIL_COUNTS:
+    if player_count in GOOD_EVIL_COUNTS and (
+        not room.settings.shadow_merlin_enabled or player_count >= 6
+    ):
         role_preset = [
             {"code": role.value, "label": ROLE_LABELS[role]}
             for role in roles_for_player_count(
-                player_count, room.settings.mode
+                player_count,
+                room.settings.mode,
+                shadow_merlin_enabled=(
+                    room.settings.shadow_merlin_enabled
+                ),
             )
         ]
 
     actions = {
         "canStart": room.phase == Phase.LOBBY
         and viewer.id == room.host_id
-        and player_count in GOOD_EVIL_COUNTS,
+        and player_count in GOOD_EVIL_COUNTS
+        and (
+            not room.settings.shadow_merlin_enabled or player_count >= 6
+        ),
         "canUpdateSettings": room.phase == Phase.LOBBY
         and viewer.id == room.host_id,
         "canDissolve": room.phase == Phase.LOBBY
@@ -183,8 +217,22 @@ def build_player_view(
         "canVoteMission": room.phase == Phase.MISSION_VOTING
         and viewer.id in room.selected_team_ids
         and viewer.id not in room.mission_votes,
-        "canMissionFail": viewer.alignment == Alignment.EVIL,
+        "canMissionFail": viewer.alignment == Alignment.EVIL
+        and viewer.role != Role.SHADOW_MERLIN,
         "canContinueRound": room.phase == Phase.ROUND_RESULT,
+        "canSubmitExileCouncilBallot": (
+            room.phase == Phase.EXILE_COUNCIL_BALLOT
+            and viewer.id not in room.exile_council_open_votes
+        ),
+        "canSubmitExileCouncilAssassinationDecision": (
+            room.phase == Phase.EXILE_COUNCIL_ASSASSINATION_DECISION
+            and viewer.id
+            not in room.exile_council_assassination_decisions
+        ),
+        "canSubmitExileCouncilAssassinationTarget": (
+            room.phase == Phase.EXILE_COUNCIL_ASSASSINATION_TARGET
+            and viewer.id not in room.exile_council_assassination_targets
+        ),
         "canUseLady": room.phase == Phase.LADY_SELECT
         and viewer.id == room.lady_holder_id,
         "canAcknowledgeLady": room.phase == Phase.LADY_REVEAL
@@ -224,6 +272,7 @@ def build_player_view(
         "players": players,
         "settings": {
             "mode": room.settings.mode.value,
+            "shadowMerlinEnabled": room.settings.shadow_merlin_enabled,
             "ladyEnabled": room.settings.lady_enabled,
             "ladyRecommended": player_count >= 7,
             "listed": room.settings.listed,
@@ -357,6 +406,96 @@ def build_player_view(
                 else None
             ),
         },
+        "shadowMerlin": {
+            "enabled": room.settings.shadow_merlin_enabled,
+            "transformed": room.shadow_merlin_transformed,
+            "councilTriggered": room.exile_council_triggered,
+            "councilOpened": room.exile_council_opened,
+            "ballotsSubmitted": len(room.exile_council_open_votes),
+            "myBallotSubmitted": (
+                viewer.id in room.exile_council_open_votes
+            ),
+            "eligibleExileTargetIds": (
+                [player.id for player in room.players]
+                if actions["canSubmitExileCouncilBallot"]
+                else []
+            ),
+            "assassinationDecisionsSubmitted": len(
+                room.exile_council_assassination_decisions
+            ),
+            "myAssassinationDecisionSubmitted": (
+                viewer.id in room.exile_council_assassination_decisions
+            ),
+            "assassinationChosen": (
+                room.exile_council_assassination_chosen
+            ),
+            "assassinationTargetsSubmitted": len(
+                room.exile_council_assassination_targets
+            ),
+            "myAssassinationTargetSubmitted": (
+                viewer.id in room.exile_council_assassination_targets
+            ),
+            "eligibleAssassinationTargetIds": (
+                [
+                    player.id
+                    for player in room.players
+                    if player.id != viewer.id
+                ]
+                if actions[
+                    "canSubmitExileCouncilAssassinationTarget"
+                ]
+                else []
+            ),
+            "assassinationTargetId": (
+                room.exile_council_assassination_target_id
+                if room.phase == Phase.GAME_OVER
+                else None
+            ),
+            "exileTargetId": (
+                room.exile_council_exile_target_id
+                if room.phase == Phase.GAME_OVER
+                else None
+            ),
+            "exileSuccess": (
+                room.exile_council_exile_success
+                if room.phase == Phase.GAME_OVER
+                else None
+            ),
+            "openVotes": (
+                [
+                    {
+                        "playerId": player.id,
+                        "openCouncil": (
+                            room.exile_council_open_votes[player.id]
+                        ),
+                        "effective": (
+                            player.role in EXILE_COUNCIL_VOTING_ROLES
+                        ),
+                    }
+                    for player in room.players
+                    if player.id in room.exile_council_open_votes
+                ]
+                if room.phase == Phase.GAME_OVER
+                else []
+            ),
+            "targetVotes": (
+                [
+                    {
+                        "playerId": player.id,
+                        "targetId": (
+                            room.exile_council_target_votes[player.id]
+                        ),
+                        "effective": (
+                            player.role in EXILE_COUNCIL_VOTING_ROLES
+                        ),
+                    }
+                    for player in room.players
+                    if player.id in room.exile_council_target_votes
+                ]
+                if room.phase == Phase.GAME_OVER
+                else []
+            ),
+        },
         "chat": {
             "maxLength": 300,
             "messages": [
@@ -381,7 +520,11 @@ def _knowledge_for_player(room: Room, viewer: Player) -> list[dict[str, str]]:
             if (
                 player.alignment == Alignment.EVIL
                 and player.role
-                not in {Role.MORDRED, Role.DISSENTING_COURTIER}
+                not in {
+                    Role.MORDRED,
+                    Role.DISSENTING_COURTIER,
+                    Role.SHADOW_MERLIN,
+                }
             ):
                 knowledge.append(
                     {
@@ -400,6 +543,22 @@ def _knowledge_for_player(room: Room, viewer: Player) -> list[dict[str, str]]:
                         "playerName": player.name,
                         "kind": "merlin_candidate",
                         "label": "梅林或莫甘娜",
+                    }
+                )
+    elif viewer.role == Role.SHADOW_MERLIN:
+        for player in room.players:
+            if player.role in {
+                Role.MERLIN,
+                Role.ASSASSIN,
+                Role.MORGANA,
+                Role.OBERON,
+            }:
+                knowledge.append(
+                    {
+                        "playerId": player.id,
+                        "playerName": player.name,
+                        "kind": "special_identity",
+                        "label": ROLE_LABELS[player.role],
                     }
                 )
     elif viewer.role == Role.DISSENTING_COURTIER:
@@ -427,12 +586,18 @@ def _knowledge_for_player(room: Room, viewer: Player) -> list[dict[str, str]]:
                         "label": "邪恶同伴",
                     }
                 )
-    elif viewer.alignment == Alignment.EVIL and viewer.role != Role.OBERON:
+    elif viewer.alignment == Alignment.EVIL and viewer.role not in {
+        Role.OBERON,
+        Role.SHADOW_MERLIN,
+    }:
         for player in room.players:
             if (
                 player.id != viewer.id
                 and player.alignment == Alignment.EVIL
-                and player.role != Role.OBERON
+                and player.role not in {
+                    Role.OBERON,
+                    Role.SHADOW_MERLIN,
+                }
             ):
                 knowledge.append(
                     {

@@ -1,3 +1,5 @@
+import pytest
+
 from backend.app.games.avalon.models import AvalonMode, Role
 from backend.app.games.avalon.rules import (
     GOOD_EVIL_COUNTS,
@@ -67,3 +69,35 @@ def test_court_undercurrent_replaces_exactly_one_loyal_servant():
                 Role.DISSENTING_COURTIER,
             }:
                 assert variant.count(role) == standard.count(role)
+
+
+@pytest.mark.parametrize("player_count", [6, 7, 8, 9, 10])
+def test_shadow_merlin_extension_replaces_one_more_loyal_servant(
+    player_count: int,
+):
+    court = roles_for_player_count(
+        player_count, AvalonMode.COURT_UNDERCURRENT
+    )
+    expanded = roles_for_player_count(
+        player_count,
+        AvalonMode.COURT_UNDERCURRENT,
+        shadow_merlin_enabled=True,
+    )
+
+    assert expanded.count(Role.DISSENTING_COURTIER) == 1
+    assert expanded.count(Role.SHADOW_MERLIN) == 1
+    assert expanded.count(Role.LOYAL_SERVANT) == (
+        court.count(Role.LOYAL_SERVANT) - 1
+    )
+    assert len(expanded) == player_count
+
+
+def test_shadow_merlin_extension_requires_court_and_six_players():
+    with pytest.raises(ValueError, match="王庭暗流"):
+        roles_for_player_count(6, shadow_merlin_enabled=True)
+    with pytest.raises(ValueError, match="至少需要 6"):
+        roles_for_player_count(
+            5,
+            AvalonMode.COURT_UNDERCURRENT,
+            shadow_merlin_enabled=True,
+        )

@@ -21,6 +21,7 @@ def make_room(
     player_count: int,
     lady_enabled: bool = True,
     mode: AvalonMode = AvalonMode.STANDARD,
+    shadow_merlin_enabled: bool = False,
 ) -> Room:
     players = [
         Player(
@@ -35,7 +36,11 @@ def make_room(
         code="TEST",
         host_id=players[0].id,
         players=players,
-        settings=GameSettings(mode=mode, lady_enabled=lady_enabled),
+        settings=GameSettings(
+            mode=mode,
+            lady_enabled=lady_enabled,
+            shadow_merlin_enabled=shadow_merlin_enabled,
+        ),
     )
 
 
@@ -43,8 +48,14 @@ def start_room(
     player_count: int = 5,
     lady_enabled: bool = True,
     mode: AvalonMode = AvalonMode.STANDARD,
+    shadow_merlin_enabled: bool = False,
 ):
-    room = make_room(player_count, lady_enabled, mode)
+    room = make_room(
+        player_count,
+        lady_enabled,
+        mode,
+        shadow_merlin_enabled,
+    )
     engine = GameEngine(random.Random(42))
     engine.start_game(room, room.host_id)
     return engine, room
@@ -591,3 +602,319 @@ def test_transformed_dissenting_courtier_loses_after_stabbing_wrong_target():
     assert room.winner == Alignment.GOOD
     assert room.dissenting_assassination_target_id == wrong_target.id
     assert room.ending_route == "dissenting_assassination"
+
+
+def start_shadow_room(player_count: int = 6):
+    return start_room(
+        player_count,
+        mode=AvalonMode.COURT_UNDERCURRENT,
+        shadow_merlin_enabled=True,
+    )
+
+
+def trigger_shadow_council(engine: GameEngine, room: Room) -> None:
+    room.mission_index = 1
+    room.mission_history = [
+        MissionRecord(1, ["p0", "p1"], False, 1),
+        MissionRecord(2, ["p0", "p1", "p2"], False, 1),
+    ]
+    room.phase = Phase.ROUND_RESULT
+    engine.continue_after_mission(room, room.host_id)
+
+
+def submit_shadow_ballots(
+    engine: GameEngine,
+    room: Room,
+    *,
+    open_council: bool,
+    target_id: str,
+) -> None:
+    for player in room.players:
+        engine.submit_exile_council_ballot(
+            room,
+            player.id,
+            open_council=(
+                open_council
+                if player.role
+                in {
+                    Role.MERLIN,
+                    Role.PERCIVAL,
+                    Role.LOYAL_SERVANT,
+                    Role.DISSENTING_COURTIER,
+                }
+                else not open_council
+            ),
+            target_id=target_id,
+        )
+
+
+def test_shadow_merlin_cannot_submit_a_mission_fail_vote():
+    engine, room = start_shadow_room()
+    shadow = next(
+        player for player in room.players if player.role == Role.SHADOW_MERLIN
+    )
+    room.phase = Phase.MISSION_VOTING
+    room.selected_team_ids = [shadow.id, room.players[0].id]
+
+    with pytest.raises(GameRuleError, match="只能支持任务成功"):
+        engine.vote_mission(room, shadow.id, success=False)
+
+
+def test_second_failed_mission_starts_the_one_time_exile_council():
+    engine, room = start_shadow_room(7)
+
+    trigger_shadow_council(engine, room)
+
+    assert room.phase == Phase.EXILE_COUNCIL_BALLOT
+    assert room.exile_council_triggered is True
+
+
+def test_five_rejected_proposals_can_trigger_the_second_failure_council():
+    engine, room = start_shadow_room()
+    confirm_all_roles(engine, room)
+    room.mission_history = [MissionRecord(1, ["p0", "p1"], False, 1)]
+    room.mission_index = 1
+    room.phase = Phase.TEAM_BUILDING
+
+    for _ in range(5):
+        team = [player.id for player in room.players[:3]]
+        engine.propose_team(room, room.leader.id, team)
+        for player in room.players:
+            engine.vote_team(room, player.id, approve=False)
+
+    assert room.phase == Phase.ROUND_RESULT
+    assert room.fail_count == 2
+    engine.continue_after_mission(room, room.host_id)
+    assert room.phase == Phase.EXILE_COUNCIL_BALLOT
+
+
+def test_only_fixed_good_roles_decide_whether_council_opens():
+    engine, room = start_shadow_room(7)
+    trigger_shadow_council(engine, room)
+    shadow = next(
+        player for player in room.players if player.role == Role.SHADOW_MERLIN
+    )
+
+    submit_shadow_ballots(
+        engine,
+        room,
+        open_council=False,
+        target_id=shadow.id,
+    )
+
+    assert room.exile_council_opened is False
+    assert room.phase == Phase.TEAM_BUILDING
+    assert room.mission_index == 2
+
+
+def test_correct_unique_exile_gives_good_the_win_without_conversion():
+    engine, room = start_shadow_room()
+    trigger_shadow_council(engine, room)
+    shadow = next(
+        player for player in room.players if player.role == Role.SHADOW_MERLIN
+    )
+    submit_shadow_ballots(
+        engine,
+        room,
+        open_council=True,
+        target_id=shadow.id,
+    )
+
+    assert room.phase == Phase.EXILE_COUNCIL_ASSASSINATION_DECISION
+    for player in room.players:
+        engine.submit_exile_council_assassination_decision(
+            room, player.id, False
+        )
+
+    assert room.phase == Phase.GAME_OVER
+    assert room.winner == Alignment.GOOD
+    assert room.exile_council_exile_success is True
+    assert shadow.alignment == Alignment.EVIL
+    assert room.shadow_merlin_transformed is False
+
+
+def test_wrong_or_tied_exile_gives_evil_the_win():
+    engine, room = start_shadow_room()
+    trigger_shadow_council(engine, room)
+    shadow = next(
+        player for player in room.players if player.role == Role.SHADOW_MERLIN
+    )
+    valid_voters = [
+        player
+        for player in room.players
+        if player.role
+        in {
+            Role.MERLIN,
+            Role.PERCIVAL,
+            Role.LOYAL_SERVANT,
+            Role.DISSENTING_COURTIER,
+        }
+    ]
+    wrong = next(player for player in room.players if player.id != shadow.id)
+    for index, player in enumerate(room.players):
+        target = (
+            shadow.id
+            if player in valid_voters[: len(valid_voters) // 2]
+            else wrong.id
+        )
+        engine.submit_exile_council_ballot(
+            room,
+            player.id,
+            open_council=True,
+            target_id=target,
+        )
+    for player in room.players:
+        engine.submit_exile_council_assassination_decision(
+            room, player.id, False
+        )
+
+    assert room.phase == Phase.GAME_OVER
+    assert room.winner == Alignment.EVIL
+    assert room.exile_council_exile_success is False
+
+
+def test_council_assassination_converts_shadow_and_uses_only_assassin_target():
+    engine, room = start_shadow_room()
+    trigger_shadow_council(engine, room)
+    shadow = next(
+        player for player in room.players if player.role == Role.SHADOW_MERLIN
+    )
+    merlin = next(player for player in room.players if player.role == Role.MERLIN)
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    submit_shadow_ballots(
+        engine,
+        room,
+        open_council=True,
+        target_id=shadow.id,
+    )
+    for player in room.players:
+        engine.submit_exile_council_assassination_decision(
+            room,
+            player.id,
+            player.id == assassin.id,
+        )
+
+    assert room.phase == Phase.EXILE_COUNCIL_ASSASSINATION_TARGET
+    assert shadow.alignment == Alignment.GOOD
+    assert room.shadow_merlin_transformed is True
+
+    for player in room.players:
+        fake_target = next(
+            candidate
+            for candidate in room.players
+            if candidate.id != player.id
+            and (
+                player.role != Role.ASSASSIN
+                or candidate.id == merlin.id
+            )
+        )
+        engine.submit_exile_council_assassination_target(
+            room, player.id, fake_target.id
+        )
+
+    assert room.phase == Phase.GAME_OVER
+    assert room.winner == Alignment.EVIL
+    assert room.exile_council_assassination_target_id == merlin.id
+    assert shadow.alignment == Alignment.GOOD
+
+
+def test_wrong_council_assassination_lets_good_and_shadow_win():
+    engine, room = start_shadow_room()
+    trigger_shadow_council(engine, room)
+    shadow = next(
+        player for player in room.players if player.role == Role.SHADOW_MERLIN
+    )
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    wrong_target = next(
+        player
+        for player in room.players
+        if player.role == Role.PERCIVAL
+    )
+    submit_shadow_ballots(
+        engine,
+        room,
+        open_council=True,
+        target_id=shadow.id,
+    )
+    for player in room.players:
+        engine.submit_exile_council_assassination_decision(
+            room, player.id, player.id == assassin.id
+        )
+    for player in room.players:
+        target = (
+            wrong_target
+            if player.id == assassin.id
+            else next(
+                candidate
+                for candidate in room.players
+                if candidate.id != player.id
+            )
+        )
+        engine.submit_exile_council_assassination_target(
+            room, player.id, target.id
+        )
+
+    assert room.phase == Phase.GAME_OVER
+    assert room.winner == Alignment.GOOD
+    assert shadow.alignment == Alignment.GOOD
+    assert room.ending_route == "exile_council_assassination"
+
+
+def test_correct_dagger_grant_converts_shadow_when_assassination_begins():
+    engine, room = start_shadow_room(10)
+    complete_three_successes(room)
+    engine.continue_after_mission(room, room.host_id)
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    dissenting = next(
+        player
+        for player in room.players
+        if player.role == Role.DISSENTING_COURTIER
+    )
+    shadow = next(
+        player for player in room.players if player.role == Role.SHADOW_MERLIN
+    )
+
+    engine.grant_dagger(room, assassin.id, dissenting.id)
+
+    assert room.phase == Phase.FINAL_COUNCIL
+    assert dissenting.alignment == Alignment.EVIL
+    assert shadow.alignment == Alignment.GOOD
+    assert room.shadow_merlin_transformed is True
+
+
+def test_wrong_dagger_grant_keeps_shadow_evil_and_losing():
+    engine, room = start_shadow_room(10)
+    complete_three_successes(room)
+    engine.continue_after_mission(room, room.host_id)
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    shadow = next(
+        player for player in room.players if player.role == Role.SHADOW_MERLIN
+    )
+    room.dagger_candidate_ids = [
+        next(
+            player.id
+            for player in room.players
+            if player.role == Role.DISSENTING_COURTIER
+        ),
+        shadow.id,
+        next(
+            player.id
+            for player in room.players
+            if player.role == Role.PERCIVAL
+        ),
+    ]
+
+    engine.grant_dagger(room, assassin.id, shadow.id)
+
+    assert room.phase == Phase.GAME_OVER
+    assert room.winner == Alignment.GOOD
+    assert shadow.alignment == Alignment.EVIL
+    assert room.shadow_merlin_transformed is False

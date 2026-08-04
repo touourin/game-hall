@@ -24,6 +24,7 @@ export function defaultGameRules(
   if (gameKey === 'avalon') {
     return {
       mode: 'standard',
+      shadowMerlinEnabled: false,
       ladyEnabled: true,
       listed: true,
       allowGuests: true,
@@ -85,6 +86,10 @@ export function gameRuleLabels(
       labels.push(options.ladyEnabled ? '启用湖中仙女' : '不启用湖中仙女')
       if (options.earlyAssassinationEnabled) labels.push('允许提前刺杀')
     }
+    if (
+      options.mode === 'court_undercurrent' &&
+      options.shadowMerlinEnabled
+    ) labels.push('暗影梅林扩展')
     return labels
   }
   if (gameKey === 'reaction') return ['三轮测试']

@@ -35,6 +35,8 @@ def mission_fail_threshold(player_count: int, mission_index: int) -> int:
 def roles_for_player_count(
     player_count: int,
     mode: AvalonMode = AvalonMode.STANDARD,
+    *,
+    shadow_merlin_enabled: bool = False,
 ) -> list[Role]:
     """Return a balanced, familiar role preset for 5–10 players."""
     good_count, evil_count = GOOD_EVIL_COUNTS[player_count]
@@ -45,6 +47,12 @@ def roles_for_player_count(
         good_roles[good_roles.index(Role.LOYAL_SERVANT)] = (
             Role.DISSENTING_COURTIER
         )
+    if shadow_merlin_enabled:
+        if mode != AvalonMode.COURT_UNDERCURRENT:
+            raise ValueError("暗影梅林扩展必须依附王庭暗流")
+        if player_count < 6:
+            raise ValueError("暗影梅林扩展至少需要 6 名玩家")
+        good_roles[good_roles.index(Role.LOYAL_SERVANT)] = Role.SHADOW_MERLIN
 
     if player_count <= 6:
         evil_roles = [Role.ASSASSIN, Role.MORGANA]

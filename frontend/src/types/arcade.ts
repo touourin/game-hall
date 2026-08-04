@@ -140,3 +140,6 @@ export type ArcadePhase =
   | 'assassination'
   | 'dagger_grant'
   | 'final_council'
+  | 'exile_council_ballot'
+  | 'exile_council_assassination_decision'
+  | 'exile_council_assassination_target'
