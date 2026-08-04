@@ -645,7 +645,7 @@ describe('AvalonTable role reveal', () => {
     })
   })
 
-  it('submits the two anonymous exile-council choices together', async () => {
+  it('submits the two anonymous shadow-council choices together', async () => {
     const snapshot = roleRevealSnapshot(1)
     snapshot.phase = 'exile_council_ballot'
     snapshot.settings.mode = 'court_undercurrent'
@@ -663,7 +663,8 @@ describe('AvalonTable role reveal', () => {
       global: { plugins: [pinia] },
     })
 
-    expect(wrapper.text()).toContain('匿名同时决定是否开会')
+    expect(wrapper.text()).toContain('暗刃议影提案')
+    expect(wrapper.text()).toContain('预先锁定裁影对象')
     expect(wrapper.text()).toContain('系统不会提示你的票是否有效')
     await wrapper.get('.decision-button.approve').trigger('click')
     await wrapper.get('.player-grid .player-tile').trigger('click')

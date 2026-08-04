@@ -203,9 +203,9 @@ const avalonPhaseLabel = computed(() => {
     assassination: '最后刺杀',
     dagger_grant: '黑誓授刃',
     final_council: '最后议事',
-    exile_council_ballot: '驱逐议会提案',
-    exile_council_assassination_decision: '驱逐议会',
-    exile_council_assassination_target: '议会刺杀',
+    exile_council_ballot: '暗刃议影提案',
+    exile_council_assassination_decision: '暗刃议影',
+    exile_council_assassination_target: '暗刃刺杀',
     game_over: '本局终章',
   }[phase]
 })

@@ -799,14 +799,14 @@ function selfRoleArtworkFraming() {
       <div class="assassination-hero court-hero">
         <span><Crown :size="29" /></span>
         <p>邪恶已经取得两次任务失败</p>
-        <h2>驱逐议会提案</h2>
-        <strong>所有人匿名同时决定是否开会，并预先锁定驱逐对象</strong>
+        <h2>暗刃议影提案</h2>
+        <strong>所有人匿名同时决定是否启议，并预先锁定裁影对象</strong>
       </div>
 
       <button class="surface final-council-chat" type="button" @click="openSharedChat">
         <MessageCircle :size="21" />
         <div>
-          <strong>打开议会讨论</strong>
+          <strong>打开议影讨论</strong>
           <small>提交内容不会在游戏进行中公开；选票一经提交不能修改</small>
         </div>
         <ChevronRight :size="18" />
@@ -822,7 +822,7 @@ function selfRoleArtworkFraming() {
         </div>
 
         <div class="selection-counter">
-          <span>第一项 · 是否开启驱逐议会</span>
+          <span>第一项 · 是否开启暗刃议影</span>
           <strong>{{ exileCouncilOpenChoice === null ? '未选择' : '已选择' }}</strong>
         </div>
         <div class="vote-actions">
@@ -834,7 +834,7 @@ function selfRoleArtworkFraming() {
           >
             <X :size="25" />
             <strong>反对开启</strong>
-            <span>议会不开启则继续任务</span>
+            <span>议影不开启则继续任务</span>
           </button>
           <button
             class="decision-button approve"
@@ -844,12 +844,12 @@ function selfRoleArtworkFraming() {
           >
             <Check :size="25" />
             <strong>赞成开启</strong>
-            <span>平票同样开启议会</span>
+            <span>平票同样开启议影</span>
           </button>
         </div>
 
         <div class="selection-counter">
-          <span>第二项 · 若议会开启，你要驱逐谁</span>
+          <span>第二项 · 若议影开启，你要裁影谁</span>
           <strong>{{ exileCouncilTargetId ? '目标锁定' : '未选择' }}</strong>
         </div>
         <div class="player-grid">
@@ -899,15 +899,15 @@ function selfRoleArtworkFraming() {
       <div class="assassination-hero court-hero">
         <span><Swords :size="29" /></span>
         <p>有效赞成票大于等于有效反对票</p>
-        <h2>驱逐议会正式开启</h2>
+        <h2>暗刃议影正式开启</h2>
         <strong>刺客重新获得一次刺杀梅林的机会</strong>
       </div>
 
       <button class="surface final-council-chat" type="button" @click="openSharedChat">
         <MessageCircle :size="21" />
         <div>
-          <strong>打开驱逐议会讨论</strong>
-          <small>所有人都可发言；此前锁定的驱逐目标仍不可修改</small>
+          <strong>打开议影讨论</strong>
+          <small>所有人都可发言；此前锁定的裁影目标仍不可修改</small>
         </div>
         <ChevronRight :size="18" />
       </button>
@@ -933,7 +933,7 @@ function selfRoleArtworkFraming() {
           >
             <Shield :size="25" />
             <strong>放弃刺杀</strong>
-            <span>结算锁定的驱逐选票</span>
+            <span>结算锁定的裁影选票</span>
           </button>
           <button
             v-if="snapshot.self.role?.code === 'assassin'"
@@ -944,7 +944,7 @@ function selfRoleArtworkFraming() {
           >
             <Swords :size="25" />
             <strong>发动刺杀</strong>
-            <span>放弃驱逐，直接寻找梅林</span>
+            <span>出刃，放弃裁影并寻找梅林</span>
           </button>
         </div>
         <button
@@ -1362,34 +1362,34 @@ function selfRoleArtworkFraming() {
         <header>
           <span><Crown :size="21" /></span>
           <div>
-            <strong>驱逐议会记录</strong>
+            <strong>暗刃议影记录</strong>
             <small>全部匿名选票仅在游戏结束后揭示</small>
           </div>
           <span class="assassination-status">
             {{
               snapshot.shadowMerlin.councilOpened === false
-                ? '议会未开启'
+                ? '议影未开启'
                 : snapshot.shadowMerlin.assassinationChosen
                   ? '刺客发动刺杀'
                   : snapshot.shadowMerlin.exileSuccess
-                    ? '正确驱逐'
-                    : '驱逐失败'
+                    ? '裁影成功'
+                    : '裁影失败'
             }}
           </span>
         </header>
 
         <p v-if="snapshot.shadowMerlin.councilOpened === false">
-          有效赞成票少于有效反对票，驱逐议会未开启，游戏继续。
+          有效赞成票少于有效反对票，暗刃议影未开启，游戏继续。
         </p>
         <p v-else-if="snapshot.shadowMerlin.assassinationChosen">
-          刺客放弃驱逐并发动刺杀，暗影梅林随即转为好人；刺客最终选择
+          刺客放弃裁影并发动刺杀，暗影梅林随即转为好人；刺客最终选择
           <strong>{{ playerLabel(snapshot.shadowMerlin.assassinationTargetId) }}</strong>。
         </p>
         <p v-else-if="snapshot.shadowMerlin.exileSuccess">
-          刺客放弃刺杀；暗影梅林成为有效驱逐票的唯一最高票，好人立即获胜。
+          刺客放弃刺杀；暗影梅林成为有效裁影票的唯一最高票，好人立即获胜。
         </p>
         <p v-else>
-          刺客放弃刺杀；暗影梅林未成为唯一最高票，好人驱逐失败。
+          刺客放弃刺杀；暗影梅林未成为唯一最高票，好人裁影失败。
         </p>
 
         <div class="court-candidate-summary">
@@ -1518,7 +1518,7 @@ function selfRoleArtworkFraming() {
             <small>
               {{
                 snapshot.result.endingRoute === 'exile_council_assassination'
-                  ? '驱逐议会开启后，刺客选择发动刺杀'
+                  ? '暗刃议影开启后，刺客选择发动刺杀'
                   : snapshot.result.assassinationWasEarly
                   ? '刺客在任务结束前发动了提前刺杀'
                   : '好人完成三次任务后的最终选择'

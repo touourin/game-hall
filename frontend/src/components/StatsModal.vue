@@ -273,7 +273,7 @@ watch(activeGameMode, loadStats)
           <strong>
             {{
               selectedMatch.endingRoute === 'exile_council_assassination'
-                ? '驱逐议会刺杀'
+                ? '暗刃议影刺杀'
                 : selectedMatch.details.assassinationWasEarly
                   ? '提前刺杀'
                   : '最终刺杀'
@@ -289,25 +289,25 @@ watch(activeGameMode, loadStats)
           v-if="selectedMatch.gameKey === 'avalon' && selectedMatch.details.shadowMerlin?.councilTriggered"
           class="match-detail-section"
         >
-          <span>驱逐议会</span>
+          <span>暗刃议影</span>
           <div class="match-court-timeline">
             <div>
-              <strong>议会结果</strong>
+              <strong>议影结果</strong>
               <span>
-                {{ selectedMatch.details.shadowMerlin.councilOpened ? '议会开启' : '议会未开启' }}
+                {{ selectedMatch.details.shadowMerlin.councilOpened ? '议影开启' : '议影未开启' }}
               </span>
             </div>
             <div v-if="selectedMatch.details.shadowMerlin.councilOpened">
               <strong>刺客选择</strong>
               <span>
-                {{ selectedMatch.details.shadowMerlin.assassinationChosen ? '发动刺杀' : '放弃刺杀并结算驱逐' }}
+                {{ selectedMatch.details.shadowMerlin.assassinationChosen ? '发动刺杀' : '放弃刺杀并结算裁影' }}
               </span>
             </div>
             <div v-if="selectedMatch.details.shadowMerlin.exileTargetId">
-              <strong>驱逐目标</strong>
+              <strong>裁影目标</strong>
               <span>{{ playerLabel(selectedMatch, selectedMatch.details.shadowMerlin.exileTargetId) }}</span>
               <em :class="selectedMatch.details.shadowMerlin.exileSuccess ? 'hit' : 'miss'">
-                {{ selectedMatch.details.shadowMerlin.exileSuccess ? '正确驱逐' : '驱逐错误' }}
+                {{ selectedMatch.details.shadowMerlin.exileSuccess ? '裁影成功' : '裁影失败' }}
               </em>
             </div>
           </div>

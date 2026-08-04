@@ -71,7 +71,7 @@ function setOption(key: string, value: unknown) {
         >
           <span>
             <strong>暗影梅林</strong>
-            <small>六人及以上可用 · 替换一名忠臣 · 开启驱逐议会</small>
+            <small>六人及以上可用 · 替换一名忠臣 · 开启暗刃议影</small>
           </span>
           <b>{{ option('shadowMerlinEnabled') ? '开' : '关' }}</b>
         </button>

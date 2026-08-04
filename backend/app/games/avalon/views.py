@@ -121,10 +121,9 @@ def build_player_view(
             )
             if room.settings.shadow_merlin_enabled:
                 role_description += (
-                    " 邪恶累计两次任务失败后会触发驱逐议会提案；"
-                    "议会若开启，你可以选择发动一次刺杀或放弃刺杀并"
-                    "结算驱逐。所有玩家会执行相同的伪装操作，只有你的"
-                    "选择生效。"
+                    " 邪恶累计两次任务失败后会触发暗刃议影提案；"
+                    "议影若开启，你可以选择发动一次刺杀或放弃刺杀并"
+                    "结算裁影。只有你可以发动刺杀并选择刺杀目标。"
                 )
         if (
             viewer.role == Role.DISSENTING_COURTIER
