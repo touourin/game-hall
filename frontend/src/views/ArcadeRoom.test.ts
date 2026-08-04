@@ -302,6 +302,32 @@ describe('ArcadeRoom', () => {
     )
   })
 
+  it('uses the shared solo room shell for a one-player plugin', () => {
+    const room = snapshot('plugin-number-vault')
+    room.gameName = '数字密匣'
+    room.requiredPlayers = 1
+    room.phase = 'playing'
+    room.actions.canAct = true
+    room.game = {
+      minimum: 1,
+      maximum: 20,
+      maxAttempts: 6,
+      remainingAttempts: 6,
+      guesses: [],
+      hint: 'ready',
+      answer: null,
+      won: false,
+    }
+    const wrapper = shallowMount(ArcadeRoom, {
+      props: { snapshot: room },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.getComponent(RoomPageHeader).props('title')).toBe('数字密匣')
+    expect(wrapper.find('.arcade-player-strip').exists()).toBe(false)
+    expect(wrapper.findComponent({ name: 'ArcadeChatPanel' }).exists()).toBe(false)
+  })
+
   it('runs the Avalon lobby inside the same shared room shell', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)

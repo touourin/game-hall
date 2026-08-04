@@ -34,6 +34,7 @@ import {
 } from '../types/arcade'
 import type { RoleSkinLoadoutRoleOption } from '../components/uiTypes'
 import { gameRuleLabels, withDefaultGameRules } from '../gameRules'
+import { isSoloGameKey } from '../gameCatalog'
 import { AVALON_COURT_GUIDE } from '../gameModeGuides'
 import {
   ROLE_SKINS,
@@ -133,7 +134,7 @@ const inviteUrl = computed(() => {
 const selfRematchReady = computed(() =>
   props.snapshot.rematchReadyPlayerIds.includes(props.snapshot.self.id),
 )
-const isSolo = computed(() => ['reaction', 'schulte', 'minesweeper', 'hanoi'].includes(props.snapshot.gameKey))
+const isSolo = computed(() => isSoloGameKey(props.snapshot.gameKey))
 const activeGameSkinKind = computed(() => gameSkinKind(props.snapshot.gameKey))
 const activeGameSkinStyle = computed(() => (
   activeGameSkinKind.value ? gameSkinCssVariables(activeGameSkin.value) : undefined
@@ -222,7 +223,9 @@ const roomHeaderEyebrow = computed(() => {
           ? ` · ${props.snapshot.game.difficultyLabel}`
           : props.snapshot.gameKey === 'hanoi'
             ? ' · 单人益智'
-            : ''
+            : isSolo.value
+              ? ' · 单人挑战'
+              : ''
   return `${props.snapshot.gameName}${suffix}`
 })
 const roomHeaderTitle = computed(() => {
@@ -232,7 +235,8 @@ const roomHeaderTitle = computed(() => {
     minesweeper: '扫雷挑战',
     hanoi: '汉诺塔挑战',
   }
-  return soloTitles[props.snapshot.gameKey] ?? `房间 ${props.snapshot.roomCode}`
+  if (isSolo.value) return soloTitles[props.snapshot.gameKey] ?? props.snapshot.gameName
+  return `房间 ${props.snapshot.roomCode}`
 })
 const roomStatsMode = computed(() => (
   props.snapshot.gameKey === 'minesweeper'

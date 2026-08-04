@@ -4,6 +4,7 @@ import {
   Bomb,
   CircleCheckBig,
   Grid3X3,
+  Gamepad2,
   Layers3,
   Play,
   ShieldCheck,
@@ -11,6 +12,7 @@ import {
   Zap,
 } from '@lucide/vue'
 import type { ArcadeGameKey } from '../types/arcade'
+import { gameCatalogItem } from '../gameCatalog'
 import GameRuleSettings from './GameRuleSettings.vue'
 
 interface ChallengeMetric {
@@ -49,8 +51,29 @@ const rules = computed({
 })
 
 const hasRules = computed(() => ['minesweeper', 'hanoi'].includes(props.gameKey))
+const catalogGame = computed(() => gameCatalogItem(props.gameKey))
 
 const challenge = computed<SoloChallengeConfig>(() => {
+  if (props.gameKey.startsWith('plugin-')) {
+    const game = catalogGame.value
+    return {
+      icon: Gamepad2,
+      protocol: 'EXTENSION SOLO',
+      kicker: '第三方单人挑战',
+      title: game?.name ?? '插件挑战',
+      description: game?.description ?? '由第三方插件提供的单人挑战。',
+      button: `进入${game?.name ?? '插件挑战'}`,
+      features: ['自动创建单人房间', '服务端规则验证', '独立战绩与排行'],
+      metrics: [
+        { label: '挑战人数', value: '1 人' },
+        { label: '房间方式', value: '自动创建' },
+        { label: '成绩记录', value: '独立统计' },
+      ],
+      stages: ['创建挑战', '完成目标', '记录成绩'],
+      recordNote: '挑战完成后，公共房间系统会自动保存结果并更新排行榜。',
+    }
+  }
+
   if (props.gameKey === 'schulte') {
     return {
       icon: Grid3X3,

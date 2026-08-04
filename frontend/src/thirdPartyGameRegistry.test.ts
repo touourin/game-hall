@@ -4,8 +4,11 @@ import {
 } from './thirdPartyGameRegistry'
 
 describe('third-party game registry', () => {
-  it('keeps the bundled example disabled until a maintainer opts in', () => {
-    expect(THIRD_PARTY_GAME_PLUGINS).toHaveLength(0)
+  it('registers the enabled single-player and multiplayer examples', () => {
+    expect(THIRD_PARTY_GAME_PLUGINS.map(({ manifest }) => manifest.id)).toEqual([
+      'plugin-number-vault',
+      'plugin-star-stones',
+    ])
   })
 
   it('accepts a valid v1 plugin manifest', () => {

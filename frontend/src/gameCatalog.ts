@@ -43,3 +43,10 @@ export function gameCatalogItem(key: unknown): GameCatalogEntry | null {
 export function isArcadeGameKey(key: unknown): key is ArcadeGameKey {
   return gameCatalogItem(key) !== null
 }
+
+export function isSoloGameKey(key: unknown): boolean {
+  if (typeof key !== 'string') return false
+  if (['reaction', 'schulte', 'minesweeper', 'hanoi'].includes(key)) return true
+  const plugin = THIRD_PARTY_GAME_PLUGINS.find(({ manifest }) => manifest.id === key)
+  return plugin?.manifest.players.max === 1
+}

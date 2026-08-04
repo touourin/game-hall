@@ -10,6 +10,7 @@
     "baseUrl": ".",
     "paths": {
       "@game-hall/plugin-sdk": ["src/pluginSdk.ts"],
+      "@lucide/vue": ["node_modules/@lucide/vue"],
       "vue": ["node_modules/vue"]
     },
     "allowImportingTsExtensions": true,

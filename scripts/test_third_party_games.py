@@ -31,6 +31,7 @@ def main() -> int:
             sys.executable,
             "-m",
             "pytest",
+            "--import-mode=importlib",
             *(str(path) for path in test_directories),
         ],
         cwd=PROJECT_ROOT,

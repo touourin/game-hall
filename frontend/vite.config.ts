@@ -7,6 +7,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@game-hall/plugin-sdk': fileURLToPath(new URL('./src/pluginSdk.ts', import.meta.url)),
+      '@lucide/vue': fileURLToPath(new URL('./node_modules/@lucide/vue', import.meta.url)),
+      '@vue/test-utils': fileURLToPath(new URL('./node_modules/@vue/test-utils', import.meta.url)),
+      'pinia': fileURLToPath(new URL('./node_modules/pinia', import.meta.url)),
       'vue': fileURLToPath(new URL('./node_modules/vue', import.meta.url)),
     },
   },

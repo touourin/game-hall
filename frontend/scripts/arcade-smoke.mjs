@@ -139,6 +139,43 @@ async function playHanoi(client) {
   return created.roomCode
 }
 
+async function playNumberVault(client) {
+  const created = await emitAck(client, 'arcade:create', {
+    game_key: 'plugin-number-vault',
+  })
+  await emitAck(client, 'arcade:start')
+  await emitAck(client, 'arcade:action', {
+    action: 'guess',
+    payload: { value: 10 },
+  })
+  await emitAck(client, 'arcade:abandon')
+  return created.roomCode
+}
+
+async function playStarStones(clients) {
+  const created = await emitAck(clients[0], 'arcade:create', {
+    game_key: 'plugin-star-stones',
+    options: { firstPlayer: 'host' },
+  })
+  await emitAck(clients[1], 'arcade:join', {
+    game_key: 'plugin-star-stones',
+    room_code: created.roomCode,
+  })
+  await emitAck(clients[0], 'arcade:start')
+  await emitAck(clients[0], 'arcade:action', {
+    action: 'take',
+    payload: { count: 3 },
+  })
+  await emitAck(clients[1], 'arcade:action', {
+    action: 'take',
+    payload: { count: 2 },
+  })
+  await emitAck(clients[0], 'arcade:abandon')
+  const left = await emitAck(clients[1], 'arcade:leave')
+  if (left.seatPreserved) throw new Error('星石争夺结束后仍然要求续局')
+  return created.roomCode
+}
+
 const sockets = []
 try {
   const access = await jsonRequest('/api/access/session', {
@@ -166,6 +203,8 @@ try {
   )
   rooms.reaction = await playReaction(sockets[0])
   rooms.hanoi = await playHanoi(sockets[0])
+  rooms.pluginStarStones = await playStarStones(sockets.slice(0, 2))
+  rooms.pluginNumberVault = await playNumberVault(sockets[0])
 
   const guest = await createGuest(access.token)
   const guestSocket = await connectClient(access.token, guest.token)
@@ -180,10 +219,27 @@ try {
   }
   const catalog = await jsonRequest('/api/games', { headers })
   const catalogKeys = new Set(catalog.games.map((game) => game.key))
-  for (const gameKey of ['avalon', 'gomoku', 'xiangqi', 'go', 'poker', 'doudizhu', 'junqi']) {
+  for (const gameKey of [
+    'avalon',
+    'gomoku',
+    'xiangqi',
+    'go',
+    'poker',
+    'doudizhu',
+    'junqi',
+    'plugin-number-vault',
+    'plugin-star-stones',
+  ]) {
     if (!catalogKeys.has(gameKey)) throw new Error(`游戏目录缺少 ${gameKey}`)
   }
-  for (const gameKey of ['gomoku', 'xiangqi', 'go', 'poker', 'doudizhu']) {
+  for (const gameKey of [
+    'gomoku',
+    'xiangqi',
+    'go',
+    'poker',
+    'doudizhu',
+    'plugin-star-stones',
+  ]) {
     const stats = await jsonRequest(`/api/stats/me?game=${gameKey}`, { headers })
     if (stats.summary.games !== 1 || stats.history[0]?.gameKey !== gameKey) {
       throw new Error(`${gameKey} 战绩没有正确保存`)

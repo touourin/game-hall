@@ -11,6 +11,7 @@ import GameHomeHeader from '../components/GameHomeHeader.vue'
 import SoloChallengeLauncher from '../components/SoloChallengeLauncher.vue'
 import MultiplayerMatchLauncher from '../components/MultiplayerMatchLauncher.vue'
 import { defaultGameRules } from '../gameRules'
+import { isSoloGameKey } from '../gameCatalog'
 import AvatarImage from '../components/AvatarImage.vue'
 
 const props = withDefaults(defineProps<{
@@ -31,7 +32,7 @@ const showStats = ref(false)
 const showLeaderboard = ref(false)
 const gameKey = computed(() => props.game.key as ArcadeGameKey)
 const rules = ref<Record<string, unknown>>(defaultGameRules(gameKey.value))
-const isSolo = computed(() => ['reaction', 'schulte', 'minesweeper', 'hanoi'].includes(props.game.key))
+const isSolo = computed(() => isSoloGameKey(props.game.key))
 const gameRooms = computed(() =>
   arcade.availableRooms.filter((room) => room.gameKey === props.game.key),
 )

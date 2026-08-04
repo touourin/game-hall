@@ -14,7 +14,9 @@
 third_party_games/
 ├── README.md
 ├── plugin.schema.json
-├── plugin-counter-demo/             # 默认关闭的完整示例
+├── plugin-counter-demo/             # 默认关闭的最小模板
+├── plugin-number-vault/             # 已启用：单人案例
+├── plugin-star-stones/              # 已启用：多人房间案例
 └── plugin-your-game/                 # 你的游戏，目录名 = manifest.id
     ├── manifest.json                 # 必需：插件信息和启用开关
     ├── README.md                     # 必需：玩法、动作和维护说明
@@ -59,6 +61,8 @@ cp -R third_party_games/plugin-counter-demo third_party_games/plugin-your-game
 - `plugin-counter-demo/manifest.json`：完整清单。
 - `plugin-counter-demo/backend/plugin.py`：最小规则引擎。
 - `plugin-counter-demo/frontend/GameView.vue`：动作发送和状态展示。
+- `plugin-number-vault/`：单人案例，演示自动建房、隐藏答案和独立战绩。
+- `plugin-star-stones/`：双人案例，演示公开房间、邀请加入、轮流行动与公共结算。
 
 ## 三、把已经写好的游戏逻辑迁进来
 
@@ -311,6 +315,6 @@ npm run build
 
 ### 能否复用大厅内部某个未公开组件
 
-不能直接导入。插件只能使用稳定 SDK 和 CSS 主题变量。如果多款插件确实都需要同一能力，应先把它设计成经过测试的通用 SDK，再由主项目统一开放，而不是让插件依赖内部路径。
+不能直接导入。插件运行代码只能使用 Vue、`@lucide/vue` 图标、稳定 SDK 和 CSS 主题变量；插件测试还可以使用 Pinia 与 `@vue/test-utils`。如果多款插件确实都需要另一项能力，应先把它设计成经过测试的通用 SDK，再由主项目统一开放，而不是让插件依赖内部路径。
 
 关闭的插件不会进入前端构建产物，也不会被后端导入。清单无效、入口缺失或后端加载失败的插件会被跳过，不会阻止大厅启动；但已启用插件自身的 TypeScript、Vue 或 Python 语法错误仍会在测试或构建阶段暴露，必须修复后才能发布。
