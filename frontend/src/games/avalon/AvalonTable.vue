@@ -337,14 +337,14 @@ async function submitExileCouncilBallot() {
 
 async function submitCouncilAssassinationDecision() {
   if (councilAssassinateChoice.value === null) return
-  await room.action('exile_council_assassination_decision', {
+  await room.action('council_assassination_decision', {
     assassinate: councilAssassinateChoice.value,
   })
 }
 
 async function submitCouncilAssassinationTarget() {
   if (!councilAssassinationTargetId.value) return
-  await room.action('exile_council_assassination_target', {
+  await room.action('council_assassination_target', {
     target_id: councilAssassinationTargetId.value,
   })
 }
@@ -916,11 +916,15 @@ function selfRoleArtworkFraming() {
         <div class="surface court-secret-note">
           <Eye :size="19" />
           <div>
-            <strong>所有玩家看到完全相同的选择</strong>
-            <small>这是为了隐藏刺客身份；只有真正刺客提交的选择会生效</small>
+            <strong v-if="snapshot.self.role?.code === 'assassin'">你是刺客，请决定是否发动刺杀</strong>
+            <strong v-else>你并非刺客，只需确认放弃刺杀</strong>
+            <small>只有刺客拥有发动刺杀的选项；其他玩家的确认不会改变结算路线</small>
           </div>
         </div>
-        <div class="vote-actions">
+        <div
+          class="vote-actions"
+          :class="{ 'single-action': snapshot.self.role?.code !== 'assassin' }"
+        >
           <button
             class="decision-button reject"
             :class="{ selected: councilAssassinateChoice === false }"
@@ -932,6 +936,7 @@ function selfRoleArtworkFraming() {
             <span>结算锁定的驱逐选票</span>
           </button>
           <button
+            v-if="snapshot.self.role?.code === 'assassin'"
             class="decision-button approve"
             :class="{ selected: councilAssassinateChoice === true }"
             type="button"
@@ -954,7 +959,7 @@ function selfRoleArtworkFraming() {
       <div v-else class="waiting-card tall">
         <span class="pulse-dot danger-dot" />
         <strong>你的选择已经锁定</strong>
-        <small>等待全部玩家完成相同的伪装操作</small>
+        <small>等待其他玩家完成确认</small>
       </div>
       <p class="center-note">
         已提交 {{ snapshot.shadowMerlin.assassinationDecisionsSubmitted }} /

@@ -60,7 +60,10 @@ class RoomCodePayload(BaseModel):
 
 
 class ActionPayload(BaseModel):
-    action: str = Field(min_length=1, max_length=32)
+    # Keep enough room for legacy game actions that shipped before individual
+    # games standardized on shorter wire names. Existing browser tabs may keep
+    # sending those names during a rolling deployment.
+    action: str = Field(min_length=1, max_length=64)
     payload: dict[str, Any] = Field(default_factory=dict)
 
 

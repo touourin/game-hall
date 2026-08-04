@@ -2071,6 +2071,10 @@ button:disabled {
   gap: 12px;
 }
 
+.vote-actions.single-action {
+  grid-template-columns: 1fr;
+}
+
 .decision-button,
 .mission-card {
   display: grid;

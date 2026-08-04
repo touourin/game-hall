@@ -142,13 +142,19 @@ class AvalonEngine:
                     open_council=self._boolean(payload, "open_council"),
                     target_id=self._string(payload, "target_id"),
                 )
-            elif action == "exile_council_assassination_decision":
+            elif action in {
+                "council_assassination_decision",
+                "exile_council_assassination_decision",
+            }:
                 self.rules.submit_exile_council_assassination_decision(
                     domain,
                     actor_id,
                     self._boolean(payload, "assassinate"),
                 )
-            elif action == "exile_council_assassination_target":
+            elif action in {
+                "council_assassination_target",
+                "exile_council_assassination_target",
+            }:
                 self.rules.submit_exile_council_assassination_target(
                     domain,
                     actor_id,

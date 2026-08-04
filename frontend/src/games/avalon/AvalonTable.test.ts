@@ -675,7 +675,7 @@ describe('AvalonTable role reveal', () => {
     })
   })
 
-  it('gives every player the same masked council assassination control', async () => {
+  it('only lets a non-assassin abandon the council assassination', async () => {
     const snapshot = roleRevealSnapshot(1)
     snapshot.phase = 'exile_council_assassination_decision'
     snapshot.settings.mode = 'court_undercurrent'
@@ -700,15 +700,37 @@ describe('AvalonTable role reveal', () => {
       global: { plugins: [pinia] },
     })
 
-    expect(wrapper.text()).toContain('所有玩家看到完全相同的选择')
-    expect(wrapper.text()).toContain('只有真正刺客提交的选择会生效')
+    expect(wrapper.text()).toContain('你并非刺客，只需确认放弃刺杀')
+    expect(wrapper.find('.decision-button.approve').exists()).toBe(false)
     await wrapper.get('.decision-button.reject').trigger('click')
     await wrapper.get('.danger-button').trigger('click')
 
     expect(action).toHaveBeenCalledWith(
-      'exile_council_assassination_decision',
+      'council_assassination_decision',
       { assassinate: false },
     )
+  })
+
+  it('lets the assassin choose whether to launch the council assassination', () => {
+    const snapshot = roleRevealSnapshot(1)
+    snapshot.phase = 'exile_council_assassination_decision'
+    snapshot.actions.canConfirmRole = false
+    snapshot.actions.canSubmitExileCouncilAssassinationDecision = true
+    snapshot.self.role = {
+      code: 'assassin',
+      label: '刺客',
+      alignment: 'evil',
+      description: '刺杀梅林。',
+      knowledge: [],
+    }
+    const wrapper = mount(AvalonTable, {
+      props: { snapshot },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.text()).toContain('你是刺客，请决定是否发动刺杀')
+    expect(wrapper.text()).toContain('放弃刺杀')
+    expect(wrapper.text()).toContain('发动刺杀')
   })
 
   it('renders the early assassination target in the final record', () => {

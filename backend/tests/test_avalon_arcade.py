@@ -1,4 +1,5 @@
 import random
+from collections import Counter
 
 import pytest
 
@@ -6,7 +7,12 @@ from backend.app.arcade.rooms import ArcadeRoomError, ArcadeRoomManager
 from backend.app.games.base import GameRuleError
 from backend.app.games.avalon.arcade import AvalonEngine
 from backend.app.games.avalon.engine import GameEngine as AvalonRulesEngine
-from backend.app.games.avalon.models import Alignment, Phase
+from backend.app.games.avalon.models import (
+    Alignment,
+    MissionRecord,
+    Phase,
+    Role,
+)
 
 from .test_engine import confirm_all_roles, make_room
 
@@ -130,6 +136,309 @@ def test_shadow_merlin_is_a_six_player_court_only_extension() -> None:
         {"mode": "standard", "shadowMerlinEnabled": True},
     )
     assert room.options["shadowMerlinEnabled"] is False
+
+
+def test_council_assassination_accepts_new_and_open_browser_action_names() -> None:
+    manager, adapter, room, host = unified_avalon(6)
+    manager.start(room, host.id)
+    domain = room.state
+    domain.phase = Phase.EXILE_COUNCIL_ASSASSINATION_DECISION
+    adapter._sync_outer(room, domain)
+
+    adapter.act(
+        room,
+        room.players[0],
+        "exile_council_assassination_decision",
+        {"assassinate": False},
+    )
+    adapter.act(
+        room,
+        room.players[1],
+        "council_assassination_decision",
+        {"assassinate": False},
+    )
+
+    assert domain.exile_council_assassination_decisions == {
+        room.players[0].id: False,
+        room.players[1].id: False,
+    }
+
+
+def finish_ten_player_shadow_scenario(
+    adapter: AvalonEngine,
+    room,
+    scenario: str,
+) -> None:
+    domain = room.state
+    rules = adapter.rules
+    shadow = next(
+        player for player in domain.players if player.role == Role.SHADOW_MERLIN
+    )
+    merlin = next(
+        player for player in domain.players if player.role == Role.MERLIN
+    )
+    percival = next(
+        player for player in domain.players if player.role == Role.PERCIVAL
+    )
+    assassin = next(
+        player for player in domain.players if player.role == Role.ASSASSIN
+    )
+    dissenting = next(
+        player
+        for player in domain.players
+        if player.role == Role.DISSENTING_COURTIER
+    )
+
+    if scenario == "missions":
+        domain.mission_index = 2
+        domain.mission_history = [
+            MissionRecord(number, [], False, 1)
+            for number in range(1, 4)
+        ]
+        domain.phase = Phase.ROUND_RESULT
+        rules.continue_after_mission(domain, domain.host_id)
+        return
+
+    if scenario in {"correct_exile", "wrong_exile", "tied_exile"}:
+        valid_voters = [
+            player
+            for player in domain.players
+            if player.role
+            in {
+                Role.MERLIN,
+                Role.PERCIVAL,
+                Role.LOYAL_SERVANT,
+                Role.DISSENTING_COURTIER,
+            }
+        ]
+        if scenario == "correct_exile":
+            targets = [shadow.id] * len(valid_voters)
+        elif scenario == "wrong_exile":
+            targets = [merlin.id] * len(valid_voters)
+        else:
+            targets = [
+                shadow.id,
+                shadow.id,
+                merlin.id,
+                merlin.id,
+                percival.id,
+            ]
+        domain.exile_council_target_votes = {
+            player.id: target
+            for player, target in zip(valid_voters, targets, strict=True)
+        }
+        domain.phase = Phase.EXILE_COUNCIL_ASSASSINATION_DECISION
+        for player in domain.players:
+            rules.submit_exile_council_assassination_decision(
+                domain, player.id, False
+            )
+        return
+
+    if scenario in {"assassin_hit", "assassin_miss"}:
+        domain.phase = Phase.EXILE_COUNCIL_ASSASSINATION_DECISION
+        for player in domain.players:
+            rules.submit_exile_council_assassination_decision(
+                domain,
+                player.id,
+                player.id == assassin.id,
+            )
+        assassin_target = merlin if scenario == "assassin_hit" else percival
+        for player in domain.players:
+            target = (
+                assassin_target
+                if player.id == assassin.id
+                else next(
+                    candidate
+                    for candidate in domain.players
+                    if candidate.id != player.id
+                )
+            )
+            rules.submit_exile_council_assassination_target(
+                domain, player.id, target.id
+            )
+        return
+
+    domain.mission_index = 2
+    domain.mission_history = [
+        MissionRecord(number, [], True, 0)
+        for number in range(1, 4)
+    ]
+    domain.phase = Phase.ROUND_RESULT
+    rules.continue_after_mission(domain, domain.host_id)
+    if scenario == "dagger_miss":
+        wrong_target_id = next(
+            target_id
+            for target_id in domain.dagger_candidate_ids
+            if target_id != dissenting.id
+        )
+        rules.grant_dagger(domain, assassin.id, wrong_target_id)
+        return
+
+    rules.grant_dagger(domain, assassin.id, dissenting.id)
+    dissenting_target = (
+        merlin
+        if scenario == "dissenting_hit"
+        else next(
+            domain.player(target_id)
+            for target_id in rules.eligible_dissenting_targets(domain)
+            if domain.player(target_id).role != Role.MERLIN
+        )
+    )
+    rules.dissenting_assassinate(
+        domain, dissenting.id, dissenting_target.id
+    )
+
+
+@pytest.mark.parametrize(
+    ("scenario", "winning_roles", "shadow_alignment", "dissenting_alignment"),
+    [
+        (
+            "missions",
+            [
+                Role.ASSASSIN,
+                Role.MORGANA,
+                Role.MORDRED,
+                Role.OBERON,
+                Role.SHADOW_MERLIN,
+            ],
+            Alignment.EVIL,
+            Alignment.GOOD,
+        ),
+        (
+            "wrong_exile",
+            [
+                Role.ASSASSIN,
+                Role.MORGANA,
+                Role.MORDRED,
+                Role.OBERON,
+                Role.SHADOW_MERLIN,
+            ],
+            Alignment.EVIL,
+            Alignment.GOOD,
+        ),
+        (
+            "tied_exile",
+            [
+                Role.ASSASSIN,
+                Role.MORGANA,
+                Role.MORDRED,
+                Role.OBERON,
+                Role.SHADOW_MERLIN,
+            ],
+            Alignment.EVIL,
+            Alignment.GOOD,
+        ),
+        (
+            "correct_exile",
+            [
+                Role.MERLIN,
+                Role.PERCIVAL,
+                Role.LOYAL_SERVANT,
+                Role.LOYAL_SERVANT,
+                Role.DISSENTING_COURTIER,
+            ],
+            Alignment.EVIL,
+            Alignment.GOOD,
+        ),
+        (
+            "dagger_miss",
+            [
+                Role.MERLIN,
+                Role.PERCIVAL,
+                Role.LOYAL_SERVANT,
+                Role.LOYAL_SERVANT,
+                Role.DISSENTING_COURTIER,
+            ],
+            Alignment.EVIL,
+            Alignment.GOOD,
+        ),
+        (
+            "assassin_hit",
+            [Role.ASSASSIN, Role.MORGANA, Role.MORDRED, Role.OBERON],
+            Alignment.GOOD,
+            Alignment.GOOD,
+        ),
+        (
+            "assassin_miss",
+            [
+                Role.MERLIN,
+                Role.PERCIVAL,
+                Role.LOYAL_SERVANT,
+                Role.LOYAL_SERVANT,
+                Role.DISSENTING_COURTIER,
+                Role.SHADOW_MERLIN,
+            ],
+            Alignment.GOOD,
+            Alignment.GOOD,
+        ),
+        (
+            "dissenting_hit",
+            [
+                Role.ASSASSIN,
+                Role.MORGANA,
+                Role.MORDRED,
+                Role.OBERON,
+                Role.DISSENTING_COURTIER,
+            ],
+            Alignment.GOOD,
+            Alignment.EVIL,
+        ),
+        (
+            "dissenting_miss",
+            [
+                Role.MERLIN,
+                Role.PERCIVAL,
+                Role.LOYAL_SERVANT,
+                Role.LOYAL_SERVANT,
+                Role.SHADOW_MERLIN,
+            ],
+            Alignment.GOOD,
+            Alignment.EVIL,
+        ),
+    ],
+)
+def test_ten_player_shadow_role_outcomes_match_the_rule_table(
+    scenario: str,
+    winning_roles: list[Role],
+    shadow_alignment: Alignment,
+    dissenting_alignment: Alignment,
+) -> None:
+    manager, adapter, room, host = unified_avalon(10)
+    manager.update_options(
+        room,
+        host.id,
+        {
+            "mode": "court_undercurrent",
+            "shadowMerlinEnabled": True,
+        },
+    )
+    manager.start(room, host.id)
+
+    finish_ten_player_shadow_scenario(adapter, room, scenario)
+    adapter._sync_outer(room, room.state)
+
+    results = {
+        player.id: adapter.player_result(room, player)
+        for player in room.players
+    }
+    actual_winning_roles = Counter(
+        Role(role)
+        for role, _, won in results.values()
+        if won
+    )
+    assert actual_winning_roles == Counter(winning_roles)
+    assert set(room.winner_player_ids) == {
+        player_id
+        for player_id, (_, _, won) in results.items()
+        if won
+    }
+    role_alignments = {
+        Role(role): Alignment(alignment)
+        for role, alignment, _ in results.values()
+        if Role(role) in {Role.SHADOW_MERLIN, Role.DISSENTING_COURTIER}
+    }
+    assert role_alignments[Role.SHADOW_MERLIN] == shadow_alignment
+    assert role_alignments[Role.DISSENTING_COURTIER] == dissenting_alignment
 
 
 def test_avalon_ai_and_finished_room_lifecycle_remain_unchanged() -> None:
