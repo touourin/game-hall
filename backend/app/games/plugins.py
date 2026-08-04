@@ -144,24 +144,46 @@ def _read_manifest(path: Path) -> dict[str, Any]:
 
 
 def _load_engine(directory: Path, plugin_key: str) -> GameEngine:
-    entry = directory / "backend" / "plugin.py"
+    backend_directory = directory / "backend"
+    entry = backend_directory / "plugin.py"
     if not entry.is_file():
         raise ValueError("缺少 backend/plugin.py")
-    module_name = f"game_hall_plugin_{plugin_key.replace('-', '_')}"
+    package_name = f"game_hall_plugin_{plugin_key.replace('-', '_')}"
+    backend_package_name = f"{package_name}.backend"
+    module_name = f"{backend_package_name}.plugin"
+    _remove_plugin_modules(package_name)
+
+    package = ModuleType(package_name)
+    package.__package__ = package_name
+    package.__path__ = [str(directory)]  # type: ignore[attr-defined]
+    backend_package = ModuleType(backend_package_name)
+    backend_package.__package__ = backend_package_name
+    backend_package.__path__ = [str(backend_directory)]  # type: ignore[attr-defined]
+    sys.modules[package_name] = package
+    sys.modules[backend_package_name] = backend_package
+
     spec = importlib.util.spec_from_file_location(module_name, entry)
     if spec is None or spec.loader is None:
+        _remove_plugin_modules(package_name)
         raise ValueError("无法加载插件后端入口")
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
     try:
         _execute_module(spec.loader, module)
     except Exception:
-        sys.modules.pop(module_name, None)
+        _remove_plugin_modules(package_name)
         raise
     factory = getattr(module, "create_engine", None)
     if not callable(factory):
+        _remove_plugin_modules(package_name)
         raise ValueError("backend/plugin.py 必须导出 create_engine()")
     return factory()
+
+
+def _remove_plugin_modules(package_name: str) -> None:
+    for module_name in tuple(sys.modules):
+        if module_name == package_name or module_name.startswith(f"{package_name}."):
+            sys.modules.pop(module_name, None)
 
 
 def _execute_module(loader: Any, module: ModuleType) -> None:

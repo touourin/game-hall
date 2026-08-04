@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { History, LogOut, RotateCcw, Settings, Sparkles } from '@lucide/vue'
+import { ChevronRight, Gamepad2, History, LogOut, RotateCcw, Settings, Sparkles } from '@lucide/vue'
 import type { AccountProfile } from '../account'
 import type { GameCatalogItem } from '../types/arcade'
 import { useArcadeStore } from '../stores/arcade'
@@ -8,6 +8,7 @@ import { GAME_CATALOG } from '../gameCatalog'
 import StatsModal from '../components/StatsModal.vue'
 import AvatarImage from '../components/AvatarImage.vue'
 import GameCardArtwork from '../components/GameCardArtwork.vue'
+import ThirdPartyGamesModal from '../components/ThirdPartyGamesModal.vue'
 import avalonRoundTable from '../assets/game-hall/avalon-round-table.webp'
 import avalonMidnightTable from '../assets/game-hall/avalon-midnight-table.webp'
 import avalonIvoryTable from '../assets/game-hall/avalon-ivory-table.webp'
@@ -23,8 +24,15 @@ const emit = defineEmits<{
 }>()
 const arcade = useArcadeStore()
 const showStats = ref(false)
+const showThirdPartyGames = ref(false)
 
-const games = GAME_CATALOG
+const games = GAME_CATALOG.filter((game) => !game.key.startsWith('plugin-'))
+const thirdPartyGames = GAME_CATALOG.filter((game) => game.key.startsWith('plugin-'))
+
+function selectThirdPartyGame(game: GameCatalogItem) {
+  showThirdPartyGames.value = false
+  emit('select', game)
+}
 </script>
 
 <template>
@@ -55,6 +63,21 @@ const games = GAME_CATALOG
         <span>实时联机</span><b aria-hidden="true">·</b><span>{{ account.isGuest ? '休闲对局' : '独立战绩' }}</span>
       </div>
     </section>
+
+    <button
+      type="button"
+      class="third-party-entry surface"
+      aria-label="打开第三方游戏入口"
+      @click="showThirdPartyGames = true"
+    >
+      <span class="third-party-entry-icon"><Gamepad2 :size="22" /></span>
+      <span class="third-party-entry-copy">
+        <small>EXTENSION ARCADE</small>
+        <strong>第三方游戏</strong>
+      </span>
+      <em>{{ thirdPartyGames.length ? `${thirdPartyGames.length} 款已启用` : '独立插件入口' }}</em>
+      <ChevronRight :size="20" />
+    </button>
 
     <section
       v-if="arcade.resumableGame && arcade.resumableRoomCode"
@@ -89,6 +112,12 @@ const games = GAME_CATALOG
     </section>
 
     <StatsModal v-if="showStats && !account.isGuest" @close="showStats = false" />
+    <ThirdPartyGamesModal
+      v-if="showThirdPartyGames"
+      :games="thirdPartyGames"
+      @close="showThirdPartyGames = false"
+      @select="selectThirdPartyGame"
+    />
   </main>
 </template>
 
@@ -105,6 +134,11 @@ const games = GAME_CATALOG
 .hall-ornament { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; color: var(--gold); }.hall-ornament i { width: 72px; height: 1px; background: linear-gradient(90deg, transparent, var(--gold)); }.hall-ornament i:last-child { background: linear-gradient(90deg, var(--gold), transparent); }
 .hall-hero h1 { margin: 11px 0 0; font-family: "Songti SC", "STSong", serif; font-size: clamp(48px, 7vw, 72px); font-weight: 650; letter-spacing: .08em; line-height: 1; text-indent: .08em; text-shadow: 0 12px 38px color-mix(in srgb, var(--bg) 55%, transparent); }
 .hall-highlights { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px; color: var(--text-soft); font-size: 11px; font-weight: 750; }.hall-highlights span { letter-spacing: .08em; text-indent: .08em; }.hall-highlights b { flex: 0 0 auto; color: var(--gold); font-weight: 400; }
+.third-party-entry { position: relative; width: 100%; min-height: 76px; display: grid; grid-template-columns: auto minmax(0,1fr) auto auto; align-items: center; gap: 14px; margin: 0 0 22px; padding: 13px 16px; border-color: color-mix(in srgb, var(--gold) 28%, var(--line)); color: var(--text); background: radial-gradient(circle at 86% 0, color-mix(in srgb, var(--gold) 10%, transparent), transparent 34%), color-mix(in srgb, var(--surface-elevated) 91%, transparent); text-align: left; cursor: pointer; overflow: hidden; }
+.third-party-entry::after { position: absolute; inset: 0; background: linear-gradient(115deg, transparent 52%, color-mix(in srgb, var(--gold) 4%, transparent)); content: ''; pointer-events: none; }
+.third-party-entry-icon { position: relative; z-index: 1; width: 48px; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--gold) 34%, var(--line)); border-radius: 15px; color: var(--gold); background: color-mix(in srgb, var(--gold) 9%, var(--surface-inset)); }
+.third-party-entry-copy { position: relative; z-index: 1; min-width: 0; display: grid; gap: 3px; }.third-party-entry-copy small { color: var(--gold); font-size: 8px; font-weight: 900; letter-spacing: .17em; }.third-party-entry-copy strong { font-family: "Songti SC", "STSong", serif; font-size: 20px; letter-spacing: .04em; }
+.third-party-entry > em { position: relative; z-index: 1; border: 1px solid var(--line); border-radius: 999px; padding: 6px 9px; color: var(--text-soft); background: var(--surface-inset); font-size: 9px; font-style: normal; font-weight: 760; }.third-party-entry > svg { position: relative; z-index: 1; color: var(--gold); }
 .resume-arcade-card { margin-bottom: 22px; padding: 16px 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .resume-arcade-card > div { display: flex; gap: 12px; align-items: center; color: var(--gold); }
 .resume-arcade-card strong, .resume-arcade-card small { display: block; }
@@ -132,6 +166,7 @@ const games = GAME_CATALOG
 :global(:root[data-theme="royal"] .game-card:first-child::before) { background: linear-gradient(90deg, rgba(249,246,237,.98), rgba(249,246,237,.77) 46%, rgba(249,246,237,.08) 78%), linear-gradient(0deg, rgba(249,246,237,.7), transparent 62%); }
 :global(:root[data-theme="royal"] .game-card:first-child .game-card-topline small),:global(:root[data-theme="royal"] .game-card:first-child .game-card-topline em),:global(:root[data-theme="royal"] .game-card:first-child .game-copy strong) { color: #292720; }:global(:root[data-theme="royal"] .game-card:first-child .game-copy em) { color: #716c61; }:global(:root[data-theme="royal"] .game-card:first-child .enter-game) { border-color: rgba(165,78,64,.38); color: #a54e40; }
 @media (hover: hover) {
+  .third-party-entry:hover { border-color: color-mix(in srgb, var(--gold) 52%, var(--line)); box-shadow: 0 20px 50px color-mix(in srgb, var(--bg) 42%, transparent); transform: translateY(-2px); }
   .game-card:hover { border-color: color-mix(in srgb, var(--card-tone) 48%, var(--line)); box-shadow: 0 24px 60px color-mix(in srgb, var(--bg) 48%, transparent); transform: translateY(-3px); }
   .game-card:hover .featured-art { transform: scale(1.035); }.game-card:hover .enter-game { color: var(--accent-contrast); background: var(--card-tone); }
 }
@@ -146,6 +181,7 @@ const games = GAME_CATALOG
   .salon-account-bar .account-bar-actions button span { display: none; }
   .salon-account-bar .account-bar-actions button :deep(svg) { display: block; flex: 0 0 auto; margin: 0; }
   .hall-hero { min-height: 216px; padding: 39px 5px 27px; }.hall-ornament { margin-bottom: 7px; }.hall-ornament i { width: 40px; }.hall-hero h1 { margin-top: 8px; font-size: 43px; }.hall-highlights { gap: 6px; margin-top: 14px; font-size: 8px; }
+  .third-party-entry { min-height: 66px; gap: 10px; margin-bottom: 12px; padding: 9px 11px; border-radius: 14px; }.third-party-entry-icon { width: 42px; border-radius: 13px; }.third-party-entry-copy small { font-size: 6px; }.third-party-entry-copy strong { font-size: 17px; }.third-party-entry > em { padding: 5px 7px; font-size: 7px; }.third-party-entry > svg { width: 17px; }
   .game-grid { grid-template-columns: repeat(2,minmax(0,1fr)); grid-auto-rows: 184px; gap: 8px; }
   .game-card { padding: 36px 9px 10px; gap: 7px; border-radius: 13px; }
   .game-card:first-child { grid-column: 1 / -1; grid-row: auto; padding: 19px; }
@@ -158,6 +194,7 @@ const games = GAME_CATALOG
   .resume-arcade-card { align-items: stretch; flex-direction: column; }
 }
 @media (max-width: 370px) {
+  .third-party-entry > em { display: none; }
   .game-grid { grid-auto-rows: 175px; }
 }
 </style>

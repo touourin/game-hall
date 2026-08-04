@@ -57,6 +57,39 @@ def test_enabled_plugin_is_discovered_from_its_own_directory(tmp_path) -> None:
     assert plugins[0].catalog_entry["players"] == "1 人"
 
 
+def test_plugin_backend_can_keep_existing_logic_in_local_modules(tmp_path) -> None:
+    directory = write_plugin(tmp_path, plugin_id="plugin-test-game")
+    backend = directory / "backend"
+    (backend / "engine.py").write_text(
+        """
+class ExistingGameEngine:
+    key = 'plugin-test-game'
+    name = '测试插件'
+    min_players = 1
+    max_players = 1
+    def initial_state(self): return {'source': 'local-module'}
+    def start(self, room): room.phase = 'playing'
+    def act(self, room, player, action, payload): return None
+    def view(self, room, viewer): return room.state
+    def player_result(self, room, player): return ('player', 'solo', False)
+""".strip(),
+        encoding="utf-8",
+    )
+    (backend / "plugin.py").write_text(
+        """
+from .engine import ExistingGameEngine
+
+def create_engine():
+    return ExistingGameEngine()
+""".strip(),
+        encoding="utf-8",
+    )
+
+    plugins = discover_game_plugins(tmp_path)
+
+    assert plugins[0].engine.initial_state() == {"source": "local-module"}
+
+
 def test_disabled_or_broken_plugin_does_not_block_other_plugins(tmp_path) -> None:
     write_plugin(tmp_path, plugin_id="plugin-test-game")
     write_plugin(tmp_path, plugin_id="plugin-disabled", enabled=False)
