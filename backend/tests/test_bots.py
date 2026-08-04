@@ -96,6 +96,28 @@ def test_ai_assassin_resolves_final_assassination_but_not_early():
     assert room.assassination_was_early is False
 
 
+def test_ai_assassin_resolves_council_target_without_human_decoys():
+    engine, room = start_room(
+        6,
+        mode=AvalonMode.COURT_UNDERCURRENT,
+        shadow_merlin_enabled=True,
+    )
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    shadow = next(
+        player for player in room.players if player.role == Role.SHADOW_MERLIN
+    )
+    assassin.is_bot = True
+    room.phase = Phase.EXILE_COUNCIL_ASSASSINATION_TARGET
+
+    advance_ai_players(room, engine)
+
+    assert room.phase == Phase.GAME_OVER
+    assert list(room.exile_council_assassination_targets) == [assassin.id]
+    assert shadow.id not in room.exile_council_assassination_targets
+
+
 def test_ai_randomly_resolves_dagger_grant_and_courtier_stab():
     engine, room = start_room(7, mode=AvalonMode.COURT_UNDERCURRENT)
     assassin = next(

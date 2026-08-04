@@ -254,6 +254,21 @@ class AvalonEngine:
         domain = self._domain(room)
         return build_player_view(domain, domain.player(viewer.id), self.rules)
 
+    def repair_restored_room(self, room: ArcadeRoom) -> bool:
+        domain = self._domain(room)
+        repaired = self.rules.resolve_restored_exile_council_assassination(
+            domain
+        )
+        if (
+            not repaired
+            and domain.phase == Phase.EXILE_COUNCIL_ASSASSINATION_TARGET
+        ):
+            advance_ai_players(domain, self.rules)
+            repaired = domain.phase != Phase.EXILE_COUNCIL_ASSASSINATION_TARGET
+        if repaired:
+            self._sync_outer(room, domain)
+        return repaired
+
     def player_result(
         self, room: ArcadeRoom, player: ArcadePlayer
     ) -> tuple[str, str, bool]:

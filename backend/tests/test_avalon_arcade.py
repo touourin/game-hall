@@ -164,6 +164,44 @@ def test_council_assassination_accepts_new_and_open_browser_action_names() -> No
     }
 
 
+def test_restored_legacy_council_target_finishes_without_human_decoys() -> None:
+    manager, adapter, room, host = unified_avalon(6)
+    manager.update_options(
+        room,
+        host.id,
+        {
+            "mode": "court_undercurrent",
+            "shadowMerlinEnabled": True,
+        },
+    )
+    manager.start(room, host.id)
+    domain = room.state
+    assassin = next(
+        player for player in domain.players if player.role == Role.ASSASSIN
+    )
+    merlin = next(
+        player for player in domain.players if player.role == Role.MERLIN
+    )
+    shadow = next(
+        player for player in domain.players if player.role == Role.SHADOW_MERLIN
+    )
+    domain.phase = Phase.EXILE_COUNCIL_ASSASSINATION_TARGET
+    domain.shadow_merlin_transformed = True
+    shadow.alignment_override = Alignment.GOOD
+    domain.exile_council_assassination_targets = {
+        assassin.id: merlin.id,
+        shadow.id: assassin.id,
+    }
+    adapter._sync_outer(room, domain)
+
+    assert adapter.repair_restored_room(room) is True
+
+    assert domain.phase == Phase.GAME_OVER
+    assert domain.winner == Alignment.EVIL
+    assert domain.exile_council_assassination_target_id == merlin.id
+    assert room.phase == "finished"
+
+
 def finish_ten_player_shadow_scenario(
     adapter: AvalonEngine,
     room,
@@ -243,19 +281,9 @@ def finish_ten_player_shadow_scenario(
                 player.id == assassin.id,
             )
         assassin_target = merlin if scenario == "assassin_hit" else percival
-        for player in domain.players:
-            target = (
-                assassin_target
-                if player.id == assassin.id
-                else next(
-                    candidate
-                    for candidate in domain.players
-                    if candidate.id != player.id
-                )
-            )
-            rules.submit_exile_council_assassination_target(
-                domain, player.id, target.id
-            )
+        rules.submit_exile_council_assassination_target(
+            domain, assassin.id, assassin_target.id
+        )
         return
 
     domain.mission_index = 2

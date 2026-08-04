@@ -982,8 +982,8 @@ function selfRoleArtworkFraming() {
         <div class="surface court-secret-note transformed">
           <Eye :size="19" />
           <div>
-            <strong>所有玩家仍需提交一个目标</strong>
-            <small>只有刺客的目标会生效，其他选择仅用于隐藏刺客身份</small>
+            <strong>你是刺客，请选择刺杀目标</strong>
+            <small>目标提交后立即结算，其他玩家不参与选择</small>
           </div>
         </div>
         <div class="selection-counter">
@@ -1022,13 +1022,9 @@ function selfRoleArtworkFraming() {
       </template>
       <div v-else class="waiting-card tall">
         <span class="pulse-dot danger-dot" />
-        <strong>你的目标已经锁定</strong>
-        <small>等待全部玩家完成相同的伪装操作</small>
+        <strong>刺客正在选择目标</strong>
+        <small>你不需要进行任何操作</small>
       </div>
-      <p class="center-note">
-        已提交 {{ snapshot.shadowMerlin.assassinationTargetsSubmitted }} /
-        {{ snapshot.players.length }}
-      </p>
     </section>
 
     <section v-else-if="snapshot.phase === 'lady_select'" class="phase-stack">

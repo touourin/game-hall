@@ -94,6 +94,10 @@ async def restore_room_state() -> None:
         room.host_offline_since = None
         if room.game_key == "avalon" and isinstance(room.state, Room):
             _repair_avalon_domain(room.state)
+        engine = arcade_realtime.engines.get(room.game_key)
+        repair_restored_room = getattr(engine, "repair_restored_room", None)
+        if callable(repair_restored_room):
+            repair_restored_room(room)
 
         had_connected_human = any(
             player.connected and not getattr(player, "is_bot", False)

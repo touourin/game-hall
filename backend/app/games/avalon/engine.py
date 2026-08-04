@@ -332,42 +332,55 @@ class GameEngine:
             room, Phase.EXILE_COUNCIL_ASSASSINATION_TARGET
         )
         actor = self._require_player(room, actor_id)
-        self._require_player(room, target_id)
+        if actor.role != Role.ASSASSIN:
+            raise GameRuleError("只有刺客可以选择刺杀目标")
+        target = self._require_player(room, target_id)
         if actor_id in room.exile_council_assassination_targets:
             raise GameRuleError("你已经提交过刺杀目标")
         if target_id == actor_id:
             raise GameRuleError("不能选择自己作为刺杀目标")
-        if (
-            actor.role == Role.ASSASSIN
-            and target_id not in self.eligible_assassination_targets(room)
-        ):
+        if target_id not in self.eligible_assassination_targets(room):
             raise GameRuleError("刺客不能选择已知的邪恶同伴")
 
         room.exile_council_assassination_targets[actor_id] = target_id
-        if len(room.exile_council_assassination_targets) == len(room.players):
-            assassin = self._role_player(room, Role.ASSASSIN)
-            actual_target_id = room.exile_council_assassination_targets[
-                assassin.id
-            ]
-            target = self._require_player(room, actual_target_id)
-            room.exile_council_assassination_target_id = actual_target_id
-            room.assassin_target_id = actual_target_id
-            room.assassination_was_early = False
-            if target.role == Role.MERLIN:
-                self._finish(
-                    room,
-                    Alignment.EVIL,
-                    "驱逐议会中，刺客成功刺杀了梅林",
-                    ending_route="exile_council_assassination",
-                )
-            else:
-                self._finish(
-                    room,
-                    Alignment.GOOD,
-                    "驱逐议会中，刺客未能找出梅林",
-                    ending_route="exile_council_assassination",
-                )
+        self._resolve_exile_council_assassination(room, target)
         self._touch(room)
+
+    def resolve_restored_exile_council_assassination(
+        self, room: Room
+    ) -> bool:
+        """Finish a legacy in-progress vote once the assassin already chose."""
+        if room.phase != Phase.EXILE_COUNCIL_ASSASSINATION_TARGET:
+            return False
+        assassin = self._role_player(room, Role.ASSASSIN)
+        target_id = room.exile_council_assassination_targets.get(assassin.id)
+        if target_id is None:
+            return False
+        target = self._require_player(room, target_id)
+        self._resolve_exile_council_assassination(room, target)
+        self._touch(room)
+        return True
+
+    def _resolve_exile_council_assassination(
+        self, room: Room, target: Player
+    ) -> None:
+        room.exile_council_assassination_target_id = target.id
+        room.assassin_target_id = target.id
+        room.assassination_was_early = False
+        if target.role == Role.MERLIN:
+            self._finish(
+                room,
+                Alignment.EVIL,
+                "驱逐议会中，刺客成功刺杀了梅林",
+                ending_route="exile_council_assassination",
+            )
+        else:
+            self._finish(
+                room,
+                Alignment.GOOD,
+                "驱逐议会中，刺客未能找出梅林",
+                ending_route="exile_council_assassination",
+            )
 
     def inspect_with_lady(
         self, room: Room, actor_id: str, target_id: str

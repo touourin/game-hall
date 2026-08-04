@@ -733,6 +733,50 @@ describe('AvalonTable role reveal', () => {
     expect(wrapper.text()).toContain('发动刺杀')
   })
 
+  it('does not ask shadow Merlin to choose the assassination target', () => {
+    const snapshot = roleRevealSnapshot(1)
+    snapshot.phase = 'exile_council_assassination_target'
+    snapshot.actions.canConfirmRole = false
+    snapshot.actions.canSubmitExileCouncilAssassinationTarget = false
+    snapshot.self.role = {
+      code: 'shadow_merlin',
+      label: '暗影梅林',
+      alignment: 'good',
+      description: '保护梅林。',
+      knowledge: [],
+    }
+    const wrapper = mount(AvalonTable, {
+      props: { snapshot },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.text()).toContain('刺客正在选择目标')
+    expect(wrapper.text()).toContain('你不需要进行任何操作')
+    expect(wrapper.find('.player-grid').exists()).toBe(false)
+  })
+
+  it('only shows the council target picker to the assassin', () => {
+    const snapshot = roleRevealSnapshot(1)
+    snapshot.phase = 'exile_council_assassination_target'
+    snapshot.actions.canConfirmRole = false
+    snapshot.actions.canSubmitExileCouncilAssassinationTarget = true
+    snapshot.shadowMerlin.eligibleAssassinationTargetIds = ['p2']
+    snapshot.self.role = {
+      code: 'assassin',
+      label: '刺客',
+      alignment: 'evil',
+      description: '刺杀梅林。',
+      knowledge: [],
+    }
+    const wrapper = mount(AvalonTable, {
+      props: { snapshot },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.text()).toContain('你是刺客，请选择刺杀目标')
+    expect(wrapper.find('.player-grid').exists()).toBe(true)
+  })
+
   it('renders the early assassination target in the final record', () => {
     const snapshot = roleRevealSnapshot(1)
     snapshot.phase = 'game_over'

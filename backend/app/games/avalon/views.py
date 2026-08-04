@@ -231,6 +231,7 @@ def build_player_view(
         ),
         "canSubmitExileCouncilAssassinationTarget": (
             room.phase == Phase.EXILE_COUNCIL_ASSASSINATION_TARGET
+            and viewer.role == Role.ASSASSIN
             and viewer.id not in room.exile_council_assassination_targets
         ),
         "canUseLady": room.phase == Phase.LADY_SELECT
@@ -436,11 +437,7 @@ def build_player_view(
                 viewer.id in room.exile_council_assassination_targets
             ),
             "eligibleAssassinationTargetIds": (
-                [
-                    player.id
-                    for player in room.players
-                    if player.id != viewer.id
-                ]
+                engine.eligible_assassination_targets(room)
                 if actions[
                     "canSubmitExileCouncilAssassinationTarget"
                 ]

@@ -255,6 +255,37 @@ def test_only_assassin_can_see_early_assassination_action():
     assert other_view["result"]["eligibleTargetIds"] == []
 
 
+def test_only_assassin_can_choose_the_council_assassination_target():
+    engine, room = start_room(
+        6,
+        mode=AvalonMode.COURT_UNDERCURRENT,
+        shadow_merlin_enabled=True,
+    )
+    room.phase = Phase.EXILE_COUNCIL_ASSASSINATION_TARGET
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    shadow = next(
+        player for player in room.players if player.role == Role.SHADOW_MERLIN
+    )
+
+    assassin_view = build_player_view(room, assassin, engine)
+    shadow_view = build_player_view(room, shadow, engine)
+
+    assert assassin_view["actions"][
+        "canSubmitExileCouncilAssassinationTarget"
+    ] is True
+    assert shadow_view["actions"][
+        "canSubmitExileCouncilAssassinationTarget"
+    ] is False
+    assert set(
+        assassin_view["shadowMerlin"]["eligibleAssassinationTargetIds"]
+    ) == set(engine.eligible_assassination_targets(room))
+    assert shadow_view["shadowMerlin"][
+        "eligibleAssassinationTargetIds"
+    ] == []
+
+
 def test_court_undercurrent_initial_knowledge_is_private():
     engine, room = start_room(9, mode=AvalonMode.COURT_UNDERCURRENT)
     merlin = next(player for player in room.players if player.role == Role.MERLIN)

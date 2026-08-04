@@ -800,19 +800,9 @@ def test_council_assassination_converts_shadow_and_uses_only_assassin_target():
     assert shadow.alignment == Alignment.GOOD
     assert room.shadow_merlin_transformed is True
 
-    for player in room.players:
-        fake_target = next(
-            candidate
-            for candidate in room.players
-            if candidate.id != player.id
-            and (
-                player.role != Role.ASSASSIN
-                or candidate.id == merlin.id
-            )
-        )
-        engine.submit_exile_council_assassination_target(
-            room, player.id, fake_target.id
-        )
+    engine.submit_exile_council_assassination_target(
+        room, assassin.id, merlin.id
+    )
 
     assert room.phase == Phase.GAME_OVER
     assert room.winner == Alignment.EVIL
@@ -844,24 +834,30 @@ def test_wrong_council_assassination_lets_good_and_shadow_win():
         engine.submit_exile_council_assassination_decision(
             room, player.id, player.id == assassin.id
         )
-    for player in room.players:
-        target = (
-            wrong_target
-            if player.id == assassin.id
-            else next(
-                candidate
-                for candidate in room.players
-                if candidate.id != player.id
-            )
-        )
-        engine.submit_exile_council_assassination_target(
-            room, player.id, target.id
-        )
+    engine.submit_exile_council_assassination_target(
+        room, assassin.id, wrong_target.id
+    )
 
     assert room.phase == Phase.GAME_OVER
     assert room.winner == Alignment.GOOD
     assert shadow.alignment == Alignment.GOOD
     assert room.ending_route == "exile_council_assassination"
+
+
+def test_only_assassin_can_choose_council_assassination_target():
+    engine, room = start_shadow_room()
+    assassin = next(
+        player for player in room.players if player.role == Role.ASSASSIN
+    )
+    shadow = next(
+        player for player in room.players if player.role == Role.SHADOW_MERLIN
+    )
+    room.phase = Phase.EXILE_COUNCIL_ASSASSINATION_TARGET
+
+    with pytest.raises(GameRuleError, match="只有刺客"):
+        engine.submit_exile_council_assassination_target(
+            room, shadow.id, assassin.id
+        )
 
 
 def test_correct_dagger_grant_converts_shadow_when_assassination_begins():

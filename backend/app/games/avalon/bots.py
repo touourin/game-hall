@@ -118,29 +118,23 @@ def advance_ai_players(room: Room, engine: GameEngine) -> None:
             continue
 
         if room.phase == Phase.EXILE_COUNCIL_ASSASSINATION_TARGET:
-            player = next(
+            assassin = next(
                 (
                     candidate
                     for candidate in room.players
-                    if candidate.is_bot
-                    and candidate.id
-                    not in room.exile_council_assassination_targets
+                    if candidate.role == Role.ASSASSIN
                 ),
                 None,
             )
-            if player is None:
+            if assassin is None or not assassin.is_bot:
                 return
-            if player.role == Role.ASSASSIN:
-                target_ids = engine.eligible_assassination_targets(room)
-            else:
-                target_ids = [
-                    candidate.id
-                    for candidate in room.players
-                    if candidate.id != player.id
-                ]
+            if assassin.id in room.exile_council_assassination_targets:
+                engine.resolve_restored_exile_council_assassination(room)
+                continue
+            target_ids = engine.eligible_assassination_targets(room)
             engine.submit_exile_council_assassination_target(
                 room,
-                player.id,
+                assassin.id,
                 engine.rng.choice(target_ids),
             )
             continue
