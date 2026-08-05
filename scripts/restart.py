@@ -97,7 +97,10 @@ def pull_current_branch() -> None:
     if not (PROJECT_DIR / ".git").is_dir():
         fail(f"{PROJECT_DIR} is not a Git checkout")
 
-    status = run(["git", "status", "--porcelain"], capture_output=True).stdout
+    status = run(
+        ["git", "status", "--porcelain", "--untracked-files=no"],
+        capture_output=True,
+    ).stdout
     if status.strip():
         fail("Git working tree is not clean; commit or stash changes before --pull")
 
@@ -110,6 +113,15 @@ def pull_current_branch() -> None:
 
     log(f"Pulling Git branch {branch}")
     run(["git", "pull", "--ff-only"])
+
+
+def sync_submodules() -> None:
+    if not (PROJECT_DIR / ".gitmodules").is_file():
+        return
+    require_command("git", "Git is not installed or is not in PATH")
+    log("Synchronizing Git submodules")
+    run(["git", "submodule", "sync", "--recursive"])
+    run(["git", "submodule", "update", "--init", "--recursive"])
 
 
 def container_status() -> str:
@@ -179,6 +191,8 @@ def main() -> int:
 
     if args.pull:
         pull_current_branch()
+
+    sync_submodules()
 
     run(["docker", "compose", "config", "--quiet"])
 

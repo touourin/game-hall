@@ -56,6 +56,13 @@
 
 服务器需要安装 Docker 和 Docker Compose。
 
+首次克隆需要同时初始化第三方游戏子仓库；已有检出也可以运行第二条命令补齐：
+
+```bash
+git clone --recurse-submodules git@github.com:touourin/game-hall.git
+git submodule update --init --recursive
+```
+
 首次部署时复制环境变量模板：
 
 ```bash
@@ -115,6 +122,7 @@ docker compose down
 需要 Node.js 24+ 和 Python 3.11+。
 
 ```bash
+git submodule update --init --recursive
 python3 -m venv .venv
 .venv/bin/pip install -e 'backend[dev]'
 npm install
@@ -189,7 +197,7 @@ docker exec game-hall-mysql sh -c 'exec mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASS
 
 推荐仓库目录名为 `game-hall`。目录名不参与程序运行，已有部署仍放在旧目录时也能正常启动。
 
-第三方游戏只能放在根目录的 `third_party_games/` 中。复制其中默认关闭的 `plugin-counter-demo/`，实现固定的前后端入口并把 `manifest.json` 的 `enabled` 改为 `true`，即可在不修改大厅核心源码的前提下注册新游戏。完整约束、目录结构和安全边界见 [`third_party_games/README.md`](third_party_games/README.md)。关闭的插件不会进入前端构建，也不会被后端加载。
+第三方游戏只能放在根目录的 `third_party_games/` 中。该路径是独立仓库 [`touourin/game-hall-third-party-games`](https://github.com/touourin/game-hall-third-party-games) 的 Git Submodule，第三方作者可以在插件仓库独立提交，主仓库只固定引用经过验证的插件提交。复制其中默认关闭的 `plugin-counter-demo/`，实现固定的前后端入口并把 `manifest.json` 的 `enabled` 改为 `true`，即可在不修改大厅核心源码的前提下注册新游戏。完整约束、目录结构和安全边界见 [`third_party_games/README.md`](third_party_games/README.md)。关闭的插件不会进入前端构建，也不会被后端加载。
 
 ```text
 frontend/src/views/         游戏大厅、通用房间与账号界面
