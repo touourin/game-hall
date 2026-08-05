@@ -623,7 +623,7 @@ class GameEngine:
             if player.id != dissenting.id
             and player.role not in KNOWN_EVIL_ROLES
         ]
-        candidate_count = 3 if len(room.players) == 10 else 2
+        candidate_count = 3 if len(room.players) >= 8 else 2
         candidates = [
             dissenting,
             *self.rng.sample(decoys, candidate_count - 1),

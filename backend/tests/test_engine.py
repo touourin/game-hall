@@ -374,7 +374,7 @@ def complete_three_successes(room: Room) -> None:
 
 @pytest.mark.parametrize(
     ("player_count", "candidate_count"),
-    [(5, 2), (6, 2), (7, 2), (8, 2), (9, 2), (10, 3)],
+    [(5, 2), (6, 2), (7, 2), (8, 3), (9, 3), (10, 3)],
 )
 def test_court_undercurrent_starts_dagger_grant_with_balanced_candidates(
     player_count: int, candidate_count: int
