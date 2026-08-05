@@ -1,3 +1,5 @@
+import pytest
+
 from backend.app.games.avalon.engine import GameEngine
 from backend.app.games.avalon.models import (
     Alignment,
@@ -491,9 +493,22 @@ def test_court_ending_reveals_both_candidate_lists_to_everyone():
     assert view["courtUndercurrent"]["transformedPlayerId"] == dissenting.id
 
 
-def test_shadow_merlin_knowledge_is_exact_and_hidden_from_everyone_else():
+@pytest.mark.parametrize(
+    ("player_count", "expected_labels"),
+    [
+        (6, {"梅林", "刺客", "莫甘娜"}),
+        (7, {"梅林", "刺客", "莫甘娜", "奥伯伦"}),
+        (8, {"梅林", "刺客", "莫甘娜", "莫德雷德的爪牙"}),
+        (9, {"梅林", "刺客", "莫甘娜"}),
+        (10, {"梅林", "刺客", "莫甘娜", "奥伯伦"}),
+    ],
+)
+def test_shadow_merlin_knowledge_is_exact_and_hidden_from_everyone_else(
+    player_count: int,
+    expected_labels: set[str],
+):
     engine, room = start_room(
-        10,
+        player_count,
         mode=AvalonMode.COURT_UNDERCURRENT,
         shadow_merlin_enabled=True,
     )
@@ -504,14 +519,12 @@ def test_shadow_merlin_knowledge_is_exact_and_hidden_from_everyone_else():
     assassin = next(
         player for player in room.players if player.role == Role.ASSASSIN
     )
-    shadow_knowledge = build_player_view(room, shadow, engine)["self"][
-        "role"
-    ]["knowledge"]
+    shadow_role = build_player_view(room, shadow, engine)["self"]["role"]
+    shadow_knowledge = shadow_role["knowledge"]
 
-    assert {
-        item["label"] for item in shadow_knowledge
-    } == {"梅林", "刺客", "莫甘娜", "奥伯伦"}
+    assert {item["label"] for item in shadow_knowledge} == expected_labels
     assert all(item["kind"] == "special_identity" for item in shadow_knowledge)
+    assert "除莫德雷德外所有邪恶角色" in shadow_role["description"]
 
     merlin_knowledge_ids = {
         item["playerId"]

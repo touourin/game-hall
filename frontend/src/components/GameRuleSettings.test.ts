@@ -44,6 +44,7 @@ describe('GameRuleSettings', () => {
     expect(disclosure.text()).toContain('新模式终局规则')
     expect(disclosure.text()).toContain('固定关闭湖中仙女与提前刺杀')
     expect(disclosure.text()).toContain('可选角色规则：暗影梅林')
+    expect(disclosure.text()).toContain('除莫德雷德外所有邪恶角色的具体身份')
     expect(disclosure.text()).toContain('暗影梅林必须是唯一最高票')
   })
 

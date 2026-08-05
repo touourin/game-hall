@@ -43,9 +43,10 @@ ROLE_DESCRIPTIONS = {
         "可以选择隐藏身份，也可以通过发言争取被授刃。"
     ),
     Role.SHADOW_MERLIN: (
-        "你开局潜伏于邪恶阵营，能够准确看见梅林、刺客、莫甘娜与"
-        "奥伯伦，但无法提交任务失败票。任何刺杀开始后，你会立刻"
-        "转为好人阵营；若梅林被刺中，你也会失败。"
+        "你开局潜伏于邪恶阵营，叠加梅林、派西维尔与心怀异念之臣"
+        "的视野，能够准确看见梅林及除莫德雷德外所有邪恶角色，但"
+        "无法提交任务失败票。任何刺杀开始后，你会立刻转为好人阵营；"
+        "若梅林被刺中，你也会失败。"
     ),
     Role.ASSASSIN: "邪恶阵营。若好人完成三次任务，你可以刺杀梅林翻盘。",
     Role.MORGANA: "邪恶阵营。你会在派西维尔眼中伪装成梅林。",
@@ -548,6 +549,7 @@ def _knowledge_for_player(room: Room, viewer: Player) -> list[dict[str, str]]:
                 Role.ASSASSIN,
                 Role.MORGANA,
                 Role.OBERON,
+                Role.MINION,
             }:
                 knowledge.append(
                     {
