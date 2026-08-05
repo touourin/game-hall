@@ -279,7 +279,7 @@ class GameEngine:
         self._require_player(room, actor_id)
         self._require_player(room, target_id)
         if actor_id in room.exile_council_open_votes:
-            raise GameRuleError("你已经提交过暗刃议影选票")
+            raise GameRuleError("你已经提交过祓影议庭选票")
 
         room.exile_council_open_votes[actor_id] = open_council
         room.exile_council_target_votes[actor_id] = target_id
@@ -371,14 +371,14 @@ class GameEngine:
             self._finish(
                 room,
                 Alignment.EVIL,
-                "暗刃议影中，刺客成功刺杀了梅林",
+                "祓影议庭中，刺客成功刺杀了梅林",
                 ending_route="exile_council_assassination",
             )
         else:
             self._finish(
                 room,
                 Alignment.GOOD,
-                "暗刃议影中，刺客未能找出梅林",
+                "祓影议庭中，刺客未能找出梅林",
                 ending_route="exile_council_assassination",
             )
 
@@ -667,14 +667,14 @@ class GameEngine:
             self._finish(
                 room,
                 Alignment.GOOD,
-                "暗刃议影中，众人成功裁出了暗影梅林",
+                "祓影议庭中，祓影成功，众人裁出了暗影梅林",
                 ending_route="exile_council_exile",
             )
         else:
             reason = (
-                "暗刃议影中，裁影票最高票并列，好人阵营失败"
+                "祓影议庭中，祓影失败，祓影票最高票并列"
                 if unique_target_id is None
-                else "暗刃议影中，众人裁中了错误目标，好人阵营失败"
+                else "祓影议庭中，祓影失败，众人裁中了错误目标"
             )
             self._finish(
                 room,

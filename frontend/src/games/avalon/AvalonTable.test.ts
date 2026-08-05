@@ -663,8 +663,11 @@ describe('AvalonTable role reveal', () => {
       global: { plugins: [pinia] },
     })
 
-    expect(wrapper.text()).toContain('暗刃议影提案')
-    expect(wrapper.text()).toContain('预先锁定裁影对象')
+    expect(wrapper.text()).toContain('祓影议庭提案')
+    expect(wrapper.text()).toContain('预先锁定祓影目标')
+    expect(wrapper.text()).toContain('启庭表决')
+    expect(wrapper.text()).toContain('提交祓影票')
+    expect(wrapper.text()).not.toContain('裁影')
     expect(wrapper.text()).toContain('系统不会提示你的票是否有效')
     await wrapper.get('.decision-button.approve').trigger('click')
     await wrapper.get('.player-grid .player-tile').trigger('click')
