@@ -54,6 +54,7 @@ import {
 } from '../gameRoleSkins'
 import {
   emptyAvalonRoleSkinProgress,
+  isAvalonRoleSkinFreeWeek,
   isRoleSkinUnlocked,
   loadAvalonRoleSkinProgress,
 } from '../avalonRoleSkinProgress'
@@ -154,7 +155,8 @@ const activeRoleSkin = computed<RoleSkinId>(() => {
 })
 const roleSkinLoadoutOptions = computed<RoleSkinLoadoutRoleOption[]>(() => (
   ROLE_SKIN_ROLES.map((role) => {
-    const progress = roleSkinProgress.value.roles[role.code]
+    const progressCode = role.code === 'shadow_merlin' ? 'merlin' : role.code
+    const progress = roleSkinProgress.value.roles[progressCode]
     const selectedSkinId = selectedRoleSkinLoadout.value[role.code]
     const selectedSkin = ROLE_SKINS.find((skin) => skin.id === selectedSkinId)
       ?? ROLE_SKINS[0]!
@@ -167,6 +169,7 @@ const roleSkinLoadoutOptions = computed<RoleSkinLoadoutRoleOption[]>(() => (
       currentArtwork: roleArtwork(role.code, selectedSkin.id) ?? selectedSkin.preview,
       currentFraming: roleArtworkFraming(role.code, selectedSkin.id),
       legacyAllUnlocked: roleSkinProgress.value.legacyAllUnlocked,
+      eventAllUnlocked: roleSkinProgress.value.eventAllUnlocked,
       upgradeWinsRequired: roleSkinProgress.value.upgradeWinsRequired,
       ultimateWinsRequired: roleSkinProgress.value.ultimateWinsRequired,
       choices: ROLE_SKINS.map((skin) => {
@@ -263,7 +266,9 @@ async function refreshRoleSkinProgress() {
   const request = ++roleSkinProgressRequest
   roleSkinProgressError.value = null
   if (props.snapshot.self.isGuest) {
-    roleSkinProgress.value = emptyAvalonRoleSkinProgress()
+    roleSkinProgress.value = emptyAvalonRoleSkinProgress(
+      isAvalonRoleSkinFreeWeek(),
+    )
     selectedRoleSkinLoadout.value = defaultRoleSkinLoadout()
     return
   }
@@ -277,7 +282,9 @@ async function refreshRoleSkinProgress() {
     rememberRoleSkinLoadout(roleSkinAccountId.value, reconciled)
   } catch (error) {
     if (request !== roleSkinProgressRequest) return
-    roleSkinProgress.value = emptyAvalonRoleSkinProgress()
+    roleSkinProgress.value = emptyAvalonRoleSkinProgress(
+      isAvalonRoleSkinFreeWeek(),
+    )
     selectedRoleSkinLoadout.value = defaultRoleSkinLoadout()
     roleSkinProgressError.value = error instanceof Error
       ? error.message

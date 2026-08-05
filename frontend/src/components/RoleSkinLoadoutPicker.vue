@@ -20,6 +20,9 @@ const activeRoleCode = ref<string | null>(null)
 const activeRole = computed(() => (
   props.roles.find((role) => role.code === activeRoleCode.value) ?? null
 ))
+const eventAllUnlocked = computed(() => (
+  props.roles.some((role) => role.eventAllUnlocked)
+))
 
 function closePicker() {
   activeRoleCode.value = null
@@ -44,8 +47,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
     <header class="role-skin-loadout-heading">
       <span><Images :size="20" /></span>
       <div>
-        <strong id="role-skin-loadout-title">八角色身份画风</strong>
-        <small>每个角色单独选择 · 心怀异念之臣与忠臣共享 · 开局后锁定</small>
+        <strong id="role-skin-loadout-title">九角色身份画风</strong>
+        <small v-if="eventAllUnlocked">本周限时开放 · 所有角色的五套皮肤均可自由选择 · 开局后锁定</small>
+        <small v-else>每个角色单独选择 · 暗影梅林与梅林共享解锁进度 · 心怀异念之臣与忠臣共享 · 开局后锁定</small>
       </div>
     </header>
 
@@ -54,7 +58,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
     </button>
     <p v-else-if="loading" class="role-skin-loading" role="status">正在读取角色胜场与皮肤权限…</p>
 
-    <div class="role-skin-role-grid" aria-label="为八个角色选择身份画风">
+    <div class="role-skin-role-grid" aria-label="为九个角色选择身份画风">
       <button
         v-for="role in roles"
         :key="role.code"
@@ -77,7 +81,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
         </span>
         <span class="role-skin-role-copy">
           <span><strong>{{ role.name }}</strong><em>{{ role.currentSkinName }}</em></span>
-          <small v-if="role.legacyAllUnlocked">老账号 · 全部已解锁</small>
+          <small v-if="role.eventAllUnlocked">本周限时 · 全部皮肤可用</small>
+          <small v-else-if="role.legacyAllUnlocked">老账号 · 全部已解锁</small>
           <small v-else>排位胜场 {{ role.wins }} · 升级 {{ Math.min(role.wins, role.upgradeWinsRequired) }}/{{ role.upgradeWinsRequired }} · 终极 {{ Math.min(role.wins, role.ultimateWinsRequired) }}/{{ role.ultimateWinsRequired }}</small>
         </span>
         <ChevronRight :size="17" aria-hidden="true" />
@@ -92,7 +97,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
           <div>
             <small>{{ activeRole.group }} · 排位胜场 {{ activeRole.wins }}</small>
             <h2 :id="`role-skin-picker-${activeRole.code}`">{{ activeRole.name }}的对局画风</h2>
-            <p v-if="activeRole.legacyAllUnlocked">老账号已保留全部画风，可自由选择。</p>
+            <p v-if="activeRole.eventAllUnlocked">本周限时开放至 8 月 10 日 00:00，全部画风可自由选择；活动结束后恢复原解锁进度。</p>
+            <p v-else-if="activeRole.legacyAllUnlocked">老账号已保留全部画风，可自由选择。</p>
             <p v-else>赢 {{ activeRole.upgradeWinsRequired }} 局解锁全部升级款，赢 {{ activeRole.ultimateWinsRequired }} 局解锁终极款。</p>
           </div>
           <button
@@ -149,7 +155,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
 .role-skin-loadout-heading small { color: var(--muted); font-size: 10px; }
 .role-skin-loading, .role-skin-error { margin: 0; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; color: var(--muted); background: var(--surface-inset); font-size: 10px; }
 .role-skin-error { width: 100%; color: #f2a7a2; text-align: left; cursor: pointer; }
-.role-skin-role-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+.role-skin-role-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
 .role-skin-role { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-width: 0; min-height: 72px; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; padding: 7px 9px 7px 7px; color: var(--text); background: rgba(var(--surface-header-rgb), .56); text-align: left; cursor: pointer; }
 .role-skin-role:hover { border-color: color-mix(in srgb, var(--gold) 42%, var(--line)); background: color-mix(in srgb, var(--gold) 7%, var(--surface-inset)); }
 .role-skin-role > svg { flex: 0 0 auto; color: var(--muted); }

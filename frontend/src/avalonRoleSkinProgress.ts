@@ -15,26 +15,52 @@ export interface AvalonRoleSkinRoleProgress {
   ultimateUnlocked: boolean
 }
 
+export type AvalonRoleSkinProgressRoleCode = Exclude<
+  RoleSkinRoleCode,
+  'shadow_merlin'
+>
+
 export interface AvalonRoleSkinProgress {
   legacyAllUnlocked: boolean
+  eventAllUnlocked: boolean
+  eventEndsAt: string | null
   rankedOnly: boolean
   upgradeWinsRequired: number
   ultimateWinsRequired: number
-  roles: Record<RoleSkinRoleCode, AvalonRoleSkinRoleProgress>
+  roles: Record<AvalonRoleSkinProgressRoleCode, AvalonRoleSkinRoleProgress>
 }
 
-export function emptyAvalonRoleSkinProgress(): AvalonRoleSkinProgress {
+export const AVALON_ROLE_SKIN_FREE_WEEK_START = '2026-08-02T16:00:00.000Z'
+export const AVALON_ROLE_SKIN_FREE_WEEK_END = '2026-08-09T16:00:00.000Z'
+
+export function isAvalonRoleSkinFreeWeek(now = new Date()): boolean {
+  const timestamp = now.getTime()
+  return timestamp >= Date.parse(AVALON_ROLE_SKIN_FREE_WEEK_START)
+    && timestamp < Date.parse(AVALON_ROLE_SKIN_FREE_WEEK_END)
+}
+
+const ROLE_SKIN_PROGRESS_ROLE_CODES = ROLE_SKIN_ROLES
+  .map((role) => role.code)
+  .filter((role): role is AvalonRoleSkinProgressRoleCode => (
+    role !== 'shadow_merlin'
+  ))
+
+export function emptyAvalonRoleSkinProgress(
+  eventAllUnlocked = false,
+): AvalonRoleSkinProgress {
   return {
     legacyAllUnlocked: false,
+    eventAllUnlocked,
+    eventEndsAt: eventAllUnlocked ? AVALON_ROLE_SKIN_FREE_WEEK_END : null,
     rankedOnly: true,
     upgradeWinsRequired: 2,
     ultimateWinsRequired: 5,
     roles: Object.fromEntries(
-      ROLE_SKIN_ROLES.map((role) => [
-        role.code,
+      ROLE_SKIN_PROGRESS_ROLE_CODES.map((role) => [
+        role,
         { wins: 0, upgradeUnlocked: false, ultimateUnlocked: false },
       ]),
-    ) as Record<RoleSkinRoleCode, AvalonRoleSkinRoleProgress>,
+    ) as Record<AvalonRoleSkinProgressRoleCode, AvalonRoleSkinRoleProgress>,
   }
 }
 
@@ -46,10 +72,12 @@ export function isRoleSkinUnlocked(
   const skin = ROLE_SKINS.find((item) => item.id === skinId)
   if (!skin || !isRoleSkinAvailable(roleCode, skinId)) return false
   if (skin.tier === '基础') return true
+  if (progress.eventAllUnlocked) return true
   if (progress.legacyAllUnlocked) return true
   const family = roleSkinRoleCode(roleCode)
   if (!family) return false
-  const role = progress.roles[family]
+  const progressFamily = family === 'shadow_merlin' ? 'merlin' : family
+  const role = progress.roles[progressFamily]
   return skin.tier === '终极'
     ? role.ultimateUnlocked
     : role.upgradeUnlocked

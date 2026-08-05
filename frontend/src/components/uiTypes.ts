@@ -35,6 +35,7 @@ export interface RoleSkinLoadoutRoleOption {
   currentArtwork: string
   currentFraming: RevealArtworkFraming
   legacyAllUnlocked: boolean
+  eventAllUnlocked: boolean
   upgradeWinsRequired: number
   ultimateWinsRequired: number
   choices: RoleSkinChoiceOption[]

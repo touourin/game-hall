@@ -1,5 +1,8 @@
 import {
+  AVALON_ROLE_SKIN_FREE_WEEK_END,
+  AVALON_ROLE_SKIN_FREE_WEEK_START,
   emptyAvalonRoleSkinProgress,
+  isAvalonRoleSkinFreeWeek,
   isRoleSkinUnlocked,
   loadAvalonRoleSkinProgress,
 } from './avalonRoleSkinProgress'
@@ -37,9 +40,8 @@ describe('Avalon role skin progression', () => {
     ).toBe(true)
   })
 
-  it('offers only the classic skin to shadow Merlin for now', () => {
+  it('shares Merlin skin unlocks with shadow Merlin', () => {
     const progress = emptyAvalonRoleSkinProgress()
-    progress.legacyAllUnlocked = true
 
     expect(
       isRoleSkinUnlocked(progress, 'shadow_merlin', 'classic-tabletop'),
@@ -47,9 +49,19 @@ describe('Avalon role skin progression', () => {
     expect(
       isRoleSkinUnlocked(progress, 'shadow_merlin', 'dark-chronicle'),
     ).toBe(false)
+
+    progress.roles.merlin.upgradeUnlocked = true
+    expect(
+      isRoleSkinUnlocked(progress, 'shadow_merlin', 'dark-chronicle'),
+    ).toBe(true)
     expect(
       isRoleSkinUnlocked(progress, 'shadow_merlin', 'grail-myth'),
     ).toBe(false)
+
+    progress.roles.merlin.ultimateUnlocked = true
+    expect(
+      isRoleSkinUnlocked(progress, 'shadow_merlin', 'grail-myth'),
+    ).toBe(true)
   })
 
   it('keeps every style available to legacy accounts', () => {
@@ -57,6 +69,15 @@ describe('Avalon role skin progression', () => {
     progress.legacyAllUnlocked = true
 
     expect(isRoleSkinUnlocked(progress, 'oberon', 'grail-myth')).toBe(true)
+  })
+
+  it('temporarily unlocks every available skin during the free week', () => {
+    const progress = emptyAvalonRoleSkinProgress(true)
+
+    expect(isRoleSkinUnlocked(progress, 'oberon', 'grail-myth')).toBe(true)
+    expect(isRoleSkinUnlocked(progress, 'shadow_merlin', 'grail-myth')).toBe(true)
+    expect(isAvalonRoleSkinFreeWeek(new Date(AVALON_ROLE_SKIN_FREE_WEEK_START))).toBe(true)
+    expect(isAvalonRoleSkinFreeWeek(new Date(AVALON_ROLE_SKIN_FREE_WEEK_END))).toBe(false)
   })
 
   it('turns an invalid server response into a readable error', async () => {

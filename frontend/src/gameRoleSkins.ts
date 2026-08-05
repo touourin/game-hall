@@ -17,6 +17,7 @@ import darkMordred from './assets/avalon/role-skins/dark-chronicle/roles/mordred
 import darkMorgana from './assets/avalon/role-skins/dark-chronicle/roles/morgana.webp'
 import darkOberon from './assets/avalon/role-skins/dark-chronicle/roles/oberon.webp'
 import darkPercival from './assets/avalon/role-skins/dark-chronicle/roles/percival.webp'
+import darkShadowMerlin from './assets/avalon/role-skins/dark-chronicle/roles/shadow-merlin.webp'
 import grailPreview from './assets/avalon/role-skins/grail-myth/preview.webp'
 import grailAssassin from './assets/avalon/role-skins/grail-myth/roles/assassin.webp'
 import grailLoyalServant from './assets/avalon/role-skins/grail-myth/roles/loyal-servant.webp'
@@ -26,6 +27,7 @@ import grailMordred from './assets/avalon/role-skins/grail-myth/roles/mordred.we
 import grailMorgana from './assets/avalon/role-skins/grail-myth/roles/morgana.webp'
 import grailOberon from './assets/avalon/role-skins/grail-myth/roles/oberon.webp'
 import grailPercival from './assets/avalon/role-skins/grail-myth/roles/percival.webp'
+import grailShadowMerlin from './assets/avalon/role-skins/grail-myth/roles/shadow-merlin.webp'
 import codexPreview from './assets/avalon/role-skins/royal-codex/preview.webp'
 import codexAssassin from './assets/avalon/role-skins/royal-codex/roles/assassin.webp'
 import codexLoyalServant from './assets/avalon/role-skins/royal-codex/roles/loyal-servant.webp'
@@ -35,6 +37,7 @@ import codexMordred from './assets/avalon/role-skins/royal-codex/roles/mordred.w
 import codexMorgana from './assets/avalon/role-skins/royal-codex/roles/morgana.webp'
 import codexOberon from './assets/avalon/role-skins/royal-codex/roles/oberon.webp'
 import codexPercival from './assets/avalon/role-skins/royal-codex/roles/percival.webp'
+import codexShadowMerlin from './assets/avalon/role-skins/royal-codex/roles/shadow-merlin.webp'
 import stainedPreview from './assets/avalon/role-skins/stained-glass/preview.webp'
 import stainedAssassin from './assets/avalon/role-skins/stained-glass/roles/assassin.webp'
 import stainedLoyalServant from './assets/avalon/role-skins/stained-glass/roles/loyal-servant.webp'
@@ -44,6 +47,7 @@ import stainedMordred from './assets/avalon/role-skins/stained-glass/roles/mordr
 import stainedMorgana from './assets/avalon/role-skins/stained-glass/roles/morgana.webp'
 import stainedOberon from './assets/avalon/role-skins/stained-glass/roles/oberon.webp'
 import stainedPercival from './assets/avalon/role-skins/stained-glass/roles/percival.webp'
+import stainedShadowMerlin from './assets/avalon/role-skins/stained-glass/roles/shadow-merlin.webp'
 
 export type RoleSkinId =
   | 'classic-tabletop'
@@ -66,10 +70,7 @@ export type AvalonRoleCode =
   | 'oberon'
   | 'minion'
 
-export type RoleSkinRoleCode = Exclude<
-  AvalonRoleCode,
-  'dissenting_courtier' | 'shadow_merlin'
->
+export type RoleSkinRoleCode = Exclude<AvalonRoleCode, 'dissenting_courtier'>
 
 export type AvalonRoleAlignment = 'good' | 'evil'
 
@@ -156,6 +157,7 @@ const ROLE_ART: Record<RoleSkinId, Partial<Record<AvalonRoleCode, string>>> = {
     percival: darkPercival,
     loyal_servant: darkLoyalServant,
     dissenting_courtier: darkLoyalServant,
+    shadow_merlin: darkShadowMerlin,
     assassin: darkAssassin,
     morgana: darkMorgana,
     mordred: darkMordred,
@@ -167,6 +169,7 @@ const ROLE_ART: Record<RoleSkinId, Partial<Record<AvalonRoleCode, string>>> = {
     percival: stainedPercival,
     loyal_servant: stainedLoyalServant,
     dissenting_courtier: stainedLoyalServant,
+    shadow_merlin: stainedShadowMerlin,
     assassin: stainedAssassin,
     morgana: stainedMorgana,
     mordred: stainedMordred,
@@ -178,6 +181,7 @@ const ROLE_ART: Record<RoleSkinId, Partial<Record<AvalonRoleCode, string>>> = {
     percival: codexPercival,
     loyal_servant: codexLoyalServant,
     dissenting_courtier: codexLoyalServant,
+    shadow_merlin: codexShadowMerlin,
     assassin: codexAssassin,
     morgana: codexMorgana,
     mordred: codexMordred,
@@ -189,6 +193,7 @@ const ROLE_ART: Record<RoleSkinId, Partial<Record<AvalonRoleCode, string>>> = {
     percival: grailPercival,
     loyal_servant: grailLoyalServant,
     dissenting_courtier: grailLoyalServant,
+    shadow_merlin: grailShadowMerlin,
     assassin: grailAssassin,
     morgana: grailMorgana,
     mordred: grailMordred,
@@ -218,6 +223,12 @@ const ROLE_ARTWORK_FRAMING: Partial<
     },
   },
   'royal-codex': {
+    shadow_merlin: {
+      scale: 1,
+      originXPercent: 50,
+      originYPercent: 50,
+      preserveFrame: true,
+    },
     merlin: {
       scale: 1.26,
       originXPercent: 50,
@@ -254,6 +265,7 @@ const ROLE_ARTWORK_FRAMING: Partial<
 
 export const ROLE_SKIN_ROLES: RoleSkinRoleDefinition[] = [
   { code: 'merlin', name: '梅林', alignment: 'good' },
+  { code: 'shadow_merlin', name: '暗影梅林', alignment: 'good' },
   { code: 'percival', name: '派西维尔', alignment: 'good' },
   { code: 'loyal_servant', name: '亚瑟的忠臣', alignment: 'good' },
   { code: 'assassin', name: '刺客', alignment: 'evil' },
@@ -286,7 +298,9 @@ function parsedRoleSkinLoadout(value: string | null): RoleSkinLoadout | null {
     if (!parsed || typeof parsed !== 'object') return null
     const loadout = {} as RoleSkinLoadout
     for (const role of ROLE_SKIN_ROLES) {
-      const skin = parsed[role.code]
+      const skin = role.code === 'shadow_merlin'
+        ? parsed.shadow_merlin ?? parsed.merlin
+        : parsed[role.code]
       if (!skin || !isRoleSkinId(skin)) return null
       loadout[role.code] = skin
     }
@@ -387,13 +401,12 @@ export function roleArtworkFraming(
   roleCode: string,
   skin: RoleSkinId,
 ): RoleArtworkFraming {
-  const artworkSkin = roleCode === 'shadow_merlin' ? 'classic-tabletop' : skin
-  if (!Object.prototype.hasOwnProperty.call(ROLE_ART[artworkSkin], roleCode)) {
+  if (!Object.prototype.hasOwnProperty.call(ROLE_ART[skin], roleCode)) {
     return DEFAULT_ROLE_ARTWORK_FRAMING
   }
-  const framing = ROLE_ARTWORK_FRAMING[artworkSkin]?.[roleCode as AvalonRoleCode]
+  const framing = ROLE_ARTWORK_FRAMING[skin]?.[roleCode as AvalonRoleCode]
     ?? DEFAULT_ROLE_ARTWORK_FRAMING
-  return artworkSkin === 'royal-codex'
+  return skin === 'royal-codex'
     ? { ...framing, treatment: 'codex-ink-wash' }
     : framing
 }
@@ -402,16 +415,15 @@ export function isRoleSkinAvailable(
   roleCode: string,
   skin: RoleSkinId,
 ): boolean {
-  return roleCode !== 'shadow_merlin' || skin === 'classic-tabletop'
+  return Object.prototype.hasOwnProperty.call(ROLE_ART[skin], roleCode)
 }
 
 export function roleArtwork(
   roleCode: string,
   skin: RoleSkinId,
 ): string | null {
-  const artworkSkin = roleCode === 'shadow_merlin' ? 'classic-tabletop' : skin
-  if (!Object.prototype.hasOwnProperty.call(ROLE_ART[artworkSkin], roleCode)) {
+  if (!Object.prototype.hasOwnProperty.call(ROLE_ART[skin], roleCode)) {
     return null
   }
-  return ROLE_ART[artworkSkin][roleCode as AvalonRoleCode] ?? null
+  return ROLE_ART[skin][roleCode as AvalonRoleCode] ?? null
 }

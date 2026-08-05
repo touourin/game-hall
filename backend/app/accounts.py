@@ -49,6 +49,9 @@ AVALON_ROLE_SKIN_ROLES = (
 )
 AVALON_ROLE_SKIN_UPGRADE_WINS = 2
 AVALON_ROLE_SKIN_ULTIMATE_WINS = 5
+# 2026-08-03 00:00 through 2026-08-10 00:00 in Asia/Shanghai (UTC+8).
+AVALON_ROLE_SKIN_FREE_WEEK_START = datetime(2026, 8, 2, 16, 0, 0)
+AVALON_ROLE_SKIN_FREE_WEEK_END = datetime(2026, 8, 9, 16, 0, 0)
 GAME_NAMES = {
     "avalon": "阿瓦隆",
     "gomoku": "五子棋",
@@ -1012,8 +1015,19 @@ class AccountStore:
             for index, row in enumerate(rows, start=1)
         ]
 
-    def avalon_role_skin_progress(self, account_id: str) -> dict[str, Any]:
+    def avalon_role_skin_progress(
+        self,
+        account_id: str,
+        *,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
         """Return server-authoritative, ranked Avalon wins by skin role family."""
+        current_time = now or self._now()
+        event_all_unlocked = (
+            AVALON_ROLE_SKIN_FREE_WEEK_START
+            <= current_time
+            < AVALON_ROLE_SKIN_FREE_WEEK_END
+        )
         self.initialize()
         with self.engine.connect() as connection:
             created_at = connection.execute(
@@ -1057,15 +1071,21 @@ class AccountStore:
 
         return {
             "legacyAllUnlocked": legacy_all_unlocked,
+            "eventAllUnlocked": event_all_unlocked,
+            "eventEndsAt": self._iso_datetime(
+                AVALON_ROLE_SKIN_FREE_WEEK_END
+            ),
             "rankedOnly": True,
             "upgradeWinsRequired": AVALON_ROLE_SKIN_UPGRADE_WINS,
             "ultimateWinsRequired": AVALON_ROLE_SKIN_ULTIMATE_WINS,
             "roles": {
                 role: {
                     "wins": role_wins,
-                    "upgradeUnlocked": legacy_all_unlocked
+                    "upgradeUnlocked": event_all_unlocked
+                    or legacy_all_unlocked
                     or role_wins >= AVALON_ROLE_SKIN_UPGRADE_WINS,
-                    "ultimateUnlocked": legacy_all_unlocked
+                    "ultimateUnlocked": event_all_unlocked
+                    or legacy_all_unlocked
                     or role_wins >= AVALON_ROLE_SKIN_ULTIMATE_WINS,
                 }
                 for role, role_wins in wins.items()

@@ -6,6 +6,7 @@ import RoleSkinLoadoutPicker from './RoleSkinLoadoutPicker.vue'
 function roles(): RoleSkinLoadoutRoleOption[] {
   return [
     '梅林',
+    '暗影梅林',
     '派西维尔',
     '亚瑟的忠臣',
     '刺客',
@@ -16,6 +17,7 @@ function roles(): RoleSkinLoadoutRoleOption[] {
   ].map((name, index) => ({
     code: [
       'merlin',
+      'shadow_merlin',
       'percival',
       'loyal_servant',
       'assassin',
@@ -25,12 +27,13 @@ function roles(): RoleSkinLoadoutRoleOption[] {
       'minion',
     ][index]!,
     name,
-    group: index < 3 ? '亚瑟阵营' : '莫德雷德阵营',
-    wins: index === 0 ? 2 : 0,
+    group: index < 4 ? '亚瑟阵营' : '莫德雷德阵营',
+    wins: index < 2 ? 2 : 0,
     currentSkinName: '经典桌游',
     currentArtwork: '/classic.webp',
     currentFraming: { scale: 1, originXPercent: 50, originYPercent: 50 },
     legacyAllUnlocked: false,
+    eventAllUnlocked: false,
     upgradeWinsRequired: 2,
     ultimateWinsRequired: 5,
     choices: [
@@ -51,8 +54,8 @@ function roles(): RoleSkinLoadoutRoleOption[] {
         tier: '升级',
         artwork: '/dark.webp',
         framing: { scale: 1, originXPercent: 50, originYPercent: 50 },
-        unlocked: index === 0,
-        remainingWins: index === 0 ? 0 : 2,
+        unlocked: index < 2,
+        remainingWins: index < 2 ? 0 : 2,
       },
       {
         id: 'grail-myth',
@@ -73,10 +76,11 @@ describe('RoleSkinLoadoutPicker', () => {
     document.body.innerHTML = ''
   })
 
-  it('shows all eight independently configurable roles', () => {
+  it('shows all nine independently configurable roles', () => {
     const wrapper = mount(RoleSkinLoadoutPicker, { props: { roles: roles() } })
 
-    expect(wrapper.findAll('[data-role-skin-role]')).toHaveLength(8)
+    expect(wrapper.findAll('[data-role-skin-role]')).toHaveLength(9)
+    expect(wrapper.text()).toContain('暗影梅林与梅林共享解锁进度')
     expect(wrapper.text()).toContain('心怀异念之臣与忠臣共享')
     expect(wrapper.get('[data-role-skin-role="merlin"]').text()).toContain(
       '升级 2/2',
@@ -113,5 +117,19 @@ describe('RoleSkinLoadoutPicker', () => {
 
     expect(wrapper.emitted('select')).toBeUndefined()
     expect(document.body.textContent).toContain('再用该角色赢 2 局')
+  })
+
+  it('shows the free-week message while every skin is available', async () => {
+    const eventRoles = roles().map((role) => ({
+      ...role,
+      eventAllUnlocked: true,
+      choices: role.choices.map((choice) => ({ ...choice, unlocked: true })),
+    }))
+    const wrapper = mount(RoleSkinLoadoutPicker, { props: { roles: eventRoles } })
+
+    expect(wrapper.text()).toContain('本周限时开放')
+    expect(wrapper.text()).toContain('全部皮肤可用')
+    await wrapper.get('[data-role-skin-role="merlin"]').trigger('click')
+    expect(document.body.textContent).toContain('8 月 10 日 00:00')
   })
 })

@@ -29,6 +29,8 @@ function roleSkinProgressResponse(legacyAllUnlocked = true): Response {
     ok: true,
     progress: {
       legacyAllUnlocked,
+      eventAllUnlocked: false,
+      eventEndsAt: null,
       rankedOnly: true,
       upgradeWinsRequired: 2,
       ultimateWinsRequired: 5,
@@ -361,7 +363,10 @@ describe('ArcadeRoom', () => {
     expect(wrapper.find('.game-page').exists()).toBe(false)
     expect(wrapper.get('.arcade-player-strip').text()).toContain('AI玩家 1')
     expect(wrapper.get('.role-skin-loadout').text()).toContain('开局后锁定')
-    expect(wrapper.findAll('[data-role-skin-role]')).toHaveLength(8)
+    expect(wrapper.findAll('[data-role-skin-role]')).toHaveLength(9)
+    expect(wrapper.get('[data-role-skin-role="shadow_merlin"]').text()).toContain(
+      '暗影梅林',
+    )
     expect(wrapper.findAll('.exit-room-trigger')).toHaveLength(1)
     expect(
       wrapper.find('.room-page-navigation .exit-room-trigger').exists(),
@@ -418,6 +423,29 @@ describe('ArcadeRoom', () => {
     await flushPromises()
 
     expect(wrapper.getComponent(AvalonTable).props('roleSkin')).toBe('royal-codex')
+  })
+
+  it('uses the independent shadow Merlin selection in play', async () => {
+    rememberAccessToken('access-token')
+    rememberAccountToken('account-token')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(roleSkinProgressResponse()))
+    const loadout = defaultRoleSkinLoadout()
+    loadout.merlin = 'classic-tabletop'
+    loadout.shadow_merlin = 'grail-myth'
+    rememberRoleSkinLoadout('account-1', loadout)
+    const room = avalonSnapshot('role_reveal')
+    const role = room.game.self.role
+    if (role) {
+      role.code = 'shadow_merlin'
+      role.label = '暗影梅林'
+    }
+    const wrapper = shallowMount(ArcadeRoom, {
+      props: { snapshot: room },
+      global: { plugins: [createPinia()] },
+    })
+    await flushPromises()
+
+    expect(wrapper.getComponent(AvalonTable).props('roleSkin')).toBe('grail-myth')
   })
 
   it('balances a seven-player Avalon lobby instead of leaving one orphan card', () => {

@@ -89,12 +89,12 @@ describe('Avalon role skin artwork framing', () => {
     expect(roleArtworkFraming('minion', 'grail-myth').scale).toBe(1.1)
   })
 
-  it('uses the same framing data in the eight-role preview model', () => {
+  it('uses the same framing data in the nine-role preview model', () => {
     const roles = ROLE_SKIN_ROLES.map((role) => ({
       ...role,
       framing: roleArtworkFraming(role.code, 'grail-myth'),
     }))
-    expect(roles).toHaveLength(8)
+    expect(roles).toHaveLength(9)
     expect(roles.find((role) => role.code === 'merlin')?.framing.scale).toBe(1)
     expect(roles.find((role) => role.code === 'morgana')?.framing.scale).toBe(1.1)
   })
@@ -113,28 +113,34 @@ describe('Avalon role skin artwork framing', () => {
     expect(roleSkinRoleCode('unknown')).toBeNull()
   })
 
-  it('keeps shadow Merlin on its dedicated classic artwork', () => {
-    const classicShadowMerlin = roleArtwork(
-      'shadow_merlin',
-      'classic-tabletop',
-    )
-    expect(classicShadowMerlin).not.toBe(
-      roleArtwork('merlin', 'classic-tabletop'),
-    )
+  it('uses dedicated shadow Merlin artwork in every skin family', () => {
+    const artworks = ROLE_SKINS.map((skin) => (
+      roleArtwork('shadow_merlin', skin.id)
+    ))
+    expect(new Set(artworks)).toHaveLength(ROLE_SKINS.length)
     for (const skin of ROLE_SKINS) {
-      expect(roleArtwork('shadow_merlin', skin.id)).toBe(
-        classicShadowMerlin,
+      expect(roleArtwork('shadow_merlin', skin.id)).not.toBe(
+        roleArtwork('merlin', skin.id),
       )
-      expect(isRoleSkinAvailable('shadow_merlin', skin.id)).toBe(
-        skin.id === 'classic-tabletop',
-      )
+      expect(isRoleSkinAvailable('shadow_merlin', skin.id)).toBe(true)
     }
-    expect(roleSkinRoleCode('shadow_merlin')).toBeNull()
+    expect(roleSkinRoleCode('shadow_merlin')).toBe('shadow_merlin')
   })
 
-  it('stores an independent eight-role loadout per account', () => {
+  it('preserves the royal-codex frame around shadow Merlin', () => {
+    expect(roleArtworkFraming('shadow_merlin', 'royal-codex')).toEqual({
+      scale: 1,
+      originXPercent: 50,
+      originYPercent: 50,
+      preserveFrame: true,
+      treatment: 'codex-ink-wash',
+    })
+  })
+
+  it('stores an independent nine-role loadout per account', () => {
     const loadout = defaultRoleSkinLoadout()
     loadout.merlin = 'dark-chronicle'
+    loadout.shadow_merlin = 'stained-glass'
     loadout.assassin = 'grail-myth'
 
     rememberRoleSkinLoadout('account-a', loadout)
@@ -145,11 +151,22 @@ describe('Avalon role skin artwork framing', () => {
     )
   })
 
-  it('migrates the previous whole-set preference into all eight roles', () => {
+  it('migrates the previous whole-set preference into all nine roles', () => {
     localStorage.setItem(ROLE_SKIN_STORAGE_KEY, 'stained-glass')
 
     expect(storedRoleSkinLoadout('legacy-account')).toEqual(
       defaultRoleSkinLoadout('stained-glass'),
+    )
+  })
+
+  it('adds shadow Merlin to an existing eight-role loadout', () => {
+    const legacyLoadout = defaultRoleSkinLoadout('classic-tabletop')
+    legacyLoadout.merlin = 'royal-codex'
+    delete (legacyLoadout as Partial<typeof legacyLoadout>).shadow_merlin
+    rememberRoleSkinLoadout('legacy-account', legacyLoadout)
+
+    expect(storedRoleSkinLoadout('legacy-account').shadow_merlin).toBe(
+      'royal-codex',
     )
   })
 

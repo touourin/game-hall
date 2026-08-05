@@ -4,6 +4,8 @@ import pytest
 from sqlalchemy import update
 
 from backend.app.accounts import (
+    AVALON_ROLE_SKIN_FREE_WEEK_END,
+    AVALON_ROLE_SKIN_FREE_WEEK_START,
     AVALON_ROLE_SKIN_PROGRESSION_START,
     AVATAR_PRESET_IDS,
     AccountError,
@@ -201,7 +203,10 @@ def test_existing_accounts_keep_every_avalon_role_skin(tmp_path):
             )
         )
 
-    progress = store.avalon_role_skin_progress(account.id)
+    progress = store.avalon_role_skin_progress(
+        account.id,
+        now=AVALON_ROLE_SKIN_FREE_WEEK_END,
+    )
 
     assert progress["legacyAllUnlocked"] is True
     assert all(
@@ -245,7 +250,10 @@ def test_new_accounts_unlock_role_skins_from_ranked_family_wins(tmp_path):
         ranked=False,
     )
 
-    progress = store.avalon_role_skin_progress(account.id)
+    progress = store.avalon_role_skin_progress(
+        account.id,
+        now=AVALON_ROLE_SKIN_FREE_WEEK_END,
+    )
     loyal = progress["roles"]["loyal_servant"]
     assert progress["legacyAllUnlocked"] is False
     assert progress["rankedOnly"] is True
@@ -264,11 +272,39 @@ def test_new_accounts_unlock_role_skins_from_ranked_family_wins(tmp_path):
             role="loyal_servant",
         )
 
-    completed = store.avalon_role_skin_progress(account.id)["roles"][
-        "loyal_servant"
-    ]
+    completed = store.avalon_role_skin_progress(
+        account.id,
+        now=AVALON_ROLE_SKIN_FREE_WEEK_END,
+    )["roles"]["loyal_servant"]
     assert completed["wins"] == 5
     assert completed["ultimateUnlocked"] is True
+
+
+def test_everyone_can_use_every_avalon_role_skin_during_free_week(tmp_path):
+    store = AccountStore(tmp_path / "role-skin-free-week.sqlite3")
+    account, _ = store.register("free_week_skin", "secret123", "本周玩家")
+
+    progress = store.avalon_role_skin_progress(
+        account.id,
+        now=AVALON_ROLE_SKIN_FREE_WEEK_START + timedelta(days=2),
+    )
+
+    assert progress["eventAllUnlocked"] is True
+    assert progress["eventEndsAt"] == "2026-08-09T16:00:00+00:00"
+    assert all(
+        role["upgradeUnlocked"] and role["ultimateUnlocked"]
+        for role in progress["roles"].values()
+    )
+
+    after_event = store.avalon_role_skin_progress(
+        account.id,
+        now=AVALON_ROLE_SKIN_FREE_WEEK_END,
+    )
+    assert after_event["eventAllUnlocked"] is False
+    assert all(
+        not role["upgradeUnlocked"] and not role["ultimateUnlocked"]
+        for role in after_event["roles"].values()
+    )
 
 
 def test_completed_match_is_saved_once_with_personal_history(tmp_path):
