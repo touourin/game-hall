@@ -3,6 +3,7 @@ import { storedAccountToken } from './account'
 import {
   ROLE_SKINS,
   ROLE_SKIN_ROLES,
+  isRoleSkinAvailable,
   roleSkinRoleCode,
   type RoleSkinId,
   type RoleSkinRoleCode,
@@ -43,7 +44,8 @@ export function isRoleSkinUnlocked(
   skinId: RoleSkinId,
 ): boolean {
   const skin = ROLE_SKINS.find((item) => item.id === skinId)
-  if (!skin || skin.tier === '基础') return Boolean(skin)
+  if (!skin || !isRoleSkinAvailable(roleCode, skinId)) return false
+  if (skin.tier === '基础') return true
   if (progress.legacyAllUnlocked) return true
   const family = roleSkinRoleCode(roleCode)
   if (!family) return false

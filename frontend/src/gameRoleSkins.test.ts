@@ -4,6 +4,7 @@ import {
   ROLE_SKIN_STORAGE_KEY,
   clearRoleSkinLoadoutLock,
   defaultRoleSkinLoadout,
+  isRoleSkinAvailable,
   lockRoleSkinLoadout,
   rememberRoleSkinLoadout,
   roleArtwork,
@@ -112,13 +113,23 @@ describe('Avalon role skin artwork framing', () => {
     expect(roleSkinRoleCode('unknown')).toBeNull()
   })
 
-  it('maps shadow Merlin into the Merlin skin family', () => {
+  it('keeps shadow Merlin on its dedicated classic artwork', () => {
+    const classicShadowMerlin = roleArtwork(
+      'shadow_merlin',
+      'classic-tabletop',
+    )
+    expect(classicShadowMerlin).not.toBe(
+      roleArtwork('merlin', 'classic-tabletop'),
+    )
     for (const skin of ROLE_SKINS) {
       expect(roleArtwork('shadow_merlin', skin.id)).toBe(
-        roleArtwork('merlin', skin.id),
+        classicShadowMerlin,
+      )
+      expect(isRoleSkinAvailable('shadow_merlin', skin.id)).toBe(
+        skin.id === 'classic-tabletop',
       )
     }
-    expect(roleSkinRoleCode('shadow_merlin')).toBe('merlin')
+    expect(roleSkinRoleCode('shadow_merlin')).toBeNull()
   })
 
   it('stores an independent eight-role loadout per account', () => {

@@ -37,6 +37,21 @@ describe('Avalon role skin progression', () => {
     ).toBe(true)
   })
 
+  it('offers only the classic skin to shadow Merlin for now', () => {
+    const progress = emptyAvalonRoleSkinProgress()
+    progress.legacyAllUnlocked = true
+
+    expect(
+      isRoleSkinUnlocked(progress, 'shadow_merlin', 'classic-tabletop'),
+    ).toBe(true)
+    expect(
+      isRoleSkinUnlocked(progress, 'shadow_merlin', 'dark-chronicle'),
+    ).toBe(false)
+    expect(
+      isRoleSkinUnlocked(progress, 'shadow_merlin', 'grail-myth'),
+    ).toBe(false)
+  })
+
   it('keeps every style available to legacy accounts', () => {
     const progress = emptyAvalonRoleSkinProgress()
     progress.legacyAllUnlocked = true

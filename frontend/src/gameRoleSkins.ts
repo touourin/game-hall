@@ -7,6 +7,7 @@ import classicMordred from './assets/avalon/role-skins/classic-tabletop/roles/mo
 import classicMorgana from './assets/avalon/role-skins/classic-tabletop/roles/morgana.webp'
 import classicOberon from './assets/avalon/role-skins/classic-tabletop/roles/oberon.webp'
 import classicPercival from './assets/avalon/role-skins/classic-tabletop/roles/percival.webp'
+import classicShadowMerlin from './assets/avalon/role-skins/classic-tabletop/roles/shadow-merlin.webp'
 import darkPreview from './assets/avalon/role-skins/dark-chronicle/preview.webp'
 import darkAssassin from './assets/avalon/role-skins/dark-chronicle/roles/assassin.webp'
 import darkLoyalServant from './assets/avalon/role-skins/dark-chronicle/roles/loyal-servant.webp'
@@ -137,13 +138,13 @@ export const ROLE_SKINS: Array<{
   },
 ]
 
-const ROLE_ART: Record<RoleSkinId, Record<AvalonRoleCode, string>> = {
+const ROLE_ART: Record<RoleSkinId, Partial<Record<AvalonRoleCode, string>>> = {
   'classic-tabletop': {
     merlin: classicMerlin,
     percival: classicPercival,
     loyal_servant: classicLoyalServant,
     dissenting_courtier: classicLoyalServant,
-    shadow_merlin: classicMerlin,
+    shadow_merlin: classicShadowMerlin,
     assassin: classicAssassin,
     morgana: classicMorgana,
     mordred: classicMordred,
@@ -155,7 +156,6 @@ const ROLE_ART: Record<RoleSkinId, Record<AvalonRoleCode, string>> = {
     percival: darkPercival,
     loyal_servant: darkLoyalServant,
     dissenting_courtier: darkLoyalServant,
-    shadow_merlin: darkMerlin,
     assassin: darkAssassin,
     morgana: darkMorgana,
     mordred: darkMordred,
@@ -167,7 +167,6 @@ const ROLE_ART: Record<RoleSkinId, Record<AvalonRoleCode, string>> = {
     percival: stainedPercival,
     loyal_servant: stainedLoyalServant,
     dissenting_courtier: stainedLoyalServant,
-    shadow_merlin: stainedMerlin,
     assassin: stainedAssassin,
     morgana: stainedMorgana,
     mordred: stainedMordred,
@@ -179,7 +178,6 @@ const ROLE_ART: Record<RoleSkinId, Record<AvalonRoleCode, string>> = {
     percival: codexPercival,
     loyal_servant: codexLoyalServant,
     dissenting_courtier: codexLoyalServant,
-    shadow_merlin: codexMerlin,
     assassin: codexAssassin,
     morgana: codexMorgana,
     mordred: codexMordred,
@@ -191,7 +189,6 @@ const ROLE_ART: Record<RoleSkinId, Record<AvalonRoleCode, string>> = {
     percival: grailPercival,
     loyal_servant: grailLoyalServant,
     dissenting_courtier: grailLoyalServant,
-    shadow_merlin: grailMerlin,
     assassin: grailAssassin,
     morgana: grailMorgana,
     mordred: grailMordred,
@@ -309,7 +306,6 @@ export function defaultRoleSkinLoadout(
 
 export function roleSkinRoleCode(roleCode: string): RoleSkinRoleCode | null {
   if (roleCode === 'dissenting_courtier') return 'loyal_servant'
-  if (roleCode === 'shadow_merlin') return 'merlin'
   return ROLE_SKIN_ROLES.some((role) => role.code === roleCode)
     ? roleCode as RoleSkinRoleCode
     : null
@@ -391,22 +387,31 @@ export function roleArtworkFraming(
   roleCode: string,
   skin: RoleSkinId,
 ): RoleArtworkFraming {
-  if (!Object.prototype.hasOwnProperty.call(ROLE_ART[skin], roleCode)) {
+  const artworkSkin = roleCode === 'shadow_merlin' ? 'classic-tabletop' : skin
+  if (!Object.prototype.hasOwnProperty.call(ROLE_ART[artworkSkin], roleCode)) {
     return DEFAULT_ROLE_ARTWORK_FRAMING
   }
-  const framing = ROLE_ARTWORK_FRAMING[skin]?.[roleCode as AvalonRoleCode]
+  const framing = ROLE_ARTWORK_FRAMING[artworkSkin]?.[roleCode as AvalonRoleCode]
     ?? DEFAULT_ROLE_ARTWORK_FRAMING
-  return skin === 'royal-codex'
+  return artworkSkin === 'royal-codex'
     ? { ...framing, treatment: 'codex-ink-wash' }
     : framing
+}
+
+export function isRoleSkinAvailable(
+  roleCode: string,
+  skin: RoleSkinId,
+): boolean {
+  return roleCode !== 'shadow_merlin' || skin === 'classic-tabletop'
 }
 
 export function roleArtwork(
   roleCode: string,
   skin: RoleSkinId,
 ): string | null {
-  if (!Object.prototype.hasOwnProperty.call(ROLE_ART[skin], roleCode)) {
+  const artworkSkin = roleCode === 'shadow_merlin' ? 'classic-tabletop' : skin
+  if (!Object.prototype.hasOwnProperty.call(ROLE_ART[artworkSkin], roleCode)) {
     return null
   }
-  return ROLE_ART[skin][roleCode as AvalonRoleCode]
+  return ROLE_ART[artworkSkin][roleCode as AvalonRoleCode] ?? null
 }
