@@ -645,7 +645,7 @@ describe('AvalonTable role reveal', () => {
     })
   })
 
-  it('submits the two anonymous shadow-council choices together', async () => {
+  it('submits the forced shadow-council target ballot', async () => {
     const snapshot = roleRevealSnapshot(1)
     snapshot.phase = 'exile_council_ballot'
     snapshot.settings.mode = 'court_undercurrent'
@@ -663,13 +663,12 @@ describe('AvalonTable role reveal', () => {
       global: { plugins: [pinia] },
     })
 
-    expect(wrapper.text()).toContain('祓影议庭提案')
-    expect(wrapper.text()).toContain('预先锁定祓影目标')
-    expect(wrapper.text()).toContain('启庭表决')
+    expect(wrapper.text()).toContain('祓影议庭强制开启')
+    expect(wrapper.text()).toContain('议庭已经开启')
     expect(wrapper.text()).toContain('提交祓影票')
+    expect(wrapper.text()).not.toContain('启庭表决')
     expect(wrapper.text()).not.toContain('裁影')
     expect(wrapper.text()).toContain('系统不会提示你的票是否有效')
-    await wrapper.get('.decision-button.approve').trigger('click')
     await wrapper.get('.player-grid .player-tile').trigger('click')
     await wrapper.get('.primary-button').trigger('click')
 

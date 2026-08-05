@@ -633,17 +633,7 @@ def submit_shadow_ballots(
         engine.submit_exile_council_ballot(
             room,
             player.id,
-            open_council=(
-                open_council
-                if player.role
-                in {
-                    Role.MERLIN,
-                    Role.PERCIVAL,
-                    Role.LOYAL_SERVANT,
-                    Role.DISSENTING_COURTIER,
-                }
-                else not open_council
-            ),
+            open_council=open_council,
             target_id=target_id,
         )
 
@@ -688,7 +678,7 @@ def test_five_rejected_proposals_can_trigger_the_second_failure_council():
     assert room.phase == Phase.EXILE_COUNCIL_BALLOT
 
 
-def test_only_fixed_good_roles_decide_whether_council_opens():
+def test_second_failure_forces_council_open_even_if_everyone_votes_against():
     engine, room = start_shadow_room(7)
     trigger_shadow_council(engine, room)
     shadow = next(
@@ -702,9 +692,10 @@ def test_only_fixed_good_roles_decide_whether_council_opens():
         target_id=shadow.id,
     )
 
-    assert room.exile_council_opened is False
-    assert room.phase == Phase.TEAM_BUILDING
-    assert room.mission_index == 2
+    assert room.exile_council_opened is True
+    assert set(room.exile_council_open_votes.values()) == {True}
+    assert room.phase == Phase.EXILE_COUNCIL_ASSASSINATION_DECISION
+    assert room.mission_index == 1
 
 
 def test_correct_unique_exile_gives_good_the_win_without_conversion():

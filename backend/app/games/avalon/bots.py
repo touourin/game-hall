@@ -92,7 +92,7 @@ def advance_ai_players(room: Room, engine: GameEngine) -> None:
             engine.submit_exile_council_ballot(
                 room,
                 player.id,
-                open_council=bool(engine.rng.randrange(2)),
+                open_council=True,
                 target_id=engine.rng.choice(room.players).id,
             )
             continue

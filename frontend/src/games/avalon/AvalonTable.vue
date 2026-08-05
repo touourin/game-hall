@@ -43,7 +43,6 @@ const assassinTargetId = ref<string | null>(null)
 const daggerTargetId = ref<string | null>(null)
 const dissentingTargetId = ref<string | null>(null)
 const earlyAssassinTargetId = ref<string | null>(null)
-const exileCouncilOpenChoice = ref<boolean | null>(null)
 const exileCouncilTargetId = ref<string | null>(null)
 const councilAssassinateChoice = ref<boolean | null>(null)
 const councilAssassinationTargetId = ref<string | null>(null)
@@ -197,7 +196,6 @@ watch(
     daggerTargetId.value = null
     dissentingTargetId.value = null
     earlyAssassinTargetId.value = null
-    exileCouncilOpenChoice.value = null
     exileCouncilTargetId.value = null
     councilAssassinateChoice.value = null
     councilAssassinationTargetId.value = null
@@ -325,12 +323,9 @@ async function earlyAssassinate() {
 }
 
 async function submitExileCouncilBallot() {
-  if (
-    exileCouncilOpenChoice.value === null ||
-    !exileCouncilTargetId.value
-  ) return
+  if (!exileCouncilTargetId.value) return
   await room.action('exile_council_ballot', {
-    open_council: exileCouncilOpenChoice.value,
+    open_council: true,
     target_id: exileCouncilTargetId.value,
   })
 }
@@ -799,8 +794,8 @@ function selfRoleArtworkFraming() {
       <div class="assassination-hero court-hero">
         <span><Crown :size="29" /></span>
         <p>邪恶已经取得两次任务失败</p>
-        <h2>祓影议庭提案</h2>
-        <strong>所有人匿名同时决定是否启庭，并预先锁定祓影目标</strong>
+        <h2>祓影议庭强制开启</h2>
+        <strong>所有人秘密锁定祓影目标，选票提交后不能修改</strong>
       </div>
 
       <button class="surface final-council-chat" type="button" @click="openSharedChat">
@@ -816,40 +811,13 @@ function selfRoleArtworkFraming() {
         <div class="surface court-secret-note">
           <Eye :size="19" />
           <div>
-            <strong>两项选择将同时锁定</strong>
+            <strong>议庭已经开启，只需提交祓影票</strong>
             <small>只有忠臣、梅林、派西维尔和心怀异念之臣的票有效；系统不会提示你的票是否有效</small>
           </div>
         </div>
 
         <div class="selection-counter">
-          <span>第一项 · 启庭表决</span>
-          <strong>{{ exileCouncilOpenChoice === null ? '未选择' : '已选择' }}</strong>
-        </div>
-        <div class="vote-actions">
-          <button
-            class="decision-button reject"
-            :class="{ selected: exileCouncilOpenChoice === false }"
-            type="button"
-            @click="exileCouncilOpenChoice = false"
-          >
-            <X :size="25" />
-            <strong>反对开启</strong>
-            <span>议庭不开启则继续任务</span>
-          </button>
-          <button
-            class="decision-button approve"
-            :class="{ selected: exileCouncilOpenChoice === true }"
-            type="button"
-            @click="exileCouncilOpenChoice = true"
-          >
-            <Check :size="25" />
-            <strong>赞成开启</strong>
-            <span>平票同样开启议庭</span>
-          </button>
-        </div>
-
-        <div class="selection-counter">
-          <span>第二项 · 提交祓影票</span>
+          <span>提交祓影票</span>
           <strong>{{ exileCouncilTargetId ? '目标锁定' : '未选择' }}</strong>
         </div>
         <div class="player-grid">
@@ -876,16 +844,16 @@ function selfRoleArtworkFraming() {
         <button
           class="primary-button wide-button"
           type="button"
-          :disabled="exileCouncilOpenChoice === null || !exileCouncilTargetId"
+          :disabled="!exileCouncilTargetId"
           @click="submitExileCouncilBallot"
         >
-          匿名提交两项选择 <ChevronRight :size="19" />
+          匿名提交祓影票 <ChevronRight :size="19" />
         </button>
       </template>
       <div v-else class="waiting-card tall">
         <span class="pulse-dot" />
         <strong>你的匿名选票已经锁定</strong>
-        <small>等待全部玩家完成两项选择</small>
+        <small>等待全部玩家完成祓影选择</small>
       </div>
       <p class="center-note">
         已提交 {{ snapshot.shadowMerlin.ballotsSubmitted }} / {{ snapshot.players.length }}
@@ -898,7 +866,7 @@ function selfRoleArtworkFraming() {
     >
       <div class="assassination-hero court-hero">
         <span><Swords :size="29" /></span>
-        <p>有效赞成票大于等于有效反对票</p>
+        <p>累计第二次任务失败，议庭已经强制开启</p>
         <h2>祓影议庭正式开启</h2>
         <strong>刺客重新获得一次刺杀梅林的机会</strong>
       </div>
@@ -1367,21 +1335,16 @@ function selfRoleArtworkFraming() {
           </div>
           <span class="assassination-status">
             {{
-              snapshot.shadowMerlin.councilOpened === false
-                ? '祓影议庭未开启'
-                : snapshot.shadowMerlin.assassinationChosen
-                  ? '刺客发动刺杀'
-                  : snapshot.shadowMerlin.exileSuccess
-                    ? '祓影成功'
-                    : '祓影失败'
+              snapshot.shadowMerlin.assassinationChosen
+                ? '刺客发动刺杀'
+                : snapshot.shadowMerlin.exileSuccess
+                  ? '祓影成功'
+                  : '祓影失败'
             }}
           </span>
         </header>
 
-        <p v-if="snapshot.shadowMerlin.councilOpened === false">
-          有效赞成票少于有效反对票，祓影议庭未开启，游戏继续。
-        </p>
-        <p v-else-if="snapshot.shadowMerlin.assassinationChosen">
+        <p v-if="snapshot.shadowMerlin.assassinationChosen">
           刺客发动刺杀，已锁定的祓影票随即作废；暗影梅林转为好人，刺客最终选择
           <strong>{{ playerLabel(snapshot.shadowMerlin.assassinationTargetId) }}</strong>。
         </p>
@@ -1393,13 +1356,6 @@ function selfRoleArtworkFraming() {
         </p>
 
         <div class="court-candidate-summary">
-          <small
-            v-for="vote in snapshot.shadowMerlin.openVotes"
-            :key="`open-${vote.playerId}`"
-          >
-            {{ playerLabel(vote.playerId) }}：{{ vote.openCouncil ? '赞成' : '反对' }}
-            · {{ vote.effective ? '有效票' : '零票' }}
-          </small>
           <small
             v-for="vote in snapshot.shadowMerlin.targetVotes"
             :key="`target-${vote.playerId}`"

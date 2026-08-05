@@ -281,24 +281,15 @@ class GameEngine:
         if actor_id in room.exile_council_open_votes:
             raise GameRuleError("你已经提交过祓影议庭选票")
 
-        room.exile_council_open_votes[actor_id] = open_council
+        # ``open_council`` is retained in the action contract and history for
+        # compatibility with older clients and saved matches.  The second
+        # failed mission now forces the council to open, so callers cannot
+        # prevent it by submitting ``False``.
+        room.exile_council_open_votes[actor_id] = True
         room.exile_council_target_votes[actor_id] = target_id
         if len(room.exile_council_open_votes) == len(room.players):
-            valid_voters = [
-                player
-                for player in room.players
-                if player.role in EXILE_COUNCIL_VOTING_ROLES
-            ]
-            approvals = sum(
-                room.exile_council_open_votes[player.id]
-                for player in valid_voters
-            )
-            rejections = len(valid_voters) - approvals
-            room.exile_council_opened = approvals >= rejections
-            if room.exile_council_opened:
-                room.phase = Phase.EXILE_COUNCIL_ASSASSINATION_DECISION
-            else:
-                self._advance_to_next_mission(room)
+            room.exile_council_opened = True
+            room.phase = Phase.EXILE_COUNCIL_ASSASSINATION_DECISION
         self._touch(room)
 
     def submit_exile_council_assassination_decision(
