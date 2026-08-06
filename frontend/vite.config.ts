@@ -2,6 +2,8 @@ import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
 
+const backendTarget = process.env.VITE_DEV_BACKEND ?? 'http://127.0.0.1:10618'
+
 export default defineConfig({
   plugins: [vue()],
   resolve: {
@@ -27,9 +29,9 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
-      '/api': 'http://127.0.0.1:10618',
+      '/api': backendTarget,
       '/socket.io': {
-        target: 'http://127.0.0.1:10618',
+        target: backendTarget,
         ws: true,
       },
     },

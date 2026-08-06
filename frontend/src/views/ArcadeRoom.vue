@@ -66,6 +66,7 @@ import {
   type GameSkinId,
 } from '../gameSkins'
 import DoudizhuTable from '../games/doudizhu/DoudizhuTable.vue'
+import DepartedSuspicionTable from '../games/departed_suspicion/DepartedSuspicionTable.vue'
 import GoBoard from '../games/go/GoBoard.vue'
 import GomokuBoard from '../games/gomoku/GomokuBoard.vue'
 import XiangqiBoard from '../games/xiangqi/XiangqiBoard.vue'
@@ -217,6 +218,8 @@ const avalonPhaseLabel = computed(() => {
 const roomHeaderEyebrow = computed(() => {
   const suffix = props.snapshot.gameKey === 'avalon'
     ? ` · ${avalonSnapshot.value?.settings.mode === 'court_undercurrent' ? '王庭暗流' : '标准模式'} · ${avalonPhaseLabel.value}`
+    : props.snapshot.gameKey === 'departed_suspicion'
+      ? ` · ${props.snapshot.options.equipmentSet === 'base' ? '基础装备局' : '扩展装备局'}`
     : props.snapshot.gameKey === 'junqi'
     ? ` · ${props.snapshot.options.mode === 'flip' ? '翻棋军旗' : '暗军旗'}`
     : props.snapshot.gameKey === 'reaction'
@@ -426,7 +429,7 @@ function openSharedChat() {
   <main
     class="arcade-room page-container adaptive-layout-root"
     :class="{
-      'arcade-room--wide': ['avalon', 'poker', 'doudizhu', 'junqi', 'minesweeper', 'monopoly'].includes(snapshot.gameKey),
+      'arcade-room--wide': ['avalon', 'departed_suspicion', 'poker', 'doudizhu', 'junqi', 'minesweeper', 'monopoly'].includes(snapshot.gameKey),
       'arcade-room--active': snapshot.phase !== 'lobby',
       'arcade-room--board-game': ['gomoku', 'xiangqi', 'go', 'junqi'].includes(snapshot.gameKey),
     }"
@@ -663,6 +666,7 @@ function openSharedChat() {
       </div>
 
       <GomokuBoard v-if="snapshot.gameKey === 'gomoku'" :snapshot="snapshot" />
+      <DepartedSuspicionTable v-else-if="snapshot.gameKey === 'departed_suspicion'" :snapshot="snapshot" />
       <XiangqiBoard v-else-if="snapshot.gameKey === 'xiangqi'" :snapshot="snapshot" />
       <GoBoard v-else-if="snapshot.gameKey === 'go'" :snapshot="snapshot" />
       <PokerTable v-else-if="snapshot.gameKey === 'poker'" :snapshot="snapshot" />

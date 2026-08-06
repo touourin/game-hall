@@ -1,5 +1,6 @@
 export type BuiltinArcadeGameKey =
   | 'avalon'
+  | 'departed_suspicion'
   | 'gomoku'
   | 'xiangqi'
   | 'go'

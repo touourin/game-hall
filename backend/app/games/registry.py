@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from backend.app.games.base import GameEngine
 from backend.app.games.avalon.arcade import AvalonEngine
+from backend.app.games.departed_suspicion import DepartedSuspicionEngine
 from backend.app.games.doudizhu import DoudizhuEngine
 from backend.app.games.go import GoEngine
 from backend.app.games.gomoku import GomokuEngine
@@ -19,6 +20,7 @@ from backend.app.games.plugins import discover_game_plugins, plugin_catalog
 def build_engine_registry() -> dict[str, GameEngine]:
     engines: list[GameEngine] = [
         AvalonEngine(),
+        DepartedSuspicionEngine(),
         GomokuEngine(),
         XiangqiEngine(),
         GoEngine(),
@@ -45,6 +47,12 @@ BUILTIN_GAME_CATALOG = [
         "name": "阿瓦隆",
         "players": "5–10 人",
         "description": "身份推理与团队博弈",
+    },
+    {
+        "key": "departed_suspicion",
+        "name": "无间疑云",
+        "players": "4–8 人",
+        "description": "调查底细、装备应变并找出敌方领袖",
     },
     {
         "key": "gomoku",

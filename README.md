@@ -7,6 +7,7 @@
 ### 游戏大厅
 
 - 阿瓦隆、五子棋、中国象棋、围棋、德州扑克、斗地主、军旗、反应挑战、舒尔特方格、扫雷、汉诺塔和大富翁统一入口
+- 无间疑云：4–8人隐藏身份对局，服务端私密底细视图、调查记忆、枪械瞄准、领袖受伤与顺序装备响应；内置33张装备资料库，其中32张可在无卧底身份牌时使用
 - 内置游戏与第三方插件游戏共用个人账号、登录会话和三套全局界面皮肤：墨玉会所、午夜铬光和象牙棋院；界面皮肤与棋盘、扑克皮肤相互独立
 - 账号名固定用于登录；游戏昵称统一用于大厅、对局、聊天与排行榜，设置中可每 30 天修改一次，旧昵称仍归原账号保留
 - 可使用 7 天有效的游客席位，无需注册即可创建、加入、主持和完成游戏，并支持断线重连
@@ -206,6 +207,8 @@ docker exec game-hall-mysql sh -c 'exec mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASS
 frontend/src/views/         游戏大厅、通用房间与账号界面
 frontend/src/stores/        通用实时房间状态
 frontend/src/games/avalon/  阿瓦隆专属玩法界面、类型与角色皮肤
+frontend/src/games/departed_suspicion/
+                            无间疑云专属调查桌面与装备交互
 frontend/src/games/gomoku/  五子棋界面
 frontend/src/games/xiangqi/ 中国象棋界面
 frontend/src/games/go/      围棋界面
@@ -222,6 +225,8 @@ frontend/src/games/monopoly/
                             大富翁环形城市棋盘
 backend/app/arcade/         通用房间、实时协议与玩家视图
 backend/app/games/          各游戏独立规则引擎与注册表
+backend/app/games/departed_suspicion/
+                            无间疑云身份、枪械、装备与私有视图规则
 backend/app/accounts.py     共用账号、战绩和排行榜
 backend/app/guests.py       临时游客身份签发与验证
 backend/tests/              规则、安全边界、房间与持久化测试

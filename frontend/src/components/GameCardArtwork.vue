@@ -24,6 +24,14 @@ defineProps<{ gameKey: GameCatalogItem['key'] }>()
       <i>旗</i><b /><em>军令如山</em>
     </span>
 
+    <span v-else-if="gameKey === 'departed_suspicion'" class="suspicion-mini">
+      <i class="badge">探</i>
+      <i class="identity identity-one">?</i>
+      <i class="identity identity-two">?</i>
+      <b class="aim-line" />
+      <em>机密调查</em>
+    </span>
+
     <span v-else-if="gameKey === 'reaction'" class="reaction-mini">
       <i /><b>⚡</b><em>228 ms</em>
     </span>
@@ -75,6 +83,12 @@ defineProps<{ gameKey: GameCatalogItem['key'] }>()
 .junqi-mini b { position: absolute; top: 6px; left: 29px; width: 3px; height: 66px; background: currentColor; box-shadow: 0 0 12px color-mix(in srgb, var(--card-tone) 45%, transparent); transform: rotate(-7deg); }
 .junqi-mini i { position: absolute; z-index: 1; top: 8px; left: 31px; width: 53px; height: 36px; display: grid; place-items: center; clip-path: polygon(0 0,100% 18%,83% 100%,0 82%); color: var(--accent-contrast); background: var(--card-tone); font-family: "Songti SC", serif; font-style: normal; font-weight: 900; transform: rotate(-7deg); }
 .junqi-mini em { position: absolute; bottom: 0; left: 0; color: var(--muted); font-size: 8px; font-style: normal; letter-spacing: .12em; }
+
+.suspicion-mini { position: relative; width: 118px; height: 88px; }
+.suspicion-mini .badge { position: absolute; z-index: 2; top: 15px; left: 38px; width: 42px; aspect-ratio: 1; display: grid; place-items: center; border: 3px double currentColor; border-radius: 50%; background: color-mix(in srgb, var(--card-tone) 13%, var(--surface-elevated)); box-shadow: 0 8px 18px rgba(0,0,0,.34); font-family: "Songti SC", serif; font-style: normal; font-weight: 900; }
+.suspicion-mini .identity { position: absolute; top: 9px; width: 29px; height: 45px; display: grid; place-items: center; border: 1px solid currentColor; border-radius: 5px; background: var(--surface-elevated); font-size: 16px; font-style: normal; font-weight: 900; opacity: .72; }.suspicion-mini .identity-one { left: 5px; transform: rotate(-12deg); }.suspicion-mini .identity-two { right: 5px; transform: rotate(12deg); }
+.suspicion-mini .aim-line { position: absolute; right: 8px; bottom: 20px; left: 8px; height: 1px; background: currentColor; box-shadow: 0 0 9px currentColor; opacity: .5; transform: rotate(-4deg); }.suspicion-mini .aim-line::after { position: absolute; top: -3px; right: -1px; width: 7px; aspect-ratio: 1; border: 1px solid currentColor; border-radius: 50%; content: ''; }
+.suspicion-mini em { position: absolute; right: 0; bottom: 1px; left: 0; color: var(--muted); font-size: 7px; font-style: normal; font-weight: 800; letter-spacing: .18em; text-align: center; }
 
 .reaction-mini { position: relative; width: 92px; aspect-ratio: 1; display: grid; place-items: center; }
 .reaction-mini i,.reaction-mini i::before { position: absolute; inset: 7px; border: 1px solid currentColor; border-radius: 50%; content: ''; opacity: .28; }.reaction-mini i::before { inset: 11px; opacity: .65; }

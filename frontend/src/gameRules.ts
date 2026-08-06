@@ -31,6 +31,13 @@ export function defaultGameRules(
       earlyAssassinationEnabled: false,
     }
   }
+  if (gameKey === 'departed_suspicion') {
+    return {
+      equipmentSet: 'expanded',
+      firstPlayer: 'random',
+      allowGuests: true,
+    }
+  }
   if (gameKey === 'reaction' || gameKey === 'schulte') return {}
   if (gameKey === 'minesweeper') return { difficulty: 'beginner' }
   if (gameKey === 'hanoi') return { discCount: 5 }
@@ -95,6 +102,14 @@ export function gameRuleLabels(
       options.shadowMerlinEnabled
     ) labels.push('暗影梅林扩展')
     return labels
+  }
+  if (gameKey === 'departed_suspicion') {
+    return [
+      '4–8 人基础身份局',
+      options.equipmentSet === 'base' ? '基础16张装备' : '扩展32张可用装备',
+      options.firstPlayer === 'host' ? '房主先手' : '随机先手',
+      options.allowGuests ? '允许游客' : '仅登录玩家',
+    ]
   }
   if (gameKey === 'reaction') return ['三轮测试']
   if (gameKey === 'schulte') return ['5×5 标准挑战', '服务端计时']
