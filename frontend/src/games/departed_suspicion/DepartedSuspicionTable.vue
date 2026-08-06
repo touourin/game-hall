@@ -123,6 +123,7 @@ const showCatalog = ref(false)
 
 const playerById = computed(() => new Map(props.snapshot.players.map(player => [player.id, player])))
 const selfBoard = computed(() => game.value.players.find(board => board.playerId === props.snapshot.self.id) ?? null)
+const selfHiddenCards = computed(() => selfBoard.value?.cards.filter(card => !card.revealed) ?? [])
 const livingBoards = computed(() => game.value.players.filter(board => board.alive))
 const targetBoard = computed(() => game.value.players.find(board => board.seat === actionTargetSeat.value) ?? null)
 const equipmentTargetBoard = computed(() => game.value.players.find(board => board.seat === equipmentTargetSeat.value) ?? null)
@@ -186,18 +187,20 @@ async function submitAction() {
     return
   }
   if (kind === 'equip') {
-    if (actionCardIndex.value === null) return
-    await arcade.action('equip', { cardIndex: actionCardIndex.value })
+    if (selfHiddenCards.value.length && actionCardIndex.value === null) return
+    await arcade.action('equip', actionCardIndex.value === null ? {} : { cardIndex: actionCardIndex.value })
     return
   }
-  if (actionTargetSeat.value === null || actionCardIndex.value === null) return
   if (kind === 'arm') {
+    if (actionTargetSeat.value === null) return
+    if (selfHiddenCards.value.length && actionCardIndex.value === null) return
     await arcade.action('arm', {
-      cardIndex: actionCardIndex.value,
+      ...(actionCardIndex.value === null ? {} : { cardIndex: actionCardIndex.value }),
       targetSeat: actionTargetSeat.value,
     })
     return
   }
+  if (actionTargetSeat.value === null || actionCardIndex.value === null) return
   await arcade.action(kind, {
     targetSeat: actionTargetSeat.value,
     cardIndex: actionCardIndex.value,
@@ -446,8 +449,8 @@ async function useScanner() {
       <header><div><strong>行动台</strong><small>{{ game.actionDone ? '可以调整瞄准并结束回合' : '行动声明后，系统按座位顺序询问装备响应' }}</small></div></header>
       <div v-if="game.legal.canTakeNormalAction" class="action-grid">
         <button type="button" :class="{ active: actionKind === 'investigate' }" @click="chooseAction('investigate')"><Search :size="18" /><span><strong>调查</strong><small>私看一张暗置底细</small></span></button>
-        <button type="button" :class="{ active: actionKind === 'equip' }" @click="chooseAction('equip')"><PackageOpen :size="18" /><span><strong>获取装备</strong><small>公开自己的暗牌作为代价</small></span></button>
-        <button type="button" :class="{ active: actionKind === 'arm' }" @click="chooseAction('arm')"><Crosshair :size="18" /><span><strong>武装</strong><small>公开暗牌、拿枪并瞄准</small></span></button>
+        <button type="button" :class="{ active: actionKind === 'equip' }" @click="chooseAction('equip')"><PackageOpen :size="18" /><span><strong>获取装备</strong><small>若有暗牌，公开一张后抽装备</small></span></button>
+        <button type="button" :class="{ active: actionKind === 'arm' }" @click="chooseAction('arm')"><Crosshair :size="18" /><span><strong>武装</strong><small>若有暗牌先公开，再拿枪瞄准</small></span></button>
         <button type="button" :class="{ active: actionKind === 'shoot' }" @click="chooseAction('shoot')"><Target :size="18" /><span><strong>射击</strong><small>只能射向当前瞄准目标</small></span></button>
       </div>
       <button v-if="game.legal.canTakeExtraInvestigation" type="button" class="extra-action" :class="{ active: actionKind === 'extra_investigate' }" @click="chooseAction('extra_investigate')"><Search :size="16" />钥匙 · 额外调查</button>
@@ -459,9 +462,10 @@ async function useScanner() {
         <label v-if="actionKind === 'investigate' || actionKind === 'extra_investigate'">目标底细
           <select v-model="actionCardIndex"><option :value="null">选择暗置底细</option><option v-for="card in targetBoard?.cards.filter(item => !item.revealed)" :key="card.index" :value="card.index">第{{ card.index + 1 }}张</option></select>
         </label>
-        <label v-if="actionKind === 'equip' || actionKind === 'arm'">公开自己的底细
-          <select v-model="actionCardIndex"><option :value="null">选择暗置底细</option><option v-for="card in selfBoard?.cards.filter(item => !item.revealed)" :key="card.index" :value="card.index">第{{ card.index + 1 }}张 · {{ card.label }}</option></select>
+        <label v-if="(actionKind === 'equip' || actionKind === 'arm') && selfHiddenCards.length">公开自己的底细
+          <select v-model="actionCardIndex"><option :value="null">选择暗置底细</option><option v-for="card in selfHiddenCards" :key="card.index" :value="card.index">第{{ card.index + 1 }}张 · {{ card.label }}</option></select>
         </label>
+        <p v-else-if="actionKind === 'equip' || actionKind === 'arm'" class="action-cost-note">底细已全部公开，本次无需再公开底细。</p>
         <button type="button" class="primary-button" :disabled="!canOperate" @click="submitAction">声明{{ actionKind === 'extra_investigate' ? '额外调查' : actionKind === 'investigate' ? '调查' : actionKind === 'equip' ? '获取装备' : actionKind === 'arm' ? '武装' : '射击' }}</button>
       </div>
 
@@ -556,6 +560,7 @@ async function useScanner() {
 .equipment-actions,.decision-actions,.card-choice-list { display: flex; flex-wrap: wrap; gap: 8px; }.equipment-actions button,.decision-actions button,.card-choice-list button,.catalog-trigger,.extra-action { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--line); border-radius: 9px; padding: 8px 11px; color: var(--text); background: var(--surface-inset); cursor: pointer; }
 .turn-console { display: grid; gap: 12px; }.turn-console > header,.equipment-hand > header { display: flex; justify-content: space-between; gap: 10px; }.turn-console header div,.equipment-hand header div { display: grid; }.turn-console small,.equipment-hand small { color: var(--muted); }.action-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }.action-grid button { min-width: 0; min-height: 68px; display: flex; align-items: center; gap: 9px; border: 1px solid var(--line); border-radius: 10px; padding: 10px; color: var(--text-soft); background: var(--surface-inset); text-align: left; cursor: pointer; }.action-grid button.active,.extra-action.active { border-color: color-mix(in srgb, var(--case-gold) 55%, var(--line)); color: var(--case-gold); background: color-mix(in srgb, var(--case-gold) 9%, var(--surface-inset)); }.action-grid button span { min-width: 0; display: grid; }.action-grid button small { font-size: 8px; line-height: 1.35; }.extra-action { justify-self: start; }
 .action-form,.end-turn-row { display: flex; align-items: end; flex-wrap: wrap; gap: 9px; border-top: 1px solid var(--line); padding-top: 12px; }.end-turn-row { justify-content: flex-end; }.action-form label,.end-turn-row label,.decision-panel label,.suspicion-modal label { min-width: 150px; display: grid; gap: 5px; color: var(--muted); font-size: 9px; font-weight: 800; }.action-form select,.end-turn-row select,.decision-panel select,.suspicion-modal select { min-height: 39px; border: 1px solid var(--line); border-radius: 8px; padding: 0 9px; color: var(--text); background: var(--surface-inset); }
+.action-cost-note { align-self: center; max-width: 250px; margin: 0; color: var(--muted); font-size: 10px; }
 .equipment-hand { display: grid; gap: 10px; }.equipment-hand > header button { border: 0; color: var(--case-gold); background: none; cursor: pointer; }.equipment-hand > article { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--surface-inset); }.equipment-hand article > span,.equipment-number { color: var(--case-gold); font-family: Georgia, serif; font-size: 18px; }.equipment-hand article div { min-width: 0; display: grid; }.equipment-hand article small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.equipment-hand article button { border: 1px solid color-mix(in srgb, var(--case-gold) 35%, var(--line)); border-radius: 8px; padding: 7px 10px; color: var(--case-gold); background: transparent; cursor: pointer; }.equipment-hand article button:disabled { opacity: .35; cursor: not-allowed; }.catalog-trigger { justify-self: center; color: var(--case-gold); }
 .history-panel summary { color: var(--muted); font-size: 10px; font-weight: 800; cursor: pointer; }.history-panel ol { max-height: 190px; margin: 12px 0 0; padding-left: 21px; overflow: auto; color: var(--text-soft); font-size: 10px; line-height: 1.8; }
 .suspicion-modal { position: fixed; z-index: 120; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(2,7,6,.76); backdrop-filter: blur(10px); }.suspicion-modal > section { position: relative; width: min(100%, 510px); max-height: min(88vh, 760px); display: grid; gap: 12px; padding: 22px; overflow: auto; }.suspicion-modal h2 { margin: 0; }.suspicion-modal p { margin: 0; color: var(--muted); line-height: 1.55; }.modal-close { position: absolute; top: 10px; right: 10px; width: 34px; aspect-ratio: 1; display: grid; place-items: center; border: 0; color: var(--muted); background: transparent; cursor: pointer; }.two-column-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }.check-row { display: flex !important; align-items: center; }.check-row input { accent-color: var(--case-gold); }.catalog-modal { width: min(100%, 760px) !important; }.catalog-list { display: grid; gap: 7px; }.catalog-list article { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 9px; border: 1px solid var(--line); border-radius: 9px; padding: 9px; background: var(--surface-inset); }.catalog-list article > span { color: var(--case-gold); font-family: Georgia, serif; }.catalog-list strong small { color: var(--muted); font-weight: 500; }.catalog-list p { margin-top: 3px; font-size: 9px; }.catalog-list em { color: var(--muted); font-size: 8px; font-style: normal; }.catalog-list .unavailable { opacity: .5; }

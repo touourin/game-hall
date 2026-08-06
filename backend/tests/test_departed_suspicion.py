@@ -117,6 +117,33 @@ def test_equip_reveals_a_card_and_draws_without_starting_equipment() -> None:
     assert room.state.action_done is True
 
 
+@pytest.mark.parametrize("action", ["equip", "arm"])
+def test_fully_revealed_player_can_equip_or_arm(action: str) -> None:
+    engine, room = make_room(equipment_set="base")
+    board = room.state.boards[0]
+    for card in board.cards:
+        card.revealed = True
+
+    payload = {"targetSeat": 1} if action == "arm" else {}
+    engine.act(room, room.players[0], action, payload)
+
+    assert room.state.action_done is True
+    if action == "arm":
+        assert board.gun is True
+        assert board.aim_seat == 1
+    else:
+        assert len(board.equipment) == 1
+
+
+@pytest.mark.parametrize("action", ["equip", "arm"])
+def test_hidden_card_is_still_required_as_cost_when_available(action: str) -> None:
+    engine, room = make_room(equipment_set="base")
+    payload = {"targetSeat": 1} if action == "arm" else {}
+
+    with pytest.raises(GameRuleError, match="底细牌"):
+        engine.act(room, room.players[0], action, payload)
+
+
 def test_leader_is_wounded_once_then_eliminated_and_opposing_team_wins() -> None:
     engine, room = make_room()
     shooter = 0

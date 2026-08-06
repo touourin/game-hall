@@ -407,14 +407,16 @@ class DepartedSuspicionEngine:
             self._hidden_card(target_board, payload.get("cardIndex"))
             return
         if action == "equip":
-            self._hidden_card(board, payload.get("cardIndex"))
+            if any(not card.revealed for card in board.cards):
+                self._hidden_card(board, payload.get("cardIndex"))
             return
         if action == "arm":
             if board.gun:
                 raise GameRuleError("你已经持有一把枪")
             if self._central_guns(state) <= 0:
                 raise GameRuleError("中央已经没有可拿的枪")
-            self._hidden_card(board, payload.get("cardIndex"))
+            if any(not card.revealed for card in board.cards):
+                self._hidden_card(board, payload.get("cardIndex"))
             self._target_seat(room, state, payload, other_than=seat)
             return
         if action == "shoot":
@@ -472,15 +474,15 @@ class DepartedSuspicionEngine:
             )
             return
         if action == "equip":
-            card = actor.cards[int(pending.payload["cardIndex"])]
-            card.revealed = True
+            if any(not card.revealed for card in actor.cards):
+                self._hidden_card(actor, pending.payload.get("cardIndex")).revealed = True
             state.action_done = True
             self._draw_equipment(state, pending.actor_seat)
             self._log(state, "equip", f"{room.players[pending.actor_seat].name}获取了装备")
             return
         if action == "arm":
-            card = actor.cards[int(pending.payload["cardIndex"])]
-            card.revealed = True
+            if any(not card.revealed for card in actor.cards):
+                self._hidden_card(actor, pending.payload.get("cardIndex")).revealed = True
             actor.gun = True
             actor.aim_seat = int(pending.payload["targetSeat"])
             state.acquired_gun_turn[pending.actor_seat] = state.turn_number
