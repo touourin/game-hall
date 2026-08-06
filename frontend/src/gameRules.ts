@@ -42,6 +42,10 @@ export function defaultGameRules(
     options.startingChips = 1000
     options.smallBlind = 10
   }
+  if (gameKey === 'monopoly') {
+    options.startingCash = 8000
+    options.maxRounds = 20
+  }
   if (NEGOTIATION_GAMES.has(gameKey)) {
     options.allowUndo = true
     options.allowDraw = true
@@ -110,6 +114,15 @@ export function gameRuleLabels(
       '2–8 人',
       `起始 ${Number(options.startingChips)} 筹码`,
       `盲注 ${smallBlind}/${smallBlind * 2}`,
+      options.allowGuests ? '允许游客' : '仅登录玩家',
+    ]
+  }
+  if (gameKey === 'monopoly') {
+    return [
+      '2–4 人',
+      `起始资金 ${Number(options.startingCash)}`,
+      `${Number(options.maxRounds)} 回合资产赛`,
+      '同色地块可升级',
       options.allowGuests ? '允许游客' : '仅登录玩家',
     ]
   }

@@ -18,6 +18,7 @@ const BUILTIN_GAME_CATALOG: readonly GameCatalogEntry[] = [
   { key: 'schulte', name: '舒尔特方格', players: '1 人', description: '从 1 找到 25，练速度与专注', tone: 'focus', category: '个人挑战' },
   { key: 'minesweeper', name: '扫雷', players: '1 人', description: '排除危险，清空整片雷区', tone: 'mine', category: '个人挑战' },
   { key: 'hanoi', name: '汉诺塔', players: '1 人', description: '移动圆盘，用最少步数通关', tone: 'tower', category: '个人挑战' },
+  { key: 'monopoly', name: '大富翁', players: '2–4 人', description: '买下整座城，让财富沿街生长', tone: 'fortune', category: '派对桌游' },
 ]
 
 export const GAME_CATALOG: readonly GameCatalogEntry[] = [

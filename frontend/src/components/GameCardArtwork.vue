@@ -41,6 +41,14 @@ defineProps<{ gameKey: GameCatalogItem['key'] }>()
       <i class="tower tower-two" /><i class="tower tower-three" />
       <em />
     </span>
+
+    <span v-else-if="gameKey === 'monopoly'" class="fortune-mini">
+      <i class="fortune-route" />
+      <i class="fortune-building building-one"><b /><b /></i>
+      <i class="fortune-building building-two"><b /><b /><b /></i>
+      <strong>¥</strong>
+      <em><b>3</b><b>5</b></em>
+    </span>
   </span>
 </template>
 
@@ -80,6 +88,12 @@ defineProps<{ gameKey: GameCatalogItem['key'] }>()
 .hanoi-mini > em { position: absolute; right: 3px; bottom: 7px; left: 3px; height: 4px; border-radius: 4px; background: color-mix(in srgb, var(--card-tone) 65%, var(--surface)); }
 .tower { position: absolute; bottom: 10px; width: 3px; height: 57px; background: color-mix(in srgb, var(--card-tone) 58%, transparent); }.tower-one { left: 25px; }.tower-two { left: 55px; }.tower-three { left: 85px; }
 .tower-one b { position: absolute; left: 50%; height: 8px; border-radius: 6px; background: var(--card-tone); transform: translateX(-50%); }.tower-one b:nth-child(1) { bottom: 1px; width: 42px; }.tower-one b:nth-child(2) { bottom: 10px; width: 34px; }.tower-one b:nth-child(3) { bottom: 19px; width: 27px; }.tower-one b:nth-child(4) { bottom: 28px; width: 19px; }
+
+.fortune-mini { position: relative; width: 118px; height: 88px; }
+.fortune-route { position: absolute; inset: 9px 3px 5px; border: 3px solid color-mix(in srgb, var(--card-tone) 45%, transparent); border-radius: 18px; transform: rotate(-5deg); }
+.fortune-building { position: absolute; bottom: 10px; width: 25px; display: flex; align-content: flex-start; flex-wrap: wrap; gap: 3px; border: 1px solid currentColor; border-radius: 3px 3px 0 0; padding: 5px; background: color-mix(in srgb, var(--card-tone) 13%, var(--surface-inset)); }.fortune-building b { width: 5px; aspect-ratio: 1; background: currentColor; opacity: .6; }.building-one { left: 13px; height: 39px; }.building-two { right: 12px; height: 55px; }
+.fortune-mini > strong { position: absolute; top: 10px; left: 45px; width: 34px; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid currentColor; border-radius: 50%; background: var(--surface-elevated); box-shadow: 0 6px 14px rgba(0,0,0,.3); font-family: Georgia, serif; font-size: 18px; }
+.fortune-mini > em { position: absolute; bottom: 3px; left: 45px; display: flex; gap: 3px; font-style: normal; transform: rotate(7deg); }.fortune-mini > em b { width: 22px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 5px; color: var(--surface-inset); background: var(--card-tone); font-size: 10px; box-shadow: 0 4px 7px rgba(0,0,0,.3); }
 
 @media (max-width: 680px) {
   .game-card-art { min-height: 92px; }

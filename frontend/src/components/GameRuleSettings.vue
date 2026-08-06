@@ -196,6 +196,20 @@ function setOption(key: string, value: unknown) {
       </div>
     </section>
 
+    <section v-if="gameKey === 'monopoly'" class="rule-setting-group">
+      <header><strong>起始资金</strong><small>资金越少，前期买地取舍越明显</small></header>
+      <div class="rule-segmented three">
+        <button v-for="cash in [6000, 8000, 10000]" :key="cash" type="button" :class="{ active: option('startingCash') === cash }" @click="setOption('startingCash', cash)">{{ cash }}</button>
+      </div>
+    </section>
+
+    <section v-if="gameKey === 'monopoly'" class="rule-setting-group">
+      <header><strong>比赛回合</strong><small>达到上限时按现金、地产与升级总值排名</small></header>
+      <div class="rule-segmented three">
+        <button v-for="rounds in [12, 20, 30]" :key="rounds" type="button" :class="{ active: option('maxRounds') === rounds }" @click="setOption('maxRounds', rounds)">{{ rounds }} 回合</button>
+      </div>
+    </section>
+
     <section v-if="gameKey === 'poker'" class="rule-setting-group">
       <header><strong>大小盲注</strong><small>大盲始终是小盲的两倍</small></header>
       <div class="rule-segmented three">

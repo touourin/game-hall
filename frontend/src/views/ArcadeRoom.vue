@@ -74,6 +74,7 @@ import ReactionTest from '../games/reaction/ReactionTest.vue'
 import SchulteGrid from '../games/schulte/SchulteGrid.vue'
 import MinesweeperBoard from '../games/minesweeper/MinesweeperBoard.vue'
 import HanoiGame from '../games/hanoi/HanoiGame.vue'
+import MonopolyBoard from '../games/monopoly/MonopolyBoard.vue'
 import PokerTable from '../games/poker/PokerTable.vue'
 import AvalonTable from '../games/avalon/AvalonTable.vue'
 import { thirdPartyGameComponent } from '../thirdPartyGameRegistry'
@@ -425,7 +426,7 @@ function openSharedChat() {
   <main
     class="arcade-room page-container adaptive-layout-root"
     :class="{
-      'arcade-room--wide': ['avalon', 'poker', 'doudizhu', 'junqi', 'minesweeper'].includes(snapshot.gameKey),
+      'arcade-room--wide': ['avalon', 'poker', 'doudizhu', 'junqi', 'minesweeper', 'monopoly'].includes(snapshot.gameKey),
       'arcade-room--active': snapshot.phase !== 'lobby',
       'arcade-room--board-game': ['gomoku', 'xiangqi', 'go', 'junqi'].includes(snapshot.gameKey),
     }"
@@ -671,6 +672,7 @@ function openSharedChat() {
       <SchulteGrid v-else-if="snapshot.gameKey === 'schulte'" :snapshot="snapshot" />
       <MinesweeperBoard v-else-if="snapshot.gameKey === 'minesweeper'" :snapshot="snapshot" />
       <HanoiGame v-else-if="snapshot.gameKey === 'hanoi'" :snapshot="snapshot" />
+      <MonopolyBoard v-else-if="snapshot.gameKey === 'monopoly'" :snapshot="snapshot" />
       <component v-else-if="pluginGameComponent" :is="pluginGameComponent" :snapshot="snapshot" />
       <AvalonTable
         v-else-if="avalonSnapshot"

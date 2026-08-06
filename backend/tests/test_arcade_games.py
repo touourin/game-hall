@@ -1609,7 +1609,7 @@ def test_solo_game_cannot_request_end_table() -> None:
 
 @pytest.mark.parametrize(
     "game_key",
-    ["avalon", "gomoku", "xiangqi", "go", "poker", "doudizhu", "junqi"],
+    ["avalon", "gomoku", "xiangqi", "go", "poker", "doudizhu", "junqi", "monopoly"],
 )
 def test_every_multiplayer_game_can_end_the_table_by_unanimous_request(
     game_key: str,

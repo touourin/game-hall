@@ -64,6 +64,7 @@ GAME_NAMES = {
     "schulte": "舒尔特方格",
     "minesweeper": "扫雷",
     "hanoi": "汉诺塔",
+    "monopoly": "大富翁",
 }
 TIME_TRIAL_GAMES = {"reaction", "schulte", "minesweeper"}
 AVATAR_PRESET_IDS = (

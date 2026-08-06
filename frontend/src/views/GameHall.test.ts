@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import GameHall from './GameHall.vue'
 
 describe('GameHall', () => {
-  it('shows eleven games and selects the requested game', async () => {
+  it('shows twelve games and selects the requested game', async () => {
     const wrapper = mount(GameHall, {
       props: {
         account: {
@@ -18,8 +18,8 @@ describe('GameHall', () => {
     })
 
     const gameCards = wrapper.findAll('.game-card')
-    expect(gameCards).toHaveLength(11)
-    expect(wrapper.findAll('.game-card-art')).toHaveLength(10)
+    expect(gameCards).toHaveLength(12)
+    expect(wrapper.findAll('.game-card-art')).toHaveLength(11)
     expect(wrapper.find('.featured-art-emerald').exists()).toBe(true)
     expect(wrapper.find('.featured-art-midnight').exists()).toBe(true)
     expect(wrapper.find('.featured-art-royal').exists()).toBe(true)
@@ -50,6 +50,7 @@ describe('GameHall', () => {
     expect(wrapper.text()).toContain('反应挑战')
     expect(wrapper.text()).toContain('舒尔特方格')
     expect(wrapper.text()).toContain('扫雷')
+    expect(wrapper.text()).toContain("大富翁")
     expect(wrapper.text()).toContain('汉诺塔')
     expect(gameCards.findIndex((card) => card.text().includes('德州扑克'))).toBeLessThan(
       gameCards.findIndex((card) => card.text().includes('斗地主')),

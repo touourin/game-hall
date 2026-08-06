@@ -8,6 +8,7 @@ from backend.app.games.gomoku import GomokuEngine
 from backend.app.games.hanoi import HanoiEngine
 from backend.app.games.junqi import JunqiEngine
 from backend.app.games.minesweeper import MinesweeperEngine
+from backend.app.games.monopoly import MonopolyEngine
 from backend.app.games.poker import PokerEngine
 from backend.app.games.reaction import ReactionEngine
 from backend.app.games.schulte import SchulteEngine
@@ -28,6 +29,7 @@ def build_engine_registry() -> dict[str, GameEngine]:
         SchulteEngine(),
         MinesweeperEngine(),
         HanoiEngine(),
+        MonopolyEngine(),
     ]
     registry = {engine.key: engine for engine in engines}
     for plugin in discover_game_plugins():
@@ -103,6 +105,12 @@ BUILTIN_GAME_CATALOG = [
         "name": "汉诺塔",
         "players": "1 人",
         "description": "3–8 层经典益智挑战，争取最少步数",
+    },
+    {
+        "key": "monopoly",
+        "name": "大富翁",
+        "players": "2–4 人",
+        "description": "掷骰环游城市，买地升级并收取租金",
     },
 ]
 
