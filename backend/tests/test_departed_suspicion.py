@@ -79,6 +79,33 @@ def test_setup_deals_three_cards_and_separates_leaders(player_count: int) -> Non
     assert all(not board.equipment for board in room.state.boards.values())
 
 
+@pytest.mark.parametrize(
+    ("player_count", "expected_normal_counts"),
+    [
+        (4, [5, 5]),
+        (5, [6, 7]),
+        (6, [8, 8]),
+        (7, [9, 10]),
+        (8, [11, 11]),
+    ],
+)
+def test_integrity_cards_stay_balanced_at_every_player_count(
+    player_count: int,
+    expected_normal_counts: list[int],
+) -> None:
+    for seed in range(250):
+        engine = DepartedSuspicionEngine(rng=random.Random(seed))
+        hands = engine._deal_integrity(player_count)
+        cards = [card for hand in hands.values() for card in hand]
+
+        honest = sum(card.kind == "honest" for card in cards)
+        crooked = sum(card.kind == "crooked" for card in cards)
+        assert sorted([honest, crooked]) == expected_normal_counts
+        assert sum(card.kind == "agent" for card in cards) == 1
+        assert sum(card.kind == "kingpin" for card in cards) == 1
+        assert all(len(hand) == 3 for hand in hands.values())
+
+
 def test_private_view_never_leaks_other_hidden_integrity() -> None:
     engine, room = make_room()
     own_view = engine.view(room, room.players[0])
@@ -142,6 +169,107 @@ def test_hidden_card_is_still_required_as_cost_when_available(action: str) -> No
 
     with pytest.raises(GameRuleError, match="底细牌"):
         engine.act(room, room.players[0], action, payload)
+
+
+def test_crutches_revives_an_all_revealed_player_who_can_still_equip() -> None:
+    engine, room = make_room(equipment_set="base")
+    state = room.state
+    actor = state.turn_seat
+    target = next(
+        seat
+        for seat, board in state.boards.items()
+        if seat != actor and engine._leader_card(board) is None
+    )
+    revived = state.boards[target]
+    for card in revived.cards:
+        card.revealed = True
+    engine._eliminate(state, target)
+    state.boards[actor].equipment = ["crutches"]
+
+    engine.act(
+        room,
+        room.players[actor],
+        "play_equipment",
+        {"cardId": "crutches", "targetSeat": target},
+    )
+
+    assert revived.alive is True
+    assert revived.restricted_to_equip is True
+    assert all(card.revealed for card in revived.cards)
+
+    state.turn_seat = target
+    state.action_done = False
+    revived.effects.append("key")
+    view = engine.view(room, room.players[target])
+    assert view["legal"]["canTakeNormalAction"] is True
+    assert view["legal"]["normalActionIds"] == ["equip"]
+    assert view["legal"]["canTakeExtraInvestigation"] is False
+
+    with pytest.raises(GameRuleError, match="只能执行获取装备"):
+        engine.act(room, room.players[target], "investigate", {})
+    with pytest.raises(GameRuleError, match="只能执行获取装备"):
+        engine.act(room, room.players[target], "extra_investigate", {})
+
+    state.equipment_deck = ["coffee"]
+    engine.act(room, room.players[target], "equip", {})
+
+    assert state.action_done is True
+    assert revived.equipment == ["coffee"]
+
+
+@pytest.mark.parametrize("player_count", range(4, 9))
+def test_every_fully_revealed_player_can_finish_repeated_turns(
+    player_count: int,
+) -> None:
+    engine, room = make_room(player_count, equipment_set="base")
+    state = room.state
+    for board in state.boards.values():
+        for card in board.cards:
+            card.revealed = True
+    state.equipment_deck.clear()
+
+    for _ in range(player_count * 5):
+        seat = state.turn_seat
+        view = engine.view(room, room.players[seat])
+        assert "equip" in view["legal"]["normalActionIds"]
+
+        engine.act(room, room.players[seat], "equip", {})
+        assert engine.view(room, room.players[seat])["legal"]["canEndTurn"] is True
+        engine.act(room, room.players[seat], "end_turn", {})
+
+    assert state.turn_number == player_count * 5 + 1
+
+
+def test_only_actions_that_can_resolve_are_advertised() -> None:
+    engine, room = make_room()
+    state = room.state
+    actor = state.turn_seat
+    for board in state.boards.values():
+        for card in board.cards:
+            card.revealed = True
+    state.gun_total = 0
+    state.boards[actor].effects.append("key")
+
+    view = engine.view(room, room.players[actor])
+
+    assert view["legal"]["normalActionIds"] == ["equip"]
+    assert view["legal"]["canTakeExtraInvestigation"] is False
+
+
+def test_forced_shot_decision_hides_unrelated_equipment_and_key_actions() -> None:
+    engine, room = make_room()
+    state = room.state
+    actor = state.turn_seat
+    target = next(seat for seat in state.boards if seat != actor)
+    state.boards[actor].effects.append("key")
+    state.boards[actor].equipment = ["thumbprint_scanner", "k9_unit"]
+
+    engine._begin_shot(room, state, actor, target, source="gun")
+    view = engine.view(room, room.players[actor])
+
+    assert state.pending_shot and state.pending_shot.scanner_seat == actor
+    assert view["legal"]["canTakeExtraInvestigation"] is False
+    assert view["legal"]["playableEquipmentIds"] == []
 
 
 def test_leader_is_wounded_once_then_eliminated_and_opposing_team_wins() -> None:
@@ -338,6 +466,28 @@ def test_grenade_passes_once_then_shoots_the_second_receiver() -> None:
     assert state.boards[2].alive is False or engine._leader_card(state.boards[2]) is not None
 
 
+def test_resigning_grenade_holder_clears_the_forced_pass_and_advances() -> None:
+    engine, room = make_room()
+    state = room.state
+    holder = next(
+        seat for seat, board in state.boards.items() if engine._leader_card(board) is None
+    )
+    state.turn_seat = holder
+    state.boards[holder].grenade_stage = 1
+    state.boards[holder].effects.append("grenade")
+    state.action_done = True
+
+    engine.act(room, room.players[holder], "end_turn", {})
+    assert state.choice and state.choice["kind"] == "grenade_pass"
+
+    engine.act(room, room.players[holder], "resign", {})
+
+    assert state.choice is None
+    assert state.turn_seat != holder
+    assert state.boards[holder].grenade_stage == 0
+    assert "grenade" in state.equipment_deck
+
+
 def test_response_priority_follows_seat_order_from_the_action_player() -> None:
     engine, room = make_room()
     state = room.state
@@ -353,6 +503,34 @@ def test_response_priority_follows_seat_order_from_the_action_player() -> None:
     assert state.pending_action.response_order == [1, 2]
     engine.act(room, room.players[1], "pass_response", {})
     assert engine._response_seat(state.pending_action) == 2
+
+
+def test_resigning_response_player_is_skipped_without_stalling_action() -> None:
+    engine, room = make_room()
+    state = room.state
+    ordinary = [
+        seat for seat, board in state.boards.items() if engine._leader_card(board) is None
+    ]
+    responder = ordinary[0]
+    actor = next(seat for seat in state.boards if seat != responder)
+    target = next(seat for seat in state.boards if seat not in {actor, responder})
+    state.turn_seat = actor
+    state.boards[responder].equipment = ["coffee"]
+
+    engine.act(
+        room,
+        room.players[actor],
+        "investigate",
+        {"targetSeat": target, "cardIndex": 0},
+    )
+    assert state.pending_action is not None
+    assert engine._response_seat(state.pending_action) == responder
+
+    engine.act(room, room.players[responder], "resign", {})
+
+    assert state.pending_action is None
+    assert state.action_done is True
+    assert state.boards[target].cards[0].id in state.knowledge[actor]
 
 
 def test_restraining_order_redirects_and_completes_the_original_shot() -> None:
@@ -395,11 +573,43 @@ def test_classified_orders_lets_the_selected_player_redirect_immediately() -> No
         "kind": "classified_redirect",
         "seat": 2,
         "shooterSeat": 0,
+        "resumePendingAfterSeat": 1,
     }
     engine.act(room, room.players[2], "choose_redirect", {"targetSeat": 3})
 
     assert state.pending_action is None
     assert all(card.revealed for card in state.boards[3].cards)
+
+
+def test_resigning_classified_orders_decider_resumes_original_shot() -> None:
+    engine, room = make_room()
+    state = room.state
+    ordinary = [
+        seat for seat, board in state.boards.items() if engine._leader_card(board) is None
+    ]
+    decider = ordinary[0]
+    shooter = next(seat for seat in state.boards if seat != decider)
+    responder = next(seat for seat in state.boards if seat not in {shooter, decider})
+    state.turn_seat = shooter
+    state.boards[shooter].gun = True
+    state.boards[shooter].aim_seat = responder
+    state.acquired_gun_turn[shooter] = 0
+    state.boards[responder].equipment = ["classified_orders"]
+
+    engine.act(room, room.players[shooter], "shoot", {})
+    engine.act(
+        room,
+        room.players[responder],
+        "play_equipment",
+        {"cardId": "classified_orders", "deciderSeat": decider},
+    )
+    assert state.choice and state.choice["seat"] == decider
+
+    engine.act(room, room.players[decider], "resign", {})
+
+    assert state.choice is None
+    assert state.pending_action is None
+    assert all(card.revealed for card in state.boards[responder].cards)
 
 
 def test_surveillance_camera_triggers_only_after_a_normal_investigation() -> None:
@@ -487,6 +697,39 @@ def test_evidence_bag_prompts_the_recipient_to_keep_one_card() -> None:
     assert "coffee" in state.equipment_deck
 
 
+def test_resigning_equipment_limit_player_clears_the_forced_choice() -> None:
+    engine, room = make_room()
+    state = room.state
+    actor = state.turn_seat
+    recipient = next(
+        seat
+        for seat, board in state.boards.items()
+        if seat != actor and engine._leader_card(board) is None
+    )
+    owner = next(seat for seat in state.boards if seat not in {actor, recipient})
+    state.boards[actor].equipment = ["evidence_bag"]
+    state.boards[owner].equipment = ["k9_unit"]
+    state.boards[recipient].equipment = ["coffee"]
+
+    engine.act(
+        room,
+        room.players[actor],
+        "play_equipment",
+        {
+            "cardId": "evidence_bag",
+            "ownerSeat": owner,
+            "recipientSeat": recipient,
+        },
+    )
+    assert state.choice and state.choice["seat"] == recipient
+
+    engine.act(room, room.players[recipient], "resign", {})
+
+    assert state.choice is None
+    assert state.boards[recipient].equipment == []
+    assert engine.view(room, room.players[actor])["legal"]["canTakeNormalAction"] is True
+
+
 def test_report_audit_requires_each_player_to_choose_their_own_card() -> None:
     engine, room = make_room()
     state = room.state
@@ -504,6 +747,44 @@ def test_report_audit_requires_each_player_to_choose_their_own_card() -> None:
 
     assert state.choice is None
     assert all(board.cards[0].revealed for board in state.boards.values())
+
+
+def test_report_audit_skips_a_queued_player_who_resigns() -> None:
+    engine, room = make_room()
+    state = room.state
+    actor = state.turn_seat
+    departing = next(
+        seat
+        for seat, board in state.boards.items()
+        if seat != actor and engine._leader_card(board) is None
+    )
+    state.boards[actor].equipment = ["report_audit"]
+    engine.act(
+        room,
+        room.players[actor],
+        "play_equipment",
+        {"cardId": "report_audit"},
+    )
+
+    engine.act(room, room.players[departing], "resign", {})
+
+    selected: list[int] = []
+    while state.choice is not None:
+        seat = int(state.choice["seat"])
+        selected.append(seat)
+        card_index = next(
+            index
+            for index, card in enumerate(state.boards[seat].cards)
+            if not card.revealed
+        )
+        engine.act(
+            room,
+            room.players[seat],
+            "choose_reveal",
+            {"cardIndex": card_index},
+        )
+
+    assert departing not in selected
 
 
 def test_thumbprint_scanner_can_transfer_a_leader_before_damage() -> None:
@@ -537,6 +818,30 @@ def test_thumbprint_scanner_can_transfer_a_leader_before_damage() -> None:
     assert state.boards[target].alive is True
 
 
+def test_resigning_thumbprint_scanner_owner_does_not_stall_damage() -> None:
+    engine, room = make_room()
+    state = room.state
+    scanner = next(
+        seat for seat, board in state.boards.items() if engine._leader_card(board) is None
+    )
+    target, _ = leader_owner(room, "agent")
+    shooter = next(seat for seat in state.boards if seat not in {scanner, target})
+    state.turn_seat = shooter
+    state.boards[shooter].gun = True
+    state.boards[shooter].aim_seat = target
+    state.acquired_gun_turn[shooter] = 0
+    state.boards[scanner].equipment = ["thumbprint_scanner"]
+
+    engine.act(room, room.players[shooter], "shoot", {})
+    assert state.pending_shot and state.pending_shot.scanner_seat == scanner
+
+    engine.act(room, room.players[scanner], "resign", {})
+
+    assert state.pending_shot is None
+    leader = engine._leader_card(state.boards[target])
+    assert leader is not None and leader.wounded is True
+
+
 def test_mobile_detonator_chains_after_a_nonwinning_shot() -> None:
     engine, room = make_room()
     state = room.state
@@ -562,3 +867,158 @@ def test_mobile_detonator_chains_after_a_nonwinning_shot() -> None:
 
     assert state.boards[target].alive is False
     assert state.boards[chained_target].alive is False
+
+
+def test_disconnected_eliminated_detonator_owner_is_auto_passed() -> None:
+    engine, room = make_room()
+    state = room.state
+    target = next(
+        seat for seat, board in state.boards.items() if engine._leader_card(board) is None
+    )
+    shooter = next(seat for seat in state.boards if seat != target)
+    state.turn_seat = shooter
+    state.boards[shooter].gun = True
+    state.boards[shooter].aim_seat = target
+    state.acquired_gun_turn[shooter] = 0
+    state.boards[target].equipment = ["mobile_detonator"]
+
+    engine.act(room, room.players[shooter], "shoot", {})
+    assert state.boards[target].alive is False
+    assert state.post_shot and state.post_shot["seat"] == target
+
+    engine.disconnect_timeout(room, room.players[target])
+
+    assert state.post_shot is None
+    assert state.boards[target].equipment == []
+    assert "mobile_detonator" in state.equipment_deck
+
+
+@pytest.mark.parametrize("player_count", range(4, 9))
+def test_automated_games_finish_without_wait_state_deadlocks(
+    player_count: int,
+) -> None:
+    for seed in range(30):
+        engine, room = make_room(player_count, seed=seed)
+
+        for _ in range(1_000):
+            if room.phase == "finished":
+                break
+            state = room.state
+            if state.pending_action is not None:
+                responder = engine._response_seat(state.pending_action)
+                assert responder is not None
+                engine.act(room, room.players[responder], "pass_response", {})
+                continue
+            if state.pending_shot is not None:
+                scanner = state.pending_shot.scanner_seat
+                assert scanner is not None
+                engine.act(room, room.players[scanner], "pass_scanner", {})
+                continue
+            if state.post_shot is not None:
+                decision_seat = int(state.post_shot["seat"])
+                engine.act(
+                    room,
+                    room.players[decision_seat],
+                    "pass_mobile_detonator",
+                    {},
+                )
+                continue
+            if state.choice is not None:
+                choice = state.choice
+                choice_seat = int(choice["seat"])
+                kind = choice["kind"]
+                if kind == "equipment_limit":
+                    engine.act(
+                        room,
+                        room.players[choice_seat],
+                        "choose_equipment",
+                        {"cardId": state.boards[choice_seat].equipment[0]},
+                    )
+                elif kind in {"report_audit", "truth_serum"}:
+                    card_index = next(
+                        index
+                        for index, card in enumerate(state.boards[choice_seat].cards)
+                        if not card.revealed
+                    )
+                    engine.act(
+                        room,
+                        room.players[choice_seat],
+                        "choose_reveal",
+                        {"cardIndex": card_index},
+                    )
+                elif kind == "inspection_gloves":
+                    decision = (
+                        "discard_equipment"
+                        if state.boards[choice_seat].equipment
+                        else "show_integrity"
+                    )
+                    engine.act(
+                        room,
+                        room.players[choice_seat],
+                        "inspection_choice",
+                        {"choice": decision},
+                    )
+                elif kind == "classified_redirect":
+                    shooter = int(choice["shooterSeat"])
+                    target = next(
+                        seat
+                        for seat, board in state.boards.items()
+                        if seat != shooter and board.alive
+                    )
+                    engine.act(
+                        room,
+                        room.players[choice_seat],
+                        "choose_redirect",
+                        {"targetSeat": target},
+                    )
+                else:
+                    target = next(
+                        seat
+                        for seat, board in state.boards.items()
+                        if seat != choice_seat
+                        and board.alive
+                        and not board.grenade_stage
+                    )
+                    engine.act(
+                        room,
+                        room.players[choice_seat],
+                        "pass_grenade",
+                        {"targetSeat": target},
+                    )
+                continue
+
+            seat = state.turn_seat
+            player = room.players[seat]
+            if state.action_done:
+                engine.act(room, player, "end_turn", {})
+                continue
+            action_ids = engine.view(room, player)["legal"]["normalActionIds"]
+            if "shoot" in action_ids:
+                engine.act(room, player, "shoot", {})
+            elif "arm" in action_ids:
+                target = next(
+                    target
+                    for target, board in state.boards.items()
+                    if target != seat and board.alive
+                )
+                payload: dict[str, int] = {"targetSeat": target}
+                hidden = [
+                    index
+                    for index, card in enumerate(state.boards[seat].cards)
+                    if not card.revealed
+                ]
+                if hidden:
+                    payload["cardIndex"] = hidden[0]
+                engine.act(room, player, "arm", payload)
+            else:
+                hidden = [
+                    index
+                    for index, card in enumerate(state.boards[seat].cards)
+                    if not card.revealed
+                ]
+                payload = {"cardIndex": hidden[0]} if hidden else {}
+                engine.act(room, player, "equip", payload)
+
+        assert room.phase == "finished", (
+            f"{player_count}人局 seed={seed} 在等待状态中未能结束"
+        )

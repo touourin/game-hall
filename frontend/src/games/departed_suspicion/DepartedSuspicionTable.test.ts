@@ -29,7 +29,7 @@ function cards(own: boolean, revealed = false) {
   }))
 }
 
-function snapshot(response = false, allOwnRevealed = false): ArcadeSnapshot {
+function snapshot(response = false, allOwnRevealed = false, restrictedToEquip = false): ArcadeSnapshot {
   const players = Array.from({ length: 4 }, (_, seat) => ({
     id: `p${seat + 1}`,
     name: `玩家${seat + 1}`,
@@ -82,7 +82,7 @@ function snapshot(response = false, allOwnRevealed = false): ArcadeSnapshot {
         aimPlayerId: player.id === 'p1' && response ? 'p2' : null,
         equipmentCount: player.id === 'p2' && response ? 1 : 0,
         effects: [],
-        restrictedToEquip: false,
+        restrictedToEquip: player.id === (response ? 'p2' : 'p1') && restrictedToEquip,
         cards: cards(player.id === (response ? 'p2' : 'p1'), allOwnRevealed),
         team: player.id === (response ? 'p2' : 'p1') ? 'honest' : null,
       })),
@@ -103,6 +103,7 @@ function snapshot(response = false, allOwnRevealed = false): ArcadeSnapshot {
       waiting: response ? { kind: 'equipment_response', playerId: 'p2' } : null,
       legal: {
         canTakeNormalAction: !response,
+        normalActionIds: response ? [] : restrictedToEquip ? ['equip'] : ['investigate', 'equip', 'arm'],
         canTakeExtraInvestigation: false,
         canEndTurn: false,
         canRespond: response,
@@ -178,5 +179,26 @@ describe('DepartedSuspicionTable', () => {
     await wrapper.get('.action-form .primary-button').trigger('click')
 
     expect(action).toHaveBeenCalledWith('arm', { targetSeat: 1 })
+  })
+
+  it('shows only Equip and submits it for a Crutches-revived player', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const action = vi.spyOn(arcade, 'action').mockResolvedValue()
+    const wrapper = mount(DepartedSuspicionTable, {
+      props: { snapshot: snapshot(false, true, true) },
+      global: { plugins: [pinia] },
+    })
+
+    expect(wrapper.get('.turn-console').text()).toContain('拐杖复活限制：此后只能获取装备')
+    const actionButtons = wrapper.findAll('.action-grid button')
+    expect(actionButtons).toHaveLength(1)
+    expect(actionButtons[0]?.text()).toContain('获取装备')
+
+    await actionButtons[0]?.trigger('click')
+    expect(wrapper.get('.action-cost-note').text()).toContain('无需再公开底细')
+    await wrapper.get('.action-form .primary-button').trigger('click')
+
+    expect(action).toHaveBeenCalledWith('equip', {})
   })
 })

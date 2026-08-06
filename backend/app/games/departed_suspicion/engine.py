@@ -31,6 +31,13 @@ ACTION_NAMES = {
     "extra_investigate": "额外调查",
 }
 EQUIPMENT_SETS = {"base", "expanded"}
+NORMAL_INTEGRITY_PER_TEAM = {
+    4: 5,
+    5: 7,
+    6: 8,
+    7: 10,
+    8: 11,
+}
 
 
 @dataclass
@@ -188,6 +195,8 @@ class DepartedSuspicionEngine:
             self._declare_action(room, state, seat, action, payload)
             return
         if action == "extra_investigate":
+            if board.restricted_to_equip:
+                raise GameRuleError("拐杖限制你只能执行获取装备")
             if "key" not in board.effects:
                 raise GameRuleError("你没有钥匙提供的额外调查")
             if state.extra_investigation_done:
@@ -217,6 +226,16 @@ class DepartedSuspicionEngine:
             EQUIPMENT_BY_ID[card_id].as_dict()
             for card_id in state.boards.get(viewer_seat, PlayerBoard()).equipment
         ]
+        can_take_normal_action = (
+            room.phase == "playing"
+            and viewer_seat == state.turn_seat
+            and state.boards[viewer_seat].alive
+            and not state.action_done
+            and pending is None
+            and state.choice is None
+            and state.pending_shot is None
+            and state.post_shot is None
+        )
         return {
             "turnPlayerId": self._player_id(room, state.turn_seat),
             "turnNumber": state.turn_number,
@@ -279,24 +298,24 @@ class DepartedSuspicionEngine:
             ),
             "waiting": self._waiting_view(room, state, response_seat),
             "legal": {
-                "canTakeNormalAction": (
-                    room.phase == "playing"
-                    and viewer_seat == state.turn_seat
-                    and state.boards[viewer_seat].alive
-                    and not state.action_done
-                    and pending is None
-                    and state.choice is None
-                    and state.pending_shot is None
-                    and state.post_shot is None
+                "canTakeNormalAction": can_take_normal_action,
+                "normalActionIds": (
+                    self._normal_action_ids(state, viewer_seat)
+                    if can_take_normal_action
+                    else []
                 ),
                 "canTakeExtraInvestigation": (
                     room.phase == "playing"
                     and viewer_seat == state.turn_seat
                     and state.boards[viewer_seat].alive
+                    and not state.boards[viewer_seat].restricted_to_equip
                     and "key" in state.boards[viewer_seat].effects
+                    and self._has_investigation_target(state, viewer_seat)
                     and not state.extra_investigation_done
                     and pending is None
                     and state.choice is None
+                    and state.pending_shot is None
+                    and state.post_shot is None
                 ),
                 "canEndTurn": (
                     room.phase == "playing"
@@ -313,8 +332,10 @@ class DepartedSuspicionEngine:
                     if pending is not None and response_seat == viewer_seat
                     else []
                 ),
-                "playableEquipmentIds": self._playable_equipment_ids(
-                    state, viewer_seat
+                "playableEquipmentIds": (
+                    self._playable_equipment_ids(state, viewer_seat)
+                    if room.phase == "playing"
+                    else []
                 ),
             },
             "history": state.history[-30:],
@@ -340,10 +361,13 @@ class DepartedSuspicionEngine:
     disconnect_timeout = manual_forfeit
 
     def _deal_integrity(self, player_count: int) -> dict[int, list[IntegrityCard]]:
+        normal_count = NORMAL_INTEGRITY_PER_TEAM[player_count]
         normal_cards = [
-            IntegrityCard(f"honest-{index}", "honest") for index in range(1, 12)
+            IntegrityCard(f"honest-{index}", "honest")
+            for index in range(1, normal_count + 1)
         ] + [
-            IntegrityCard(f"crooked-{index}", "crooked") for index in range(1, 12)
+            IntegrityCard(f"crooked-{index}", "crooked")
+            for index in range(1, normal_count + 1)
         ]
         self.rng.shuffle(normal_cards)
         leader_round = [
@@ -354,6 +378,9 @@ class DepartedSuspicionEngine:
         self.rng.shuffle(leader_round)
         remainder = normal_cards[player_count - 2 :]
         self.rng.shuffle(remainder)
+        # Odd-player games have one extra normal card after applying the
+        # physical cards' player-count marks. It stays unseen and undealt.
+        remainder = remainder[: player_count * 2]
         hands = {seat: [leader_round[seat]] for seat in range(player_count)}
         for seat in range(player_count):
             hands[seat].extend(remainder[seat * 2 : seat * 2 + 2])
@@ -513,6 +540,48 @@ class DepartedSuspicionEngine:
         if pending.response_index >= len(pending.response_order):
             self._resolve_pending_action(room, state)
 
+    def _resume_pending_action(
+        self,
+        room: ArcadeRoom,
+        state: DepartedSuspicionState,
+        *,
+        after: int,
+    ) -> None:
+        pending = state.pending_action
+        if pending is None or state.choice is not None:
+            return
+        if not state.boards[pending.actor_seat].alive:
+            state.pending_action = None
+            self._log(state, "action_cancelled", "行动玩家已经出局，原行动取消")
+            return
+        if pending.action == "shoot" and not state.boards[pending.actor_seat].gun:
+            state.pending_action = None
+            self._log(state, "shot_cancelled", "射手失去枪，射击取消并可重新选择行动")
+            return
+        pending.response_order = self._response_order(state, pending, after=after)
+        pending.response_index = 0
+        if not pending.response_order:
+            self._resolve_pending_action(room, state)
+
+    def _skip_departed_responder(
+        self,
+        room: ArcadeRoom,
+        state: DepartedSuspicionState,
+    ) -> None:
+        pending = state.pending_action
+        if pending is None or state.choice is not None:
+            return
+        remaining = pending.response_order[pending.response_index :]
+        pending.response_order = [
+            seat
+            for seat in remaining
+            if state.boards[seat].alive
+            and self._response_equipment_ids(state, seat, pending)
+        ]
+        pending.response_index = 0
+        if not pending.response_order:
+            self._resolve_pending_action(room, state)
+
     def _response_order(
         self, state: DepartedSuspicionState, pending: PendingAction, *, after: int | None = None
     ) -> list[int]:
@@ -568,6 +637,12 @@ class DepartedSuspicionEngine:
     ) -> list[str]:
         board = state.boards.get(seat)
         if board is None or not board.alive:
+            return []
+        if (
+            state.pending_shot is not None
+            or state.post_shot is not None
+            or state.choice is not None
+        ):
             return []
         if state.pending_action is not None:
             if self._response_seat(state.pending_action) != seat:
@@ -628,14 +703,9 @@ class DepartedSuspicionEngine:
 
         pending = state.pending_action
         if pending is not None and state.choice is None:
-            if pending.action == "shoot" and not state.boards[pending.actor_seat].gun:
-                state.pending_action = None
-                self._log(state, "shot_cancelled", "射手失去枪，射击取消并可重新选择行动")
-                return
-            pending.response_order = self._response_order(state, pending, after=seat)
-            pending.response_index = 0
-            if not pending.response_order:
-                self._resolve_pending_action(room, state)
+            self._resume_pending_action(room, state, after=seat)
+        elif pending is not None and state.choice is not None:
+            state.choice["resumePendingAfterSeat"] = seat
 
     def _resolve_equipment(
         self,
@@ -1132,8 +1202,11 @@ class DepartedSuspicionEngine:
                     board.equipment.remove(card_id)
                     state.equipment_deck.append(card_id)
             advance_after = bool(choice.get("advanceAfter"))
+            resume_after = choice.get("resumePendingAfterSeat")
             state.choice = None
-            if advance_after:
+            if isinstance(resume_after, int):
+                self._resume_pending_action(room, state, after=resume_after)
+            elif advance_after:
                 self._advance_turn(room, state)
             return
         if kind == "report_audit":
@@ -1231,14 +1304,96 @@ class DepartedSuspicionEngine:
     ) -> None:
         board = self._board(state, seat)
         if not board.alive:
+            turn_number = state.turn_number
+            self._repair_waits_after_departure(room, state, seat)
+            if (
+                room.phase != "finished"
+                and seat == state.turn_seat
+                and state.turn_number == turn_number
+            ):
+                self._advance_turn(room, state)
             return
+        was_turn = seat == state.turn_seat
         for card in board.cards:
             card.revealed = True
         self._eliminate(state, seat)
         self._log(state, "resign", f"{room.players[seat].name}认输并出局")
         self._check_victory(room, state)
-        if room.phase != "finished" and seat == state.turn_seat:
+        if room.phase == "finished":
+            return
+        turn_number = state.turn_number
+        self._repair_waits_after_departure(room, state, seat)
+        if (
+            room.phase != "finished"
+            and was_turn
+            and state.turn_number == turn_number
+        ):
             self._advance_turn(room, state)
+
+    def _repair_waits_after_departure(
+        self,
+        room: ArcadeRoom,
+        state: DepartedSuspicionState,
+        seat: int,
+    ) -> None:
+        shot = state.pending_shot
+        if shot is not None:
+            if shot.target_seat == seat:
+                state.pending_shot = None
+                if shot.advance_after:
+                    self._advance_turn(room, state)
+                return
+            if shot.scanner_seat == seat:
+                shot.scanner_seat = None
+                self._apply_shot(room, state)
+                return
+
+        post_shot = state.post_shot
+        if post_shot is not None and post_shot.get("seat") == seat:
+            self._handle_post_shot(
+                room,
+                state,
+                seat,
+                "pass_mobile_detonator",
+                {},
+            )
+            return
+
+        pending = state.pending_action
+        if pending is not None and pending.actor_seat == seat:
+            state.pending_action = None
+            self._log(state, "action_cancelled", "行动玩家已经出局，原行动取消")
+            if state.choice is not None:
+                state.choice.pop("resumePendingAfterSeat", None)
+                if state.choice.get("kind") == "classified_redirect":
+                    state.choice = None
+            return
+
+        choice = state.choice
+        if choice is not None and choice.get("kind") == "report_audit":
+            queue = [
+                queued_seat
+                for queued_seat in choice.get("queue", [])
+                if queued_seat != seat
+                and state.boards[queued_seat].alive
+                and any(not card.revealed for card in state.boards[queued_seat].cards)
+            ]
+            if not queue:
+                state.choice = None
+            else:
+                choice["queue"] = queue
+                if choice.get("seat") not in queue:
+                    choice["seat"] = queue[0]
+        elif choice is not None and choice.get("seat") == seat:
+            resume_after = choice.get("resumePendingAfterSeat")
+            advance_after = bool(choice.get("advanceAfter"))
+            state.choice = None
+            if isinstance(resume_after, int):
+                self._resume_pending_action(room, state, after=resume_after)
+            elif advance_after:
+                self._advance_turn(room, state)
+
+        self._skip_departed_responder(room, state)
 
     def _check_victory(
         self, room: ArcadeRoom, state: DepartedSuspicionState
@@ -1564,6 +1719,49 @@ class DepartedSuspicionEngine:
             result.append(cursor)
         return result
 
+    def _normal_action_ids(
+        self,
+        state: DepartedSuspicionState,
+        seat: int,
+    ) -> list[str]:
+        board = state.boards[seat]
+        if board.restricted_to_equip:
+            return ["equip"]
+        actions: list[str] = []
+        if self._has_investigation_target(state, seat):
+            actions.append("investigate")
+        actions.append("equip")
+        if (
+            not board.gun
+            and self._central_guns(state) > 0
+            and any(
+                target != seat and target_board.alive
+                for target, target_board in state.boards.items()
+            )
+        ):
+            actions.append("arm")
+        if (
+            board.gun
+            and board.aim_seat is not None
+            and state.boards[board.aim_seat].alive
+            and state.acquired_gun_turn.get(seat) != state.turn_number
+        ):
+            actions.append("shoot")
+        return actions
+
+    @staticmethod
+    def _has_investigation_target(
+        state: DepartedSuspicionState,
+        seat: int,
+    ) -> bool:
+        return any(
+            target != seat
+            and target_board.alive
+            and "disguise" not in target_board.effects
+            and any(not card.revealed for card in target_board.cards)
+            for target, target_board in state.boards.items()
+        )
+
     @staticmethod
     def _central_guns(state: DepartedSuspicionState) -> int:
         return state.gun_total - sum(board.gun for board in state.boards.values())
@@ -1615,6 +1813,7 @@ class DepartedSuspicionEngine:
             "waiting": None,
             "legal": {
                 "canTakeNormalAction": False,
+                "normalActionIds": [],
                 "canTakeExtraInvestigation": False,
                 "canEndTurn": False,
                 "canRespond": False,

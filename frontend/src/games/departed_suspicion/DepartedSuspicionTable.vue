@@ -91,6 +91,7 @@ interface SuspicionGameView {
   waiting: null | { kind: string; playerId: string }
   legal: {
     canTakeNormalAction: boolean
+    normalActionIds?: Array<'investigate' | 'equip' | 'arm' | 'shoot'>
     canTakeExtraInvestigation: boolean
     canEndTurn: boolean
     canRespond: boolean
@@ -125,7 +126,19 @@ const playerById = computed(() => new Map(props.snapshot.players.map(player => [
 const selfBoard = computed(() => game.value.players.find(board => board.playerId === props.snapshot.self.id) ?? null)
 const selfHiddenCards = computed(() => selfBoard.value?.cards.filter(card => !card.revealed) ?? [])
 const livingBoards = computed(() => game.value.players.filter(board => board.alive))
+const normalActionIds = computed(() => game.value.legal.normalActionIds
+  ?? (selfBoard.value?.restrictedToEquip ? ['equip'] : ['investigate', 'equip', 'arm', 'shoot']))
 const targetBoard = computed(() => game.value.players.find(board => board.seat === actionTargetSeat.value) ?? null)
+const actionTargetBoards = computed(() => {
+  const candidates = livingBoards.value.filter(board => board.playerId !== props.snapshot.self.id)
+  if (actionKind.value === 'investigate' || actionKind.value === 'extra_investigate') {
+    return candidates.filter(board =>
+      board.cards.some(card => !card.revealed)
+      && !board.effects.some(effect => effect.id === 'disguise'),
+    )
+  }
+  return candidates
+})
 const equipmentTargetBoard = computed(() => game.value.players.find(board => board.seat === equipmentTargetSeat.value) ?? null)
 const equipmentSecondBoard = computed(() => game.value.players.find(board => board.seat === equipmentSecondSeat.value) ?? null)
 const pendingTargetBoard = computed(() => game.value.players.find(board => board.playerId === game.value.pendingShot?.targetPlayerId) ?? null)
@@ -430,7 +443,7 @@ async function useScanner() {
       </div>
       <template v-else-if="game.choice.kind === 'classified_redirect' || game.choice.kind === 'grenade_pass'">
         <label>选择玩家
-          <select v-model="choiceTargetSeat"><option :value="null">请选择</option><option v-for="board in livingBoards" :key="board.seat" :value="board.seat">{{ playerName(board.playerId) }}</option></select>
+          <select v-model="choiceTargetSeat"><option :value="null">请选择</option><option v-for="board in livingBoards.filter(item => game.choice?.kind === 'classified_redirect' ? item.playerId !== game.choice.shooterPlayerId : item.playerId !== snapshot.self.id)" :key="board.seat" :value="board.seat">{{ playerName(board.playerId) }}</option></select>
         </label>
         <button v-if="game.choice.kind === 'classified_redirect'" type="button" class="primary-button" @click="chooseRedirect">确认射击目标</button>
         <button v-else type="button" class="primary-button" @click="passGrenade">传递手榴弹</button>
@@ -446,18 +459,18 @@ async function useScanner() {
     </section>
 
     <section v-if="game.legal.canTakeNormalAction || game.legal.canTakeExtraInvestigation || game.legal.canEndTurn" class="turn-console surface">
-      <header><div><strong>行动台</strong><small>{{ game.actionDone ? '可以调整瞄准并结束回合' : '行动声明后，系统按座位顺序询问装备响应' }}</small></div></header>
-      <div v-if="game.legal.canTakeNormalAction" class="action-grid">
-        <button type="button" :class="{ active: actionKind === 'investigate' }" @click="chooseAction('investigate')"><Search :size="18" /><span><strong>调查</strong><small>私看一张暗置底细</small></span></button>
-        <button type="button" :class="{ active: actionKind === 'equip' }" @click="chooseAction('equip')"><PackageOpen :size="18" /><span><strong>获取装备</strong><small>若有暗牌，公开一张后抽装备</small></span></button>
-        <button type="button" :class="{ active: actionKind === 'arm' }" @click="chooseAction('arm')"><Crosshair :size="18" /><span><strong>武装</strong><small>若有暗牌先公开，再拿枪瞄准</small></span></button>
-        <button type="button" :class="{ active: actionKind === 'shoot' }" @click="chooseAction('shoot')"><Target :size="18" /><span><strong>射击</strong><small>只能射向当前瞄准目标</small></span></button>
+      <header><div><strong>行动台</strong><small>{{ game.actionDone ? '可以结束回合' : selfBoard?.restrictedToEquip ? '拐杖复活限制：此后只能获取装备' : '行动声明后，系统按座位顺序询问装备响应' }}</small></div></header>
+      <div v-if="game.legal.canTakeNormalAction" class="action-grid" :class="{ restricted: normalActionIds.length === 1 }">
+        <button v-if="normalActionIds.includes('investigate')" type="button" :class="{ active: actionKind === 'investigate' }" @click="chooseAction('investigate')"><Search :size="18" /><span><strong>调查</strong><small>私看一张暗置底细</small></span></button>
+        <button v-if="normalActionIds.includes('equip')" type="button" :class="{ active: actionKind === 'equip' }" @click="chooseAction('equip')"><PackageOpen :size="18" /><span><strong>获取装备</strong><small>若有暗牌，公开一张后抽装备</small></span></button>
+        <button v-if="normalActionIds.includes('arm')" type="button" :class="{ active: actionKind === 'arm' }" @click="chooseAction('arm')"><Crosshair :size="18" /><span><strong>武装</strong><small>若有暗牌先公开，再拿枪瞄准</small></span></button>
+        <button v-if="normalActionIds.includes('shoot')" type="button" :class="{ active: actionKind === 'shoot' }" @click="chooseAction('shoot')"><Target :size="18" /><span><strong>射击</strong><small>只能射向当前瞄准目标</small></span></button>
       </div>
       <button v-if="game.legal.canTakeExtraInvestigation" type="button" class="extra-action" :class="{ active: actionKind === 'extra_investigate' }" @click="chooseAction('extra_investigate')"><Search :size="16" />钥匙 · 额外调查</button>
 
       <div v-if="actionKind" class="action-form">
         <label v-if="actionKind === 'investigate' || actionKind === 'extra_investigate' || actionKind === 'arm'">目标玩家
-          <select v-model="actionTargetSeat"><option :value="null">请选择</option><option v-for="board in livingBoards.filter(item => item.playerId !== snapshot.self.id)" :key="board.seat" :value="board.seat">{{ playerName(board.playerId) }}</option></select>
+          <select v-model="actionTargetSeat"><option :value="null">请选择</option><option v-for="board in actionTargetBoards" :key="board.seat" :value="board.seat">{{ playerName(board.playerId) }}</option></select>
         </label>
         <label v-if="actionKind === 'investigate' || actionKind === 'extra_investigate'">目标底细
           <select v-model="actionCardIndex"><option :value="null">选择暗置底细</option><option v-for="card in targetBoard?.cards.filter(item => !item.revealed)" :key="card.index" :value="card.index">第{{ card.index + 1 }}张</option></select>
@@ -558,7 +571,7 @@ async function useScanner() {
 .suspect-board > footer { min-height: 21px; display: flex; flex-wrap: wrap; gap: 5px; }.suspect-board > footer span { border-radius: 999px; padding: 4px 7px; color: var(--muted); background: var(--surface-inset); font-size: 8px; font-weight: 750; }
 .decision-panel,.turn-console,.equipment-hand,.history-panel { padding: 15px; }.decision-panel { display: grid; gap: 12px; border-color: color-mix(in srgb, var(--case-gold) 30%, var(--line)); }.urgent-panel { border-color: color-mix(in srgb, var(--case-red) 40%, var(--line)); background: linear-gradient(120deg, color-mix(in srgb, var(--case-red) 6%, var(--surface)), var(--surface)); }.decision-panel > div:first-child { display: flex; align-items: center; gap: 10px; }.decision-panel > div:first-child > div { display: grid; }.decision-panel small,.decision-panel p { color: var(--muted); }.panel-icon { width: 38px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 11px; color: var(--case-gold); background: color-mix(in srgb, var(--case-gold) 12%, var(--surface-inset)); }.urgent-panel .panel-icon { color: #e18880; background: color-mix(in srgb, var(--case-red) 14%, var(--surface-inset)); }
 .equipment-actions,.decision-actions,.card-choice-list { display: flex; flex-wrap: wrap; gap: 8px; }.equipment-actions button,.decision-actions button,.card-choice-list button,.catalog-trigger,.extra-action { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--line); border-radius: 9px; padding: 8px 11px; color: var(--text); background: var(--surface-inset); cursor: pointer; }
-.turn-console { display: grid; gap: 12px; }.turn-console > header,.equipment-hand > header { display: flex; justify-content: space-between; gap: 10px; }.turn-console header div,.equipment-hand header div { display: grid; }.turn-console small,.equipment-hand small { color: var(--muted); }.action-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }.action-grid button { min-width: 0; min-height: 68px; display: flex; align-items: center; gap: 9px; border: 1px solid var(--line); border-radius: 10px; padding: 10px; color: var(--text-soft); background: var(--surface-inset); text-align: left; cursor: pointer; }.action-grid button.active,.extra-action.active { border-color: color-mix(in srgb, var(--case-gold) 55%, var(--line)); color: var(--case-gold); background: color-mix(in srgb, var(--case-gold) 9%, var(--surface-inset)); }.action-grid button span { min-width: 0; display: grid; }.action-grid button small { font-size: 8px; line-height: 1.35; }.extra-action { justify-self: start; }
+.turn-console { display: grid; gap: 12px; }.turn-console > header,.equipment-hand > header { display: flex; justify-content: space-between; gap: 10px; }.turn-console header div,.equipment-hand header div { display: grid; }.turn-console small,.equipment-hand small { color: var(--muted); }.action-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }.action-grid.restricted { grid-template-columns: 1fr; }.action-grid button { min-width: 0; min-height: 68px; display: flex; align-items: center; gap: 9px; border: 1px solid var(--line); border-radius: 10px; padding: 10px; color: var(--text-soft); background: var(--surface-inset); text-align: left; cursor: pointer; }.action-grid button.active,.extra-action.active { border-color: color-mix(in srgb, var(--case-gold) 55%, var(--line)); color: var(--case-gold); background: color-mix(in srgb, var(--case-gold) 9%, var(--surface-inset)); }.action-grid button span { min-width: 0; display: grid; }.action-grid button small { font-size: 8px; line-height: 1.35; }.extra-action { justify-self: start; }
 .action-form,.end-turn-row { display: flex; align-items: end; flex-wrap: wrap; gap: 9px; border-top: 1px solid var(--line); padding-top: 12px; }.end-turn-row { justify-content: flex-end; }.action-form label,.end-turn-row label,.decision-panel label,.suspicion-modal label { min-width: 150px; display: grid; gap: 5px; color: var(--muted); font-size: 9px; font-weight: 800; }.action-form select,.end-turn-row select,.decision-panel select,.suspicion-modal select { min-height: 39px; border: 1px solid var(--line); border-radius: 8px; padding: 0 9px; color: var(--text); background: var(--surface-inset); }
 .action-cost-note { align-self: center; max-width: 250px; margin: 0; color: var(--muted); font-size: 10px; }
 .equipment-hand { display: grid; gap: 10px; }.equipment-hand > header button { border: 0; color: var(--case-gold); background: none; cursor: pointer; }.equipment-hand > article { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--surface-inset); }.equipment-hand article > span,.equipment-number { color: var(--case-gold); font-family: Georgia, serif; font-size: 18px; }.equipment-hand article div { min-width: 0; display: grid; }.equipment-hand article small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.equipment-hand article button { border: 1px solid color-mix(in srgb, var(--case-gold) 35%, var(--line)); border-radius: 8px; padding: 7px 10px; color: var(--case-gold); background: transparent; cursor: pointer; }.equipment-hand article button:disabled { opacity: .35; cursor: not-allowed; }.catalog-trigger { justify-self: center; color: var(--case-gold); }
