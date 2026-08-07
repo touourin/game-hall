@@ -168,9 +168,58 @@ function describeSelectedCards(cards: PlayingCard[]): string {
   if (cards.length >= 5 && quantities[0] === 1 && ranks.at(-1)! <= 14 && consecutive) return '顺子'
   if (cards.length >= 6 && cards.length % 2 === 0 && quantities.every((count) => count === 2) && ranks.at(-1)! <= 14 && consecutive) return '连对'
   if (cards.length >= 6 && cards.length % 3 === 0 && quantities.every((count) => count === 3) && ranks.at(-1)! <= 14 && consecutive) return '飞机'
+  if (cards.length >= 8 && cards.length % 4 === 0) {
+    const sequenceLength = cards.length / 4
+    for (const sequence of tripleSequences(counts, sequenceLength)) {
+      const remaining = remainingCounts(counts, sequence)
+      if (
+        [...remaining.values()].reduce((total, count) => total + count, 0) === sequenceLength
+        && [...remaining.keys()].every((rank) => !sequence.includes(rank))
+      ) return '飞机带单'
+    }
+  }
+  if (cards.length >= 10 && cards.length % 5 === 0) {
+    const sequenceLength = cards.length / 5
+    for (const sequence of tripleSequences(counts, sequenceLength)) {
+      const remaining = remainingCounts(counts, sequence)
+      if (
+        remaining.size === sequenceLength
+        && [...remaining.values()].every((count) => count === 2)
+      ) return '飞机带对'
+    }
+  }
   if (cards.length === 6 && quantities[0] === 4) return '四带二'
   if (cards.length === 8 && quantities[0] === 4 && quantities.slice(1).every((count) => count === 2)) return '四带两对'
   return ''
+}
+
+function tripleSequences(counts: ReadonlyMap<number, number>, length: number): number[][] {
+  if (length < 2) return []
+  const tripleRanks = [...counts.entries()]
+    .filter(([rank, count]) => rank <= 14 && count >= 3)
+    .map(([rank]) => rank)
+    .sort((left, right) => left - right)
+  const sequences: number[][] = []
+  for (let start = 0; start <= tripleRanks.length - length; start += 1) {
+    const sequence = tripleRanks.slice(start, start + length)
+    if (sequence.every((rank, index) => index === 0 || rank === sequence[index - 1]! + 1)) {
+      sequences.push(sequence)
+    }
+  }
+  return sequences
+}
+
+function remainingCounts(
+  counts: ReadonlyMap<number, number>,
+  sequence: number[],
+): Map<number, number> {
+  const remaining = new Map(counts)
+  for (const rank of sequence) {
+    const count = (remaining.get(rank) ?? 0) - 3
+    if (count > 0) remaining.set(rank, count)
+    else remaining.delete(rank)
+  }
+  return remaining
 }
 
 function historyText(entry: HistoryEntry): string {

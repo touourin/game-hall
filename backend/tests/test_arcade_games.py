@@ -719,15 +719,24 @@ def test_doudizhu_classifies_and_compares_major_patterns() -> None:
     assert classify_cards(cards(3, 3, 4, 4, 5, 5)).kind == "pair_straight"
     assert classify_cards(cards(3, 3, 3, 4, 4, 4)).kind == "airplane"
     assert classify_cards(cards(3, 3, 3, 4, 4, 4, 7, 8)).kind == "airplane_single"
+    assert classify_cards(cards(3, 3, 3, 4, 4, 4, 7, 7)).kind == "airplane_single"
+    assert (
+        classify_cards(cards(4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 9, 9)).kind
+        == "airplane_single"
+    )
     assert classify_cards(cards(3, 3, 3, 4, 4, 4, 7, 7, 8, 8)).kind == "airplane_pair"
     assert classify_cards(cards(6, 6, 6, 6, 8, 9)).kind == "four_two_single"
+    assert classify_cards(cards(6, 6, 6, 6, 8, 8)).kind == "four_two_single"
+    assert classify_cards(cards(6, 6, 6, 6, 8, 8, 9, 9)).kind == "four_two_pair"
     assert beats(classify_cards(cards(8, 8, 8, 8)), classify_cards(cards(14)))
     with pytest.raises(GameRuleError, match="有效牌型"):
         classify_cards(cards(3, 3, 4))
     with pytest.raises(GameRuleError, match="有效牌型"):
-        classify_cards(cards(3, 3, 3, 4, 4, 4, 7, 7))
+        classify_cards(cards(3, 3, 3, 3, 4, 4, 4, 4))
     with pytest.raises(GameRuleError, match="有效牌型"):
-        classify_cards(cards(6, 6, 6, 6, 8, 8))
+        classify_cards(cards(3, 3, 3, 4, 4, 4, 7, 7, 7, 7))
+    with pytest.raises(GameRuleError, match="有效牌型"):
+        classify_cards(cards(6, 6, 6, 6, 8, 8, 8, 8))
 
 
 def test_doudizhu_laizi_supports_soft_hard_and_pure_wild_bombs() -> None:

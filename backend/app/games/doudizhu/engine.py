@@ -206,18 +206,17 @@ def _classify_ranks(ranks_input: list[int]) -> PlayPattern:
 
     if size % 3 == 0:
         sequence_length = size // 3
-        sequence = _find_triple_sequence(counts, sequence_length)
-        if sequence is not None and all(counts[rank] == 3 for rank in sequence):
-            if len(counts) == sequence_length:
+        for sequence in reversed(_triple_sequences(counts, sequence_length)):
+            if len(counts) == sequence_length and all(
+                counts[rank] == 3 for rank in sequence
+            ):
                 return PlayPattern("airplane", sequence[-1], size, sequence_length)
     if size % 4 == 0:
         sequence_length = size // 4
-        sequence = _find_triple_sequence(counts, sequence_length)
-        if sequence is not None:
+        for sequence in reversed(_triple_sequences(counts, sequence_length)):
             remaining = _remaining_counts(counts, sequence)
             if (
-                len(remaining) == sequence_length
-                and all(count == 1 for count in remaining.values())
+                sum(remaining.values()) == sequence_length
                 and all(rank not in sequence for rank in remaining)
             ):
                 return PlayPattern(
@@ -225,8 +224,7 @@ def _classify_ranks(ranks_input: list[int]) -> PlayPattern:
                 )
     if size % 5 == 0:
         sequence_length = size // 5
-        sequence = _find_triple_sequence(counts, sequence_length)
-        if sequence is not None:
+        for sequence in reversed(_triple_sequences(counts, sequence_length)):
             remaining = _remaining_counts(counts, sequence)
             if len(remaining) == sequence_length and all(
                 count == 2 for count in remaining.values()
@@ -235,9 +233,7 @@ def _classify_ranks(ranks_input: list[int]) -> PlayPattern:
     if size == 6 and 4 in counts.values():
         main = next(rank for rank, count in counts.items() if count == 4)
         remaining = {rank: count for rank, count in counts.items() if rank != main}
-        if len(remaining) == 2 and all(
-            count == 1 for count in remaining.values()
-        ):
+        if sum(remaining.values()) == 2:
             return PlayPattern("four_two_single", main, 6)
     if size == 8 and 4 in counts.values():
         main = next(rank for rank, count in counts.items() if count == 4)
@@ -298,17 +294,18 @@ def _is_sequence(ranks: list[int]) -> bool:
     )
 
 
-def _find_triple_sequence(counts: dict[int, int], length: int) -> list[int] | None:
+def _triple_sequences(counts: dict[int, int], length: int) -> list[list[int]]:
     if length < 2:
-        return None
+        return []
     triple_ranks = sorted(
         rank for rank, count in counts.items() if count >= 3 and rank <= 14
     )
+    sequences: list[list[int]] = []
     for start in range(len(triple_ranks) - length + 1):
         sequence = triple_ranks[start : start + length]
         if _is_sequence(sequence):
-            return sequence
-    return None
+            sequences.append(sequence)
+    return sequences
 
 
 def _remaining_counts(

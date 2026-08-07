@@ -68,6 +68,16 @@ function playingSnapshot(): ArcadeSnapshot {
   }
 }
 
+function handFromRanks(...ranks: number[]): Array<Record<string, unknown>> {
+  const suits = ['spade', 'heart', 'club', 'diamond'] as const
+  return ranks.map((rank, index) => ({
+    id: `${rank}-${index}`,
+    rank,
+    label: String(rank),
+    suit: suits[index % suits.length],
+  }))
+}
+
 describe('DoudizhuTable', () => {
   it.each([
     { selfSeat: 0, leftPlayer: '玩家二', rightPlayer: '玩家三' },
@@ -108,6 +118,35 @@ describe('DoudizhuTable', () => {
     expect(cards.every((card) => card.attributes('aria-pressed') === 'true')).toBe(true)
     expect(wrapper.get('.selection-feedback').text()).toContain('对子')
     expect(wrapper.get('.selection-feedback').text()).toContain('已选 2 张')
+  })
+
+  it.each([
+    {
+      name: '对子拆作单翅膀',
+      ranks: [4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 9, 9],
+      label: '飞机带单',
+    },
+    {
+      name: '对子拆作四带二',
+      ranks: [6, 6, 6, 6, 8, 8],
+      label: '四带二',
+    },
+    {
+      name: '双翅膀保持对子结构',
+      ranks: [3, 3, 3, 4, 4, 4, 7, 7, 8, 8],
+      label: '飞机带对',
+    },
+  ])('识别$name', async ({ ranks, label }) => {
+    const next = playingSnapshot()
+    ;(next.game.hand as Array<Record<string, unknown>>) = handFromRanks(...ranks)
+    const wrapper = mount(DoudizhuTable, {
+      props: { snapshot: next },
+      global: { plugins: [createPinia()] },
+    })
+
+    for (const card of wrapper.findAll('.playing-card')) await card.trigger('click')
+
+    expect(wrapper.get('.selection-feedback').text()).toContain(label)
   })
 
   it('highlights the opponent whose turn is in progress', () => {
