@@ -94,6 +94,7 @@ function snapshot(response = false, allOwnRevealed = false, restrictedToEquip = 
         action: 'shoot',
         actionLabel: '射击',
         targetPlayerId: 'p2',
+        targetCardIndex: null,
         responsePlayerId: 'p2',
         isMyResponse: true,
       } : null,
@@ -101,9 +102,21 @@ function snapshot(response = false, allOwnRevealed = false, restrictedToEquip = 
       choice: null,
       postShot: null,
       waiting: response ? { kind: 'equipment_response', playerId: 'p2' } : null,
+      currentPrompt: response ? {
+        kind: 'equipment_response',
+        title: '玩家1宣布射击玩家2',
+        detail: '等待玩家2决定是否使用装备。',
+        decisionPlayerId: 'p2',
+        isMyDecision: true,
+        actorPlayerId: 'p1',
+        targetPlayerId: 'p2',
+        targetCardIndex: null,
+        sourceCardId: null,
+      } : null,
       legal: {
         canTakeNormalAction: !response,
         normalActionIds: response ? [] : restrictedToEquip ? ['equip'] : ['investigate', 'equip', 'arm'],
+        investigationTargetPlayerIds: response ? [] : ['p2', 'p3', 'p4'],
         canTakeExtraInvestigation: false,
         canEndTurn: false,
         canRespond: response,
@@ -117,7 +130,7 @@ function snapshot(response = false, allOwnRevealed = false, restrictedToEquip = 
 }
 
 describe('DepartedSuspicionTable', () => {
-  it('renders private cards without exposing other hidden identities and submits an investigation', async () => {
+  it('masks private knowledge until held and submits an investigation', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)
     const action = vi.spyOn(arcade, 'action').mockResolvedValue()
@@ -127,8 +140,19 @@ describe('DepartedSuspicionTable', () => {
     })
 
     expect(wrapper.findAll('.integrity-card')).toHaveLength(12)
-    expect(wrapper.findAll('.suspect-board')[0]?.text()).toContain('探员')
+    expect(wrapper.findAll('.suspect-board')[0]?.text()).not.toContain('探员')
     expect(wrapper.findAll('.suspect-board')[1]?.text()).not.toContain('探员')
+    expect(wrapper.text()).not.toContain('正直阵营')
+
+    await wrapper.get('.private-info-trigger').trigger('click')
+    const privateCard = wrapper.get('.press-reveal-card')
+    expect(wrapper.get('.private-info-modal').text()).not.toContain('探员')
+    await privateCard.trigger('pointerdown')
+    expect(wrapper.get('.private-info-modal').text()).toContain('正直阵营')
+    expect(wrapper.get('.private-info-modal').text()).toContain('探员')
+    await privateCard.trigger('pointerup')
+    expect(wrapper.get('.private-info-modal').text()).not.toContain('探员')
+    await wrapper.get('.private-info-modal .modal-close').trigger('click')
 
     await wrapper.findAll('.action-grid button')[0]?.trigger('click')
     const selects = wrapper.findAll('.action-form select')
@@ -151,7 +175,8 @@ describe('DepartedSuspicionTable', () => {
       global: { plugins: [pinia] },
     })
 
-    expect(wrapper.get('.urgent-panel').text()).toContain('宣布射击')
+    expect(wrapper.get('.current-prompt').text()).toContain('玩家1宣布射击玩家2')
+    expect(wrapper.get('.urgent-panel').text()).toContain('装备响应')
     await wrapper.findAll('.equipment-actions button')[0]?.trigger('click')
     await wrapper.get('.suspicion-modal select').setValue('0')
     await wrapper.get('.suspicion-modal .primary-button').trigger('click')
@@ -200,5 +225,18 @@ describe('DepartedSuspicionTable', () => {
     await wrapper.get('.action-form .primary-button').trigger('click')
 
     expect(action).toHaveBeenCalledWith('equip', {})
+  })
+
+  it('places actionable controls before the player board', () => {
+    const pinia = createPinia()
+    const wrapper = mount(DepartedSuspicionTable, {
+      props: { snapshot: snapshot() },
+      global: { plugins: [pinia] },
+    })
+
+    const children = Array.from(wrapper.element.children)
+    expect(children.indexOf(wrapper.get('.turn-console').element)).toBeLessThan(
+      children.indexOf(wrapper.get('.investigation-board').element),
+    )
   })
 })

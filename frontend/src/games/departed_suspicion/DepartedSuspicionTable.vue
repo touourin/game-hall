@@ -5,13 +5,14 @@ import {
   BriefcaseBusiness,
   Crosshair,
   Eye,
+  Lock,
   PackageOpen,
   Search,
-  ShieldCheck,
   SkipForward,
   Target,
   X,
 } from '@lucide/vue'
+import PressRevealCard from '../../components/PressRevealCard.vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
 
@@ -72,6 +73,7 @@ interface SuspicionGameView {
     action: string
     actionLabel: string
     targetPlayerId: string | null
+    targetCardIndex: number | null
     responsePlayerId: string | null
     isMyResponse: boolean
   }
@@ -89,9 +91,21 @@ interface SuspicionGameView {
   }
   postShot: null | { kind: string; isMyDecision: boolean }
   waiting: null | { kind: string; playerId: string }
+  currentPrompt: null | {
+    kind: string
+    title: string
+    detail: string
+    decisionPlayerId: string | null
+    isMyDecision: boolean
+    actorPlayerId: string | null
+    targetPlayerId: string | null
+    targetCardIndex: number | null
+    sourceCardId: string | null
+  }
   legal: {
     canTakeNormalAction: boolean
-    normalActionIds?: Array<'investigate' | 'equip' | 'arm' | 'shoot'>
+    normalActionIds: Array<'investigate' | 'equip' | 'arm' | 'shoot'>
+    investigationTargetPlayerIds: string[]
     canTakeExtraInvestigation: boolean
     canEndTurn: boolean
     canRespond: boolean
@@ -121,21 +135,21 @@ const choiceTargetSeat = ref<number | null>(null)
 const scannerOwnCardIndex = ref<number | null>(null)
 const scannerTargetCardIndex = ref<number | null>(null)
 const showCatalog = ref(false)
+const showPrivateInfo = ref(false)
 
 const playerById = computed(() => new Map(props.snapshot.players.map(player => [player.id, player])))
 const selfBoard = computed(() => game.value.players.find(board => board.playerId === props.snapshot.self.id) ?? null)
 const selfHiddenCards = computed(() => selfBoard.value?.cards.filter(card => !card.revealed) ?? [])
 const livingBoards = computed(() => game.value.players.filter(board => board.alive))
-const normalActionIds = computed(() => game.value.legal.normalActionIds
-  ?? (selfBoard.value?.restrictedToEquip ? ['equip'] : ['investigate', 'equip', 'arm', 'shoot']))
+const normalActionIds = computed(() => game.value.legal.normalActionIds)
+const investigationTargetPlayerIds = computed(() => new Set(
+  game.value.legal.investigationTargetPlayerIds,
+))
 const targetBoard = computed(() => game.value.players.find(board => board.seat === actionTargetSeat.value) ?? null)
 const actionTargetBoards = computed(() => {
   const candidates = livingBoards.value.filter(board => board.playerId !== props.snapshot.self.id)
   if (actionKind.value === 'investigate' || actionKind.value === 'extra_investigate') {
-    return candidates.filter(board =>
-      board.cards.some(card => !card.revealed)
-      && !board.effects.some(effect => effect.id === 'disguise'),
-    )
+    return candidates.filter(board => investigationTargetPlayerIds.value.has(board.playerId))
   }
   return candidates
 })
@@ -144,7 +158,13 @@ const equipmentSecondBoard = computed(() => game.value.players.find(board => boa
 const pendingTargetBoard = computed(() => game.value.players.find(board => board.playerId === game.value.pendingShot?.targetPlayerId) ?? null)
 const canOperate = computed(() => !arcade.busy && !game.value.waiting)
 const responseCards = computed(() => game.value.equipmentHand.filter(card => game.value.legal.responseEquipmentIds.includes(card.id)))
-const playableCards = computed(() => game.value.equipmentHand.filter(card => game.value.legal.playableEquipmentIds.includes(card.id)))
+const privateInvestigations = computed(() => game.value.players.flatMap(board => (
+  board.playerId === props.snapshot.self.id
+    ? []
+    : board.cards
+        .filter(card => card.knowledge === 'investigated' && card.kind !== null)
+        .map(card => ({ board, card }))
+)))
 const singleTargetIds = new Set([
   'defibrillator', 'flashbang', 'k9_unit', 'planted_evidence', 'polygraph',
   'truth_serum', 'grenade', 'crutches', 'disguise', 'inspection_gloves', 'key',
@@ -178,12 +198,25 @@ function teamLabel(team: 'honest' | 'crooked' | null): string {
   return team === 'honest' ? '正直阵营' : team === 'crooked' ? '腐败阵营' : '身份未明'
 }
 
+function cardIsPublic(card: IntegrityView): boolean {
+  return props.snapshot.phase === 'finished' || card.revealed
+}
+
 function cardClass(card: IntegrityView): string[] {
+  const isPublic = cardIsPublic(card)
   return [
-    card.kind ? `kind-${card.kind}` : 'kind-hidden',
-    card.revealed ? 'revealed' : 'face-down',
-    `knowledge-${card.knowledge}`,
+    isPublic && card.kind ? `kind-${card.kind}` : 'kind-hidden',
+    isPublic ? 'revealed' : 'face-down',
   ]
+}
+
+function cardLabel(card: IntegrityView): string {
+  return cardIsPublic(card) && card.kind ? card.label : '?'
+}
+
+function cardStatus(card: IntegrityView): string {
+  if (card.wounded && cardIsPublic(card)) return '受伤'
+  return cardIsPublic(card) ? '公开' : '暗置'
 }
 
 function chooseAction(kind: typeof actionKind.value) {
@@ -338,78 +371,37 @@ async function useScanner() {
       <div>
         <span class="status-kicker">第 {{ game.turnNumber }} 回合 · {{ game.direction === 'clockwise' ? '顺时针' : '逆时针' }}</span>
         <strong>{{ playerName(game.turnPlayerId) }}的回合</strong>
-        <small v-if="game.waiting">等待{{ playerName(game.waiting.playerId) }}处理{{ game.waiting.kind === 'equipment_response' ? '装备响应' : '当前选择' }}</small>
+        <small v-if="game.currentPrompt">{{ game.currentPrompt.title }}</small>
         <small v-else>{{ game.actionDone ? '正常行动已完成，可使用装备或结束回合' : '请选择调查、获取装备、武装或射击' }}</small>
       </div>
       <div class="status-resources">
         <span><Target :size="16" />中央枪械 <b>{{ game.centralGuns }}</b></span>
-        <span :class="`team-${game.selfTeam}`"><ShieldCheck :size="16" />{{ teamLabel(game.selfTeam) }}</span>
+        <button type="button" class="private-info-trigger" @click="showPrivateInfo = true"><Lock :size="15" />我的私密信息</button>
       </div>
     </header>
 
-    <div class="investigation-board">
-      <article
-        v-for="board in game.players"
-        :key="board.playerId"
-        class="suspect-board surface"
-        :class="{
-          self: board.playerId === snapshot.self.id,
-          eliminated: !board.alive,
-          active: board.playerId === game.turnPlayerId,
-        }"
-      >
-        <header>
-          <span class="seat-badge">{{ board.seat + 1 }}</span>
-          <div>
-            <strong>{{ playerName(board.playerId) }}</strong>
-            <small>{{ board.playerId === snapshot.self.id ? `${teamLabel(board.team)} · 你` : board.alive ? '仍在调查中' : '已经出局' }}</small>
-          </div>
-          <span v-if="board.gun" class="gun-badge"><Crosshair :size="14" />瞄准{{ playerName(board.aimPlayerId) }}</span>
-        </header>
+    <section v-if="game.currentPrompt" class="current-prompt surface" :class="{ urgent: game.currentPrompt.isMyDecision }" aria-live="polite">
+      <span class="panel-icon"><ArrowLeftRight :size="20" /></span>
+      <div>
+        <strong>{{ game.currentPrompt.title }}</strong>
+        <small>{{ game.currentPrompt.detail }}</small>
+      </div>
+      <em>{{ game.currentPrompt.isMyDecision ? '轮到你处理' : `等待${playerName(game.currentPrompt.decisionPlayerId)}` }}</em>
+    </section>
 
-        <div class="integrity-row">
-          <button
-            v-for="card in board.cards"
-            :key="card.index"
-            type="button"
-            class="integrity-card"
-            :class="cardClass(card)"
-            disabled
-          >
-            <span>{{ card.kind ? card.label : '?' }}</span>
-            <small v-if="card.wounded">受伤</small>
-            <small v-else-if="card.revealed">公开</small>
-            <small v-else-if="card.knowledge === 'own'">仅你可见</small>
-            <small v-else-if="card.knowledge === 'investigated'">你已调查</small>
-            <small v-else>暗置</small>
-          </button>
-        </div>
-
-        <footer>
-          <span v-if="board.equipmentCount"><BriefcaseBusiness :size="13" />装备 {{ board.equipmentCount }}</span>
-          <span v-for="effect in board.effects" :key="effect.id">{{ effect.name }}<template v-if="effect.grenadeStage"> · 第{{ effect.grenadeStage }}段</template></span>
-          <span v-if="board.restrictedToEquip">仅可获取装备</span>
-        </footer>
-      </article>
-    </div>
-
-    <section v-if="game.pendingAction" class="decision-panel surface urgent-panel">
+    <section v-if="game.pendingAction?.isMyResponse" class="decision-panel surface urgent-panel">
       <div>
         <span class="panel-icon"><Crosshair :size="20" /></span>
         <div>
-          <strong>{{ playerName(game.pendingAction.actorPlayerId) }}宣布{{ game.pendingAction.actionLabel }}</strong>
-          <small v-if="game.pendingAction.targetPlayerId">目标：{{ playerName(game.pendingAction.targetPlayerId) }}</small>
-          <small v-else>等待装备响应后结算</small>
+          <strong>装备响应</strong>
+          <small>{{ game.currentPrompt?.title }}</small>
         </div>
       </div>
-      <template v-if="game.pendingAction.isMyResponse">
-        <p>现在轮到你响应。装备会逐张完整结算；也可以直接放弃响应。</p>
-        <div class="equipment-actions">
-          <button v-for="card in responseCards" :key="card.id" type="button" @click="openEquipment(card)">{{ card.name }}</button>
-          <button type="button" class="secondary-button" @click="arcade.action('pass_response')"><SkipForward :size="16" />不响应</button>
-        </div>
-      </template>
-      <p v-else>等待{{ playerName(game.pendingAction.responsePlayerId) }}决定是否使用装备。</p>
+      <p>现在轮到你响应。装备会逐张完整结算；也可以直接放弃响应。</p>
+      <div class="equipment-actions">
+        <button v-for="card in responseCards" :key="card.id" type="button" @click="openEquipment(card)">{{ card.name }}</button>
+        <button type="button" class="secondary-button" @click="arcade.action('pass_response')"><SkipForward :size="16" />不响应</button>
+      </div>
     </section>
 
     <section v-if="game.pendingShot?.isMyDecision" class="decision-panel surface urgent-panel">
@@ -417,7 +409,7 @@ async function useScanner() {
       <label>用自己的底细交换
         <select v-model="scannerOwnCardIndex">
           <option :value="null">选择底细</option>
-          <option v-for="card in selfBoard?.cards" :key="card.index" :value="card.index">第{{ card.index + 1 }}张 · {{ card.label }}</option>
+          <option v-for="card in selfBoard?.cards" :key="card.index" :value="card.index">第{{ card.index + 1 }}张</option>
         </select>
       </label>
       <label>取得目标的普通底细
@@ -430,12 +422,12 @@ async function useScanner() {
     </section>
 
     <section v-if="game.choice?.isMyDecision" class="decision-panel surface">
-      <div><span class="panel-icon"><ArrowLeftRight :size="20" /></span><div><strong>需要你的选择</strong><small>完成后对局会自动继续</small></div></div>
+      <div><span class="panel-icon"><ArrowLeftRight :size="20" /></span><div><strong>{{ game.currentPrompt?.title ?? '需要你的选择' }}</strong><small>{{ game.currentPrompt?.detail ?? '完成后对局会自动继续' }}</small></div></div>
       <div v-if="game.choice.kind === 'equipment_limit'" class="equipment-actions">
         <button v-for="card in game.choice.cards" :key="card.id" type="button" @click="chooseEquipment(card.id)">保留{{ card.name }}</button>
       </div>
       <div v-else-if="game.choice.kind === 'report_audit' || game.choice.kind === 'truth_serum'" class="card-choice-list">
-        <button v-for="card in selfBoard?.cards.filter(item => !item.revealed)" :key="card.index" type="button" @click="chooseReveal(card.index)">公开第{{ card.index + 1 }}张 · {{ card.label }}</button>
+        <button v-for="card in selfBoard?.cards.filter(item => !item.revealed)" :key="card.index" type="button" @click="chooseReveal(card.index)">公开第{{ card.index + 1 }}张</button>
       </div>
       <div v-else-if="game.choice.kind === 'inspection_gloves'" class="decision-actions">
         <button v-if="selfBoard?.equipmentCount" type="button" @click="arcade.action('inspection_choice', { choice: 'discard_equipment' })">弃掉装备</button>
@@ -476,7 +468,7 @@ async function useScanner() {
           <select v-model="actionCardIndex"><option :value="null">选择暗置底细</option><option v-for="card in targetBoard?.cards.filter(item => !item.revealed)" :key="card.index" :value="card.index">第{{ card.index + 1 }}张</option></select>
         </label>
         <label v-if="(actionKind === 'equip' || actionKind === 'arm') && selfHiddenCards.length">公开自己的底细
-          <select v-model="actionCardIndex"><option :value="null">选择暗置底细</option><option v-for="card in selfHiddenCards" :key="card.index" :value="card.index">第{{ card.index + 1 }}张 · {{ card.label }}</option></select>
+          <select v-model="actionCardIndex"><option :value="null">选择暗置底细</option><option v-for="card in selfHiddenCards" :key="card.index" :value="card.index">第{{ card.index + 1 }}张</option></select>
         </label>
         <p v-else-if="actionKind === 'equip' || actionKind === 'arm'" class="action-cost-note">底细已全部公开，本次无需再公开底细。</p>
         <button type="button" class="primary-button" :disabled="!canOperate" @click="submitAction">声明{{ actionKind === 'extra_investigate' ? '额外调查' : actionKind === 'investigate' ? '调查' : actionKind === 'equip' ? '获取装备' : actionKind === 'arm' ? '武装' : '射击' }}</button>
@@ -500,10 +492,71 @@ async function useScanner() {
     </section>
     <button v-else type="button" class="catalog-trigger" @click="showCatalog = true"><BriefcaseBusiness :size="15" />查看33张装备资料库</button>
 
+    <div class="investigation-board">
+      <article
+        v-for="board in game.players"
+        :key="board.playerId"
+        class="suspect-board surface"
+        :class="{
+          self: board.playerId === snapshot.self.id,
+          eliminated: !board.alive,
+          active: board.playerId === game.turnPlayerId,
+        }"
+      >
+        <header>
+          <span class="seat-badge">{{ board.seat + 1 }}</span>
+          <div>
+            <strong>{{ playerName(board.playerId) }}</strong>
+            <small>{{ board.playerId === snapshot.self.id ? '你 · 私密信息已遮挡' : board.alive ? '仍在调查中' : '已经出局' }}</small>
+          </div>
+          <span v-if="board.gun" class="gun-badge"><Crosshair :size="14" />瞄准{{ playerName(board.aimPlayerId) }}</span>
+        </header>
+
+        <div class="integrity-row">
+          <button
+            v-for="card in board.cards"
+            :key="card.index"
+            type="button"
+            class="integrity-card"
+            :class="cardClass(card)"
+            disabled
+          >
+            <span>{{ cardLabel(card) }}</span>
+            <small>{{ cardStatus(card) }}</small>
+          </button>
+        </div>
+
+        <footer>
+          <span v-if="board.equipmentCount"><BriefcaseBusiness :size="13" />装备 {{ board.equipmentCount }}</span>
+          <span v-for="effect in board.effects" :key="effect.id">{{ effect.name }}<template v-if="effect.grenadeStage"> · 第{{ effect.grenadeStage }}段</template></span>
+          <span v-if="board.restrictedToEquip">仅可获取装备</span>
+        </footer>
+      </article>
+    </div>
+
     <details class="history-panel surface">
       <summary>公开行动记录 · {{ game.history.length }}条</summary>
       <ol><li v-for="(entry, index) in [...game.history].reverse()" :key="`${entry.event}-${index}`">{{ entry.text }}</li></ol>
     </details>
+
+    <div v-if="showPrivateInfo" class="suspicion-modal" @click.self="showPrivateInfo = false">
+      <section class="surface private-info-modal" role="dialog" aria-modal="true" aria-label="我的私密信息">
+        <button class="modal-close" type="button" aria-label="关闭私密信息" @click="showPrivateInfo = false"><X :size="18" /></button>
+        <h2><Lock :size="19" />我的私密信息</h2>
+        <p>默认保持遮挡。按住卡片查看，松开后立即隐藏。</p>
+        <PressRevealCard :title="teamLabel(game.selfTeam)" subtitle="仅你可见" hint="按住查看阵营、底细和调查结果">
+          <div class="private-card-list">
+            <strong>我的底细</strong>
+            <span v-for="card in selfBoard?.cards" :key="card.index">第{{ card.index + 1 }}张 · {{ card.label }}<template v-if="card.wounded"> · 受伤</template><template v-else-if="card.revealed"> · 已公开</template></span>
+          </div>
+          <div class="private-card-list">
+            <strong>我的调查记录</strong>
+            <span v-for="item in privateInvestigations" :key="`${item.board.playerId}-${item.card.index}`">{{ playerName(item.board.playerId) }} · 第{{ item.card.index + 1 }}张 · {{ item.card.label }}</span>
+            <span v-if="!privateInvestigations.length">暂无调查到的暗牌</span>
+          </div>
+        </PressRevealCard>
+      </section>
+    </div>
 
     <div v-if="equipmentCard" class="suspicion-modal" @click.self="closeEquipment">
       <section class="surface" role="dialog" aria-modal="true">
@@ -535,7 +588,7 @@ async function useScanner() {
         </label>
         <template v-if="equipmentCard.id === 'fingerprint_kit'">
           <label class="check-row"><input v-model="returnFingerprint" type="checkbox" />公开自己一张暗牌，让指纹工具回到手中</label>
-          <label v-if="returnFingerprint">公开自己的底细<select v-model="equipmentOwnCardIndex"><option :value="null">请选择</option><option v-for="card in selfBoard?.cards.filter(item => !item.revealed)" :key="card.index" :value="card.index">第{{ card.index + 1 }}张 · {{ card.label }}</option></select></label>
+          <label v-if="returnFingerprint">公开自己的底细<select v-model="equipmentOwnCardIndex"><option :value="null">请选择</option><option v-for="card in selfBoard?.cards.filter(item => !item.revealed)" :key="card.index" :value="card.index">第{{ card.index + 1 }}张</option></select></label>
         </template>
         <label v-if="equipmentCard.id === 'security_wand'">可选：重新暗置自己的公开底细
           <select v-model="equipmentOwnCardIndex"><option :value="null">不隐藏</option><option v-for="card in selfBoard?.cards.filter(item => item.revealed)" :key="card.index" :value="card.index">第{{ card.index + 1 }}张 · {{ card.label }}</option></select>
@@ -562,8 +615,9 @@ async function useScanner() {
 <style scoped>
 .suspicion-table { width: 100%; display: grid; gap: 14px; --case-gold: #d2a65f; --case-red: #bb655e; --case-blue: #69a2b7; }
 .suspicion-status { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 18px; border-color: color-mix(in srgb, var(--case-gold) 28%, var(--line)); background: linear-gradient(110deg, color-mix(in srgb, var(--case-gold) 8%, var(--surface)), var(--surface)); }
-.suspicion-status > div:first-child { display: grid; gap: 3px; }.status-kicker { color: var(--case-gold); font-size: 9px; font-weight: 900; letter-spacing: .12em; }.suspicion-status strong { font-size: 20px; }.suspicion-status small { color: var(--muted); }
-.status-resources { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }.status-resources span { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 7px 10px; color: var(--text-soft); background: var(--surface-inset); font-size: 11px; font-weight: 800; }.status-resources b { color: var(--case-gold); }.status-resources .team-honest { color: #8cc1d1; }.status-resources .team-crooked { color: #dc8b83; }
+.suspicion-status > div:first-child { min-width: 0; display: grid; gap: 3px; }.status-kicker { color: var(--case-gold); font-size: 9px; font-weight: 900; letter-spacing: .12em; }.suspicion-status strong { font-size: 20px; }.suspicion-status small { color: var(--muted); }
+.status-resources { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }.status-resources span,.private-info-trigger { min-height: 34px; display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 7px 10px; color: var(--text-soft); background: var(--surface-inset); font-size: 11px; font-weight: 800; }.status-resources b { color: var(--case-gold); }.private-info-trigger { color: var(--case-gold); cursor: pointer; }
+.current-prompt { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 11px; padding: 14px 15px; border-color: color-mix(in srgb, var(--case-gold) 34%, var(--line)); }.current-prompt.urgent { border-color: color-mix(in srgb, var(--case-red) 48%, var(--line)); background: linear-gradient(120deg, color-mix(in srgb, var(--case-red) 8%, var(--surface)), var(--surface)); }.current-prompt > div { min-width: 0; display: grid; gap: 3px; }.current-prompt small { color: var(--muted); }.current-prompt em { border-radius: 999px; padding: 6px 9px; color: var(--case-gold); background: color-mix(in srgb, var(--case-gold) 10%, var(--surface-inset)); font-size: 9px; font-style: normal; font-weight: 850; white-space: nowrap; }
 .investigation-board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .suspect-board { min-width: 0; display: grid; gap: 11px; padding: 13px; transition: border-color .2s, opacity .2s; }.suspect-board.self { border-color: color-mix(in srgb, var(--case-gold) 42%, var(--line)); }.suspect-board.active { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--case-gold) 23%, transparent); }.suspect-board.eliminated { opacity: .58; filter: grayscale(.35); }
 .suspect-board > header { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 9px; }.seat-badge { width: 30px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 9px; color: var(--case-gold); background: color-mix(in srgb, var(--case-gold) 11%, var(--surface-inset)); font-size: 12px; font-weight: 900; }.suspect-board header div { min-width: 0; display: grid; }.suspect-board header strong,.suspect-board header small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.suspect-board header small { color: var(--muted); font-size: 9px; }.gun-badge { max-width: 120px; display: flex; align-items: center; gap: 4px; border-radius: 999px; padding: 5px 7px; color: #e58e86; background: color-mix(in srgb, var(--case-red) 13%, transparent); font-size: 8px; font-weight: 850; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -571,21 +625,25 @@ async function useScanner() {
 .suspect-board > footer { min-height: 21px; display: flex; flex-wrap: wrap; gap: 5px; }.suspect-board > footer span { border-radius: 999px; padding: 4px 7px; color: var(--muted); background: var(--surface-inset); font-size: 8px; font-weight: 750; }
 .decision-panel,.turn-console,.equipment-hand,.history-panel { padding: 15px; }.decision-panel { display: grid; gap: 12px; border-color: color-mix(in srgb, var(--case-gold) 30%, var(--line)); }.urgent-panel { border-color: color-mix(in srgb, var(--case-red) 40%, var(--line)); background: linear-gradient(120deg, color-mix(in srgb, var(--case-red) 6%, var(--surface)), var(--surface)); }.decision-panel > div:first-child { display: flex; align-items: center; gap: 10px; }.decision-panel > div:first-child > div { display: grid; }.decision-panel small,.decision-panel p { color: var(--muted); }.panel-icon { width: 38px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 11px; color: var(--case-gold); background: color-mix(in srgb, var(--case-gold) 12%, var(--surface-inset)); }.urgent-panel .panel-icon { color: #e18880; background: color-mix(in srgb, var(--case-red) 14%, var(--surface-inset)); }
 .equipment-actions,.decision-actions,.card-choice-list { display: flex; flex-wrap: wrap; gap: 8px; }.equipment-actions button,.decision-actions button,.card-choice-list button,.catalog-trigger,.extra-action { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--line); border-radius: 9px; padding: 8px 11px; color: var(--text); background: var(--surface-inset); cursor: pointer; }
-.turn-console { display: grid; gap: 12px; }.turn-console > header,.equipment-hand > header { display: flex; justify-content: space-between; gap: 10px; }.turn-console header div,.equipment-hand header div { display: grid; }.turn-console small,.equipment-hand small { color: var(--muted); }.action-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }.action-grid.restricted { grid-template-columns: 1fr; }.action-grid button { min-width: 0; min-height: 68px; display: flex; align-items: center; gap: 9px; border: 1px solid var(--line); border-radius: 10px; padding: 10px; color: var(--text-soft); background: var(--surface-inset); text-align: left; cursor: pointer; }.action-grid button.active,.extra-action.active { border-color: color-mix(in srgb, var(--case-gold) 55%, var(--line)); color: var(--case-gold); background: color-mix(in srgb, var(--case-gold) 9%, var(--surface-inset)); }.action-grid button span { min-width: 0; display: grid; }.action-grid button small { font-size: 8px; line-height: 1.35; }.extra-action { justify-self: start; }
+.turn-console { display: grid; gap: 12px; }.turn-console > header,.equipment-hand > header { display: flex; justify-content: space-between; gap: 10px; }.turn-console header div,.equipment-hand header div { min-width: 0; display: grid; }.turn-console small,.equipment-hand small { color: var(--muted); }.action-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }.action-grid.restricted { grid-template-columns: 1fr; }.action-grid button { min-width: 0; min-height: 68px; display: flex; align-items: center; gap: 9px; border: 1px solid var(--line); border-radius: 10px; padding: 10px; color: var(--text-soft); background: var(--surface-inset); text-align: left; cursor: pointer; }.action-grid button.active,.extra-action.active { border-color: color-mix(in srgb, var(--case-gold) 55%, var(--line)); color: var(--case-gold); background: color-mix(in srgb, var(--case-gold) 9%, var(--surface-inset)); }.action-grid button span { min-width: 0; display: grid; }.action-grid button small { font-size: 8px; line-height: 1.35; }.extra-action { justify-self: start; }
 .action-form,.end-turn-row { display: flex; align-items: end; flex-wrap: wrap; gap: 9px; border-top: 1px solid var(--line); padding-top: 12px; }.end-turn-row { justify-content: flex-end; }.action-form label,.end-turn-row label,.decision-panel label,.suspicion-modal label { min-width: 150px; display: grid; gap: 5px; color: var(--muted); font-size: 9px; font-weight: 800; }.action-form select,.end-turn-row select,.decision-panel select,.suspicion-modal select { min-height: 39px; border: 1px solid var(--line); border-radius: 8px; padding: 0 9px; color: var(--text); background: var(--surface-inset); }
 .action-cost-note { align-self: center; max-width: 250px; margin: 0; color: var(--muted); font-size: 10px; }
-.equipment-hand { display: grid; gap: 10px; }.equipment-hand > header button { border: 0; color: var(--case-gold); background: none; cursor: pointer; }.equipment-hand > article { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--surface-inset); }.equipment-hand article > span,.equipment-number { color: var(--case-gold); font-family: Georgia, serif; font-size: 18px; }.equipment-hand article div { min-width: 0; display: grid; }.equipment-hand article small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.equipment-hand article button { border: 1px solid color-mix(in srgb, var(--case-gold) 35%, var(--line)); border-radius: 8px; padding: 7px 10px; color: var(--case-gold); background: transparent; cursor: pointer; }.equipment-hand article button:disabled { opacity: .35; cursor: not-allowed; }.catalog-trigger { justify-self: center; color: var(--case-gold); }
+.equipment-hand { display: grid; gap: 10px; }.equipment-hand > header button { border: 0; color: var(--case-gold); background: none; cursor: pointer; }.equipment-hand > article { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--surface-inset); }.equipment-hand article > span,.equipment-number { color: var(--case-gold); font-family: Georgia, serif; font-size: 18px; }.equipment-hand article div { min-width: 0; display: grid; }.equipment-hand article small { line-height: 1.45; overflow-wrap: anywhere; }.equipment-hand article button { border: 1px solid color-mix(in srgb, var(--case-gold) 35%, var(--line)); border-radius: 8px; padding: 7px 10px; color: var(--case-gold); background: transparent; cursor: pointer; }.equipment-hand article button:disabled { opacity: .35; cursor: not-allowed; }.catalog-trigger { justify-self: center; color: var(--case-gold); }
 .history-panel summary { color: var(--muted); font-size: 10px; font-weight: 800; cursor: pointer; }.history-panel ol { max-height: 190px; margin: 12px 0 0; padding-left: 21px; overflow: auto; color: var(--text-soft); font-size: 10px; line-height: 1.8; }
 .suspicion-modal { position: fixed; z-index: 120; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(2,7,6,.76); backdrop-filter: blur(10px); }.suspicion-modal > section { position: relative; width: min(100%, 510px); max-height: min(88vh, 760px); display: grid; gap: 12px; padding: 22px; overflow: auto; }.suspicion-modal h2 { margin: 0; }.suspicion-modal p { margin: 0; color: var(--muted); line-height: 1.55; }.modal-close { position: absolute; top: 10px; right: 10px; width: 34px; aspect-ratio: 1; display: grid; place-items: center; border: 0; color: var(--muted); background: transparent; cursor: pointer; }.two-column-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }.check-row { display: flex !important; align-items: center; }.check-row input { accent-color: var(--case-gold); }.catalog-modal { width: min(100%, 760px) !important; }.catalog-list { display: grid; gap: 7px; }.catalog-list article { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 9px; border: 1px solid var(--line); border-radius: 9px; padding: 9px; background: var(--surface-inset); }.catalog-list article > span { color: var(--case-gold); font-family: Georgia, serif; }.catalog-list strong small { color: var(--muted); font-weight: 500; }.catalog-list p { margin-top: 3px; font-size: 9px; }.catalog-list em { color: var(--muted); font-size: 8px; font-style: normal; }.catalog-list .unavailable { opacity: .5; }
+.private-info-modal h2 { display: flex; align-items: center; gap: 8px; }.private-info-modal :deep(.press-reveal-card) { min-height: 380px; }.private-card-list { width: min(100%, 320px); display: grid; gap: 5px; border-top: 1px solid rgba(255,255,255,.16); padding-top: 9px; text-align: left; }.private-card-list strong { color: #f1d48f; font-size: 11px; }.private-card-list span { color: #edf3ef; font-size: 10px; }
 @media (max-width: 760px) {
   .suspicion-status { align-items: flex-start; flex-direction: column; }.status-resources { justify-content: flex-start; }
-  .investigation-board { grid-template-columns: 1fr; }.action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .investigation-board { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }.action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .suspect-board { gap: 7px; padding: 9px; }.suspect-board > header { grid-template-columns: auto minmax(0, 1fr); gap: 6px; }.seat-badge { width: 25px; border-radius: 7px; font-size: 10px; }.gun-badge { grid-column: 1 / -1; max-width: 100%; justify-self: start; }.integrity-row { gap: 3px; }.integrity-card { min-height: 58px; gap: 4px; border-radius: 7px; }.integrity-card span { font-size: 12px; }.integrity-card small { font-size: 7px; }.suspect-board > footer { min-height: 17px; gap: 3px; }.suspect-board > footer span { padding: 3px 5px; font-size: 7px; }
 }
 @media (max-width: 480px) {
-  .suspicion-table { gap: 10px; }.suspicion-status,.suspect-board,.decision-panel,.turn-console,.equipment-hand,.history-panel { padding: 11px; }
-  .integrity-card { min-height: 78px; }.integrity-card span { font-size: 15px; }.gun-badge { max-width: 90px; }
+  .suspicion-table { gap: 10px; }.suspicion-status,.decision-panel,.turn-console,.equipment-hand,.history-panel { padding: 11px; }
+  .current-prompt { grid-template-columns: auto minmax(0, 1fr); padding: 11px; }.current-prompt em { grid-column: 2; justify-self: start; }
+  .status-resources { width: 100%; }.private-info-trigger { flex: 1; justify-content: center; }
   .action-grid button { min-height: 62px; padding: 8px; }.action-form,.end-turn-row { align-items: stretch; flex-direction: column; }.action-form label,.end-turn-row label,.action-form button,.end-turn-row button { width: 100%; }
   .two-column-fields { grid-template-columns: 1fr; }.suspicion-modal { padding: 8px; }.suspicion-modal > section { padding: 18px 14px; }
+  .private-info-modal :deep(.press-reveal-card) { min-height: 350px; }
   .catalog-list article { grid-template-columns: 27px minmax(0, 1fr); }.catalog-list em { grid-column: 2; }
 }
 </style>

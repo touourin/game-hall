@@ -57,7 +57,7 @@ def _card(
 
 EQUIPMENT_CARDS: tuple[EquipmentDefinition, ...] = (
     _card(1, "blackmail", "勒索信", "Blackmail", "base", "active", "交换两名其他存活玩家各一张底细；牌的公开状态不变。"),
-    _card(2, "coffee", "咖啡", "Coffee", "base", "other_turn", "当前玩家结束回合后，你立刻获得一个完整回合。"),
+    _card(2, "coffee", "咖啡", "Coffee", "base", "other_turn", "当前玩家结束回合后，你立刻获得一个完整回合；该回合结束后恢复原回合顺序。"),
     _card(3, "defibrillator", "除颤器", "Defibrillator", "base", "anytime", "复活一名已经出局的非领袖玩家。"),
     _card(4, "evidence_bag", "证物袋", "Evidence Bag", "base", "anytime", "把一名玩家手中的装备交给另一名不是你的玩家。"),
     _card(5, "flashbang", "闪光弹", "Flashbang", "base", "anytime", "混洗一名玩家的三张底细，公开状态不变并清除位置记忆。"),

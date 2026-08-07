@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import random
 
 import pytest
@@ -65,6 +66,10 @@ def test_catalog_keeps_all_33_cards_and_excludes_only_cover_card_from_deck() -> 
     assert len({card.id for card in EQUIPMENT_CARDS}) == 33
     assert len(EXPANDED_EQUIPMENT_IDS) == 32
     assert "new_assignment" not in EXPANDED_EQUIPMENT_IDS
+
+
+def test_production_engine_uses_system_randomness() -> None:
+    assert isinstance(DepartedSuspicionEngine().rng, random.SystemRandom)
 
 
 @pytest.mark.parametrize("player_count", range(4, 9))
@@ -136,12 +141,38 @@ def test_investigation_is_private_and_does_not_reveal_card() -> None:
 def test_equip_reveals_a_card_and_draws_without_starting_equipment() -> None:
     engine, room = make_room(equipment_set="base")
     first_equipment = room.state.equipment_deck[0]
+    initial_order = list(room.state.equipment_deck)
 
     engine.act(room, room.players[0], "equip", {"cardIndex": 0})
 
     assert room.state.boards[0].cards[0].revealed is True
     assert room.state.boards[0].equipment == [first_equipment]
     assert room.state.action_done is True
+    assert room.state.initial_equipment_order == initial_order
+    assert room.state.equipment_audit_complete is True
+    assert [
+        (
+            draw.sequence,
+            draw.turn_number,
+            draw.seat,
+            draw.card_id,
+            draw.source,
+        )
+        for draw in room.state.equipment_draw_history
+    ] == [(1, 1, 0, first_equipment, "normal_action")]
+
+    recorded = engine.record_state(room)
+    assert recorded["initialEquipmentOrder"] == initial_order
+    assert recorded["equipmentDrawHistory"] == [
+        {
+            "sequence": 1,
+            "turnNumber": 1,
+            "seat": 0,
+            "cardId": first_equipment,
+            "source": "normal_action",
+        }
+    ]
+    json.dumps(recorded)
 
 
 @pytest.mark.parametrize("action", ["equip", "arm"])
@@ -456,7 +487,7 @@ def test_grenade_passes_once_then_shoots_the_second_receiver() -> None:
     state.turn_seat = 1
     state.action_done = True
     engine.act(room, room.players[1], "end_turn", {})
-    assert state.choice and state.choice["kind"] == "grenade_pass"
+    assert state.choice and state.choice.kind == "grenade_pass"
     engine.act(room, room.players[1], "pass_grenade", {"targetSeat": 2})
     assert state.boards[2].grenade_stage == 2
 
@@ -478,7 +509,7 @@ def test_resigning_grenade_holder_clears_the_forced_pass_and_advances() -> None:
     state.action_done = True
 
     engine.act(room, room.players[holder], "end_turn", {})
-    assert state.choice and state.choice["kind"] == "grenade_pass"
+    assert state.choice and state.choice.kind == "grenade_pass"
 
     engine.act(room, room.players[holder], "resign", {})
 
@@ -525,12 +556,33 @@ def test_resigning_response_player_is_skipped_without_stalling_action() -> None:
     )
     assert state.pending_action is not None
     assert engine._response_seat(state.pending_action) == responder
+    response_view = engine.view(room, room.players[responder])
+    assert response_view["pendingAction"]["targetCardIndex"] == 0
+    assert response_view["currentPrompt"] == {
+        "kind": "equipment_response",
+        "title": (
+            f"{room.players[actor].name}宣布调查"
+            f"{room.players[target].name}的第1张底细"
+        ),
+        "detail": f"等待{room.players[responder].name}决定是否使用装备。",
+        "decisionPlayerId": room.players[responder].id,
+        "isMyDecision": True,
+        "actorPlayerId": room.players[actor].id,
+        "targetPlayerId": room.players[target].id,
+        "targetCardIndex": 0,
+        "sourceCardId": None,
+    }
 
     engine.act(room, room.players[responder], "resign", {})
 
     assert state.pending_action is None
     assert state.action_done is True
     assert state.boards[target].cards[0].id in state.knowledge[actor]
+    assert any(
+        entry["text"]
+        == f"{room.players[actor].name}调查了{room.players[target].name}的第1张底细"
+        for entry in state.history
+    )
 
 
 def test_restraining_order_redirects_and_completes_the_original_shot() -> None:
@@ -569,12 +621,19 @@ def test_classified_orders_lets_the_selected_player_redirect_immediately() -> No
         "play_equipment",
         {"cardId": "classified_orders", "deciderSeat": 2},
     )
-    assert state.choice == {
-        "kind": "classified_redirect",
-        "seat": 2,
-        "shooterSeat": 0,
-        "resumePendingAfterSeat": 1,
-    }
+    assert state.choice is not None
+    assert state.choice.kind == "classified_redirect"
+    assert state.choice.seat == 2
+    assert state.choice.shooter_seat == 0
+    assert state.choice.resume_pending_after_seat == 1
+    decider_prompt = engine.view(room, room.players[2])["currentPrompt"]
+    assert decider_prompt["title"] == f"{room.players[1].name}使用了机密指令"
+    assert decider_prompt["detail"] == (
+        f"由{room.players[2].name}替{room.players[0].name}选择新的射击目标。"
+    )
+    assert decider_prompt["isMyDecision"] is True
+    assert decider_prompt["sourceCardId"] == "classified_orders"
+    assert engine.view(room, room.players[3])["currentPrompt"]["isMyDecision"] is False
     engine.act(room, room.players[2], "choose_redirect", {"targetSeat": 3})
 
     assert state.pending_action is None
@@ -603,7 +662,7 @@ def test_resigning_classified_orders_decider_resumes_original_shot() -> None:
         "play_equipment",
         {"cardId": "classified_orders", "deciderSeat": decider},
     )
-    assert state.choice and state.choice["seat"] == decider
+    assert state.choice and state.choice.seat == decider
 
     engine.act(room, room.players[decider], "resign", {})
 
@@ -647,7 +706,7 @@ def test_surveillance_camera_triggers_only_after_a_normal_investigation() -> Non
         )
 
 
-def test_coffee_inserts_a_full_turn_then_continues_after_the_user() -> None:
+def test_coffee_inserts_a_full_turn_then_resumes_the_original_order() -> None:
     engine, room = make_room()
     state = room.state
     state.boards[2].equipment = ["coffee"]
@@ -656,6 +715,10 @@ def test_coffee_inserts_a_full_turn_then_continues_after_the_user() -> None:
         room.players[2],
         "play_equipment",
         {"cardId": "coffee"},
+    )
+    assert state.history[-1]["text"] == (
+        f"{room.players[2].name}使用了咖啡，将在"
+        f"{room.players[0].name}回合结束后获得额外回合"
     )
     engine.act(
         room,
@@ -673,7 +736,92 @@ def test_coffee_inserts_a_full_turn_then_continues_after_the_user() -> None:
         {"targetSeat": 1, "cardIndex": 1},
     )
     engine.act(room, room.players[2], "end_turn", {})
+    assert state.turn_seat == 1
+
+
+def test_coffee_gives_the_natural_successor_an_extra_turn() -> None:
+    engine, room = make_room()
+    state = room.state
+    state.boards[1].equipment = ["coffee"]
+
+    engine.act(
+        room,
+        room.players[1],
+        "play_equipment",
+        {"cardId": "coffee"},
+    )
+    state.action_done = True
+    engine.act(room, room.players[0], "end_turn", {})
+    assert state.turn_seat == 1
+
+    state.action_done = True
+    engine.act(room, room.players[1], "end_turn", {})
+    assert state.turn_seat == 1
+
+
+def test_coffee_resumption_uses_current_direction_and_skips_eliminated_players() -> None:
+    engine, room = make_room(5)
+    state = room.state
+    state.boards[2].equipment = ["coffee"]
+
+    engine.act(
+        room,
+        room.players[2],
+        "play_equipment",
+        {"cardId": "coffee"},
+    )
+    state.action_done = True
+    engine.act(room, room.players[0], "end_turn", {})
+    assert state.turn_seat == 2
+
+    state.direction = -1
+    state.boards[4].alive = False
+    state.action_done = True
+    engine.act(room, room.players[2], "end_turn", {})
     assert state.turn_seat == 3
+
+
+def test_coffee_turn_is_skipped_if_its_user_is_eliminated_before_it_starts() -> None:
+    engine, room = make_room()
+    state = room.state
+    state.boards[2].equipment = ["coffee"]
+
+    engine.act(
+        room,
+        room.players[2],
+        "play_equipment",
+        {"cardId": "coffee"},
+    )
+    state.boards[2].alive = False
+    state.action_done = True
+    engine.act(room, room.players[0], "end_turn", {})
+
+    assert state.turn_seat == 1
+    assert state.extra_turns.resume_after_seat is None
+
+
+def test_restored_coffee_queue_is_migrated_to_the_extra_turn_schedule() -> None:
+    engine, room = make_room()
+    state = room.state
+    del state.extra_turns
+    state.coffee_after = [2]  # type: ignore[attr-defined]
+    state.choice = {  # type: ignore[assignment]
+        "kind": "classified_redirect",
+        "seat": 1,
+        "shooterSeat": 0,
+        "resumePendingAfterSeat": 2,
+    }
+
+    engine.repair_restored_room(room)
+
+    assert state.extra_turns.pending_seats == [2]
+    assert state.extra_turns.resume_after_seat is None
+    assert state.choice is not None
+    assert state.choice.kind == "classified_redirect"
+    assert state.choice.seat == 1
+    assert state.choice.shooter_seat == 0
+    assert state.choice.resume_pending_after_seat == 2
+    assert state.choice.source_card_id is None
 
 
 def test_evidence_bag_prompts_the_recipient_to_keep_one_card() -> None:
@@ -689,8 +837,12 @@ def test_evidence_bag_prompts_the_recipient_to_keep_one_card() -> None:
         "play_equipment",
         {"cardId": "evidence_bag", "ownerSeat": 1, "recipientSeat": 2},
     )
-    assert state.choice and state.choice["kind"] == "equipment_limit"
-    assert state.choice["seat"] == 2
+    assert state.choice and state.choice.kind == "equipment_limit"
+    assert state.choice.seat == 2
+    recipient_view = engine.view(room, room.players[2])
+    assert recipient_view["choice"]["kind"] == "equipment_limit"
+    assert len(recipient_view["choice"]["cards"]) == 2
+    assert engine.view(room, room.players[1])["choice"] is None
     engine.act(room, room.players[2], "choose_equipment", {"cardId": "k9_unit"})
 
     assert state.boards[2].equipment == ["k9_unit"]
@@ -721,7 +873,7 @@ def test_resigning_equipment_limit_player_clears_the_forced_choice() -> None:
             "recipientSeat": recipient,
         },
     )
-    assert state.choice and state.choice["seat"] == recipient
+    assert state.choice and state.choice.seat == recipient
 
     engine.act(room, room.players[recipient], "resign", {})
 
@@ -742,7 +894,7 @@ def test_report_audit_requires_each_player_to_choose_their_own_card() -> None:
     )
 
     for seat in range(4):
-        assert state.choice and state.choice["seat"] == seat
+        assert state.choice and state.choice.seat == seat
         engine.act(room, room.players[seat], "choose_reveal", {"cardIndex": 0})
 
     assert state.choice is None
@@ -770,7 +922,7 @@ def test_report_audit_skips_a_queued_player_who_resigns() -> None:
 
     selected: list[int] = []
     while state.choice is not None:
-        seat = int(state.choice["seat"])
+        seat = state.choice.seat
         selected.append(seat)
         card_index = next(
             index
@@ -925,8 +1077,8 @@ def test_automated_games_finish_without_wait_state_deadlocks(
                 continue
             if state.choice is not None:
                 choice = state.choice
-                choice_seat = int(choice["seat"])
-                kind = choice["kind"]
+                choice_seat = choice.seat
+                kind = choice.kind
                 if kind == "equipment_limit":
                     engine.act(
                         room,
@@ -959,7 +1111,8 @@ def test_automated_games_finish_without_wait_state_deadlocks(
                         {"choice": decision},
                     )
                 elif kind == "classified_redirect":
-                    shooter = int(choice["shooterSeat"])
+                    assert choice.shooter_seat is not None
+                    shooter = choice.shooter_seat
                     target = next(
                         seat
                         for seat, board in state.boards.items()
