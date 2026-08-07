@@ -17,6 +17,7 @@ from backend.app.arcade.views import (
     build_room_view as build_arcade_room_view,
 )
 from backend.app.games.base import GameRuleError
+from backend.app.games.catalog import BUILTIN_GAME_NAMES
 from backend.app.games.doudizhu.engine import (
     Card,
     DoudizhuEngine,
@@ -33,6 +34,14 @@ from backend.app.games.reaction import ReactionEngine
 from backend.app.games.registry import build_engine_registry
 from backend.app.games.xiangqi import XiangqiEngine
 from backend.app.games.xiangqi.engine import XiangqiState
+
+
+def test_builtin_game_catalog_matches_engine_registry() -> None:
+    builtin_engine_keys = {
+        key for key in build_engine_registry() if not key.startswith("plugin-")
+    }
+
+    assert builtin_engine_keys == set(BUILTIN_GAME_NAMES)
 
 
 def make_room(
@@ -761,6 +770,23 @@ def test_doudizhu_call_rob_assigns_landlord_and_settles_spring() -> None:
     assert room.state.scores == {0: -4, 1: 8, 2: -4}
 
 
+@pytest.mark.parametrize("landlord_seat", [0, 1, 2])
+def test_doudizhu_turn_order_is_clockwise_for_every_landlord_seat(
+    landlord_seat: int,
+) -> None:
+    engine = DoudizhuEngine(random.Random(7))
+    room = make_room(engine, 3)
+    engine._assign_landlord(room, landlord_seat)
+    play_order = [(landlord_seat + offset) % 3 for offset in range(3)]
+
+    for rank, seat in zip((3, 4, 5), play_order):
+        room.state.hands[seat] = cards(rank, 15)
+        card_id = room.state.hands[seat][0].id
+        engine.act(room, room.players[seat], "play", {"cardIds": [card_id]})
+
+    assert room.state.current_seat == landlord_seat
+
+
 def test_doudizhu_late_caller_still_gives_both_opponents_a_rob_turn() -> None:
     engine = DoudizhuEngine(random.Random(13))
     room = make_room(engine, 3)
@@ -895,16 +921,18 @@ def test_doudizhu_laizi_and_no_shuffle_variants_are_applied() -> None:
     assert dealt_ids == {card.id for card in create_deck()}
 
 
-def test_doudizhu_counter_excludes_played_cards_and_the_viewers_hand() -> None:
+def test_doudizhu_bidding_view_includes_the_viewers_hand() -> None:
     engine = DoudizhuEngine(random.Random(17))
     room = make_room(engine, 3)
-    room.state.played_cards = cards(3)
-    room.state.hands[0] = cards(3, 4)
 
-    counter = engine.view(room, room.players[0])["remainingRanks"]
+    view = engine.view(room, room.players[0])
 
-    assert counter["3"] == 2
-    assert counter["4"] == 3
+    assert room.phase == "bidding"
+    assert len(view["hand"]) == 17
+    assert {card["id"] for card in view["hand"]} == {
+        card.id for card in room.state.hands[0]
+    }
+    assert "remainingRanks" not in view
 
 
 def test_doudizhu_completes_a_full_deal_through_legal_play() -> None:
@@ -1084,6 +1112,40 @@ def test_finished_room_leave_does_not_offer_resume() -> None:
     assert all(player.id != host.id for player in room.players)
     assert room.player(guest.id).connected is True
     assert room.phase == "lobby"
+
+
+def test_created_room_has_a_normalized_public_name() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, host, _ = manager.create_room(
+        "gomoku",
+        "甲",
+        "account-1",
+        room_name="  周末   棋社  ",
+    )
+
+    assert room.name == "周末 棋社"
+    lobby = build_arcade_lobby_view([room], manager.engines)
+    view = build_arcade_room_view(room, host, manager.engines["gomoku"])
+    assert lobby[0]["roomName"] == "周末 棋社"
+    assert view["roomName"] == "周末 棋社"
+
+
+def test_created_room_uses_host_name_when_custom_name_is_blank() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, _, _ = manager.create_room(
+        "gomoku", "甲", "account-1", room_name="   "
+    )
+
+    assert room.name == "甲的房间"
+
+
+def test_room_name_is_limited_to_twenty_characters() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+
+    with pytest.raises(ArcadeRoomError, match="房间名称最多 20 个字符"):
+        manager.create_room(
+            "gomoku", "甲", "account-1", room_name="房" * 21
+        )
 
 
 def test_active_solo_abandon_removes_room_and_releases_account() -> None:

@@ -462,7 +462,6 @@ class DoudizhuEngine:
             "wildRank": state.wild_rank,
             "wildLabel": RANK_LABELS.get(state.wild_rank) if state.wild_rank else None,
             "history": [self._history_view(room, entry) for entry in state.history],
-            "remainingRanks": self._remaining_rank_counts(state, viewer.seat),
             "scores": {
                 room.players[seat].id: score for seat, score in state.scores.items()
             },
@@ -694,19 +693,6 @@ class DoudizhuEngine:
             sequence_length=raw["sequenceLength"],
             bomb_level=raw.get("bombLevel", 0),
         )
-
-    @staticmethod
-    def _remaining_rank_counts(
-        state: DoudizhuState, viewer_seat: int
-    ) -> dict[str, int]:
-        counts = {rank: (1 if rank >= 16 else 4) for rank in range(3, 18)}
-        known_cards = [
-            *state.played_cards,
-            *state.hands.get(viewer_seat, []),
-        ]
-        for card in known_cards:
-            counts[card.rank] -= 1
-        return {str(rank): count for rank, count in counts.items()}
 
     @staticmethod
     def _history_view(room: ArcadeRoom, entry: dict[str, Any]) -> dict[str, Any]:

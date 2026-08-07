@@ -243,7 +243,7 @@ const roomHeaderTitle = computed(() => {
     hanoi: '汉诺塔挑战',
   }
   if (isSolo.value) return soloTitles[props.snapshot.gameKey] ?? props.snapshot.gameName
-  return `房间 ${props.snapshot.roomCode}`
+  return props.snapshot.roomName || `房间 ${props.snapshot.roomCode}`
 })
 const roomStatsMode = computed(() => (
   props.snapshot.gameKey === 'minesweeper'
@@ -629,8 +629,8 @@ function openSharedChat() {
       <InviteLinkPanel
         v-if="!isSolo"
         :url="inviteUrl"
-        :share-title="`加入${snapshot.gameName}房间 ${snapshot.roomCode}`"
-        :share-text="`点击链接加入我的${snapshot.gameName}房间 ${snapshot.roomCode}`"
+        :share-title="`加入${snapshot.gameName}“${snapshot.roomName || `房间 ${snapshot.roomCode}`}”`"
+        :share-text="`点击链接加入${snapshot.roomName || `我的${snapshot.gameName}房间`}，房间码 ${snapshot.roomCode}`"
       />
       <button
         v-if="snapshot.actions.canStart"

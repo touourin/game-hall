@@ -110,7 +110,7 @@ watch(
   },
 )
 
-document.title = '游戏大厅'
+document.title = '本体大厅'
 
 function enterGame(profile: AccountProfile, token: string) {
   account.value = profile

@@ -37,6 +37,7 @@ const props = defineProps<{
   modelValue: Record<string, unknown>
   mode: 'create' | 'join'
   roomCode: string
+  roomName?: string
   disabled?: boolean
   activeRoom?: boolean
   guest?: boolean
@@ -46,6 +47,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: Record<string, unknown>]
   'update:mode': [value: 'create' | 'join']
   'update:roomCode': [value: string]
+  'update:roomName': [value: string]
   submit: []
 }>()
 
@@ -158,6 +160,10 @@ function updateRoomCode(event: Event) {
   emit('update:roomCode', value)
 }
 
+function updateRoomName(event: Event) {
+  emit('update:roomName', (event.target as HTMLInputElement).value)
+}
+
 function openRuleEditor() {
   ruleDraft.value = { ...props.modelValue }
   showRules.value = true
@@ -218,7 +224,7 @@ function saveRules() {
           >
             <AvatarImage class="match-room-avatar" :src="room.hostAvatarUrl" :name="room.hostName" />
             <span>
-              <strong>{{ room.hostName }} 的房间</strong>
+              <strong>{{ room.roomName || `${room.hostName}的房间` }}</strong>
               <small>{{ room.roomCode }} · {{ room.playerCount }}/{{ room.maxPlayers }} 人{{ room.statsEligible === false ? ' · 休闲局' : '' }}</small>
             </span>
             <ChevronRight :size="17" />
@@ -244,6 +250,10 @@ function saveRules() {
 
       <form class="adaptive-action-stack" @submit.prevent="emit('submit')">
         <div v-if="mode === 'create'" class="match-create-panel">
+          <label class="field match-code-field match-name-field">
+            <span>房间名称</span>
+            <span class="match-code-input-wrap"><Crown :size="20" /><input :value="roomName ?? ''" maxlength="20" placeholder="留空则使用“玩家名的房间”" autocomplete="off" @input="updateRoomName" /></span>
+          </label>
           <div class="match-rule-summary">
             <header>
               <span><Settings2 :size="17" /><strong>本局规则</strong></span>
@@ -266,7 +276,7 @@ function saveRules() {
           </label>
           <div v-if="selectedPublicRoom" class="match-selected-room">
             <AvatarImage class="match-room-avatar" :src="selectedPublicRoom.hostAvatarUrl" :name="selectedPublicRoom.hostName" />
-            <span><strong>准备加入 {{ selectedPublicRoom.hostName }} 的房间</strong><small>{{ selectedPublicRoom.playerCount }}/{{ selectedPublicRoom.maxPlayers }} 人正在等待</small></span>
+            <span><strong>准备加入 {{ selectedPublicRoom.roomName || `${selectedPublicRoom.hostName}的房间` }}</strong><small>{{ selectedPublicRoom.playerCount }}/{{ selectedPublicRoom.maxPlayers }} 人正在等待</small></span>
           </div>
           <p v-else class="match-code-note">邀请码不区分大小写。也可以从左侧公开房间中选择。</p>
         </div>
@@ -390,6 +400,8 @@ function saveRules() {
 .match-code-input-wrap { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; min-height: 68px; border: 1px solid color-mix(in srgb, var(--match-accent) 32%, var(--line)); border-radius: 14px; padding: 0 15px; color: var(--match-accent); background: color-mix(in srgb, var(--surface-elevated) 34%, transparent); }
 .match-code-input-wrap input { min-width: 0; width: 100%; border: 0; outline: 0; padding: 0; color: var(--text); background: transparent; font-size: 17px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; }
 .match-code-input-wrap input::placeholder { color: var(--muted); font-size: 11px; letter-spacing: .03em; }
+.match-name-field .match-code-input-wrap { min-height: 56px; }
+.match-name-field .match-code-input-wrap input { font-size: 14px; letter-spacing: normal; text-transform: none; }
 .match-code-note { margin: 0; color: var(--muted); font-size: 9px; line-height: 1.55; }
 .match-active-room-hint { margin: 12px 0 0; color: var(--muted); font-size: 9px; text-align: center; }
 .match-primary-action { position: relative; width: 100%; min-height: 66px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 11px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--match-accent) 74%, white 12%); border-radius: 14px; padding: 0 16px; color: var(--accent-contrast); background: linear-gradient(125deg, color-mix(in srgb, var(--match-accent) 72%, white), var(--match-accent)); box-shadow: 0 15px 32px color-mix(in srgb, var(--match-glow) 24%, transparent); text-align: left; cursor: pointer; }

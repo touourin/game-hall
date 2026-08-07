@@ -510,6 +510,7 @@ def logout_account(
 def personal_stats(
     game: str | None = None,
     mode: str | None = None,
+    variant: str | None = None,
     authorization: str | None = Header(default=None),
     game_hall_access: str | None = Depends(game_hall_access_header),
 ) -> dict:
@@ -522,13 +523,25 @@ def personal_stats(
     }
     if mode is not None and mode not in valid_modes.get(game or "", set()):
         raise HTTPException(status_code=400, detail="游戏模式或难度不正确")
+    if variant is not None and (
+        game != "avalon"
+        or mode != "court_undercurrent"
+        or variant not in {"classic", "shadow_merlin"}
+    ):
+        raise HTTPException(status_code=400, detail="王庭暗流统计分组不正确")
     return {
         "ok": True,
         "summary": account_store().summary_for_account(
-            account.id, game_key=game, game_mode=mode
+            account.id,
+            game_key=game,
+            game_mode=mode,
+            game_variant=variant,
         ),
         "history": account_store().history_for_account(
-            account.id, game_key=game, game_mode=mode
+            account.id,
+            game_key=game,
+            game_mode=mode,
+            game_variant=variant,
         ),
     }
 
@@ -549,6 +562,7 @@ def avalon_role_skin_progress(
 def leaderboard(
     game: str,
     mode: str | None = None,
+    variant: str | None = None,
     authorization: str | None = Header(default=None),
     game_hall_access: str | None = Depends(game_hall_access_header),
 ) -> dict:
@@ -561,10 +575,18 @@ def leaderboard(
     }
     if mode is not None and mode not in valid_modes.get(game, set()):
         raise HTTPException(status_code=400, detail="游戏模式或难度不正确")
+    if variant is not None and (
+        game != "avalon"
+        or mode != "court_undercurrent"
+        or variant not in {"classic", "shadow_merlin"}
+    ):
+        raise HTTPException(status_code=400, detail="王庭暗流统计分组不正确")
     return {
         "ok": True,
         "players": account_store().leaderboard(
-            game_key=game, game_mode=mode
+            game_key=game,
+            game_mode=mode,
+            game_variant=variant,
         ),
     }
 

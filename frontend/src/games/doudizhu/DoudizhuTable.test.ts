@@ -62,7 +62,6 @@ function playingSnapshot(): ArcadeSnapshot {
       wildRank: null,
       wildLabel: null,
       history: [],
-      remainingRanks: {},
       scores: {},
       settlement: null,
     },
@@ -70,6 +69,22 @@ function playingSnapshot(): ArcadeSnapshot {
 }
 
 describe('DoudizhuTable', () => {
+  it.each([
+    { selfSeat: 0, leftPlayer: '玩家二', rightPlayer: '玩家三' },
+    { selfSeat: 1, leftPlayer: '玩家三', rightPlayer: '玩家一' },
+    { selfSeat: 2, leftPlayer: '玩家一', rightPlayer: '玩家二' },
+  ])('从 $selfSeat 号座位看都按顺时针排列对手', ({ selfSeat, leftPlayer, rightPlayer }) => {
+    const next = playingSnapshot()
+    next.self = next.players[selfSeat]!
+    const wrapper = mount(DoudizhuTable, {
+      props: { snapshot: next },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.get('.opponent-1').text()).toContain(leftPlayer)
+    expect(wrapper.get('.opponent-2').text()).toContain(rightPlayer)
+  })
+
   it('renders the three-seat table and explains the selected pattern', async () => {
     const next = playingSnapshot()
     ;(next.game.hand as Array<Record<string, unknown>>) = [
@@ -137,7 +152,7 @@ describe('DoudizhuTable', () => {
       landlordCandidatePlayerId: null,
       landlordPlayerId: null,
       teams: {},
-      hand: [],
+      hand: [{ id: '3-spade', rank: 3, label: '3', suit: 'spade' }],
     }
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)
@@ -148,6 +163,10 @@ describe('DoudizhuTable', () => {
     })
 
     expect(wrapper.text()).toContain('轮到你叫地主')
+    expect(wrapper.get('.self-hand-header').text()).toContain('请看牌后决定是否叫地主')
+    expect(wrapper.findAll('.playing-card')).toHaveLength(1)
+    expect(wrapper.get('.playing-card').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('.counter-panel').exists()).toBe(false)
     await wrapper.findAll('.bid-panel button').find((button) => button.text() === '叫地主')?.trigger('click')
     expect(action).toHaveBeenCalledWith('bid', { decision: 'call' })
 

@@ -28,6 +28,7 @@ const emit = defineEmits<{
 const arcade = useArcadeStore()
 const mode = ref<'create' | 'join'>(props.invitedRoom ? 'join' : 'create')
 const roomCode = ref(props.invitedRoom.toUpperCase())
+const roomName = ref('')
 const showStats = ref(false)
 const showLeaderboard = ref(false)
 const gameKey = computed(() => props.game.key as ArcadeGameKey)
@@ -61,7 +62,10 @@ async function submit() {
   if (!canSubmit.value) return
   const key = props.game.key as ArcadeGameKey
   if (isSolo.value || mode.value === 'create') {
-    const created = await arcade.createRoom(key, rules.value)
+    const normalizedRoomName = roomName.value.trim()
+    const created = normalizedRoomName
+      ? await arcade.createRoom(key, rules.value, normalizedRoomName)
+      : await arcade.createRoom(key, rules.value)
     if (!created) return
     if (isSolo.value) await arcade.startGame()
   }
@@ -103,6 +107,7 @@ async function submit() {
       v-model="rules"
       v-model:mode="mode"
       v-model:room-code="roomCode"
+      v-model:room-name="roomName"
       :game="game"
       :game-key="gameKey"
       :rooms="rooms"
@@ -120,7 +125,7 @@ async function submit() {
       <div class="cleanup-room-list">
         <article v-for="room in cleanupRooms" :key="room.roomCode" class="cleanup-room-item">
           <AvatarImage class="avatar" :src="room.hostAvatarUrl" :name="room.hostName" />
-          <span class="available-room-copy"><strong>{{ room.hostName }} 的房间</strong><small>房间 {{ room.roomCode }} · {{ room.phase === 'lobby' ? '等待阶段' : '未完成对局' }}</small></span>
+          <span class="available-room-copy"><strong>{{ room.roomName || `${room.hostName}的房间` }}</strong><small>房间 {{ room.roomCode }} · {{ room.phase === 'lobby' ? '等待阶段' : '未完成对局' }}</small></span>
           <CleanupRoomButton :room-code="room.roomCode" :busy="arcade.busy" @confirm="arcade.cleanupRoom(room.roomCode)" />
         </article>
       </div>

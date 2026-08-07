@@ -27,6 +27,7 @@ from .database import (
     users,
 )
 from .games.avalon.models import ROLE_ALIGNMENT, Room, Role
+from .games.catalog import BUILTIN_GAME_NAMES
 
 
 logger = logging.getLogger(__name__)
@@ -52,21 +53,8 @@ AVALON_ROLE_SKIN_ULTIMATE_WINS = 5
 # 2026-08-03 00:00 through 2026-08-10 00:00 in Asia/Shanghai (UTC+8).
 AVALON_ROLE_SKIN_FREE_WEEK_START = datetime(2026, 8, 2, 16, 0, 0)
 AVALON_ROLE_SKIN_FREE_WEEK_END = datetime(2026, 8, 9, 16, 0, 0)
-GAME_NAMES = {
-    "avalon": "阿瓦隆",
-    "gomoku": "五子棋",
-    "xiangqi": "中国象棋",
-    "go": "围棋",
-    "poker": "德州扑克",
-    "doudizhu": "斗地主",
-    "junqi": "军旗",
-    "reaction": "反应挑战",
-    "schulte": "舒尔特方格",
-    "minesweeper": "扫雷",
-    "hanoi": "汉诺塔",
-    "monopoly": "大富翁",
-}
 TIME_TRIAL_GAMES = {"reaction", "schulte", "minesweeper"}
+AVALON_STATS_VARIANTS = {"classic", "shadow_merlin"}
 AVATAR_PRESET_IDS = (
     "moon-fox",
     "jade-owl",
@@ -146,12 +134,12 @@ class AccountStore:
                     "enabled": True,
                     "created_at": now,
                 }
-                for key, name in GAME_NAMES.items()
+                for key, name in BUILTIN_GAME_NAMES.items()
                 if key not in existing_games
             ]
             if missing_games:
                 connection.execute(insert(games), missing_games)
-            for key, name in GAME_NAMES.items():
+            for key, name in BUILTIN_GAME_NAMES.items():
                 connection.execute(
                     update(games)
                     .where(games.c.key == key, games.c.name != name)
@@ -578,7 +566,7 @@ class AccountStore:
             not players
             or len(game_key) > 32
             or (
-                game_key not in GAME_NAMES
+                game_key not in BUILTIN_GAME_NAMES
                 and not game_key.startswith("plugin-")
             )
         ):
@@ -586,7 +574,7 @@ class AccountStore:
         self.initialize()
         try:
             with self.engine.begin() as connection:
-                stored_game_name = game_name or GAME_NAMES.get(
+                stored_game_name = game_name or BUILTIN_GAME_NAMES.get(
                     game_key, game_key
                 )
                 existing_game = connection.execute(
@@ -662,6 +650,7 @@ class AccountStore:
         *,
         game_key: str | None = None,
         game_mode: str | None = None,
+        game_variant: str | None = None,
         limit: int = 50,
     ) -> list[dict]:
         self.initialize()
@@ -699,6 +688,7 @@ class AccountStore:
             statement = statement.where(matches.c.game_key == game_key)
         if game_mode is not None:
             statement = statement.where(matches.c.mode == game_mode)
+        statement = self._filter_game_variant(statement, game_variant)
         with self.engine.connect() as connection:
             rows = connection.execute(statement).mappings().all()
         return [self._history_row(row) for row in rows]
@@ -709,6 +699,7 @@ class AccountStore:
         *,
         game_key: str | None = None,
         game_mode: str | None = None,
+        game_variant: str | None = None,
     ) -> dict[str, int | float | None]:
         self.initialize()
         if game_key in TIME_TRIAL_GAMES:
@@ -731,6 +722,7 @@ class AccountStore:
             )
             if game_mode is not None:
                 statement = statement.where(matches.c.mode == game_mode)
+            statement = self._filter_game_variant(statement, game_variant)
             with self.engine.connect() as connection:
                 row = connection.execute(statement).mappings().one()
             return {
@@ -868,6 +860,7 @@ class AccountStore:
             statement = statement.where(matches.c.game_key.not_in(TIME_TRIAL_GAMES))
         if game_mode is not None:
             statement = statement.where(matches.c.mode == game_mode)
+        statement = self._filter_game_variant(statement, game_variant)
         with self.engine.connect() as connection:
             row = connection.execute(statement).mappings().one()
         game_count = int(row["games"])
@@ -898,6 +891,7 @@ class AccountStore:
         *,
         game_key: str,
         game_mode: str | None = None,
+        game_variant: str | None = None,
         limit: int = 50,
     ) -> list[dict]:
         self.initialize()
@@ -942,6 +936,7 @@ class AccountStore:
             )
             if game_mode is not None:
                 statement = statement.where(matches.c.mode == game_mode)
+            statement = self._filter_game_variant(statement, game_variant)
             with self.engine.connect() as connection:
                 rows = connection.execute(statement).mappings().all()
             return [
@@ -1000,6 +995,7 @@ class AccountStore:
         statement = statement.where(matches.c.game_key == game_key)
         if game_mode is not None:
             statement = statement.where(matches.c.mode == game_mode)
+        statement = self._filter_game_variant(statement, game_variant)
         with self.engine.connect() as connection:
             rows = connection.execute(statement).mappings().all()
         return [
@@ -1015,6 +1011,20 @@ class AccountStore:
             }
             for index, row in enumerate(rows, start=1)
         ]
+
+    @staticmethod
+    def _filter_game_variant(statement, game_variant: str | None):
+        if game_variant is None:
+            return statement
+        if game_variant not in AVALON_STATS_VARIANTS:
+            raise AccountError("未知的阿瓦隆统计分组")
+        shadow_merlin_enabled = matches.c.details_json[
+            "shadowMerlinEnabled"
+        ].as_boolean()
+        if game_variant == "shadow_merlin":
+            return statement.where(shadow_merlin_enabled.is_(True))
+        # 暗影梅林上线前的王庭暗流战绩没有这个字段；缺失值属于无暗影局。
+        return statement.where(shadow_merlin_enabled.is_not(True))
 
     def avalon_role_skin_progress(
         self,

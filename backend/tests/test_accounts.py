@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 import pytest
-from sqlalchemy import update
+from sqlalchemy import select, update
 
 from backend.app.accounts import (
     AVALON_ROLE_SKIN_FREE_WEEK_END,
@@ -11,7 +11,7 @@ from backend.app.accounts import (
     AccountError,
     AccountStore,
 )
-from backend.app.database import users
+from backend.app.database import matches, users
 from backend.app.games.avalon.models import Alignment, AvalonMode, Phase, Role
 
 from .test_engine import start_room
@@ -186,6 +186,57 @@ def record_avalon_role_result(
             }
         ],
     )
+
+
+def test_departed_suspicion_match_and_equipment_audit_are_persisted(tmp_path):
+    store = AccountStore(tmp_path / "departed-suspicion.sqlite3")
+    account = account_for_player(store, 0, "departed")
+    audit = {
+        "initial_equipment_order": ["coffee", "key"],
+        "equipment_draw_history": [
+            {
+                "sequence": 1,
+                "turn_number": 1,
+                "seat": 0,
+                "card_id": "coffee",
+                "source": "normal_action",
+            }
+        ],
+        "equipment_audit_complete": True,
+    }
+
+    assert store.record_game_match(
+        game_key="departed_suspicion",
+        game_name="无间疑云",
+        match_id="departed-match",
+        room_code="COPS",
+        winner="honest",
+        reason="头目出局，正直阵营获胜",
+        started_at="2026-08-07T00:00:00+00:00",
+        ended_at="2026-08-07T00:10:00+00:00",
+        details={"options": {"equipmentSet": "base"}, "state": audit},
+        players=[
+            {
+                "accountId": account.id,
+                "playerName": account.player_name,
+                "seat": 0,
+                "role": "探员",
+                "alignment": "honest",
+                "won": True,
+                "isHost": True,
+            }
+        ],
+    )
+
+    with store.engine.connect() as connection:
+        recorded = connection.execute(
+            select(matches.c.game_key, matches.c.details_json).where(
+                matches.c.id == "departed-match"
+            )
+        ).mappings().one()
+
+    assert recorded["game_key"] == "departed_suspicion"
+    assert recorded["details_json"]["state"] == audit
 
 
 def test_existing_accounts_keep_every_avalon_role_skin(tmp_path):
@@ -409,6 +460,93 @@ def test_court_undercurrent_match_records_final_alignment_and_mode(tmp_path):
     assert recorded_dissenting["initialAlignment"] == "good"
     assert recorded_dissenting["finalAlignment"] == "evil"
     assert recorded_dissenting["transformed"] is True
+
+
+def test_court_stats_separate_shadow_merlin_and_legacy_matches(tmp_path):
+    store = AccountStore(tmp_path / "court-variants.sqlite3")
+    account = account_for_player(store, 0, "variant")
+
+    def record_variant(match_id: str, shadow_enabled: bool | None) -> None:
+        details = {"mode": "court_undercurrent"}
+        if shadow_enabled is not None:
+            details["shadowMerlinEnabled"] = shadow_enabled
+        assert store.record_game_match(
+            game_key="avalon",
+            match_id=match_id,
+            room_code="DARK",
+            winner="good",
+            reason="王庭暗流统计分组测试",
+            started_at="2026-08-01T00:00:00+00:00",
+            ended_at="2026-08-01T00:10:00+00:00",
+            details=details,
+            ranked=True,
+            players=[
+                {
+                    "accountId": account.id,
+                    "playerName": account.player_name,
+                    "seat": 0,
+                    "role": "merlin",
+                    "alignment": "good",
+                    "won": True,
+                    "isHost": True,
+                }
+            ],
+        )
+
+    record_variant("court-legacy", None)
+    record_variant("court-classic", False)
+    record_variant("court-shadow", True)
+    with store.engine.begin() as connection:
+        connection.execute(
+            update(matches)
+            .where(
+                matches.c.id.in_(
+                    {"court-legacy", "court-classic", "court-shadow"}
+                )
+            )
+            .values(mode="court_undercurrent")
+        )
+
+    classic_history = store.history_for_account(
+        account.id,
+        game_key="avalon",
+        game_mode="court_undercurrent",
+        game_variant="classic",
+    )
+    shadow_history = store.history_for_account(
+        account.id,
+        game_key="avalon",
+        game_mode="court_undercurrent",
+        game_variant="shadow_merlin",
+    )
+
+    assert {match["id"] for match in classic_history} == {
+        "court-legacy",
+        "court-classic",
+    }
+    assert [match["id"] for match in shadow_history] == ["court-shadow"]
+    assert store.summary_for_account(
+        account.id,
+        game_key="avalon",
+        game_mode="court_undercurrent",
+        game_variant="classic",
+    )["games"] == 2
+    assert store.summary_for_account(
+        account.id,
+        game_key="avalon",
+        game_mode="court_undercurrent",
+        game_variant="shadow_merlin",
+    )["games"] == 1
+    assert store.leaderboard(
+        game_key="avalon",
+        game_mode="court_undercurrent",
+        game_variant="classic",
+    )[0]["games"] == 2
+    assert store.leaderboard(
+        game_key="avalon",
+        game_mode="court_undercurrent",
+        game_variant="shadow_merlin",
+    )[0]["games"] == 1
 
 
 def test_ranked_leaderboard_excludes_matches_with_ai_players(tmp_path):

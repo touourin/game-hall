@@ -112,6 +112,23 @@ describe('arcade room store', () => {
     expect(arcade.activeRoomCode).toBe('A1B2')
   })
 
+  it('sends a custom room name when creating a room', async () => {
+    socketMocks.emitWithAck.mockResolvedValue({
+      ok: true,
+      roomCode: 'NAME',
+      playerId: 'player-name',
+      resumeToken: 'resume-token-for-player-name',
+    })
+    const arcade = useArcadeStore()
+
+    expect(await arcade.createRoom('avalon', {}, '  暗流议会  ')).toBe(true)
+    expect(socketMocks.emitWithAck).toHaveBeenCalledWith('arcade:create', {
+      game_key: 'avalon',
+      options: {},
+      room_name: '暗流议会',
+    })
+  })
+
   it('discovers the existing room after a new login connects', async () => {
     socketMocks.emitWithAck.mockResolvedValue({
       ok: true,

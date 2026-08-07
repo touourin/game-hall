@@ -49,6 +49,7 @@ describe('MultiplayerMatchLauncher', () => {
         gameKey: 'xiangqi',
         rooms: [{
           roomCode: 'A1B2',
+          roomName: '楚河棋社',
           gameKey: 'xiangqi',
           gameName: '中国象棋',
           hostName: '棋友',
@@ -66,6 +67,25 @@ describe('MultiplayerMatchLauncher', () => {
 
     expect(wrapper.emitted('update:mode')).toEqual([['join']])
     expect(wrapper.emitted('update:roomCode')).toEqual([['A1B2']])
+    expect(wrapper.text()).toContain('楚河棋社')
+  })
+
+  it('accepts a custom room name while creating', async () => {
+    const wrapper = mount(MultiplayerMatchLauncher, {
+      props: {
+        game,
+        gameKey: 'xiangqi',
+        rooms: [],
+        modelValue: {},
+        mode: 'create',
+        roomCode: '',
+        roomName: '',
+      },
+    })
+
+    await wrapper.get('.match-name-field input').setValue('周末棋社')
+
+    expect(wrapper.emitted('update:roomName')).toEqual([['周末棋社']])
   })
 
   it('edits room rules in a focused modal and saves them explicitly', async () => {

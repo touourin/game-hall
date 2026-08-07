@@ -22,6 +22,7 @@ def build_lobby_view(
     return [
         {
             "roomCode": room.code,
+            "roomName": room.name,
             "gameKey": room.game_key,
             "gameName": engines[room.game_key].name,
             "hostName": room.host.name,
@@ -89,6 +90,7 @@ def build_room_view(
     return {
         "revision": room.revision,
         "roomCode": room.code,
+        "roomName": room.name,
         "gameKey": room.game_key,
         "gameName": engine.name,
         "options": room.options,

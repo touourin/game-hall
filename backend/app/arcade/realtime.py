@@ -43,6 +43,7 @@ INFO_SOCKET_EVENTS = {
 
 class CreatePayload(BaseModel):
     game_key: str = Field(min_length=1, max_length=32)
+    room_name: str | None = Field(default=None, max_length=64)
     options: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -316,6 +317,7 @@ class ArcadeRealtime:
                 payload.options,
                 identity["avatar_url"],
                 is_guest=identity["is_guest"],
+                room_name=payload.room_name,
             )
             await self._bind_session(sid, room, player.id)
             await self.broadcast_room(room)

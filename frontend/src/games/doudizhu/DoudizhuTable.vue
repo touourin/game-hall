@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Crown, Flag, History, ListOrdered } from '@lucide/vue'
+import { Crown, Flag, History } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
 
@@ -42,16 +42,23 @@ const game = computed(() => props.snapshot.game as {
   wildRank: number | null
   wildLabel: string | null
   history: HistoryEntry[]
-  remainingRanks: Record<string, number>
   scores: Record<string, number>
   settlement: { baseScore: number; multiplier: number; spring: string | null } | null
 })
 const isMyTurn = computed(
   () => game.value.currentPlayerId === props.snapshot.self.id,
 )
-const otherPlayers = computed(() =>
-  props.snapshot.players.filter((player) => player.id !== props.snapshot.self.id),
-)
+const otherPlayers = computed(() => {
+  const { players, self } = props.snapshot
+  const seatCount = players.length
+  return players
+    .filter((player) => player.id !== self.id)
+    .sort((left, right) => {
+      const leftDistance = (left.seat - self.seat + seatCount) % seatCount
+      const rightDistance = (right.seat - self.seat + seatCount) % seatCount
+      return leftDistance - rightDistance
+    })
+})
 const lastPlayerName = computed(
   () =>
     props.snapshot.players.find((player) => player.id === game.value.lastPlayPlayerId)
@@ -94,11 +101,6 @@ const selectionHint = computed(() => {
     : ''
   return `已选 ${selectedCards.value.length} 张${selectedPatternLabel.value ? '' : ' · 出牌时校验牌型'}${target}`
 })
-const rankOrder = [17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3]
-const rankLabels: Record<number, string> = {
-  17: '大王', 16: '小王', 15: '2', 14: 'A', 13: 'K', 12: 'Q', 11: 'J',
-}
-
 watch(
   () => props.snapshot.revision,
   () => {
@@ -182,9 +184,6 @@ function historyText(entry: HistoryEntry): string {
   return `${entry.playerName} · ${entry.pattern?.label ?? '出牌'} · ${entry.cards?.map((card) => card.label).join(' ') ?? ''}`
 }
 
-function rankLabel(rank: number): string {
-  return rankLabels[rank] ?? String(rank)
-}
 </script>
 
 <template>
@@ -276,16 +275,23 @@ function rankLabel(rank: number): string {
       </div>
     </section>
 
-    <section v-if="snapshot.phase !== 'bidding'" class="hand-zone" :class="{ active: isMyTurn }">
+    <section
+      v-if="game.hand.length || snapshot.phase === 'playing'"
+      class="hand-zone"
+      :class="{ active: snapshot.phase === 'playing' && isMyTurn }"
+    >
       <header class="self-hand-header">
         <div>
           <small>我的手牌</small>
-          <strong>{{ teamLabel(selfTeam) }} · {{ game.hand.length }} 张</strong>
+          <strong>{{ snapshot.phase === 'bidding' ? '地主竞选' : teamLabel(selfTeam) }} · {{ game.hand.length }} 张</strong>
         </div>
-        <span :class="{ active: isMyTurn }">{{ isMyTurn ? '轮到你出牌' : `等待${currentPlayer?.name ?? '对手'}` }}</span>
+        <span v-if="snapshot.phase === 'bidding'" :class="{ active: isMyTurn }">
+          {{ isMyTurn ? (game.biddingMode === 'call' ? '请看牌后决定是否叫地主' : '请看牌后决定是否抢地主') : `等待${currentPlayer?.name ?? '其他玩家'}${game.biddingMode === 'call' ? '叫地主' : '抢地主'}` }}
+        </span>
+        <span v-else :class="{ active: isMyTurn }">{{ isMyTurn ? '轮到你出牌' : `等待${currentPlayer?.name ?? '对手'}` }}</span>
       </header>
 
-      <div id="doudizhu-selection-hint" class="selection-feedback" :class="{ ready: selectedIds.length }" role="status" aria-live="polite">
+      <div v-if="snapshot.phase === 'playing'" id="doudizhu-selection-hint" class="selection-feedback" :class="{ ready: selectedIds.length }" role="status" aria-live="polite">
         <b v-if="selectedPatternLabel">{{ selectedPatternLabel }}</b>
         <span>{{ selectionHint }}</span>
       </div>
@@ -333,10 +339,6 @@ function rankLabel(rank: number): string {
       <details class="history-panel">
         <summary><History :size="16" />完整记录（{{ normalizedHistory.length }}）</summary>
         <ol><li v-for="(entry, index) in normalizedHistory" :key="index">{{ historyText(entry) }}</li></ol>
-      </details>
-      <details class="counter-panel">
-        <summary><ListOrdered :size="16" />记牌器</summary>
-        <div><span v-for="rank in rankOrder" :key="rank"><b>{{ rankLabel(rank) }}</b>{{ game.remainingRanks[String(rank)] ?? 0 }}</span></div>
       </details>
     </div>
   </section>
@@ -719,14 +721,11 @@ function rankLabel(rank: number): string {
 .settlement-card p { margin: 0; color: var(--gold); }
 .settlement-card b { color: var(--red); }
 .settlement-card b.gain { color: var(--green); }
-.landlord-tools { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.landlord-tools { width: 100%; display: grid; grid-template-columns: 1fr; gap: 10px; }
 .landlord-tools details { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: rgba(0,0,0,.1); }
 .landlord-tools summary { display: flex; align-items: center; gap: 7px; cursor: pointer; color: var(--gold); font-weight: 800; }
 .history-panel ol { max-height: 260px; overflow: auto; margin: 10px 0 0; padding-left: 25px; color: var(--muted); }
 .history-panel li { margin: 5px 0; }
-.counter-panel > div { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; margin-top: 10px; }
-.counter-panel span { display: grid; place-items: center; border-radius: 7px; padding: 5px; background: var(--surface); color: var(--muted); }
-.counter-panel b { color: var(--text); }
 @media (max-width: 700px) {
   .landlord-table { gap: 11px; }
   .landlord-felt { min-height: 330px; border-width: 5px; border-radius: 34px; }
@@ -770,8 +769,6 @@ function rankLabel(rank: number): string {
   }
   .play-actions button:not(.arcade-danger-button) { min-height: 40px; padding: 0 15px; }
   .play-actions .primary { min-width: 112px; }
-  .landlord-tools { grid-template-columns: 1fr; }
-  .counter-panel > div { grid-template-columns: repeat(5, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) {
   .opponent.active .player-avatar,

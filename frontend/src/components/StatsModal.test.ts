@@ -178,14 +178,28 @@ describe('StatsModal', () => {
     })
     await flushPromises()
 
-    expect(loadPersonalStats).toHaveBeenCalledWith('avalon', 'standard')
+    expect(loadPersonalStats).toHaveBeenCalledWith(
+      'avalon',
+      'standard',
+      undefined,
+    )
     await wrapper.findAll('.stats-mode-tabs button')[1]!.trigger('click')
     await flushPromises()
     expect(loadPersonalStats).toHaveBeenLastCalledWith(
       'avalon',
       'court_undercurrent',
+      'classic',
     )
     expect(wrapper.get('.court-balance-summary').text()).toContain('授刃命中')
+
+    await wrapper.findAll('.stats-mode-tabs button')[2]!.trigger('click')
+    await flushPromises()
+    expect(loadPersonalStats).toHaveBeenLastCalledWith(
+      'avalon',
+      'court_undercurrent',
+      'shadow_merlin',
+    )
+    expect(wrapper.get('h2').text()).toContain('暗影梅林')
 
     await wrapper.get('.match-history-list button').trigger('click')
     await flushPromises()

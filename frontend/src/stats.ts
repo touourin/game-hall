@@ -20,6 +20,8 @@ export interface StatsSummary {
   dissentingAssassinationHits?: number
 }
 
+export type AvalonStatsVariant = 'classic' | 'shadow_merlin'
+
 export type MatchOutcome = 'win' | 'loss' | 'draw' | 'completed'
 
 export interface MatchHistoryItem {
@@ -180,7 +182,11 @@ async function statsRequest<T>(path: string): Promise<T> {
   return (await response.json()) as T
 }
 
-export async function loadPersonalStats(gameKey?: string, gameMode?: string): Promise<{
+export async function loadPersonalStats(
+  gameKey?: string,
+  gameMode?: string,
+  gameVariant?: AvalonStatsVariant,
+): Promise<{
   summary: StatsSummary
   history: MatchHistoryItem[]
 }> {
@@ -191,6 +197,7 @@ export async function loadPersonalStats(gameKey?: string, gameMode?: string): Pr
   }>(`/api/stats/me${gameKey ? `?${new URLSearchParams({
     game: gameKey,
     ...(gameMode ? { mode: gameMode } : {}),
+    ...(gameVariant ? { variant: gameVariant } : {}),
   }).toString()}` : ''}`)
   return { summary: response.summary, history: response.history }
 }
@@ -202,13 +209,18 @@ export async function loadMatchDetail(matchId: string): Promise<MatchDetail> {
   return response.match
 }
 
-export async function loadLeaderboard(gameKey: string, gameMode?: string): Promise<LeaderboardEntry[]> {
+export async function loadLeaderboard(
+  gameKey: string,
+  gameMode?: string,
+  gameVariant?: AvalonStatsVariant,
+): Promise<LeaderboardEntry[]> {
   const response = await statsRequest<{
     ok: boolean
     players: LeaderboardEntry[]
   }>(`/api/leaderboard?${new URLSearchParams({
     game: gameKey,
     ...(gameMode ? { mode: gameMode } : {}),
+    ...(gameVariant ? { variant: gameVariant } : {}),
   }).toString()}`)
   return response.players
 }

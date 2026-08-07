@@ -8,6 +8,7 @@ import {
   type MatchDetail,
   type MatchHistoryItem,
   type StatsSummary,
+  type AvalonStatsVariant,
 } from '../stats'
 
 const props = defineProps<{ gameKey?: string; gameName?: string; gameMode?: string }>()
@@ -21,6 +22,11 @@ const detailLoading = ref(false)
 const error = ref<string | null>(null)
 const activeGameMode = ref<string | undefined>(
   props.gameMode ?? (props.gameKey === 'avalon' ? 'standard' : undefined),
+)
+const activeAvalonVariant = ref<AvalonStatsVariant | undefined>(
+  props.gameKey === 'avalon' && props.gameMode === 'court_undercurrent'
+    ? 'classic'
+    : undefined,
 )
 
 const roleLabels: Record<string, string> = {
@@ -103,8 +109,22 @@ function difficultyLabel(value: string | null | undefined): string {
   return ''
 }
 
-function avalonModeLabel(value: string | null | undefined): string {
-  return value === 'court_undercurrent' ? '王庭暗流' : '标准模式'
+function avalonModeLabel(
+  value: string | null | undefined,
+  variant?: AvalonStatsVariant,
+): string {
+  if (value !== 'court_undercurrent') return '标准模式'
+  return variant === 'shadow_merlin'
+    ? '王庭暗流 · 暗影梅林'
+    : '王庭暗流 · 无暗影梅林'
+}
+
+function selectAvalonStats(
+  mode: 'standard' | 'court_undercurrent',
+  variant?: AvalonStatsVariant,
+) {
+  activeGameMode.value = mode
+  activeAvalonVariant.value = variant
 }
 
 function playerFor(match: MatchDetail, playerId: string) {
@@ -140,7 +160,13 @@ async function loadStats() {
   loading.value = true
   error.value = null
   try {
-    const data = await loadPersonalStats(props.gameKey, activeGameMode.value)
+    const data = await loadPersonalStats(
+      props.gameKey,
+      activeGameMode.value,
+      activeGameMode.value === 'court_undercurrent'
+        ? activeAvalonVariant.value
+        : undefined,
+    )
     summary.value = data.summary
     history.value = data.history
   } catch (caught) {
@@ -151,7 +177,7 @@ async function loadStats() {
 }
 
 onMounted(loadStats)
-watch(activeGameMode, loadStats)
+watch([activeGameMode, activeAvalonVariant], loadStats)
 </script>
 
 <template>
@@ -171,7 +197,14 @@ watch(activeGameMode, loadStats)
         <h2>{{ selectedMatch.gameName }} · 房间 {{ selectedMatch.roomCode }}</h2>
         <p>{{ formatDate(selectedMatch.endedAt) }} · {{ selectedMatch.playerCount }} 人局</p>
         <p v-if="selectedMatch.gameKey === 'avalon'" class="match-mode-label">
-          {{ avalonModeLabel(selectedMatch.gameMode ?? selectedMatch.details.mode) }}
+          {{
+            avalonModeLabel(
+              selectedMatch.gameMode ?? selectedMatch.details.mode,
+              selectedMatch.details.shadowMerlinEnabled
+                ? 'shadow_merlin'
+                : 'classic',
+            )
+          }}
         </p>
         <p v-if="selectedMatch.gameKey === 'junqi'" class="match-mode-label">
           {{ selectedMatch.details.options?.mode === 'flip' ? '翻棋军旗' : '暗军旗' }}
@@ -455,7 +488,7 @@ watch(activeGameMode, loadStats)
 
       <template v-else>
         <span class="modal-icon"><History :size="24" /></span>
-        <h2>{{ props.gameName ? `${props.gameName}${props.gameKey === 'avalon' ? ` · ${avalonModeLabel(activeGameMode)}` : difficultyLabel(activeGameMode)}战绩` : '我的全部战绩' }}</h2>
+        <h2>{{ props.gameName ? `${props.gameName}${props.gameKey === 'avalon' ? ` · ${avalonModeLabel(activeGameMode, activeAvalonVariant)}` : difficultyLabel(activeGameMode)}战绩` : '我的全部战绩' }}</h2>
         <p>{{ props.gameKey === 'reaction' ? '记录每次三轮测试的平均值与单轮明细。' : props.gameKey === 'schulte' ? '记录每次 5×5 标准挑战的完成用时与点击准确率。' : props.gameKey === 'minesweeper' ? '不同难度分别统计通关时间，失败记录也会保留在战绩中。' : props.gameKey === 'hanoi' ? '记录每次通关的层数、步数与完成用时。' : '每款游戏独立记录胜负，对局详情绑定当前账号。' }}</p>
 
         <div
@@ -467,16 +500,31 @@ watch(activeGameMode, loadStats)
           <button
             type="button"
             :class="{ active: activeGameMode === 'standard' }"
-            @click="activeGameMode = 'standard'"
+            @click="selectAvalonStats('standard')"
           >
             标准模式
           </button>
           <button
             type="button"
-            :class="{ active: activeGameMode === 'court_undercurrent' }"
-            @click="activeGameMode = 'court_undercurrent'"
+            :class="{
+              active:
+                activeGameMode === 'court_undercurrent' &&
+                activeAvalonVariant === 'classic',
+            }"
+            @click="selectAvalonStats('court_undercurrent', 'classic')"
           >
-            王庭暗流
+            暗流 · 无暗影
+          </button>
+          <button
+            type="button"
+            :class="{
+              active:
+                activeGameMode === 'court_undercurrent' &&
+                activeAvalonVariant === 'shadow_merlin',
+            }"
+            @click="selectAvalonStats('court_undercurrent', 'shadow_merlin')"
+          >
+            暗流 · 暗影梅林
           </button>
         </div>
 

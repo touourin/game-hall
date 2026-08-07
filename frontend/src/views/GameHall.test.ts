@@ -29,7 +29,7 @@ describe('GameHall', () => {
     expect(wrapper.get('[aria-label="退出登录"]').text()).toContain('退出')
     expect(wrapper.get('[aria-label="打开设置"]').attributes('aria-label')).toBe('打开设置')
     expect(wrapper.get('[aria-label="打开第三方游戏入口"]').text()).toContain('第三方游戏')
-    expect(wrapper.get('[aria-label="打开第三方游戏入口"]').text()).toContain('2 款已启用')
+    expect(wrapper.get('[aria-label="打开第三方游戏入口"]').text()).toContain('5 款已启用')
     await wrapper.get('.account-bar-actions [aria-label="打开设置"]').trigger('click')
     expect(wrapper.emitted('settings')).toHaveLength(1)
     await wrapper.get('[aria-label="打开第三方游戏入口"]').trigger('click')

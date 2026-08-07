@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { LoaderCircle, Trophy, X } from '@lucide/vue'
-import { loadLeaderboard, type LeaderboardEntry } from '../stats'
+import {
+  loadLeaderboard,
+  type AvalonStatsVariant,
+  type LeaderboardEntry,
+} from '../stats'
 import AvatarImage from './AvatarImage.vue'
 
 const props = defineProps<{ accountId: string; gameKey: string; gameName: string; gameMode?: string }>()
@@ -12,6 +16,11 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const activeGameMode = ref<string | undefined>(
   props.gameMode ?? (props.gameKey === 'avalon' ? 'standard' : undefined),
+)
+const activeAvalonVariant = ref<AvalonStatsVariant | undefined>(
+  props.gameKey === 'avalon' && props.gameMode === 'court_undercurrent'
+    ? 'classic'
+    : undefined,
 )
 
 function formatDuration(milliseconds: number | undefined): string {
@@ -28,11 +37,32 @@ function difficultyLabel(value: string | undefined): string {
   return ''
 }
 
+function avalonModeLabel(): string {
+  if (activeGameMode.value !== 'court_undercurrent') return '标准模式'
+  return activeAvalonVariant.value === 'shadow_merlin'
+    ? '王庭暗流 · 暗影梅林'
+    : '王庭暗流 · 无暗影梅林'
+}
+
+function selectAvalonStats(
+  mode: 'standard' | 'court_undercurrent',
+  variant?: AvalonStatsVariant,
+) {
+  activeGameMode.value = mode
+  activeAvalonVariant.value = variant
+}
+
 async function loadPlayers() {
   loading.value = true
   error.value = null
   try {
-    players.value = await loadLeaderboard(props.gameKey, activeGameMode.value)
+    players.value = await loadLeaderboard(
+      props.gameKey,
+      activeGameMode.value,
+      activeGameMode.value === 'court_undercurrent'
+        ? activeAvalonVariant.value
+        : undefined,
+    )
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : '读取排行榜失败'
   } finally {
@@ -41,7 +71,7 @@ async function loadPlayers() {
 }
 
 onMounted(loadPlayers)
-watch(activeGameMode, loadPlayers)
+watch([activeGameMode, activeAvalonVariant], loadPlayers)
 </script>
 
 <template>
@@ -52,7 +82,7 @@ watch(activeGameMode, loadPlayers)
       </button>
       <span class="modal-icon"><Trophy :size="25" /></span>
       <h2>
-        {{ props.gameName }}{{ props.gameKey === 'avalon' ? ` · ${activeGameMode === 'court_undercurrent' ? '王庭暗流' : '标准模式'}` : difficultyLabel(activeGameMode) }}排行榜
+        {{ props.gameName }}{{ props.gameKey === 'avalon' ? ` · ${avalonModeLabel()}` : difficultyLabel(activeGameMode) }}排行榜
       </h2>
       <p>{{ props.gameKey === 'reaction' ? '按个人历史最佳三轮平均时间排序，数值越低越快。' : props.gameKey === 'schulte' ? '按个人最快完成时间排序，数值越低越快。' : props.gameKey === 'minesweeper' ? '三种难度独立排名，按个人最快通关时间排序。' : props.gameKey === 'hanoi' ? '按累计通关次数排序，同次数时优先更早完成挑战的玩家。' : '按胜场排序，同胜场时依次比较胜率和有效场次。' }}</p>
 
@@ -65,16 +95,31 @@ watch(activeGameMode, loadPlayers)
         <button
           type="button"
           :class="{ active: activeGameMode === 'standard' }"
-          @click="activeGameMode = 'standard'"
+          @click="selectAvalonStats('standard')"
         >
           标准模式
         </button>
         <button
           type="button"
-          :class="{ active: activeGameMode === 'court_undercurrent' }"
-          @click="activeGameMode = 'court_undercurrent'"
+          :class="{
+            active:
+              activeGameMode === 'court_undercurrent' &&
+              activeAvalonVariant === 'classic',
+          }"
+          @click="selectAvalonStats('court_undercurrent', 'classic')"
         >
-          王庭暗流
+          暗流 · 无暗影
+        </button>
+        <button
+          type="button"
+          :class="{
+            active:
+              activeGameMode === 'court_undercurrent' &&
+              activeAvalonVariant === 'shadow_merlin',
+          }"
+          @click="selectAvalonStats('court_undercurrent', 'shadow_merlin')"
+        >
+          暗流 · 暗影梅林
         </button>
       </div>
 

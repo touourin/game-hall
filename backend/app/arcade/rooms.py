@@ -33,6 +33,7 @@ DISCONNECT_FORFEIT_GRACE = timedelta(minutes=10)
 HOST_TRANSFER_GRACE = timedelta(seconds=20)
 MAX_CHAT_LENGTH = 300
 MAX_CHAT_MESSAGES = 100
+MAX_ROOM_NAME_LENGTH = 20
 UNDO_GAMES = {"gomoku", "xiangqi", "go"}
 DRAW_GAMES = {"gomoku", "xiangqi", "go"}
 FIRST_PLAYER_MODES = {"random", "host"}
@@ -97,6 +98,7 @@ class ArcadeRoomManager:
         avatar_url: str | None = None,
         *,
         is_guest: bool = False,
+        room_name: str | None = None,
     ) -> tuple[ArcadeRoom, ArcadePlayer, str]:
         engine = self.engine(game_key)
         self._ensure_account_available(account_id)
@@ -104,6 +106,9 @@ class ArcadeRoomManager:
         if is_guest and normalized_options.get("allowGuests") is False:
             raise ArcadeRoomError("游客只能创建允许游客加入的休闲房间")
         name = self._normalize_name(player_name)
+        normalized_room_name = self._normalize_room_name(room_name)
+        if normalized_room_name is None:
+            normalized_room_name = f"{name}的房间"
         code = self._new_code()
         token = secrets.token_urlsafe(32)
         player = ArcadePlayer(
@@ -121,6 +126,7 @@ class ArcadeRoomManager:
             host_id=player.id,
             players=[player],
             state=engine.initial_state(),
+            name=normalized_room_name,
             options=normalized_options,
             listed=normalized_options.get(
                 "listed", getattr(engine, "public_rooms", True)
@@ -862,6 +868,19 @@ class ArcadeRoomManager:
             raise ArcadeRoomError("请输入玩家名称")
         if len(normalized) > 12:
             raise ArcadeRoomError("玩家名称最多 12 个字符")
+        return normalized
+
+    @staticmethod
+    def _normalize_room_name(name: str | None) -> str | None:
+        if name is None:
+            return None
+        normalized = " ".join(name.strip().split())
+        if not normalized:
+            return None
+        if len(normalized) > MAX_ROOM_NAME_LENGTH:
+            raise ArcadeRoomError(
+                f"房间名称最多 {MAX_ROOM_NAME_LENGTH} 个字符"
+            )
         return normalized
 
     @staticmethod

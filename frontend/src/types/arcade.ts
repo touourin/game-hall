@@ -25,6 +25,7 @@ export interface GameCatalogItem {
 
 export interface ArcadeLobbyRoom {
   roomCode: string
+  roomName?: string
   gameKey: ArcadeGameKey
   gameName: string
   hostName: string
@@ -77,6 +78,7 @@ export interface ArcadeGameRequest {
 export interface ArcadeSnapshot {
   revision: number
   roomCode: string
+  roomName?: string
   gameKey: ArcadeGameKey
   gameName: string
   phase: ArcadePhase
