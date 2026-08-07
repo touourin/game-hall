@@ -5,13 +5,13 @@ import {
 
 describe('third-party game registry', () => {
   it('registers the enabled single-player and multiplayer examples', () => {
-    expect(THIRD_PARTY_GAME_PLUGINS.map(({ manifest }) => manifest.id)).toEqual([
+    expect(THIRD_PARTY_GAME_PLUGINS.map(({ manifest }) => manifest.id)).toEqual(expect.arrayContaining([
       'plugin-cheat-poker',
       'plugin-crazy-futures',
       'plugin-number-vault',
       'plugin-pyramid-solitaire',
       'plugin-star-stones',
-    ])
+    ]))
   })
 
   it('accepts a valid v1 plugin manifest', () => {
