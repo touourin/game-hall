@@ -89,26 +89,27 @@ describe('Avalon role skin artwork framing', () => {
     expect(roleArtworkFraming('minion', 'grail-myth').scale).toBe(1.1)
   })
 
-  it('uses the same framing data in the nine-role preview model', () => {
+  it('uses the same framing data in the ten-role preview model', () => {
     const roles = ROLE_SKIN_ROLES.map((role) => ({
       ...role,
       framing: roleArtworkFraming(role.code, 'grail-myth'),
     }))
-    expect(roles).toHaveLength(9)
+    expect(roles).toHaveLength(10)
     expect(roles.find((role) => role.code === 'merlin')?.framing.scale).toBe(1)
     expect(roles.find((role) => role.code === 'morgana')?.framing.scale).toBe(1.1)
   })
 
-  it('temporarily reuses the loyal servant artwork for the dissenting courtier', () => {
+  it('uses dedicated dissenting courtier artwork in every skin family', () => {
     for (const skin of ROLE_SKINS) {
-      expect(roleArtwork('dissenting_courtier', skin.id)).toBe(
+      expect(roleArtwork('dissenting_courtier', skin.id)).not.toBe(
         roleArtwork('loyal_servant', skin.id),
       )
+      expect(isRoleSkinAvailable('dissenting_courtier', skin.id)).toBe(true)
     }
   })
 
-  it('maps the dissenting courtier into the loyal-servant skin family', () => {
-    expect(roleSkinRoleCode('dissenting_courtier')).toBe('loyal_servant')
+  it('keeps the dissenting courtier independently selectable', () => {
+    expect(roleSkinRoleCode('dissenting_courtier')).toBe('dissenting_courtier')
     expect(roleSkinRoleCode('loyal_servant')).toBe('loyal_servant')
     expect(roleSkinRoleCode('unknown')).toBeNull()
   })
@@ -137,10 +138,11 @@ describe('Avalon role skin artwork framing', () => {
     })
   })
 
-  it('stores an independent nine-role loadout per account', () => {
+  it('stores an independent ten-role loadout per account', () => {
     const loadout = defaultRoleSkinLoadout()
     loadout.merlin = 'dark-chronicle'
     loadout.shadow_merlin = 'stained-glass'
+    loadout.dissenting_courtier = 'royal-codex'
     loadout.assassin = 'grail-myth'
 
     rememberRoleSkinLoadout('account-a', loadout)
@@ -159,14 +161,19 @@ describe('Avalon role skin artwork framing', () => {
     )
   })
 
-  it('adds shadow Merlin to an existing eight-role loadout', () => {
+  it('adds shadow Merlin and the dissenting courtier to a legacy loadout', () => {
     const legacyLoadout = defaultRoleSkinLoadout('classic-tabletop')
     legacyLoadout.merlin = 'royal-codex'
+    legacyLoadout.loyal_servant = 'stained-glass'
     delete (legacyLoadout as Partial<typeof legacyLoadout>).shadow_merlin
+    delete (legacyLoadout as Partial<typeof legacyLoadout>).dissenting_courtier
     rememberRoleSkinLoadout('legacy-account', legacyLoadout)
 
     expect(storedRoleSkinLoadout('legacy-account').shadow_merlin).toBe(
       'royal-codex',
+    )
+    expect(storedRoleSkinLoadout('legacy-account').dissenting_courtier).toBe(
+      'stained-glass',
     )
   })
 

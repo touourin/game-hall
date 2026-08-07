@@ -168,7 +168,11 @@ const activeRoleSkin = computed<RoleSkinId>(() => {
 })
 const roleSkinLoadoutOptions = computed<RoleSkinLoadoutRoleOption[]>(() => (
   ROLE_SKIN_ROLES.map((role) => {
-    const progressCode = role.code === 'shadow_merlin' ? 'merlin' : role.code
+    const progressCode = role.code === 'shadow_merlin'
+      ? 'merlin'
+      : role.code === 'dissenting_courtier'
+        ? 'loyal_servant'
+        : role.code
     const progress = roleSkinProgress.value.roles[progressCode]
     const selectedSkinId = selectedRoleSkinLoadout.value[role.code]
     const selectedSkin = ROLE_SKINS.find((skin) => skin.id === selectedSkinId)

@@ -47,9 +47,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
     <header class="role-skin-loadout-heading">
       <span><Images :size="20" /></span>
       <div>
-        <strong id="role-skin-loadout-title">九角色身份画风</strong>
+        <strong id="role-skin-loadout-title">十角色身份画风</strong>
         <small v-if="eventAllUnlocked">本周限时开放 · 所有角色的五套皮肤均可自由选择 · 开局后锁定</small>
-        <small v-else>每个角色单独选择 · 暗影梅林与梅林共享解锁进度 · 心怀异念之臣与忠臣共享 · 开局后锁定</small>
+        <small v-else>每个角色单独选择 · 暗影梅林与梅林共享解锁进度 · 心怀异念之臣与忠臣共享解锁进度 · 开局后锁定</small>
       </div>
     </header>
 
@@ -58,7 +58,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
     </button>
     <p v-else-if="loading" class="role-skin-loading" role="status">正在读取角色胜场与皮肤权限…</p>
 
-    <div class="role-skin-role-grid" aria-label="为九个角色选择身份画风">
+    <div class="role-skin-role-grid" aria-label="为十个角色选择身份画风">
       <button
         v-for="role in roles"
         :key="role.code"

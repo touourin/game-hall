@@ -17,7 +17,7 @@ export interface AvalonRoleSkinRoleProgress {
 
 export type AvalonRoleSkinProgressRoleCode = Exclude<
   RoleSkinRoleCode,
-  'shadow_merlin'
+  'shadow_merlin' | 'dissenting_courtier'
 >
 
 export interface AvalonRoleSkinProgress {
@@ -42,7 +42,7 @@ export function isAvalonRoleSkinFreeWeek(now = new Date()): boolean {
 const ROLE_SKIN_PROGRESS_ROLE_CODES = ROLE_SKIN_ROLES
   .map((role) => role.code)
   .filter((role): role is AvalonRoleSkinProgressRoleCode => (
-    role !== 'shadow_merlin'
+    role !== 'shadow_merlin' && role !== 'dissenting_courtier'
   ))
 
 export function emptyAvalonRoleSkinProgress(
@@ -76,7 +76,11 @@ export function isRoleSkinUnlocked(
   if (progress.legacyAllUnlocked) return true
   const family = roleSkinRoleCode(roleCode)
   if (!family) return false
-  const progressFamily = family === 'shadow_merlin' ? 'merlin' : family
+  const progressFamily = family === 'shadow_merlin'
+    ? 'merlin'
+    : family === 'dissenting_courtier'
+      ? 'loyal_servant'
+      : family
   const role = progress.roles[progressFamily]
   return skin.tier === '终极'
     ? role.ultimateUnlocked

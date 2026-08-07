@@ -1,5 +1,6 @@
 import classicPreview from './assets/avalon/role-skins/classic-tabletop/preview.webp'
 import classicAssassin from './assets/avalon/role-skins/classic-tabletop/roles/assassin.webp'
+import classicDissentingCourtier from './assets/avalon/role-skins/classic-tabletop/roles/dissenting-courtier.webp'
 import classicLoyalServant from './assets/avalon/role-skins/classic-tabletop/roles/loyal-servant.webp'
 import classicMerlin from './assets/avalon/role-skins/classic-tabletop/roles/merlin.webp'
 import classicMinion from './assets/avalon/role-skins/classic-tabletop/roles/minion.webp'
@@ -10,6 +11,7 @@ import classicPercival from './assets/avalon/role-skins/classic-tabletop/roles/p
 import classicShadowMerlin from './assets/avalon/role-skins/classic-tabletop/roles/shadow-merlin.webp'
 import darkPreview from './assets/avalon/role-skins/dark-chronicle/preview.webp'
 import darkAssassin from './assets/avalon/role-skins/dark-chronicle/roles/assassin.webp'
+import darkDissentingCourtier from './assets/avalon/role-skins/dark-chronicle/roles/dissenting-courtier.webp'
 import darkLoyalServant from './assets/avalon/role-skins/dark-chronicle/roles/loyal-servant.webp'
 import darkMerlin from './assets/avalon/role-skins/dark-chronicle/roles/merlin.webp'
 import darkMinion from './assets/avalon/role-skins/dark-chronicle/roles/minion.webp'
@@ -20,6 +22,7 @@ import darkPercival from './assets/avalon/role-skins/dark-chronicle/roles/perciv
 import darkShadowMerlin from './assets/avalon/role-skins/dark-chronicle/roles/shadow-merlin.webp'
 import grailPreview from './assets/avalon/role-skins/grail-myth/preview.webp'
 import grailAssassin from './assets/avalon/role-skins/grail-myth/roles/assassin.webp'
+import grailDissentingCourtier from './assets/avalon/role-skins/grail-myth/roles/dissenting-courtier.webp'
 import grailLoyalServant from './assets/avalon/role-skins/grail-myth/roles/loyal-servant.webp'
 import grailMerlin from './assets/avalon/role-skins/grail-myth/roles/merlin.webp'
 import grailMinion from './assets/avalon/role-skins/grail-myth/roles/minion.webp'
@@ -30,6 +33,7 @@ import grailPercival from './assets/avalon/role-skins/grail-myth/roles/percival.
 import grailShadowMerlin from './assets/avalon/role-skins/grail-myth/roles/shadow-merlin.webp'
 import codexPreview from './assets/avalon/role-skins/royal-codex/preview.webp'
 import codexAssassin from './assets/avalon/role-skins/royal-codex/roles/assassin.webp'
+import codexDissentingCourtier from './assets/avalon/role-skins/royal-codex/roles/dissenting-courtier.webp'
 import codexLoyalServant from './assets/avalon/role-skins/royal-codex/roles/loyal-servant.webp'
 import codexMerlin from './assets/avalon/role-skins/royal-codex/roles/merlin.webp'
 import codexMinion from './assets/avalon/role-skins/royal-codex/roles/minion.webp'
@@ -40,6 +44,7 @@ import codexPercival from './assets/avalon/role-skins/royal-codex/roles/percival
 import codexShadowMerlin from './assets/avalon/role-skins/royal-codex/roles/shadow-merlin.webp'
 import stainedPreview from './assets/avalon/role-skins/stained-glass/preview.webp'
 import stainedAssassin from './assets/avalon/role-skins/stained-glass/roles/assassin.webp'
+import stainedDissentingCourtier from './assets/avalon/role-skins/stained-glass/roles/dissenting-courtier.webp'
 import stainedLoyalServant from './assets/avalon/role-skins/stained-glass/roles/loyal-servant.webp'
 import stainedMerlin from './assets/avalon/role-skins/stained-glass/roles/merlin.webp'
 import stainedMinion from './assets/avalon/role-skins/stained-glass/roles/minion.webp'
@@ -70,7 +75,7 @@ export type AvalonRoleCode =
   | 'oberon'
   | 'minion'
 
-export type RoleSkinRoleCode = Exclude<AvalonRoleCode, 'dissenting_courtier'>
+export type RoleSkinRoleCode = AvalonRoleCode
 
 export type AvalonRoleAlignment = 'good' | 'evil'
 
@@ -144,7 +149,7 @@ const ROLE_ART: Record<RoleSkinId, Partial<Record<AvalonRoleCode, string>>> = {
     merlin: classicMerlin,
     percival: classicPercival,
     loyal_servant: classicLoyalServant,
-    dissenting_courtier: classicLoyalServant,
+    dissenting_courtier: classicDissentingCourtier,
     shadow_merlin: classicShadowMerlin,
     assassin: classicAssassin,
     morgana: classicMorgana,
@@ -156,7 +161,7 @@ const ROLE_ART: Record<RoleSkinId, Partial<Record<AvalonRoleCode, string>>> = {
     merlin: darkMerlin,
     percival: darkPercival,
     loyal_servant: darkLoyalServant,
-    dissenting_courtier: darkLoyalServant,
+    dissenting_courtier: darkDissentingCourtier,
     shadow_merlin: darkShadowMerlin,
     assassin: darkAssassin,
     morgana: darkMorgana,
@@ -168,7 +173,7 @@ const ROLE_ART: Record<RoleSkinId, Partial<Record<AvalonRoleCode, string>>> = {
     merlin: stainedMerlin,
     percival: stainedPercival,
     loyal_servant: stainedLoyalServant,
-    dissenting_courtier: stainedLoyalServant,
+    dissenting_courtier: stainedDissentingCourtier,
     shadow_merlin: stainedShadowMerlin,
     assassin: stainedAssassin,
     morgana: stainedMorgana,
@@ -180,7 +185,7 @@ const ROLE_ART: Record<RoleSkinId, Partial<Record<AvalonRoleCode, string>>> = {
     merlin: codexMerlin,
     percival: codexPercival,
     loyal_servant: codexLoyalServant,
-    dissenting_courtier: codexLoyalServant,
+    dissenting_courtier: codexDissentingCourtier,
     shadow_merlin: codexShadowMerlin,
     assassin: codexAssassin,
     morgana: codexMorgana,
@@ -192,7 +197,7 @@ const ROLE_ART: Record<RoleSkinId, Partial<Record<AvalonRoleCode, string>>> = {
     merlin: grailMerlin,
     percival: grailPercival,
     loyal_servant: grailLoyalServant,
-    dissenting_courtier: grailLoyalServant,
+    dissenting_courtier: grailDissentingCourtier,
     shadow_merlin: grailShadowMerlin,
     assassin: grailAssassin,
     morgana: grailMorgana,
@@ -268,6 +273,7 @@ export const ROLE_SKIN_ROLES: RoleSkinRoleDefinition[] = [
   { code: 'shadow_merlin', name: '暗影梅林', alignment: 'good' },
   { code: 'percival', name: '派西维尔', alignment: 'good' },
   { code: 'loyal_servant', name: '亚瑟的忠臣', alignment: 'good' },
+  { code: 'dissenting_courtier', name: '心怀异念之臣', alignment: 'good' },
   { code: 'assassin', name: '刺客', alignment: 'evil' },
   { code: 'morgana', name: '莫甘娜', alignment: 'evil' },
   { code: 'mordred', name: '莫德雷德', alignment: 'evil' },
@@ -300,6 +306,8 @@ function parsedRoleSkinLoadout(value: string | null): RoleSkinLoadout | null {
     for (const role of ROLE_SKIN_ROLES) {
       const skin = role.code === 'shadow_merlin'
         ? parsed.shadow_merlin ?? parsed.merlin
+        : role.code === 'dissenting_courtier'
+          ? parsed.dissenting_courtier ?? parsed.loyal_servant
         : parsed[role.code]
       if (!skin || !isRoleSkinId(skin)) return null
       loadout[role.code] = skin
@@ -319,7 +327,6 @@ export function defaultRoleSkinLoadout(
 }
 
 export function roleSkinRoleCode(roleCode: string): RoleSkinRoleCode | null {
-  if (roleCode === 'dissenting_courtier') return 'loyal_servant'
   return ROLE_SKIN_ROLES.some((role) => role.code === roleCode)
     ? roleCode as RoleSkinRoleCode
     : null

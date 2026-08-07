@@ -7,18 +7,24 @@ Each skin directory follows the same contract:
 ├── preview.webp              # 1024 × 768, 4 × 2 role overview
 └── roles/                    # 1024 × 1536 portraits
     ├── assassin.webp
+    ├── dissenting-courtier.webp
     ├── loyal-servant.webp
     ├── merlin.webp
     ├── minion.webp
     ├── mordred.webp
     ├── morgana.webp
     ├── oberon.webp
-    └── percival.webp
+    ├── percival.webp
+    └── shadow-merlin.webp
 ```
 
 Preview order is Merlin, Percival, Loyal Servant, Assassin, Morgana,
 Mordred, Oberon, and Minion. Runtime IDs, names, tiers, previews, and role
 artwork are registered in `frontend/src/gameRoleSkins.ts`.
+
+The in-game loadout contains all ten roles. Shadow Merlin has dedicated art
+while sharing Merlin's unlock progress. The Dissenting Courtier has dedicated
+art and an independent selected style while sharing Loyal Servant unlocks.
 
 ## Generated skin prompts
 

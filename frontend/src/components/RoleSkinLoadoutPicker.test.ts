@@ -9,6 +9,7 @@ function roles(): RoleSkinLoadoutRoleOption[] {
     '暗影梅林',
     '派西维尔',
     '亚瑟的忠臣',
+    '心怀异念之臣',
     '刺客',
     '莫甘娜',
     '莫德雷德',
@@ -20,6 +21,7 @@ function roles(): RoleSkinLoadoutRoleOption[] {
       'shadow_merlin',
       'percival',
       'loyal_servant',
+      'dissenting_courtier',
       'assassin',
       'morgana',
       'mordred',
@@ -27,7 +29,7 @@ function roles(): RoleSkinLoadoutRoleOption[] {
       'minion',
     ][index]!,
     name,
-    group: index < 4 ? '亚瑟阵营' : '莫德雷德阵营',
+    group: index < 5 ? '亚瑟阵营' : '莫德雷德阵营',
     wins: index < 2 ? 2 : 0,
     currentSkinName: '经典桌游',
     currentArtwork: '/classic.webp',
@@ -76,12 +78,12 @@ describe('RoleSkinLoadoutPicker', () => {
     document.body.innerHTML = ''
   })
 
-  it('shows all nine independently configurable roles', () => {
+  it('shows all ten independently configurable roles', () => {
     const wrapper = mount(RoleSkinLoadoutPicker, { props: { roles: roles() } })
 
-    expect(wrapper.findAll('[data-role-skin-role]')).toHaveLength(9)
+    expect(wrapper.findAll('[data-role-skin-role]')).toHaveLength(10)
     expect(wrapper.text()).toContain('暗影梅林与梅林共享解锁进度')
-    expect(wrapper.text()).toContain('心怀异念之臣与忠臣共享')
+    expect(wrapper.text()).toContain('心怀异念之臣与忠臣共享解锁进度')
     expect(wrapper.get('[data-role-skin-role="merlin"]').text()).toContain(
       '升级 2/2',
     )

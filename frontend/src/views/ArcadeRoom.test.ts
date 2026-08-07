@@ -406,9 +406,12 @@ describe('ArcadeRoom', () => {
     expect(wrapper.find('.game-page').exists()).toBe(false)
     expect(wrapper.get('.arcade-player-strip').text()).toContain('AI玩家 1')
     expect(wrapper.get('.role-skin-loadout').text()).toContain('开局后锁定')
-    expect(wrapper.findAll('[data-role-skin-role]')).toHaveLength(9)
+    expect(wrapper.findAll('[data-role-skin-role]')).toHaveLength(10)
     expect(wrapper.get('[data-role-skin-role="shadow_merlin"]').text()).toContain(
       '暗影梅林',
+    )
+    expect(wrapper.get('[data-role-skin-role="dissenting_courtier"]').text()).toContain(
+      '心怀异念之臣',
     )
     expect(wrapper.findAll('.exit-room-trigger')).toHaveLength(1)
     expect(
@@ -446,12 +449,13 @@ describe('ArcadeRoom', () => {
     wrapper.unmount()
   })
 
-  it('uses the loyal-servant selection for the dissenting courtier in play', async () => {
+  it('uses the independent dissenting-courtier selection in play', async () => {
     rememberAccessToken('access-token')
     rememberAccountToken('account-token')
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(roleSkinProgressResponse()))
     const loadout = defaultRoleSkinLoadout()
-    loadout.loyal_servant = 'royal-codex'
+    loadout.loyal_servant = 'classic-tabletop'
+    loadout.dissenting_courtier = 'royal-codex'
     rememberRoleSkinLoadout('account-1', loadout)
     const room = avalonSnapshot('role_reveal')
     const role = room.game.self.role
