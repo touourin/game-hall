@@ -4,7 +4,7 @@ from typing import Any
 
 from backend.app.games.base import GameEngine
 
-from .models import ArcadePlayer, ArcadeRoom
+from .models import ArcadePlayer, ArcadeRoom, ArcadeSpectator
 from .rooms import (
     ACTIVE_GAME_PHASES,
     DISCONNECT_FORFEIT_GRACE,
@@ -17,34 +17,78 @@ from .rooms import (
 
 
 def build_lobby_view(
-    rooms: list[ArcadeRoom], engines: dict[str, GameEngine]
+    rooms: list[ArcadeRoom],
+    engines: dict[str, GameEngine],
+    spectator_counts: dict[str, int] | None = None,
 ) -> list[dict[str, Any]]:
     return [
-        {
-            "roomCode": room.code,
-            "roomName": room.name,
-            "gameKey": room.game_key,
-            "gameName": engines[room.game_key].name,
-            "hostName": room.host.name,
-            "hostAvatarUrl": getattr(room.host, "avatar_url", None),
-            "playerCount": len(room.players),
-            "maxPlayers": engines[room.game_key].max_players,
-            "options": room.options,
-            "allowsGuests": room.options.get("allowGuests", True),
-            "statsEligible": room.stats_eligible,
-            "phase": room.phase,
-            "cleanupAvailable": room.cleanup_ready,
-            "allHumansOffline": room.all_humans_offline_since is not None,
-        }
+        build_lobby_room_view(
+            room,
+            engines[room.game_key],
+            spectator_count=(spectator_counts or {}).get(room.code, 0),
+        )
         for room in rooms
-        if room.cleanup_ready or (room.listed and room.phase == "lobby")
+        if room.cleanup_ready
+        or (
+            room.listed
+            and (
+                room.phase == "lobby"
+                or (
+                    room.phase != "finished"
+                    and room.options.get("allowSpectators", True)
+                )
+            )
+        )
     ]
+
+
+def build_lobby_room_view(
+    room: ArcadeRoom,
+    engine: GameEngine,
+    *,
+    spectator_count: int = 0,
+) -> dict[str, Any]:
+    watchable = (
+        room.phase not in {"lobby", "finished"}
+        and room.options.get("allowSpectators", True)
+    )
+    return {
+        "roomCode": room.code,
+        "roomName": room.name,
+        "gameKey": room.game_key,
+        "gameName": engine.name,
+        "hostName": room.host.name,
+        "hostAvatarUrl": getattr(room.host, "avatar_url", None),
+        "playerCount": len(room.players),
+        "maxPlayers": engine.max_players,
+        "players": [
+            {
+                "id": player.id,
+                "name": player.name,
+                "avatarUrl": getattr(player, "avatar_url", None),
+                "seat": player.seat,
+                "connected": player.connected,
+                "leftRoom": player.left_room,
+            }
+            for player in room.players
+            if not player.left_room
+        ],
+        "options": room.options,
+        "allowsGuests": room.options.get("allowGuests", True),
+        "statsEligible": room.stats_eligible,
+        "phase": room.phase,
+        "watchable": watchable,
+        "spectatorCount": spectator_count,
+        "cleanupAvailable": room.cleanup_ready,
+        "allHumansOffline": room.all_humans_offline_since is not None,
+    }
 
 
 def build_room_view(
     room: ArcadeRoom,
     viewer: ArcadePlayer,
     engine: GameEngine,
+    spectators: list[ArcadeSpectator] | None = None,
 ) -> dict[str, Any]:
     pending_request = room.pending_request
     requester = (
@@ -109,6 +153,15 @@ def build_room_view(
             "seat": viewer.seat,
             "avatarUrl": getattr(viewer, "avatar_url", None),
             "isGuest": viewer.is_guest,
+        },
+        "viewer": {
+            "mode": "player",
+            "id": viewer.id,
+            "accountId": viewer.account_id,
+            "name": viewer.name,
+            "avatarUrl": getattr(viewer, "avatar_url", None),
+            "isGuest": viewer.is_guest,
+            "targetPlayerId": viewer.id,
         },
         "players": [
             {
@@ -213,8 +266,63 @@ def build_room_view(
                 for message in room.chat_messages
             ],
         },
+        "spectators": _spectator_views(room, spectators or []),
         "game": engine.view(room, viewer),
     }
+
+
+def build_spectator_room_view(
+    room: ArcadeRoom,
+    target: ArcadePlayer,
+    spectator: ArcadeSpectator,
+    engine: GameEngine,
+    spectators: list[ArcadeSpectator] | None = None,
+) -> dict[str, Any]:
+    view = build_room_view(room, target, engine, spectators)
+    view["self"].pop("accountId", None)
+    view["viewer"] = {
+        "mode": "spectator",
+        "id": spectator.id,
+        "accountId": spectator.account_id,
+        "name": spectator.name,
+        "avatarUrl": spectator.avatar_url,
+        "isGuest": spectator.is_guest,
+        "targetPlayerId": target.id,
+    }
+    view["actions"] = {
+        action: False for action in view["actions"]
+    }
+    if view["request"] is not None:
+        view["request"] = {
+            **view["request"],
+            "isMine": False,
+            "hasApproved": False,
+            "canRespond": False,
+        }
+    return view
+
+
+def _spectator_views(
+    room: ArcadeRoom,
+    spectators: list[ArcadeSpectator],
+) -> list[dict[str, Any]]:
+    player_names = {player.id: player.name for player in room.players}
+    return [
+        {
+            "id": spectator.id,
+            "name": spectator.name,
+            "avatarUrl": spectator.avatar_url,
+            "isGuest": spectator.is_guest,
+            "targetPlayerId": spectator.target_player_id,
+            "targetPlayerName": player_names.get(
+                spectator.target_player_id, "已离场玩家"
+            ),
+        }
+        for spectator in sorted(
+            spectators,
+            key=lambda item: (item.name.casefold(), item.id),
+        )
+    ]
 
 
 def _player_avatar_url(room: ArcadeRoom, player_id: str) -> str | None:

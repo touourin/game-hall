@@ -34,6 +34,9 @@ export interface AckResponse {
   seatPreserved?: boolean
   activeRoom?: boolean
   gameKey?: string
+  spectatorId?: string
+  targetPlayerId?: string
+  room?: import('./types/arcade').ArcadeLobbyRoom
 }
 
 export function emitWithAck(

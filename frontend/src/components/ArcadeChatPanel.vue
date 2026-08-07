@@ -9,6 +9,7 @@ const props = defineProps<{
   maxLength: number
   selfId: string
   busy: boolean
+  readOnly?: boolean
   send: (content: string) => Promise<boolean>
 }>()
 
@@ -109,7 +110,8 @@ defineExpose({ openChat })
         </div>
       </article>
     </div>
-    <form @submit.prevent="submit">
+    <p v-if="readOnly" class="arcade-chat-readonly">观战模式可以查看聊天，但不能发送消息</p>
+    <form v-else @submit.prevent="submit">
       <input
         v-model="draft"
         :maxlength="maxLength"
@@ -197,6 +199,8 @@ defineExpose({ openChat })
   overflow-y: auto;
   padding: 14px;
 }
+
+.arcade-chat-readonly { margin: 0; border-top: 1px solid var(--line); padding: 12px 14px; color: var(--muted); font-size: 11px; text-align: center; }
 
 .arcade-chat-list article {
   display: flex;

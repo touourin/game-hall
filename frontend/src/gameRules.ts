@@ -18,6 +18,7 @@ export function defaultGameRules(
     return {
       firstPlayer: 'random',
       allowGuests: true,
+      allowSpectators: true,
       ...thirdPartyGameDefaultOptions(gameKey),
     }
   }
@@ -28,6 +29,7 @@ export function defaultGameRules(
       ladyEnabled: true,
       listed: true,
       allowGuests: true,
+      allowSpectators: true,
       earlyAssassinationEnabled: false,
     }
   }
@@ -36,14 +38,16 @@ export function defaultGameRules(
       equipmentSet: 'expanded',
       firstPlayer: 'random',
       allowGuests: true,
+      allowSpectators: true,
     }
   }
-  if (gameKey === 'reaction' || gameKey === 'schulte') return {}
-  if (gameKey === 'minesweeper') return { difficulty: 'beginner' }
-  if (gameKey === 'hanoi') return { discCount: 5 }
+  if (gameKey === 'reaction' || gameKey === 'schulte') return { allowSpectators: true }
+  if (gameKey === 'minesweeper') return { difficulty: 'beginner', allowSpectators: true }
+  if (gameKey === 'hanoi') return { discCount: 5, allowSpectators: true }
   const options: Record<string, unknown> = {
     firstPlayer: 'random',
     allowGuests: true,
+    allowSpectators: true,
   }
   if (gameKey === 'poker') {
     options.startingChips = 1000

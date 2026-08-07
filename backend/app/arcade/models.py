@@ -27,6 +27,16 @@ class ArcadePlayer:
     left_room: bool = False
 
 
+@dataclass(frozen=True)
+class ArcadeSpectator:
+    id: str
+    account_id: str
+    name: str
+    target_player_id: str
+    avatar_url: str | None = None
+    is_guest: bool = False
+
+
 @dataclass
 class ArcadeChatMessage:
     id: str

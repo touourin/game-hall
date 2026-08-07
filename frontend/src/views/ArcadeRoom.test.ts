@@ -246,6 +246,49 @@ describe('ArcadeRoom', () => {
 
   afterEach(() => vi.unstubAllGlobals())
 
+  it('shows the fixed perspective and everyone currently watching', () => {
+    const next = snapshot('gomoku')
+    next.phase = 'playing'
+    next.players = [
+      { id: 'p1', name: '玩家一', seat: 0, connected: true, isHost: true },
+      { id: 'p2', name: '玩家二', seat: 1, connected: true, isHost: false },
+    ]
+    next.self = { id: 'p2', name: '玩家二', seat: 1 }
+    next.viewer = {
+      mode: 'spectator',
+      id: 's1',
+      accountId: 'spectator-account',
+      name: '观众甲',
+      targetPlayerId: 'p2',
+    }
+    next.spectators = [
+      {
+        id: 's1',
+        name: '观众甲',
+        targetPlayerId: 'p2',
+        targetPlayerName: '玩家二',
+      },
+      {
+        id: 's2',
+        name: '观众乙',
+        targetPlayerId: 'p1',
+        targetPlayerName: '玩家一',
+      },
+    ]
+
+    const wrapper = shallowMount(ArcadeRoom, {
+      props: { snapshot: next },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.get('.spectator-mode-banner').text()).toContain('玩家二')
+    expect(wrapper.get('.arcade-spectator-strip').text()).toContain('观众甲（你）')
+    expect(wrapper.get('.arcade-spectator-strip').text()).toContain('观众乙')
+    expect(wrapper.get('.arcade-spectator-strip').text()).toContain('正在观看 玩家一')
+    expect(wrapper.findComponent({ name: 'ArcadeChatPanel' }).props('readOnly')).toBe(true)
+    expect(wrapper.findComponent({ name: 'RoomRecordActions' }).exists()).toBe(false)
+  })
+
   it('offers five local skins for supported multiplayer games', async () => {
     const wrapper = mount(ArcadeRoom, {
       props: { snapshot: snapshot('gomoku') },

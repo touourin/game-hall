@@ -888,6 +888,10 @@ class ArcadeRoomManager:
         engine: GameEngine, options: dict[str, Any]
     ) -> dict[str, Any]:
         normalized: dict[str, Any] = {}
+        allow_spectators = options.get("allowSpectators", True)
+        if not isinstance(allow_spectators, bool):
+            raise ArcadeRoomError("观战设置格式不正确")
+        normalized["allowSpectators"] = allow_spectators
         if engine.max_players > 1:
             allow_guests = options.get("allowGuests", True)
             if not isinstance(allow_guests, bool):

@@ -10,8 +10,10 @@ import type {
 interface StoredArcadeSession {
   gameKey: ArcadeGameKey
   roomCode: string
-  playerId: string
+  mode?: 'player' | 'spectator'
+  playerId?: string
   resumeToken?: string
+  targetPlayerId?: string
 }
 
 interface RoomClosurePayload {
@@ -62,6 +64,10 @@ export const useArcadeStore = defineStore('arcade', () => {
   const activeRoomCode = computed(() => snapshot.value?.roomCode ?? session.value?.roomCode ?? null)
   const resumableGame = computed(() => session.value?.gameKey ?? null)
   const resumableRoomCode = computed(() => session.value?.roomCode ?? null)
+  const isSpectating = computed(() => (
+    snapshot.value?.viewer?.mode === 'spectator'
+    || session.value?.mode === 'spectator'
+  ))
 
   function init() {
     if (initialized) return
@@ -70,6 +76,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     socket.on('connect', async () => {
       connected.value = true
       error.value = null
+      if (session.value?.mode === 'spectator' && await resumeWatch()) return
       if (session.value?.resumeToken && await resume()) return
       await syncActiveRoom()
     })
@@ -96,6 +103,9 @@ export const useArcadeStore = defineStore('arcade', () => {
     })
     socket.on('arcade:left', (payload: RoomClosurePayload) => {
       handleRoomClosure(payload, '你已退出房间')
+    })
+    socket.on('arcade:watch:ended', (payload: RoomClosurePayload) => {
+      handleRoomClosure(payload, '观战已经结束')
     })
   }
 
@@ -163,6 +173,68 @@ export const useArcadeStore = defineStore('arcade', () => {
     return false
   }
 
+  async function inspectWatchRoom(
+    gameKey: ArcadeGameKey,
+    roomCode: string,
+  ): Promise<ArcadeLobbyRoom | null> {
+    const response = await perform('arcade:watch:inspect', {
+      game_key: gameKey,
+      room_code: roomCode.trim().toUpperCase(),
+    })
+    return response?.room ?? null
+  }
+
+  async function watchRoom(
+    gameKey: ArcadeGameKey,
+    roomCode: string,
+    targetPlayerId: string,
+  ): Promise<boolean> {
+    const response = await perform('arcade:watch', {
+      game_key: gameKey,
+      room_code: roomCode.trim().toUpperCase(),
+      target_id: targetPlayerId,
+    })
+    if (
+      response?.roomCode
+      && response.spectatorId
+      && response.targetPlayerId
+    ) {
+      saveSession({
+        mode: 'spectator',
+        gameKey,
+        roomCode: response.roomCode,
+        targetPlayerId: response.targetPlayerId,
+      })
+      return true
+    }
+    return false
+  }
+
+  async function resumeWatch(): Promise<boolean> {
+    const current = session.value
+    if (current?.mode !== 'spectator' || !current.targetPlayerId) return false
+    const resumed = await watchRoom(
+      current.gameKey,
+      current.roomCode,
+      current.targetPlayerId,
+    )
+    if (!resumed) {
+      snapshot.value = null
+      clearSession()
+      error.value = null
+    }
+    return resumed
+  }
+
+  async function leaveWatch(): Promise<boolean> {
+    const response = await perform('arcade:unwatch')
+    if (response) {
+      snapshot.value = null
+      clearSession()
+    }
+    return Boolean(response)
+  }
+
   async function resume() {
     if (!session.value?.resumeToken) return false
     const response = await perform('arcade:resume', {
@@ -199,12 +271,14 @@ export const useArcadeStore = defineStore('arcade', () => {
   }
 
   async function detachRoom() {
+    if (isSpectating.value) return leaveWatch()
     const response = await perform('arcade:detach')
     if (response) snapshot.value = null
     return Boolean(response)
   }
 
   async function leaveRoom() {
+    if (isSpectating.value) return leaveWatch()
     const response = await perform('arcade:leave')
     if (response) {
       snapshot.value = null
@@ -214,6 +288,7 @@ export const useArcadeStore = defineStore('arcade', () => {
   }
 
   async function abandonRoom() {
+    if (isSpectating.value) return leaveWatch()
     const response = await perform('arcade:abandon')
     if (response) {
       snapshot.value = null
@@ -234,6 +309,7 @@ export const useArcadeStore = defineStore('arcade', () => {
   }
 
   async function startGame() {
+    if (rejectSpectatorAction()) return
     await perform('arcade:start')
   }
 
@@ -241,6 +317,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     actionName: string,
     payload: Record<string, unknown> = {},
   ) {
+    if (rejectSpectatorAction()) return
     await perform('arcade:action', { action: actionName, payload })
   }
 
@@ -248,6 +325,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     actionName: string,
     payload: Record<string, unknown> = {},
   ) {
+    if (rejectSpectatorAction()) return false
     return Boolean(await perform('arcade:action', { action: actionName, payload }))
   }
 
@@ -255,6 +333,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     actionName: string,
     payload: Record<string, unknown> = {},
   ): Promise<boolean> {
+    if (rejectSpectatorAction()) return false
     error.value = null
     try {
       const response = await emitWithAck('arcade:action', {
@@ -273,35 +352,43 @@ export const useArcadeStore = defineStore('arcade', () => {
   }
 
   async function restartGame() {
+    if (rejectSpectatorAction()) return false
     return Boolean(await perform('arcade:restart'))
   }
 
   async function kickPlayer(playerId: string) {
+    if (rejectSpectatorAction()) return false
     return Boolean(await perform('arcade:kick', { target_id: playerId }))
   }
 
   async function dissolveRoom() {
+    if (rejectSpectatorAction()) return false
     return Boolean(await perform('arcade:dissolve'))
   }
 
   async function sendChat(content: string) {
+    if (rejectSpectatorAction()) return false
     return Boolean(await perform('arcade:chat', { content }))
   }
 
   async function requestGameAction(kind: 'undo' | 'draw' | 'end_table') {
+    if (rejectSpectatorAction()) return false
     return Boolean(await perform('arcade:request', { kind }))
   }
 
   async function resolveGameRequest(accept: boolean) {
+    if (rejectSpectatorAction()) return false
     return Boolean(await perform('arcade:request:resolve', { accept }))
   }
 
   async function updateRules(options: Record<string, unknown>) {
+    if (rejectSpectatorAction()) return false
     return Boolean(await perform('arcade:rules:update', { options }))
   }
 
   async function returnToRoom() {
     if (snapshot.value) return true
+    if (session.value?.mode === 'spectator') return resumeWatch()
     if (session.value?.resumeToken && await resume()) return true
     return syncActiveRoom()
   }
@@ -322,6 +409,12 @@ export const useArcadeStore = defineStore('arcade', () => {
 
   function clearError() {
     error.value = null
+  }
+
+  function rejectSpectatorAction(): boolean {
+    if (!isSpectating.value) return false
+    error.value = '观战模式只能查看，不能参与操作'
+    return true
   }
 
   function handleRoomClosure(
@@ -357,9 +450,13 @@ export const useArcadeStore = defineStore('arcade', () => {
     activeRoomCode,
     resumableGame,
     resumableRoomCode,
+    isSpectating,
     init,
     createRoom,
     joinRoom,
+    inspectWatchRoom,
+    watchRoom,
+    leaveWatch,
     syncActiveRoom,
     detachRoom,
     leaveRoom,

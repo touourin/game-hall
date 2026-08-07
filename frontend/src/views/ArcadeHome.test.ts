@@ -150,6 +150,7 @@ describe('ArcadeHome', () => {
       ladyEnabled: false,
       listed: true,
       allowGuests: true,
+      allowSpectators: true,
       earlyAssassinationEnabled: false,
     })
   })
@@ -185,7 +186,7 @@ describe('ArcadeHome', () => {
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
-    expect(createRoom).toHaveBeenCalledWith('hanoi', { discCount: 6 })
+    expect(createRoom).toHaveBeenCalledWith('hanoi', { discCount: 6, allowSpectators: true })
     expect(startGame).toHaveBeenCalledOnce()
     expect(wrapper.text()).toContain('把整座圆盘移到最右侧')
     expect(wrapper.find('[data-testid="solo-challenge-icon"] svg').exists()).toBe(true)
@@ -259,7 +260,7 @@ describe('ArcadeHome', () => {
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
-    expect(createRoom).toHaveBeenCalledWith('minesweeper', { difficulty: 'expert' })
+    expect(createRoom).toHaveBeenCalledWith('minesweeper', { difficulty: 'expert', allowSpectators: true })
     expect(startGame).toHaveBeenCalledOnce()
     expect(wrapper.text()).toContain('清除所有安全方格')
     expect(wrapper.find('[data-testid="solo-challenge-icon"] svg').exists()).toBe(true)

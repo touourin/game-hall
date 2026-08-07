@@ -94,11 +94,22 @@ const showIdentity = ref(false)
 const showAvalonRules = ref(false)
 const sharedChat = ref<{ openChat: () => Promise<void> } | null>(null)
 const activeGameSkin = ref<GameSkinId>(storedGameSkin())
+const isSpectating = computed(() => props.snapshot.viewer?.mode === 'spectator')
+const perspectivePlayer = computed(() => props.snapshot.players.find(
+  (player) => player.id === props.snapshot.self.id,
+) ?? null)
+const roomSpectators = computed(() => props.snapshot.spectators ?? [])
+const viewerIsGuest = computed(() => (
+  props.snapshot.viewer?.isGuest ?? props.snapshot.self.isGuest
+))
 const roleSkinAccountId = computed(() => (
-  props.snapshot.self.accountId ?? props.snapshot.self.id
+  props.snapshot.viewer?.accountId
+  ?? props.snapshot.self.accountId
+  ?? props.snapshot.viewer?.id
+  ?? props.snapshot.self.id
 ))
 const selectedRoleSkinLoadout = ref<RoleSkinLoadout>(
-  props.snapshot.self.isGuest
+  viewerIsGuest.value
     ? defaultRoleSkinLoadout()
     : storedRoleSkinLoadout(roleSkinAccountId.value),
 )
@@ -269,7 +280,7 @@ async function refreshRoleSkinProgress() {
   if (!avalonSnapshot.value) return
   const request = ++roleSkinProgressRequest
   roleSkinProgressError.value = null
-  if (props.snapshot.self.isGuest) {
+  if (viewerIsGuest.value) {
     roleSkinProgress.value = emptyAvalonRoleSkinProgress(
       isAvalonRoleSkinFreeWeek(),
     )
@@ -311,7 +322,7 @@ watch(
     if (phase === 'lobby') {
       clearRoleSkinLoadoutLock(roomCode)
       lockedRoleSkinLoadout.value = null
-      selectedRoleSkinLoadout.value = props.snapshot.self.isGuest
+      selectedRoleSkinLoadout.value = viewerIsGuest.value
         ? defaultRoleSkinLoadout()
         : storedRoleSkinLoadout(roleSkinAccountId.value)
       return
@@ -326,11 +337,11 @@ watch(
   () => [
     props.snapshot.gameKey,
     roleSkinAccountId.value,
-    Boolean(props.snapshot.self.isGuest),
+    viewerIsGuest.value,
   ] as const,
   ([gameKey]) => {
     if (gameKey !== 'avalon') return
-    selectedRoleSkinLoadout.value = props.snapshot.self.isGuest
+    selectedRoleSkinLoadout.value = viewerIsGuest.value
       ? defaultRoleSkinLoadout()
       : storedRoleSkinLoadout(roleSkinAccountId.value)
     void refreshRoleSkinProgress()
@@ -346,6 +357,9 @@ watch(
   },
 )
 const exitDescription = computed(() => {
+  if (isSpectating.value) {
+    return '退出后将结束当前观战，不会影响房间内的玩家和对局。'
+  }
   if (props.snapshot.actions.canAct && isSolo.value) {
     return '退出将放弃当前进度，未完成的挑战不会记录成绩。'
   }
@@ -364,6 +378,7 @@ const exitDescription = computed(() => {
   return '退出后将返回游戏大厅。'
 })
 const exitMode = computed(() => {
+  if (isSpectating.value) return 'spectator'
   if (!props.snapshot.actions.canAct) return 'leave'
   return isSolo.value ? 'solo-active' : 'multiplayer-active'
 })
@@ -392,7 +407,7 @@ function selectRoleSkin(roleCode: string, skinId: string) {
   if (!role || !skin || !isRoleSkinUnlocked(roleSkinProgress.value, role, skin)) return
   const next = { ...selectedRoleSkinLoadout.value, [role]: skin }
   selectedRoleSkinLoadout.value = next
-  if (!props.snapshot.self.isGuest) {
+  if (!viewerIsGuest.value) {
     rememberRoleSkinLoadout(roleSkinAccountId.value, next)
   }
 }
@@ -432,6 +447,7 @@ function openSharedChat() {
       'arcade-room--wide': ['avalon', 'departed_suspicion', 'poker', 'doudizhu', 'junqi', 'minesweeper', 'monopoly'].includes(snapshot.gameKey),
       'arcade-room--active': snapshot.phase !== 'lobby',
       'arcade-room--board-game': ['gomoku', 'xiangqi', 'go', 'junqi'].includes(snapshot.gameKey),
+      'arcade-room--spectating': isSpectating,
     }"
     :data-game-skin="activeGameSkinKind ? activeGameSkin : undefined"
     :style="activeGameSkinStyle"
@@ -455,14 +471,14 @@ function openSharedChat() {
         <button
           class="self-number-trigger"
           type="button"
-          :aria-label="`我的号码是 ${playerNumber(snapshot.self.id)} 号，查看玩家号码表`"
+          :aria-label="`${isSpectating ? '观战视角' : '我的号码'}是 ${playerNumber(snapshot.self.id)} 号，查看玩家号码表`"
           @click="showPlayerNumbers = true"
         >
           <span class="self-number-value">
             {{ playerNumber(snapshot.self.id) }}号
           </span>
           <span class="self-number-copy">
-            <small>我的号码</small>
+            <small>{{ isSpectating ? '观战视角' : '我的号码' }}</small>
             <span>查看号码表</span>
           </span>
           <ChevronRight :size="14" aria-hidden="true" />
@@ -470,11 +486,12 @@ function openSharedChat() {
       </template>
       <template #actions>
         <RoomRecordActions
+          v-if="!isSpectating"
           :account-id="snapshot.self.accountId"
           :game-key="snapshot.gameKey"
           :game-name="snapshot.gameName"
           :game-mode="roomStatsMode"
-          :guest="snapshot.self.isGuest"
+          :guest="viewerIsGuest"
         />
         <button
           type="button"
@@ -521,6 +538,11 @@ function openSharedChat() {
 
     <HostTransferNotice :transfer-at="snapshot.hostTransferAt" />
 
+    <section v-if="isSpectating" class="surface spectator-mode-banner" role="status">
+      <Eye :size="20" />
+      <span><strong>正在以 {{ perspectivePlayer?.name ?? '目标玩家' }} 的第一人称视角观战</strong><small>本局视角已固定；你只能查看，不能出牌、投票、聊天或参与房间操作。</small></span>
+    </section>
+
     <section
       v-if="snapshot.statsEligible === false || (snapshot.phase === 'lobby' && snapshot.options.allowGuests)"
       class="surface guest-match-notice"
@@ -540,7 +562,7 @@ function openSharedChat() {
       <article
         v-for="player in snapshot.players"
         :key="player.id"
-        :class="{ self: player.id === snapshot.self.id }"
+        :class="{ self: player.id === snapshot.self.id, perspective: isSpectating && player.id === snapshot.self.id }"
       >
         <span class="arcade-player-avatar">
           <img
@@ -565,6 +587,7 @@ function openSharedChat() {
                 : player.disconnectForfeitAt
                   ? '· 离线，10 分钟后弃权'
                   : '· 离线' }}
+            {{ isSpectating && player.id === snapshot.self.id ? ' · 当前观战视角' : '' }}
           </small>
         </div>
         <RoomKickButton
@@ -576,10 +599,25 @@ function openSharedChat() {
       </article>
     </section>
 
+    <section v-if="!isSolo || roomSpectators.length" class="surface arcade-spectator-strip" aria-label="房间观众">
+      <header><span><Eye :size="17" /><strong>观战席</strong></span><b>{{ roomSpectators.length }} 人</b></header>
+      <div v-if="roomSpectators.length">
+        <article v-for="spectator in roomSpectators" :key="spectator.id">
+          <span class="arcade-spectator-avatar">
+            <img v-if="spectator.avatarUrl" :src="spectator.avatarUrl" alt="" draggable="false" />
+            <template v-else>{{ spectator.name.slice(0, 1) }}</template>
+          </span>
+          <span><strong>{{ spectator.name }}{{ spectator.id === snapshot.viewer?.id ? '（你）' : '' }}</strong><small>正在观看 {{ spectator.targetPlayerName }}</small></span>
+        </article>
+      </div>
+      <p v-else>暂无观众</p>
+    </section>
+
     <section v-if="!isSolo" class="surface room-rule-bar" aria-label="房间规则">
       <div>
         <Settings2 :size="18" />
         <span v-for="label in gameRuleLabels(snapshot.gameKey, snapshot.options)" :key="label">{{ label }}</span>
+        <span>{{ snapshot.options.allowSpectators === false ? '关闭观战' : '允许第一人称观战' }}</span>
         <span>掉线保护 10 分钟</span>
       </div>
       <div class="room-rule-actions">
@@ -647,7 +685,9 @@ function openSharedChat() {
         <small>{{ snapshot.gameKey === 'poker' ? '本桌结束' : '本局结束' }}</small>
         <h2>{{ snapshot.winReason }}</h2>
         <p>
-          {{ snapshot.winnerPlayerIds.includes(snapshot.self.id) ? '你赢了' : '再接再厉' }}
+          {{ isSpectating
+            ? `${perspectivePlayer?.name ?? '被观战玩家'}${snapshot.winnerPlayerIds.includes(snapshot.self.id) ? '赢了' : '未获胜'}`
+            : snapshot.winnerPlayerIds.includes(snapshot.self.id) ? '你赢了' : '再接再厉' }}
           · 战绩已保存
         </p>
         <p class="rematch-progress">
@@ -686,7 +726,7 @@ function openSharedChat() {
       />
 
       <MatchRequestPanel
-        v-if="snapshot.actions.canRequestUndo || snapshot.actions.canRequestDraw || snapshot.actions.canRequestEndTable || snapshot.request"
+        v-if="!isSpectating && (snapshot.actions.canRequestUndo || snapshot.actions.canRequestDraw || snapshot.actions.canRequestEndTable || snapshot.request)"
         :request="snapshot.request"
         :can-request-undo="snapshot.actions.canRequestUndo"
         :can-request-draw="snapshot.actions.canRequestDraw"
@@ -702,8 +742,9 @@ function openSharedChat() {
       ref="sharedChat"
       :messages="snapshot.chat.messages"
       :max-length="snapshot.chat.maxLength"
-      :self-id="snapshot.self.id"
+      :self-id="snapshot.viewer?.id ?? snapshot.self.id"
       :busy="arcade.busy"
+      :read-only="isSpectating"
       :send="arcade.sendChat"
     />
 
@@ -723,7 +764,7 @@ function openSharedChat() {
         <span class="modal-icon"><Settings2 :size="25" /></span>
         <h2>房间规则</h2>
         <p>{{ snapshot.phase === 'finished' ? '保存后所有玩家会返回等待阶段，新规则从下一局生效。' : '保存后会同步给房间中的所有玩家，开局后不可修改。' }}</p>
-        <GameRuleSettings v-model="ruleEditor" :game-key="snapshot.gameKey" :guest-mode="snapshot.self.isGuest" />
+        <GameRuleSettings v-model="ruleEditor" :game-key="snapshot.gameKey" :guest-mode="viewerIsGuest" />
         <button type="button" class="primary-button wide-button" :disabled="arcade.busy" @click="saveRules">保存规则</button>
       </section>
     </div>
@@ -745,7 +786,7 @@ function openSharedChat() {
             <span>{{ player.seat + 1 }}</span>
             <strong>{{ player.name }}</strong>
             <small v-if="player.isBot">AI</small>
-            <small v-if="player.id === snapshot.self.id">你</small>
+            <small v-if="player.id === snapshot.self.id">{{ isSpectating ? '观战视角' : '你' }}</small>
           </div>
         </div>
       </section>
@@ -811,6 +852,8 @@ function openSharedChat() {
 .arcade-room { padding-bottom: 70px; }
 .guest-match-notice { margin: 0 0 18px; padding: 12px 15px; border-color: color-mix(in srgb, var(--gold) 35%, var(--line)); background: color-mix(in srgb, var(--gold) 7%, var(--surface)); }
 .guest-match-notice strong,.guest-match-notice span { display: block; }.guest-match-notice strong { color: var(--gold); font-size: 13px; }.guest-match-notice span { margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.spectator-mode-banner { display: flex; align-items: center; gap: 11px; margin: 0 0 18px; padding: 12px 15px; border-color: color-mix(in srgb, #68c8df 38%, var(--line)); background: color-mix(in srgb, #68c8df 7%, var(--surface)); }
+.spectator-mode-banner > svg { flex: 0 0 auto; color: #83d4e7; }.spectator-mode-banner span { min-width: 0; display: grid; gap: 3px; }.spectator-mode-banner strong { color: #9dddeb; font-size: 13px; }.spectator-mode-banner small { color: var(--muted); line-height: 1.45; }
 .arcade-player-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 24px; padding: 14px; }
 .arcade-player-strip article { display: flex; flex: 0 0 var(--player-card-width); gap: 10px; align-items: center; min-width: 0; min-height: 68px; padding: 10px; border: 1px solid color-mix(in srgb, var(--line) 72%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--surface-elevated) 42%, transparent); }
 .arcade-player-strip article > div { min-width: 0; flex: 1; }
@@ -821,6 +864,10 @@ function openSharedChat() {
 .arcade-player-strip strong, .arcade-player-strip small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .arcade-player-strip small { margin-top: 2px; color: var(--muted); }
 .arcade-player-strip small svg { vertical-align: -2px; color: var(--gold); }
+.arcade-spectator-strip { display: grid; gap: 10px; margin: -10px 0 24px; padding: 12px 14px; }
+.arcade-spectator-strip > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }.arcade-spectator-strip > header span { display: inline-flex; align-items: center; gap: 7px; color: #83d4e7; }.arcade-spectator-strip > header b { color: var(--muted); font-size: 10px; }
+.arcade-spectator-strip > div { display: flex; flex-wrap: wrap; gap: 8px; }.arcade-spectator-strip article { min-width: min(100%, 190px); display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 11px; padding: 8px 10px; background: var(--surface-inset); }.arcade-spectator-strip article > span:last-child { min-width: 0; display: grid; gap: 1px; }.arcade-spectator-strip article strong,.arcade-spectator-strip article small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.arcade-spectator-strip article small { color: var(--muted); font-size: 9px; }.arcade-spectator-strip > p { margin: 0; color: var(--muted); font-size: 10px; }
+.arcade-spectator-avatar { flex: 0 0 auto; width: 30px; aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: 9px; color: #83d4e7; background: color-mix(in srgb, #68c8df 12%, var(--surface-elevated)); font-size: 11px; font-weight: 900; }.arcade-spectator-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .room-rule-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -12px 0 24px; padding: 11px 13px; }
 .room-rule-bar > div { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; min-width: 0; }
 .room-rule-bar svg { flex: 0 0 auto; color: var(--gold); }
@@ -852,12 +899,14 @@ function openSharedChat() {
   .arcade-room--active { display: flex; flex-direction: column; }
   .arcade-room--active :deep(.room-page-header) { order: 1; }
   .arcade-room--active :deep(.host-transfer-notice),
-  .arcade-room--active > .guest-match-notice { order: 2; }
+  .arcade-room--active > .guest-match-notice,
+  .arcade-room--active > .spectator-mode-banner { order: 2; }
   .arcade-room--active > .arcade-game-stage { order: 3; }
   .arcade-room--active > .arcade-player-strip { order: 4; margin-top: 18px; }
-  .arcade-room--active > .room-rule-bar { order: 5; }
+  .arcade-room--active > .arcade-spectator-strip { order: 5; margin-top: -8px; }
+  .arcade-room--active > .room-rule-bar { order: 6; }
   .arcade-room--active > :deep(.arcade-chat-dock),
-  .arcade-room--active > :deep(.arcade-chat-panel) { order: 6; }
+  .arcade-room--active > :deep(.arcade-chat-panel) { order: 7; }
   .arcade-room--active.arcade-room--board-game :deep(.room-page-header) { margin-bottom: 12px; }
   .arcade-room--active.arcade-room--board-game :deep(.room-page-copy > small) { font-size: 9px; letter-spacing: .08em; }
   .arcade-room--active.arcade-room--board-game :deep(.room-page-title-row h1) { font-size: 23px; }

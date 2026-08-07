@@ -32,12 +32,24 @@ export interface ArcadeLobbyRoom {
   hostAvatarUrl?: string | null
   playerCount: number
   maxPlayers: number
+  players?: ArcadeLobbyPlayer[]
   options: Record<string, unknown>
   allowsGuests?: boolean
   statsEligible?: boolean
   phase?: ArcadePhase
+  watchable?: boolean
+  spectatorCount?: number
   cleanupAvailable?: boolean
   allHumansOffline?: boolean
+}
+
+export interface ArcadeLobbyPlayer {
+  id: string
+  name: string
+  avatarUrl?: string | null
+  seat: number
+  connected: boolean
+  leftRoom?: boolean
 }
 
 export interface ArcadePlayer {
@@ -61,6 +73,25 @@ export interface ArcadeChatMessage {
   senderAvatarUrl?: string | null
   content: string
   createdAt: string
+}
+
+export interface ArcadeSpectator {
+  id: string
+  name: string
+  avatarUrl?: string | null
+  isGuest?: boolean
+  targetPlayerId: string
+  targetPlayerName: string
+}
+
+export interface ArcadeViewer {
+  mode: 'player' | 'spectator'
+  id: string
+  accountId?: string
+  name: string
+  avatarUrl?: string | null
+  isGuest?: boolean
+  targetPlayerId: string
 }
 
 export interface ArcadeGameRequest {
@@ -87,7 +118,9 @@ export interface ArcadeSnapshot {
   options: Record<string, unknown>
   hostId: string
   self: { id: string; accountId?: string; name: string; seat: number; avatarUrl?: string | null; isGuest?: boolean }
+  viewer?: ArcadeViewer
   players: ArcadePlayer[]
+  spectators?: ArcadeSpectator[]
   requiredPlayers: number
   minimumPlayers?: number
   roundNumber: number

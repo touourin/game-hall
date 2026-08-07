@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import secrets
 from collections import defaultdict
 from dataclasses import asdict, is_dataclass
 from functools import wraps
@@ -13,14 +14,19 @@ from backend.app.accounts import account_store
 from backend.app.games.registry import build_engine_registry
 from backend.app.logging_config import bind_game_context, reset_game_context
 
-from .models import ArcadeRoom
+from .models import ArcadeRoom, ArcadeSpectator
 from .rooms import (
     ACTION_ERRORS,
     ActiveRoomError,
     ArcadeRoomError,
     ArcadeRoomManager,
 )
-from .views import build_lobby_view, build_room_view
+from .views import (
+    build_lobby_room_view,
+    build_lobby_view,
+    build_room_view,
+    build_spectator_room_view,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -38,6 +44,8 @@ INFO_SOCKET_EVENTS = {
     "arcade:resume",
     "arcade:rules:update",
     "arcade:start",
+    "arcade:unwatch",
+    "arcade:watch",
 }
 
 
@@ -58,6 +66,14 @@ class ResumePayload(BaseModel):
 
 class RoomCodePayload(BaseModel):
     room_code: str = Field(min_length=4, max_length=8)
+
+
+class WatchInspectPayload(RoomCodePayload):
+    game_key: str = Field(min_length=1, max_length=32)
+
+
+class WatchPayload(WatchInspectPayload):
+    target_id: str = Field(min_length=1, max_length=64)
 
 
 class ActionPayload(BaseModel):
@@ -120,6 +136,9 @@ class ArcadeRealtime:
         self.engines = build_engine_registry()
         self.rooms = ArcadeRoomManager(self.engines)
         self.active_sids: dict[tuple[str, str], set[str]] = defaultdict(set)
+        self.spectator_sids: dict[tuple[str, str], set[str]] = defaultdict(set)
+        self.spectators: dict[tuple[str, str], ArcadeSpectator] = {}
+        self.watch_target_locks: dict[tuple[str, int, str], str] = {}
         self.account_sids: dict[str, set[str]] = defaultdict(set)
         self.sid_accounts: dict[str, str] = {}
         self.sio: socketio.AsyncServer | None = None
@@ -131,6 +150,9 @@ class ArcadeRealtime:
         self._bind_event(sio, "arcade:join", self.join_room)
         self._bind_event(sio, "arcade:active", self.active_room)
         self._bind_event(sio, "arcade:resume", self.resume_room)
+        self._bind_event(sio, "arcade:watch:inspect", self.inspect_watch_room)
+        self._bind_event(sio, "arcade:watch", self.watch_room)
+        self._bind_event(sio, "arcade:unwatch", self.unwatch_room)
         self._bind_event(sio, "arcade:detach", self.detach_room)
         self._bind_event(sio, "arcade:leave", self.leave_room)
         self._bind_event(sio, "arcade:abandon", self.abandon_room)
@@ -211,7 +233,9 @@ class ArcadeRealtime:
         try:
             session = await self._server.get_session(sid)
             room_code = session.get("arcade_room_code") or room_code
-            player_id = session.get("arcade_player_id")
+            player_id = session.get("arcade_player_id") or session.get(
+                "arcade_spectator_id"
+            )
             account_id = session.get("account_id")
         except (KeyError, TypeError):
             pass
@@ -268,6 +292,13 @@ class ArcadeRealtime:
             if not self.account_sids[account_id]:
                 self.account_sids.pop(account_id, None)
         try:
+            session = await self._server.get_session(sid)
+        except KeyError:
+            return
+        if session.get("arcade_role") == "spectator":
+            await self._disconnect_spectator(sid, session)
+            return
+        try:
             room, player = await self._context(sid)
         except (ArcadeRoomError, KeyError, TypeError):
             return
@@ -310,6 +341,7 @@ class ArcadeRealtime:
         try:
             payload = CreatePayload.model_validate(raw_data or {})
             identity = await self._identity(sid)
+            self._ensure_not_spectating(identity["id"])
             room, player, token = self.rooms.create_room(
                 payload.game_key,
                 identity["player_name"],
@@ -330,6 +362,7 @@ class ArcadeRealtime:
         try:
             payload = JoinPayload.model_validate(raw_data or {})
             identity = await self._identity(sid)
+            self._ensure_not_spectating(identity["id"])
             room, player, token = self.rooms.join_room(
                 payload.room_code,
                 payload.game_key,
@@ -349,6 +382,7 @@ class ArcadeRealtime:
         try:
             payload = ResumePayload.model_validate(raw_data or {})
             identity = await self._identity(sid)
+            self._ensure_not_spectating(identity["id"])
             room = self.rooms.get_room(payload.room_code)
             async with room.lock:
                 room, player = self.rooms.resume(
@@ -368,6 +402,95 @@ class ArcadeRealtime:
         except (ValidationError, ArcadeRoomError, KeyError) as error:
             return error_response(error)
 
+    async def inspect_watch_room(
+        self, sid: str, raw_data: Any
+    ) -> dict[str, Any]:
+        try:
+            payload = WatchInspectPayload.model_validate(raw_data or {})
+            identity = await self._identity(sid)
+            room = self._watchable_room(payload, identity)
+            return {
+                "ok": True,
+                "room": build_lobby_room_view(
+                    room,
+                    self.engines[room.game_key],
+                    spectator_count=len(self._room_spectators(room.code)),
+                ),
+            }
+        except (ValidationError, *ACTION_ERRORS) as error:
+            return error_response(error)
+
+    async def watch_room(
+        self, sid: str, raw_data: Any
+    ) -> dict[str, Any]:
+        try:
+            payload = WatchPayload.model_validate(raw_data or {})
+            identity = await self._identity(sid)
+            room = self._watchable_room(payload, identity)
+            target = room.player(payload.target_id)
+            if target.left_room:
+                raise ArcadeRoomError("这名玩家已经离开对局")
+            lock_key = (room.code, room.round_number, identity["id"])
+            locked_target_id = self.watch_target_locks.get(lock_key)
+            if locked_target_id is not None and locked_target_id != target.id:
+                locked_target = room.player(locked_target_id)
+                raise ArcadeRoomError(
+                    f"本局已固定观看{locked_target.name}，不能切换视角"
+                )
+            existing = self.spectators.get((room.code, identity["id"]))
+            if existing is not None and existing.target_player_id != target.id:
+                raise ArcadeRoomError("请先退出当前观战")
+            is_new = existing is None
+            spectator = existing or ArcadeSpectator(
+                id=secrets.token_urlsafe(10),
+                account_id=identity["id"],
+                name=identity["player_name"],
+                avatar_url=identity["avatar_url"],
+                is_guest=identity["is_guest"],
+                target_player_id=target.id,
+            )
+            self.watch_target_locks[lock_key] = target.id
+            self.spectators[(room.code, spectator.account_id)] = spectator
+            await self._bind_watch_session(sid, room, spectator)
+            if is_new:
+                room.revision += 1
+            await self.broadcast_room(room)
+            await self.broadcast_lobby()
+            return {
+                "ok": True,
+                "roomCode": room.code,
+                "gameKey": room.game_key,
+                "spectatorId": spectator.id,
+                "targetPlayerId": target.id,
+            }
+        except (ValidationError, *ACTION_ERRORS) as error:
+            return error_response(error)
+
+    async def unwatch_room(
+        self, sid: str, raw_data: Any = None
+    ) -> dict[str, Any]:
+        try:
+            room, spectator = await self._watch_context(sid)
+        except (ArcadeRoomError, KeyError, TypeError):
+            await self._clear_room_session(sid)
+            return {"ok": True}
+        await self._server.leave_room(
+            sid, self._spectator_channel(room.code, spectator.account_id)
+        )
+        key = (room.code, spectator.account_id)
+        self.spectator_sids[key].discard(sid)
+        removed = False
+        if not self.spectator_sids[key]:
+            self.spectator_sids.pop(key, None)
+            self.spectators.pop(key, None)
+            removed = True
+        await self._clear_room_session(sid)
+        if removed and room.code in self.rooms.rooms:
+            room.revision += 1
+            await self.broadcast_room(room)
+            await self.broadcast_lobby()
+        return {"ok": True}
+
     async def cleanup_room(
         self, sid: str, raw_data: Any = None
     ) -> dict[str, Any]:
@@ -377,6 +500,9 @@ class ArcadeRealtime:
             room = self.rooms.get_room(payload.room_code)
             async with room.lock:
                 self.rooms.cleanup_room(room.code)
+            await self._eject_room_spectators(
+                room.code, "房间已被清理，观战已经结束"
+            )
             await self.broadcast_lobby()
             return {"ok": True}
         except (ValidationError, ArcadeRoomError, KeyError) as error:
@@ -385,6 +511,8 @@ class ArcadeRealtime:
     async def detach_room(
         self, sid: str, raw_data: Any = None
     ) -> dict[str, Any]:
+        if await self._is_spectator_session(sid):
+            return await self.unwatch_room(sid)
         try:
             room, player = await self._context(sid)
         except (ArcadeRoomError, KeyError, TypeError):
@@ -407,6 +535,8 @@ class ArcadeRealtime:
     async def leave_room(
         self, sid: str, raw_data: Any = None
     ) -> dict[str, Any]:
+        if await self._is_spectator_session(sid):
+            return await self.unwatch_room(sid)
         try:
             room, player = await self._context(sid)
         except (ArcadeRoomError, KeyError, TypeError):
@@ -425,6 +555,10 @@ class ArcadeRealtime:
             )
             if room.code in self.rooms.rooms:
                 await self.broadcast_room(room)
+            else:
+                await self._eject_room_spectators(
+                    room.code, "房间已经关闭，观战已经结束"
+                )
             await self.broadcast_lobby()
             return {"ok": True, "seatPreserved": False}
         except ACTION_ERRORS as error:
@@ -433,6 +567,8 @@ class ArcadeRealtime:
     async def abandon_room(
         self, sid: str, raw_data: Any = None
     ) -> dict[str, Any]:
+        if await self._is_spectator_session(sid):
+            return await self.unwatch_room(sid)
         try:
             room, player = await self._context(sid)
         except (ArcadeRoomError, KeyError, TypeError):
@@ -453,6 +589,10 @@ class ArcadeRealtime:
             )
             if room.code in self.rooms.rooms:
                 await self.broadcast_room(room)
+            else:
+                await self._eject_room_spectators(
+                    room.code, "房间已经关闭，观战已经结束"
+                )
             await self.broadcast_lobby()
             return {"ok": True, "seatPreserved": False}
         except ACTION_ERRORS as error:
@@ -536,6 +676,9 @@ class ArcadeRealtime:
                     message="房主已解散房间",
                     silent=player_id == player.id,
                 )
+            await self._eject_room_spectators(
+                room.code, "房主已解散房间，观战已经结束"
+            )
             await self.broadcast_lobby()
             return {"ok": True}
         except ACTION_ERRORS as error:
@@ -617,18 +760,61 @@ class ArcadeRealtime:
             await self.broadcast_lobby()
 
     def lobby_view(self) -> list[dict[str, Any]]:
-        return build_lobby_view(list(self.rooms.rooms.values()), self.engines)
+        spectator_counts = {
+            room_code: len(self._room_spectators(room_code))
+            for room_code in self.rooms.rooms
+        }
+        return build_lobby_view(
+            list(self.rooms.rooms.values()),
+            self.engines,
+            spectator_counts,
+        )
 
     async def broadcast_lobby(self) -> None:
         await self._server.emit("arcade:lobby", self.lobby_view())
 
     async def broadcast_room(self, room: ArcadeRoom) -> None:
         engine = self.engines[room.game_key]
+        if (
+            room.phase == "lobby"
+            or not room.options.get("allowSpectators", True)
+        ):
+            await self._eject_room_spectators(
+                room.code,
+                "房间已回到等待阶段，观战已经结束",
+            )
+        else:
+            active_player_ids = {
+                player.id for player in room.players if not player.left_room
+            }
+            for spectator in list(self._room_spectators(room.code)):
+                if spectator.target_player_id not in active_player_ids:
+                    await self._eject_spectator(
+                        room.code,
+                        spectator.account_id,
+                        "被观战玩家已经离开，对局观战结束",
+                    )
+        spectators = self._room_spectators(room.code)
         for player in room.players:
             await self._server.emit(
                 "arcade:snapshot",
-                build_room_view(room, player, engine),
+                build_room_view(room, player, engine, spectators),
                 room=self._channel(room.code, player.id),
+            )
+        for spectator in spectators:
+            target = room.player(spectator.target_player_id)
+            await self._server.emit(
+                "arcade:snapshot",
+                build_spectator_room_view(
+                    room,
+                    target,
+                    spectator,
+                    engine,
+                    spectators,
+                ),
+                room=self._spectator_channel(
+                    room.code, spectator.account_id
+                ),
             )
 
     async def _bind_session(
@@ -642,13 +828,42 @@ class ArcadeRealtime:
             {
                 "arcade_room_code": room.code,
                 "arcade_player_id": player_id,
+                "arcade_role": "player",
             }
         )
+        session.pop("arcade_spectator_id", None)
+        session.pop("arcade_watch_target_id", None)
         await self._server.save_session(sid, session)
         await self._server.enter_room(sid, self._channel(room.code, player_id))
         self.active_sids[(room.code, player_id)].add(sid)
         room.player(player_id).connected = True
         self.rooms.update_presence(room)
+
+    async def _bind_watch_session(
+        self,
+        sid: str,
+        room: ArcadeRoom,
+        spectator: ArcadeSpectator,
+    ) -> None:
+        try:
+            session = await self._server.get_session(sid)
+        except KeyError:
+            session = {}
+        session.update(
+            {
+                "arcade_room_code": room.code,
+                "arcade_role": "spectator",
+                "arcade_spectator_id": spectator.id,
+                "arcade_watch_target_id": spectator.target_player_id,
+            }
+        )
+        session.pop("arcade_player_id", None)
+        await self._server.save_session(sid, session)
+        await self._server.enter_room(
+            sid,
+            self._spectator_channel(room.code, spectator.account_id),
+        )
+        self.spectator_sids[(room.code, spectator.account_id)].add(sid)
 
     async def _clear_room_session(self, sid: str) -> None:
         try:
@@ -657,6 +872,9 @@ class ArcadeRealtime:
             return
         session.pop("arcade_room_code", None)
         session.pop("arcade_player_id", None)
+        session.pop("arcade_role", None)
+        session.pop("arcade_spectator_id", None)
+        session.pop("arcade_watch_target_id", None)
         await self._server.save_session(sid, session)
 
     async def _eject_player(
@@ -691,6 +909,124 @@ class ArcadeRealtime:
                 self._channel(room_code, player_id),
             )
             await self._clear_room_session(target_sid)
+
+    async def _disconnect_spectator(
+        self, sid: str, session: dict[str, Any]
+    ) -> None:
+        room_code = session.get("arcade_room_code")
+        account_id = session.get("account_id")
+        if not isinstance(room_code, str) or not isinstance(account_id, str):
+            return
+        key = (room_code, account_id)
+        self.spectator_sids[key].discard(sid)
+        if self.spectator_sids[key]:
+            return
+        self.spectator_sids.pop(key, None)
+        removed = self.spectators.pop(key, None)
+        room = self.rooms.rooms.get(room_code)
+        if removed is not None and room is not None:
+            room.revision += 1
+            await self.broadcast_room(room)
+            await self.broadcast_lobby()
+
+    async def _eject_room_spectators(
+        self, room_code: str, message: str
+    ) -> None:
+        for spectator in list(self._room_spectators(room_code)):
+            await self._eject_spectator(
+                room_code, spectator.account_id, message
+            )
+        self._clear_watch_target_locks(room_code)
+
+    async def _eject_spectator(
+        self,
+        room_code: str,
+        account_id: str,
+        message: str,
+    ) -> None:
+        key = (room_code, account_id)
+        spectator = self.spectators.pop(key, None)
+        target_sids = list(self.spectator_sids.pop(key, set()))
+        if spectator is None and not target_sids:
+            return
+        payload = {"roomCode": room_code, "message": message}
+        for target_sid in target_sids:
+            await self._server.emit(
+                "arcade:watch:ended", payload, to=target_sid
+            )
+            await self._server.leave_room(
+                target_sid,
+                self._spectator_channel(room_code, account_id),
+            )
+            await self._clear_room_session(target_sid)
+
+    def _watchable_room(
+        self,
+        payload: WatchInspectPayload,
+        identity: dict[str, Any],
+    ) -> ArcadeRoom:
+        room = self.rooms.get_room(payload.room_code)
+        if room.game_key != payload.game_key:
+            raise ArcadeRoomError("房间所属游戏不正确")
+        if room.phase == "lobby":
+            raise ArcadeRoomError("游戏尚未开始，请直接加入房间")
+        if room.phase == "finished":
+            raise ArcadeRoomError("本局已经结束，暂时不能加入观战")
+        if not room.options.get("allowSpectators", True):
+            raise ArcadeRoomError("房主没有开启观战")
+        if identity["is_guest"] and not room.options.get(
+            "allowGuests", True
+        ):
+            raise ArcadeRoomError("这个房间不允许游客观战")
+        if any(
+            not player.is_bot and player.account_id == identity["id"]
+            for player in room.players
+        ):
+            raise ArcadeRoomError("你已经是这局游戏的玩家")
+        active = self.rooms.active_room_for_account(identity["id"])
+        if active is not None:
+            raise ActiveRoomError(active[0])
+        current_watch = self._spectator_for_account(identity["id"])
+        if current_watch is not None and current_watch[0] != room.code:
+            raise ArcadeRoomError("请先退出当前观战")
+        return room
+
+    def _ensure_not_spectating(self, account_id: str) -> None:
+        if self._spectator_for_account(account_id) is not None:
+            raise ArcadeRoomError("请先退出当前观战")
+
+    def _spectator_for_account(
+        self, account_id: str
+    ) -> tuple[str, ArcadeSpectator] | None:
+        return next(
+            (
+                (room_code, spectator)
+                for (room_code, spectator_account_id), spectator
+                in self.spectators.items()
+                if spectator_account_id == account_id
+            ),
+            None,
+        )
+
+    def _room_spectators(self, room_code: str) -> list[ArcadeSpectator]:
+        return [
+            spectator
+            for (spectator_room_code, _), spectator
+            in self.spectators.items()
+            if spectator_room_code == room_code
+        ]
+
+    def _clear_watch_target_locks(self, room_code: str) -> None:
+        for key in tuple(self.watch_target_locks):
+            if key[0] == room_code:
+                self.watch_target_locks.pop(key, None)
+
+    async def _is_spectator_session(self, sid: str) -> bool:
+        try:
+            session = await self._server.get_session(sid)
+        except KeyError:
+            return False
+        return session.get("arcade_role") == "spectator"
 
     async def _session_is_current(self, sid: str) -> bool:
         try:
@@ -729,11 +1065,27 @@ class ArcadeRealtime:
     async def _context(self, sid: str):
         try:
             session = await self._server.get_session(sid)
+            if session.get("arcade_role") == "spectator":
+                raise KeyError("spectator")
             room = self.rooms.get_room(session["arcade_room_code"])
             player = room.player(session["arcade_player_id"])
             return room, player
         except (KeyError, TypeError) as exc:
             raise ArcadeRoomError("连接还没有加入这个游戏房间") from exc
+
+    async def _watch_context(
+        self, sid: str
+    ) -> tuple[ArcadeRoom, ArcadeSpectator]:
+        try:
+            session = await self._server.get_session(sid)
+            if session.get("arcade_role") != "spectator":
+                raise KeyError("player")
+            room = self.rooms.get_room(session["arcade_room_code"])
+            account_id = str(session["account_id"])
+            spectator = self.spectators[(room.code, account_id)]
+            return room, spectator
+        except (KeyError, TypeError) as exc:
+            raise ArcadeRoomError("连接当前没有在观战") from exc
 
     async def _identity(self, sid: str) -> dict[str, Any]:
         try:
@@ -882,6 +1234,10 @@ class ArcadeRealtime:
     @staticmethod
     def _channel(room_code: str, player_id: str) -> str:
         return f"arcade-player:{room_code}:{player_id}"
+
+    @staticmethod
+    def _spectator_channel(room_code: str, account_id: str) -> str:
+        return f"arcade-spectator:{room_code}:{account_id}"
 
     @staticmethod
     def _join_response(

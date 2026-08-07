@@ -217,4 +217,76 @@ describe('arcade room store', () => {
       payload: { value: 1 },
     })
   })
+
+  it('enters a fixed first-person watch session and blocks game actions', async () => {
+    socketMocks.emitWithAck.mockResolvedValue({
+      ok: true,
+      roomCode: 'EYES',
+      gameKey: 'doudizhu',
+      spectatorId: 'watcher-1',
+      targetPlayerId: 'player-2',
+    })
+    const arcade = useArcadeStore()
+
+    expect(await arcade.watchRoom('doudizhu', 'eyes', 'player-2')).toBe(true)
+    expect(arcade.isSpectating).toBe(true)
+    expect(JSON.parse(localStorage.getItem(SESSION_KEY) ?? '{}')).toEqual({
+      mode: 'spectator',
+      gameKey: 'doudizhu',
+      roomCode: 'EYES',
+      targetPlayerId: 'player-2',
+    })
+
+    socketMocks.emitWithAck.mockClear()
+    expect(await arcade.actionWithResult('play', { cards: ['a'] })).toBe(false)
+    expect(socketMocks.emitWithAck).not.toHaveBeenCalled()
+    expect(arcade.error).toContain('观战模式')
+  })
+
+  it('restores a spectator view after reconnecting', async () => {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      mode: 'spectator',
+      gameKey: 'poker',
+      roomCode: 'LOOK',
+      targetPlayerId: 'player-3',
+    }))
+    socketMocks.emitWithAck.mockResolvedValue({
+      ok: true,
+      roomCode: 'LOOK',
+      gameKey: 'poker',
+      spectatorId: 'watcher-2',
+      targetPlayerId: 'player-3',
+    })
+    const arcade = useArcadeStore()
+    arcade.init()
+
+    await connectHandler()?.()
+
+    expect(socketMocks.emitWithAck).toHaveBeenCalledWith('arcade:watch', {
+      game_key: 'poker',
+      room_code: 'LOOK',
+      target_id: 'player-3',
+    })
+    expect(arcade.activeRoomCode).toBe('LOOK')
+    expect(arcade.isSpectating).toBe(true)
+  })
+
+  it('clears the spectator session when the watched room ends', () => {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      mode: 'spectator',
+      gameKey: 'go',
+      roomCode: 'VIEW',
+      targetPlayerId: 'player-1',
+    }))
+    const arcade = useArcadeStore()
+    arcade.init()
+
+    socketHandler<{ roomCode: string; message: string }>('arcade:watch:ended')?.({
+      roomCode: 'VIEW',
+      message: '观战结束',
+    })
+
+    expect(arcade.activeRoomCode).toBeNull()
+    expect(arcade.error).toBe('观战结束')
+  })
 })

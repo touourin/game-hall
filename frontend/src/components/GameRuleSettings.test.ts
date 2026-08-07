@@ -206,8 +206,8 @@ describe('GameRuleSettings', () => {
 
     await eightDiscs?.trigger('click')
 
-    expect(defaultGameRules('hanoi')).toEqual({ discCount: 5 })
-    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toEqual({ discCount: 8 })
+    expect(defaultGameRules('hanoi')).toEqual({ discCount: 5, allowSpectators: true })
+    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toEqual({ discCount: 8, allowSpectators: true })
     expect(gameRuleLabels('hanoi', { discCount: 8 })).toEqual([
       '8 层圆盘',
       '理论最少 255 步',
@@ -244,8 +244,8 @@ describe('GameRuleSettings', () => {
 
     await expert?.trigger('click')
 
-    expect(defaultGameRules('minesweeper')).toEqual({ difficulty: 'beginner' })
-    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toEqual({ difficulty: 'expert' })
+    expect(defaultGameRules('minesweeper')).toEqual({ difficulty: 'beginner', allowSpectators: true })
+    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toEqual({ difficulty: 'expert', allowSpectators: true })
     expect(gameRuleLabels('minesweeper', { difficulty: 'expert' })).toEqual([
       '高级',
       '16×30',

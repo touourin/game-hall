@@ -271,6 +271,18 @@ function setOption(key: string, value: unknown) {
         </button>
       </div>
     </section>
+
+    <section class="rule-setting-group spectator-access-rules">
+      <header><strong>第一人称观战</strong><small>观众固定观看一名玩家，只能看到该玩家当时可见的内容</small></header>
+      <div class="rule-option-grid">
+        <button type="button" :class="{ active: option('allowSpectators') }" @click="setOption('allowSpectators', true)">
+          <strong>允许观战</strong><small>对局开始后，观众可以选择并固定一个玩家视角</small>
+        </button>
+        <button type="button" :class="{ active: !option('allowSpectators') }" @click="setOption('allowSpectators', false)">
+          <strong>关闭观战</strong><small>本房间不会出现在进行中的观战列表</small>
+        </button>
+      </div>
+    </section>
   </div>
 </template>
 

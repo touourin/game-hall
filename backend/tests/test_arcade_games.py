@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from backend.app.accounts import AccountStore
-from backend.app.arcade.models import ArcadePlayer, ArcadeRoom
+from backend.app.arcade.models import ArcadePlayer, ArcadeRoom, ArcadeSpectator
 from backend.app.arcade.rooms import (
     ActiveRoomError,
     ArcadeRoomError,
@@ -15,6 +15,7 @@ from backend.app.arcade.rooms import (
 from backend.app.arcade.views import (
     build_lobby_view as build_arcade_lobby_view,
     build_room_view as build_arcade_room_view,
+    build_spectator_room_view,
 )
 from backend.app.games.base import GameRuleError
 from backend.app.games.catalog import BUILTIN_GAME_NAMES
@@ -42,6 +43,38 @@ def test_builtin_game_catalog_matches_engine_registry() -> None:
     }
 
     assert builtin_engine_keys == set(BUILTIN_GAME_NAMES)
+
+
+def test_every_enabled_game_can_render_an_exact_player_spectator_view() -> None:
+    engines = build_engine_registry()
+    manager = ArcadeRoomManager(engines)
+
+    for game_key, engine in engines.items():
+        room, target, _ = manager.create_room(
+            game_key,
+            "视角玩家",
+            f"target-{game_key}",
+        )
+        spectator = ArcadeSpectator(
+            id=f"spectator-{game_key}",
+            account_id=f"spectator-account-{game_key}",
+            name="观众",
+            target_player_id=target.id,
+        )
+
+        view = build_spectator_room_view(
+            room,
+            target,
+            spectator,
+            engine,
+            [spectator],
+        )
+
+        assert view["game"] == engine.view(room, target)
+        assert view["self"]["id"] == target.id
+        assert view["viewer"]["mode"] == "spectator"
+        assert view["viewer"]["targetPlayerId"] == target.id
+        assert not any(view["actions"].values())
 
 
 def make_room(
@@ -1898,7 +1931,7 @@ def test_hanoi_room_is_private_single_player_room() -> None:
     )
 
     assert room.listed is False
-    assert room.options == {"discCount": 6}
+    assert room.options == {"discCount": 6, "allowSpectators": True}
     manager.start(room, host.id)
     assert room.phase == "playing"
     assert room.state.disc_count == 6

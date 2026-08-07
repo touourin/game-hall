@@ -9,6 +9,7 @@ import StatsModal from '../components/StatsModal.vue'
 import CleanupRoomButton from '../components/CleanupRoomButton.vue'
 import GameHomeHeader from '../components/GameHomeHeader.vue'
 import SoloChallengeLauncher from '../components/SoloChallengeLauncher.vue'
+import SpectatorBrowser from '../components/SpectatorBrowser.vue'
 import MultiplayerMatchLauncher from '../components/MultiplayerMatchLauncher.vue'
 import { defaultGameRules } from '../gameRules'
 import { isSoloGameKey } from '../gameCatalog'
@@ -37,7 +38,12 @@ const isSolo = computed(() => isSoloGameKey(props.game.key))
 const gameRooms = computed(() =>
   arcade.availableRooms.filter((room) => room.gameKey === props.game.key),
 )
-const rooms = computed(() => gameRooms.value.filter((room) => !room.cleanupAvailable))
+const rooms = computed(() => gameRooms.value.filter(
+  (room) => !room.cleanupAvailable && (room.phase ?? 'lobby') === 'lobby',
+))
+const watchRooms = computed(() => gameRooms.value.filter(
+  (room) => !room.cleanupAvailable && room.watchable,
+))
 const cleanupRooms = computed(() => gameRooms.value.filter((room) => room.cleanupAvailable))
 const canSubmit = computed(
   () => !arcade.activeRoomCode && (
@@ -138,6 +144,16 @@ async function submit() {
       :disabled="!canSubmit"
       :active-room="Boolean(arcade.activeRoomCode)"
       @start="submit"
+    />
+
+    <SpectatorBrowser
+      :game-key="gameKey"
+      :game-name="game.name"
+      :rooms="watchRooms"
+      :initial-room-code="invitedRoom"
+      :disabled="Boolean(arcade.activeRoomCode)"
+      :guest="account.isGuest"
+      @watched="emit('roomEntered', $event)"
     />
 
     <StatsModal
