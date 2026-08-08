@@ -65,6 +65,7 @@ export function defaultGameRules(
     options.winRule = 'exact_five'
     options.openingRule = 'swap2'
   }
+  if (gameKey === 'xiangqi') options.captureHintsEnabled = true
   if (gameKey === 'doudizhu') options.variant = 'classic'
   if (gameKey === 'go') {
     options.boardSize = 19
@@ -169,6 +170,11 @@ export function gameRuleLabels(
   if (gameKey === 'go') {
     labels.unshift(`${options.boardSize} 路棋盘`)
     labels.push(`贴目 ${options.komi}`)
+  }
+  if (gameKey === 'xiangqi') {
+    labels.push(
+      options.captureHintsEnabled ? '吃子提醒' : '关闭吃子提醒',
+    )
   }
   if (gameKey === 'junqi') {
     labels.unshift(options.mode === 'flip' ? '翻棋军旗' : '暗军旗')

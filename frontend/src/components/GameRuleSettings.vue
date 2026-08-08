@@ -248,6 +248,23 @@ function setOption(key: string, value: unknown) {
       </div>
     </section>
 
+    <section v-if="gameKey === 'xiangqi'" class="rule-setting-group">
+      <header><strong>辅助提示</strong><small>双方使用同一设置，不改变象棋走子规则</small></header>
+      <div class="rule-toggle-list">
+        <button
+          type="button"
+          :class="{ active: option('captureHintsEnabled') }"
+          @click="setOption('captureHintsEnabled', !option('captureHintsEnabled'))"
+        >
+          <span>
+            <strong>吃子提醒</strong>
+            <small>轮到玩家时标出当前可以吃到的敌子</small>
+          </span>
+          <b>{{ option('captureHintsEnabled') ? '开' : '关' }}</b>
+        </button>
+      </div>
+    </section>
+
     <section v-if="['gomoku', 'xiangqi', 'go'].includes(gameKey)" class="rule-setting-group">
       <header><strong>对局协商</strong><small>申请仍需对手确认</small></header>
       <div class="rule-toggle-list">

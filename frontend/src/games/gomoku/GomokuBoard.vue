@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { Flag, Pause } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
+import IntersectionBoard from '../shared/IntersectionBoard.vue'
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
@@ -187,7 +188,8 @@ function pass() {
       上一位玩家已停一手，你若也停一手则本局和棋
     </p>
     <p v-if="ruleNotice" class="gomoku-rule-notice" role="status">{{ ruleNotice }}</p>
-    <div
+    <IntersectionBoard
+      :size="game.board.length"
       class="gomoku-board"
       :class="{ 'renju-board': isRenju }"
       aria-label="十五路五子棋棋盘"
@@ -241,7 +243,7 @@ function pass() {
           />
         </button>
       </template>
-    </div>
+    </IntersectionBoard>
     <p v-if="canPlace" class="gomoku-board-hint" aria-live="polite">
       {{ pendingMoveLabel }}
     </p>
@@ -282,35 +284,20 @@ function pass() {
 .gomoku-pass-notice { width: min(100%, 650px); margin: 0; color: var(--gold); text-align: center; }
 .gomoku-rule-notice { width: min(100%, 650px); margin: 0; border: 1px solid rgba(216, 91, 91, .42); border-radius: 11px; padding: 9px 12px; color: #f1b0b0; background: rgba(112, 35, 39, .18); text-align: center; }
 .gomoku-board {
-  --board-size: 15;
-  width: min(100%, 650px);
-  aspect-ratio: 1;
-  padding: 14px;
-  display: grid;
-  grid-template-columns: repeat(var(--board-size), 1fr);
-  border: 5px solid var(--game-board-frame, #7b4a20);
-  border-radius: 14px;
-  background-color: var(--game-board-surface, #d5a45d);
-  background-image: var(--game-board-texture, repeating-linear-gradient(3deg, rgba(255, 244, 198, .06) 0 2px, rgba(111, 65, 25, .035) 3px 5px));
-  box-shadow:
-    inset 0 0 0 2px var(--game-board-highlight, rgba(255, 224, 157, .35)),
-    inset 0 0 24px rgba(92, 47, 14, .2),
-    0 20px 50px #0006,
-    0 0 0 1px color-mix(in srgb, var(--gold) 24%, transparent);
+  --board-max-width: 650px;
+  --board-padding: 14px;
 }
 .board-point {
   position: relative;
   min-width: 0;
   padding: 0;
   border: 0;
-  background:
-    linear-gradient(var(--game-board-line, #65401f), var(--game-board-line, #65401f)) center / 100% 1px no-repeat,
-    linear-gradient(90deg, var(--game-board-line, #65401f), var(--game-board-line, #65401f)) center / 1px 100% no-repeat;
+  background: transparent;
 }
 .board-point:disabled { opacity: 1; }
 .board-point:not(:disabled) { cursor: crosshair; }
 .board-point:focus-visible { border-radius: 50%; outline-offset: -3px; }
-.board-point.star::before { content: ''; position: absolute; inset: 41%; z-index: 1; border-radius: 50%; background: var(--game-board-line, #5f3b1c); box-shadow: 0 0 0 1px rgba(0, 0, 0, .28); }
+.board-point.star::before { content: ''; position: absolute; z-index: 1; top: 50%; left: 50%; width: clamp(4px, 18%, 7px); aspect-ratio: 1; border-radius: 50%; background: var(--game-board-line, #5f3b1c); box-shadow: 0 0 0 1px rgba(0, 0, 0, .22); transform: translate(-50%, -50%); }
 .board-point.forbidden:not(:disabled) { cursor: help; }
 .forbidden-mark { position: absolute; inset: 5%; z-index: 3; display: grid; place-items: center; border: 1px solid rgba(145, 24, 24, .62); border-radius: 50%; color: #961c1c; background: rgba(255, 220, 200, .34); font-size: clamp(12px, 2.1vw, 22px); font-weight: 950; line-height: 1; }
 .opening-mark { position: absolute; inset: 25%; z-index: 2; border: 2px solid rgba(107, 57, 15, .72); border-radius: 50%; background: rgba(255, 219, 121, .3); box-shadow: 0 0 0 3px rgba(255, 226, 153, .22); }
@@ -323,7 +310,7 @@ function pass() {
   opacity: 0;
   transform: scale(.82);
   transition: opacity .12s ease, transform .12s ease;
-  box-shadow: 0 3px 8px rgba(35, 20, 9, .38);
+  box-shadow: inset 2px 2px 3px rgba(255, 255, 255, .14), inset -3px -4px 5px rgba(0, 0, 0, .38), 0 4px 8px rgba(35, 20, 9, .4);
 }
 .stone-preview.black { background: var(--game-black-stone, radial-gradient(circle at 35% 30%, #666, #090909 68%)); }
 .stone-preview.white { border: 1px solid var(--game-white-stone-border, rgba(89, 68, 42, .25)); background: var(--game-white-stone, radial-gradient(circle at 35% 30%, #fff, #d8d2c5 70%)); }
@@ -335,7 +322,7 @@ function pass() {
   inset: 8%;
   z-index: 2;
   border-radius: 50%;
-  box-shadow: inset -2px -3px 5px #0005, 0 2px 4px #0007;
+  box-shadow: inset 2px 2px 3px rgba(255, 255, 255, .14), inset -3px -4px 5px rgba(0, 0, 0, .42), 0 1px 1px rgba(255, 232, 177, .15), 0 4px 7px rgba(28, 15, 5, .48);
 }
 .stone.black { background: var(--game-black-stone, radial-gradient(circle at 35% 30%, #555, #080808 68%)); }
 .stone.white { border: 1px solid var(--game-white-stone-border, transparent); background: var(--game-white-stone, radial-gradient(circle at 35% 30%, #fff, #d7d2c8 70%)); }
@@ -358,7 +345,7 @@ function pass() {
 .gomoku-pass-button { display: inline-flex; align-items: center; gap: 6px; min-height: 42px; border: 1px solid var(--line); border-radius: 11px; padding: 0 14px; color: var(--text); background: transparent; font-weight: 850; }
 .gomoku-pass-button:disabled { opacity: .45; }
 @media (max-width: 600px) {
-  .gomoku-board { width: min(100%, 650px); padding: 8px; border-width: 4px; }
+  .gomoku-board { --board-padding: 8px; --board-border-width: 4px; }
   .gomoku-rule-notice, .renju-legend, .swap2-choice-panel, .gomoku-pass-notice { width: 100%; }
   .swap2-choice-panel > div { grid-template-columns: 1fr; }
 }

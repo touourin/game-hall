@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { CheckCircle2, Flag, Play } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
+import IntersectionBoard from '../shared/IntersectionBoard.vue'
 
 interface GoScore {
   black: number
@@ -152,10 +153,10 @@ function selectPoint(row: number, column: number, cell: number, event: MouseEven
       <p>标记有变化时，双方需要重新确认。对死活有争议，可以申请继续下棋。</p>
     </section>
 
-    <div
+    <IntersectionBoard
+      :size="game.boardSize"
       class="go-board"
       :class="{ scoring: isScoring }"
-      :style="{ '--board-size': game.boardSize }"
       :aria-label="`${game.boardSize} 路围棋棋盘`"
     >
       <template v-for="(row, rowIndex) in game.board" :key="rowIndex">
@@ -196,7 +197,7 @@ function selectPoint(row: number, column: number, cell: number, event: MouseEven
           />
         </button>
       </template>
-    </div>
+    </IntersectionBoard>
     <p v-if="snapshot.phase === 'playing' && isMyTurn" class="go-board-hint" aria-live="polite">
       {{ pendingMoveLabel }}
     </p>
@@ -266,38 +267,22 @@ function selectPoint(row: number, column: number, cell: number, event: MouseEven
 .go-scoring-guide strong { color: var(--gold); }
 .go-scoring-guide p { margin: 5px 0 0; color: var(--muted); line-height: 1.5; }
 .go-board {
-  --board-size: 19;
-  width: min(100%, 700px);
-  aspect-ratio: 1;
-  padding: 11px;
-  display: grid;
-  grid-template-columns: repeat(var(--board-size), 1fr);
-  border: 5px solid var(--game-board-frame, #70431d);
-  border-radius: 12px;
-  background-color: var(--game-board-surface, #d8aa63);
-  background-image: var(--game-board-texture, repeating-linear-gradient(2deg, rgba(255, 245, 205, .06) 0 2px, rgba(94, 53, 20, .035) 3px 6px));
-  box-shadow:
-    inset 0 0 0 2px var(--game-board-highlight, rgba(255, 228, 169, .34)),
-    inset 0 0 26px rgba(88, 43, 10, .2),
-    0 20px 50px #0006,
-    0 0 0 1px color-mix(in srgb, var(--gold) 24%, transparent);
+  --board-padding: 11px;
 }
-.go-board.scoring { box-shadow: 0 20px 50px #0006, 0 0 0 3px color-mix(in srgb, var(--gold) 45%, transparent); }
+.go-board.scoring { --board-status-ring: 0 0 0 3px color-mix(in srgb, var(--gold) 45%, transparent); }
 .go-point {
   position: relative;
   min-width: 0;
   padding: 0;
   border: 0;
-  background:
-    linear-gradient(var(--game-board-line, #563519), var(--game-board-line, #563519)) center / 100% 1px no-repeat,
-    linear-gradient(90deg, var(--game-board-line, #563519), var(--game-board-line, #563519)) center / 1px 100% no-repeat;
+  background: transparent;
 }
 .go-point:disabled { opacity: 1; }
 .go-point:not(:disabled) { cursor: crosshair; }
 .go-point:focus-visible { border-radius: 50%; outline-offset: -3px; }
-.go-point.star::before { content: ''; position: absolute; inset: 40%; z-index: 1; border-radius: 50%; background: var(--game-board-line, #513016); }
+.go-point.star::before { content: ''; position: absolute; z-index: 1; top: 50%; left: 50%; width: clamp(4px, 18%, 7px); aspect-ratio: 1; border-radius: 50%; background: var(--game-board-line, #513016); box-shadow: 0 0 0 1px rgba(0, 0, 0, .2); transform: translate(-50%, -50%); }
 .go-board.scoring .go-point:not(:disabled) { cursor: pointer; }
-.go-stone { position: absolute; inset: 3%; z-index: 2; border-radius: 50%; box-shadow: inset -2px -3px 4px #0005, 0 2px 5px #0008; transition: opacity .15s, transform .15s; }
+.go-stone { position: absolute; inset: 4%; z-index: 2; border-radius: 50%; box-shadow: inset 2px 2px 3px rgba(255, 255, 255, .14), inset -3px -4px 5px rgba(0, 0, 0, .42), 0 1px 1px rgba(255, 232, 177, .15), 0 4px 7px rgba(28, 15, 5, .5); transition: opacity .15s, transform .15s; }
 .go-stone.black { background: var(--game-black-stone, radial-gradient(circle at 35% 30%, #555, #050505 68%)); }
 .go-stone.white { border: 1px solid var(--game-white-stone-border, rgba(76, 56, 32, .22)); background: var(--game-white-stone, radial-gradient(circle at 35% 30%, white, #d7d2c8 72%)); }
 .go-stone.latest::after { content: ''; position: absolute; inset: 37%; border-radius: 50%; background: #d84f42; box-shadow: 0 0 0 1px rgba(255, 238, 210, .62); }
@@ -330,7 +315,7 @@ function selectPoint(row: number, column: number, cell: number, event: MouseEven
   .go-scoring-guide, .go-scoring-actions, .go-score-card { width: 100%; }
   .go-scoring-guide { text-align: left; }
   .go-scoring-actions > div, .go-score-breakdown { grid-template-columns: 1fr; }
-  .go-board { width: min(100%, 700px); padding: 7px; border-width: 4px; }
+  .go-board { --board-padding: 7px; --board-border-width: 4px; }
 }
 @media (hover: none) {
   .go-point:hover .go-preview:not(.active) { opacity: 0; transform: scale(.82); }

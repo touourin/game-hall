@@ -84,6 +84,17 @@ function playingSnapshot(): ArcadeSnapshot {
 }
 
 describe('GoBoard', () => {
+  it('sizes the shared intersection lattice from the current board', () => {
+    const wrapper = mount(GoBoard, {
+      props: { snapshot: playingSnapshot() },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.get('.intersection-board__lattice').attributes('viewBox')).toBe(
+      '0 0 9 9',
+    )
+  })
+
   it('shows star points and confirms touch moves on the second tap', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)

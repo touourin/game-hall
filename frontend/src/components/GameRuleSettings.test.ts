@@ -141,6 +141,7 @@ describe('GameRuleSettings', () => {
       '随机先手',
       '允许悔棋',
       '允许和棋',
+      '吃子提醒',
       '允许游客',
     ])
     expect(
@@ -229,6 +230,28 @@ describe('GameRuleSettings', () => {
 
     expect(registeredOnly?.attributes('disabled')).toBeDefined()
     expect(wrapper.text()).toContain('整局不会写入任何玩家的个人战绩')
+  })
+
+  it('offers a room-level capture reminder for Xiangqi', async () => {
+    const wrapper = mount(GameRuleSettings, {
+      props: {
+        gameKey: 'xiangqi',
+        modelValue: defaultGameRules('xiangqi'),
+      },
+    })
+    const captureHints = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('当前可以吃到的敌子'))
+
+    expect(captureHints?.classes()).toContain('active')
+    await captureHints?.trigger('click')
+
+    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toMatchObject({
+      captureHintsEnabled: false,
+    })
+    expect(gameRuleLabels('xiangqi', { captureHintsEnabled: false })).toContain(
+      '关闭吃子提醒',
+    )
   })
 
   it('offers all three classic Minesweeper difficulties', async () => {

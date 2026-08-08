@@ -65,6 +65,7 @@ describe('JunqiBoard', () => {
     })
 
     expect(wrapper.find('.junqi-route-map').exists()).toBe(true)
+    expect(wrapper.find('.junqi-mountain-pass').exists()).toBe(true)
     expect(wrapper.findAll('.rail-network')).toHaveLength(2)
     expect(wrapper.findAll('.junqi-special-space.frontline')).toHaveLength(3)
     expect(wrapper.findAll('.junqi-special-space.mountain')).toHaveLength(2)

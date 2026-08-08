@@ -41,6 +41,12 @@ class XiangqiEngine:
     min_players = 2
     max_players = 2
 
+    def room_options(self, options: dict[str, Any]) -> dict[str, Any]:
+        capture_hints_enabled = options.get("captureHintsEnabled", True)
+        if not isinstance(capture_hints_enabled, bool):
+            raise GameRuleError("吃子提醒设置格式不正确")
+        return {"captureHintsEnabled": capture_hints_enabled}
+
     def initial_state(self) -> XiangqiState:
         state = XiangqiState()
         state.position_history.append(

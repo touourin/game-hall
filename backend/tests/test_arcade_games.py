@@ -605,6 +605,17 @@ def test_xiangqi_validates_piece_ownership_and_turns() -> None:
     assert room.state.turn_color == "red"
 
 
+def test_xiangqi_validates_capture_hint_room_option() -> None:
+    engine = XiangqiEngine()
+
+    assert engine.room_options({}) == {"captureHintsEnabled": True}
+    assert engine.room_options({"captureHintsEnabled": False}) == {
+        "captureHintsEnabled": False
+    }
+    with pytest.raises(GameRuleError, match="吃子提醒设置格式不正确"):
+        engine.room_options({"captureHintsEnabled": "yes"})
+
+
 @pytest.mark.parametrize(
     ("piece", "source", "target", "blocker", "expected"),
     [

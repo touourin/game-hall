@@ -6,7 +6,20 @@ import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
 import XiangqiBoard from './XiangqiBoard.vue'
 
-function snapshot(turnPlayerId: string): ArcadeSnapshot {
+interface TestXiangqiGame {
+  board: Array<Array<string | null>>
+  legalMoves: Array<{
+    fromRow: number
+    fromColumn: number
+    toRow: number
+    toColumn: number
+  }>
+}
+
+function snapshot(
+  turnPlayerId: string,
+  captureHintsEnabled = true,
+): ArcadeSnapshot {
   const board = Array.from({ length: 10 }, () =>
     Array<string | null>(9).fill(null),
   )
@@ -16,7 +29,7 @@ function snapshot(turnPlayerId: string): ArcadeSnapshot {
     roomCode: 'TEST',
     gameKey: 'xiangqi',
     gameName: '中国象棋',
-    options: {},
+    options: { captureHintsEnabled },
     phase: 'playing',
     hostId: 'p1',
     self: { id: 'p1', name: '玩家一', seat: 0 },
@@ -75,6 +88,9 @@ describe('XiangqiBoard', () => {
     expect(wrapper.find('.xiangqi-lines').exists()).toBe(true)
     expect(wrapper.find('.palace-lines').exists()).toBe(true)
     expect(wrapper.find('.xiangqi-grid').exists()).toBe(true)
+    expect(wrapper.findAll('.xiangqi-position-mark')).toHaveLength(24)
+    expect(wrapper.findAll('[data-position="3-0"]')).toHaveLength(1)
+    expect(wrapper.findAll('[data-position="3-4"]')).toHaveLength(2)
     await king?.trigger('click')
 
     expect(king?.classes()).toContain('selected')
@@ -122,6 +138,37 @@ describe('XiangqiBoard', () => {
       toRow: 8,
       toColumn: 4,
     })
+  })
+
+  it('shows every current capture target only when the room reminder is enabled', async () => {
+    const enabled = snapshot('p1')
+    const enabledGame = enabled.game as unknown as TestXiangqiGame
+    enabledGame.board[8][4] = 'bP'
+    const enabledWrapper = mount(XiangqiBoard, {
+      props: { snapshot: enabled },
+      global: { plugins: [createPinia()] },
+    })
+
+    const target = enabledWrapper.findAll('.xiangqi-cell')[8 * 9 + 4]
+    expect(target?.classes()).toContain('capture-reminder')
+    expect(target?.attributes('aria-label')).toContain('可吃卒')
+    expect(enabledWrapper.text()).toContain('吃子提醒：有 1 个敌子可吃（卒）')
+
+    const disabled = snapshot('p1', false)
+    const disabledGame = disabled.game as unknown as TestXiangqiGame
+    disabledGame.board[8][4] = 'bP'
+    const disabledWrapper = mount(XiangqiBoard, {
+      props: { snapshot: disabled },
+      global: { plugins: [createPinia()] },
+    })
+    const disabledTarget = disabledWrapper.findAll('.xiangqi-cell')[8 * 9 + 4]
+
+    expect(disabledTarget?.classes()).not.toContain('capture-reminder')
+    expect(disabledWrapper.text()).not.toContain('吃子提醒：')
+
+    await disabledWrapper.findAll('.xiangqi-cell')[9 * 9 + 4]?.trigger('click')
+    expect(disabledTarget?.classes()).toContain('legal')
+    expect(disabledTarget?.classes()).not.toContain('capture')
   })
 
   it('previews a touch destination before submitting it on the second tap', async () => {

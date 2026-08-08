@@ -83,6 +83,17 @@ function pointAt(wrapper: ReturnType<typeof mount>, row: number, column: number)
 }
 
 describe('GomokuBoard', () => {
+  it('uses the shared 15-line intersection lattice', () => {
+    const wrapper = mount(GomokuBoard, {
+      props: { snapshot: snapshot() },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.get('.intersection-board__lattice').attributes('viewBox')).toBe(
+      '0 0 15 15',
+    )
+  })
+
   it('previews a touch move before submitting it on the second tap', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)
