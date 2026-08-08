@@ -70,7 +70,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
       >
         <span class="role-skin-role-art">
           <img
-            :class="{ 'preserves-frame': role.currentFraming.preserveFrame }"
             :src="role.currentArtwork"
             :alt="`${role.name}的${role.currentSkinName}画风`"
             :style="{ '--artwork-scale': role.currentFraming.scale, '--artwork-origin': `${role.currentFraming.originXPercent}% ${role.currentFraming.originYPercent}%` }"
@@ -124,7 +123,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
           >
             <span class="role-skin-choice-art">
               <img
-                :class="{ 'preserves-frame': choice.framing.preserveFrame }"
                 :src="choice.artwork"
                 :alt="`${activeRole.name}的${choice.name}画风`"
                 :style="{ '--artwork-scale': choice.framing.scale, '--artwork-origin': `${choice.framing.originXPercent}% ${choice.framing.originYPercent}%` }"
@@ -161,7 +159,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
 .role-skin-role > svg { flex: 0 0 auto; color: var(--muted); }
 .role-skin-role-art { position: relative; align-self: stretch; min-height: 56px; overflow: hidden; border-radius: 9px; background: #061313; }
 .role-skin-role-art img, .role-skin-choice-art img { width: 100%; height: 100%; object-fit: cover; transform: scale(var(--artwork-scale, 1)); transform-origin: var(--artwork-origin, 50% 50%); }
-.role-skin-role-art img.preserves-frame, .role-skin-choice-art img.preserves-frame { transform: none; }
 .role-skin-role-art small { position: absolute; inset: auto 4px 4px; overflow: hidden; border-radius: 999px; padding: 2px 5px; color: #f4f1df; background: rgba(2, 9, 10, .76); font-size: 7px; font-weight: 850; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .role-skin-role-copy, .role-skin-role-copy > span { display: grid; gap: 3px; min-width: 0; }
 .role-skin-role-copy > span { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; }

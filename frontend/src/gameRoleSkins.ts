@@ -246,6 +246,12 @@ const ROLE_ARTWORK_FRAMING: Partial<
       originYPercent: 38,
       preserveFrame: true,
     },
+    dissenting_courtier: {
+      scale: 1.1,
+      originXPercent: 50,
+      originYPercent: 42,
+      preserveFrame: true,
+    },
     mordred: {
       scale: 1.12,
       originXPercent: 50,

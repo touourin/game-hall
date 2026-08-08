@@ -14,7 +14,7 @@ describe('PressRevealCard', () => {
     expect(wrapper.text()).not.toContain('梅林')
   })
 
-  it('renders caller-provided artwork without knowing game rules', async () => {
+  it('renders complete caller-provided artwork without cropping or a shade layer', async () => {
     const wrapper = mount(PressRevealCard, {
       props: {
         title: '隐藏身份',
@@ -28,11 +28,11 @@ describe('PressRevealCard', () => {
     await wrapper.get('.press-reveal-card').trigger('pointerdown')
     const artwork = wrapper.get('.press-reveal-art')
     expect(artwork.element.tagName).toBe('SPAN')
-    expect(artwork.attributes('style')).toContain('--reveal-art-scale: 1.16')
     expect(artwork.attributes('style')).toContain('background-image: url(')
     expect(artwork.attributes('style')).toContain('/role.webp')
-    expect(wrapper.get('.press-reveal-card').attributes('data-artwork-treatment')).toBe('codex-ink-wash')
-    expect(wrapper.find('.press-reveal-inner-art').exists()).toBe(true)
+    expect(artwork.attributes('style')).not.toContain('--reveal-art-scale')
+    expect(wrapper.find('.press-reveal-inner-art').exists()).toBe(false)
+    expect(wrapper.find('.press-reveal-shade').exists()).toBe(false)
     expect(wrapper.find('img').exists()).toBe(false)
   })
 

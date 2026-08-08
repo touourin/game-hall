@@ -89,6 +89,22 @@ describe('RoleSkinLoadoutPicker', () => {
     )
   })
 
+  it('applies the curated character scale only to picker thumbnails', () => {
+    const framedRoles = roles()
+    framedRoles[0]!.currentFraming = {
+      scale: 1.25,
+      originXPercent: 50,
+      originYPercent: 42,
+    }
+    const wrapper = mount(RoleSkinLoadoutPicker, {
+      props: { roles: framedRoles },
+    })
+
+    const artwork = wrapper.get('[data-role-skin-role="merlin"] img')
+    expect(artwork.attributes('style')).toContain('--artwork-scale: 1.25')
+    expect(artwork.attributes('style')).toContain('--artwork-origin: 50% 42%')
+  })
+
   it('selects an unlocked style for only the active role', async () => {
     const wrapper = mount(RoleSkinLoadoutPicker, { props: { roles: roles() } })
     await wrapper.get('[data-role-skin-role="merlin"]').trigger('click')

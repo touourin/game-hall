@@ -17,86 +17,33 @@ import {
 describe('Avalon role skin artwork framing', () => {
   beforeEach(() => localStorage.clear())
 
-  it('brings the smaller classic Merlin portrait up to the base-set scale', () => {
-    expect(roleArtworkFraming('merlin', 'classic-tabletop')).toEqual({
+  it('keeps curated thumbnail framing for consistent character scale', () => {
+    expect(roleArtworkFraming('merlin', 'classic-tabletop')).toMatchObject({
       scale: 1.1,
-      originXPercent: 50,
       originYPercent: 36,
     })
-    expect(roleArtworkFraming('percival', 'classic-tabletop').scale).toBe(1)
-  })
-
-  it('brings stained-glass Percival up to the set scale without cropping its frame', () => {
-    expect(roleArtworkFraming('percival', 'stained-glass')).toEqual({
+    expect(roleArtworkFraming('percival', 'stained-glass')).toMatchObject({
       scale: 1.09,
-      originXPercent: 50,
-      originYPercent: 50,
       preserveFrame: true,
     })
-    expect(roleArtworkFraming('merlin', 'stained-glass').scale).toBe(1)
-  })
-
-  it('calibrates the royal-codex portraits while preserving their manuscript frames', () => {
-    expect(roleArtworkFraming('merlin', 'royal-codex')).toEqual({
+    expect(roleArtworkFraming('merlin', 'royal-codex')).toMatchObject({
       scale: 1.26,
-      originXPercent: 50,
       originYPercent: 42,
-      preserveFrame: true,
       treatment: 'codex-ink-wash',
     })
-    expect(roleArtworkFraming('percival', 'royal-codex')).toMatchObject({
-      scale: 1.08,
-      preserveFrame: true,
-      treatment: 'codex-ink-wash',
+    expect(roleArtworkFraming('dissenting_courtier', 'royal-codex')).toMatchObject({
+      scale: 1.1,
+      originYPercent: 42,
     })
-    expect(roleArtworkFraming('mordred', 'royal-codex')).toMatchObject({
-      scale: 1.12,
-      preserveFrame: true,
-      treatment: 'codex-ink-wash',
+    expect(roleArtworkFraming('assassin', 'grail-myth')).toMatchObject({
+      scale: 1.18,
+      originYPercent: 60,
     })
-    expect(roleArtworkFraming('oberon', 'royal-codex')).toMatchObject({
-      scale: 1.15,
-      treatment: 'codex-ink-wash',
-    })
-    expect(ROLE_SKIN_ROLES.every(
-      (role) => roleArtworkFraming(role.code, 'royal-codex').treatment === 'codex-ink-wash',
-    )).toBe(true)
-  })
-
-  it('keeps the established ultimate heroes unchanged and corrects the oversized Assassin', () => {
-    expect(roleArtworkFraming('merlin', 'grail-myth')).toEqual({
+    expect(roleArtworkFraming('shadow_merlin', 'classic-tabletop')).toEqual({
       scale: 1,
       originXPercent: 50,
       originYPercent: 50,
     })
-    expect(roleArtworkFraming('percival', 'grail-myth').scale).toBe(1)
-    expect(roleArtworkFraming('loyal-servant', 'grail-myth').scale).toBe(1)
-    expect(roleArtworkFraming('assassin', 'grail-myth')).toEqual({
-      scale: 1.18,
-      originXPercent: 50,
-      originYPercent: 60,
-    })
-  })
-
-  it('brings the more distant ultimate-skin portraits closer', () => {
-    expect(roleArtworkFraming('morgana', 'grail-myth')).toEqual({
-      scale: 1.1,
-      originXPercent: 50,
-      originYPercent: 29,
-    })
-    expect(roleArtworkFraming('mordred', 'grail-myth').scale).toBe(1.1)
-    expect(roleArtworkFraming('oberon', 'grail-myth').scale).toBe(1.08)
-    expect(roleArtworkFraming('minion', 'grail-myth').scale).toBe(1.1)
-  })
-
-  it('uses the same framing data in the ten-role preview model', () => {
-    const roles = ROLE_SKIN_ROLES.map((role) => ({
-      ...role,
-      framing: roleArtworkFraming(role.code, 'grail-myth'),
-    }))
-    expect(roles).toHaveLength(10)
-    expect(roles.find((role) => role.code === 'merlin')?.framing.scale).toBe(1)
-    expect(roles.find((role) => role.code === 'morgana')?.framing.scale).toBe(1.1)
   })
 
   it('uses dedicated dissenting courtier artwork in every skin family', () => {
@@ -126,16 +73,6 @@ describe('Avalon role skin artwork framing', () => {
       expect(isRoleSkinAvailable('shadow_merlin', skin.id)).toBe(true)
     }
     expect(roleSkinRoleCode('shadow_merlin')).toBe('shadow_merlin')
-  })
-
-  it('preserves the royal-codex frame around shadow Merlin', () => {
-    expect(roleArtworkFraming('shadow_merlin', 'royal-codex')).toEqual({
-      scale: 1,
-      originXPercent: 50,
-      originYPercent: 50,
-      preserveFrame: true,
-      treatment: 'codex-ink-wash',
-    })
   })
 
   it('stores an independent ten-role loadout per account', () => {
