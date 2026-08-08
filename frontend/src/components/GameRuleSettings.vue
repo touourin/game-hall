@@ -265,7 +265,7 @@ function setOption(key: string, value: unknown) {
       </div>
     </section>
 
-    <section v-if="['gomoku', 'xiangqi', 'go'].includes(gameKey)" class="rule-setting-group">
+    <section v-if="['gomoku', 'xiangqi', 'chess', 'go'].includes(gameKey)" class="rule-setting-group">
       <header><strong>对局协商</strong><small>申请仍需对手确认</small></header>
       <div class="rule-toggle-list">
         <button type="button" :class="{ active: option('allowUndo') }" @click="setOption('allowUndo', !option('allowUndo'))">

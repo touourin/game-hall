@@ -34,12 +34,13 @@ HOST_TRANSFER_GRACE = timedelta(seconds=20)
 MAX_CHAT_LENGTH = 300
 MAX_CHAT_MESSAGES = 100
 MAX_ROOM_NAME_LENGTH = 20
-UNDO_GAMES = {"gomoku", "xiangqi", "go"}
-DRAW_GAMES = {"gomoku", "xiangqi", "go"}
+UNDO_GAMES = {"gomoku", "xiangqi", "chess", "go"}
+DRAW_GAMES = {"gomoku", "xiangqi", "chess", "go"}
 FIRST_PLAYER_MODES = {"random", "host"}
 UNDOABLE_ACTIONS = {
     "gomoku": {"place", "pass"},
     "xiangqi": {"move"},
+    "chess": {"move"},
     "go": {"place", "pass"},
 }
 MAX_UNDO_HISTORY = 100

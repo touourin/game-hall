@@ -8,6 +8,7 @@ import {
 const NEGOTIATION_GAMES = new Set<ArcadeGameKey>([
   'gomoku',
   'xiangqi',
+  'chess',
   'go',
 ])
 

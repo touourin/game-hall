@@ -24,6 +24,7 @@ export const GAME_SKIN_STORAGE_KEY = 'game-hall:game-skin'
 const BOARD_GAME_KEYS = new Set<ArcadeGameKey>([
   'gomoku',
   'xiangqi',
+  'chess',
   'go',
   'junqi',
 ])

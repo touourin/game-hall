@@ -27,6 +27,12 @@ BUILTIN_GAME_CATALOG: tuple[dict[str, str], ...] = (
         "description": "完整走子与重复局面限制",
     },
     {
+        "key": "chess",
+        "name": "国际象棋",
+        "players": "2 人",
+        "description": "标准规则、升变与完整和棋判定",
+    },
+    {
         "key": "go",
         "name": "围棋",
         "players": "2 人",

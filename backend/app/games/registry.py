@@ -3,6 +3,7 @@ from __future__ import annotations
 from backend.app.games.base import GameEngine
 from backend.app.games.catalog import BUILTIN_GAME_CATALOG
 from backend.app.games.avalon.arcade import AvalonEngine
+from backend.app.games.chess import ChessEngine
 from backend.app.games.departed_suspicion import DepartedSuspicionEngine
 from backend.app.games.doudizhu import DoudizhuEngine
 from backend.app.games.go import GoEngine
@@ -24,6 +25,7 @@ def build_engine_registry() -> dict[str, GameEngine]:
         DepartedSuspicionEngine(),
         GomokuEngine(),
         XiangqiEngine(),
+        ChessEngine(),
         GoEngine(),
         PokerEngine(),
         DoudizhuEngine(),

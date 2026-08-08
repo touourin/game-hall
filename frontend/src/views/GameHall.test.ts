@@ -4,7 +4,7 @@ import { THIRD_PARTY_GAME_PLUGINS } from '../thirdPartyGameRegistry'
 import GameHall from './GameHall.vue'
 
 describe('GameHall', () => {
-  it('shows thirteen games and selects the requested game', async () => {
+  it('shows fourteen games and selects the requested game', async () => {
     const wrapper = mount(GameHall, {
       props: {
         account: {
@@ -19,8 +19,8 @@ describe('GameHall', () => {
     })
 
     const gameCards = wrapper.findAll('.game-card')
-    expect(gameCards).toHaveLength(13)
-    expect(wrapper.findAll('.game-card-art')).toHaveLength(12)
+    expect(gameCards).toHaveLength(14)
+    expect(wrapper.findAll('.game-card-art')).toHaveLength(13)
     expect(wrapper.find('.featured-art-emerald').exists()).toBe(true)
     expect(wrapper.find('.featured-art-midnight').exists()).toBe(true)
     expect(wrapper.find('.featured-art-royal').exists()).toBe(true)

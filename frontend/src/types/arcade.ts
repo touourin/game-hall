@@ -3,6 +3,7 @@ export type BuiltinArcadeGameKey =
   | 'departed_suspicion'
   | 'gomoku'
   | 'xiangqi'
+  | 'chess'
   | 'go'
   | 'poker'
   | 'doudizhu'
