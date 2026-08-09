@@ -107,6 +107,16 @@ export interface ArcadeGameRequest {
   requiredApprovalCount?: number
 }
 
+export interface ArcadeAiDifficulty {
+  key: string
+  label: string
+}
+
+export interface ArcadeAiConfig {
+  difficulties: ArcadeAiDifficulty[]
+  defaultDifficulty: string
+}
+
 export interface ArcadeSnapshot {
   revision: number
   roomCode: string
@@ -128,10 +138,7 @@ export interface ArcadeSnapshot {
   winner: string | null
   winnerPlayerIds: string[]
   winReason: string | null
-  ai?: {
-    difficulties: Array<{ key: string; label: string }>
-    defaultDifficulty: string
-  } | null
+  ai?: ArcadeAiConfig | null
   actions: {
     canStart: boolean
     canRestart: boolean

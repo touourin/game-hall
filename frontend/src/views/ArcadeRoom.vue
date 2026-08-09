@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import {
-  Bot,
   ChevronRight,
   CircleHelp,
   Crown,
@@ -26,6 +25,7 @@ import RoomInviteModal from '../components/RoomInviteModal.vue'
 import RoomKickButton from '../components/RoomKickButton.vue'
 import ModeGuide from '../components/ModeGuide.vue'
 import PressRevealCard from '../components/PressRevealCard.vue'
+import RoomAiSeatControl from '../components/RoomAiSeatControl.vue'
 import RoleSkinLoadoutPicker from '../components/RoleSkinLoadoutPicker.vue'
 import { useArcadeStore } from '../stores/arcade'
 import {
@@ -92,9 +92,6 @@ const showQr = ref(false)
 const showPlayerNumbers = ref(false)
 const showIdentity = ref(false)
 const showAvalonRules = ref(false)
-const selectedAiDifficulty = ref(
-  props.snapshot.ai?.defaultDifficulty ?? 'normal',
-)
 const sharedChat = ref<{ openChat: () => Promise<void> } | null>(null)
 const activeGameSkin = ref<GameSkinId>(storedGameSkin())
 const isSpectating = computed(() => props.snapshot.viewer?.mode === 'spectator')
@@ -127,8 +124,12 @@ const missingPlayers = computed(
 const availableSeats = computed(
   () => Math.max(0, props.snapshot.requiredPlayers - props.snapshot.players.length),
 )
+const canAddAiPlayer = computed(() => (
+  props.snapshot.actions.canAddAiPlayer === true
+  && availableSeats.value > 0
+))
 const playerStripColumns = computed(() => {
-  const playerCount = props.snapshot.players.length
+  const playerCount = props.snapshot.players.length + (canAddAiPlayer.value ? 1 : 0)
   if (playerCount <= 5) return Math.max(1, playerCount)
   if (playerCount === 6) return 3
   return Math.ceil(playerCount / 2)
@@ -156,12 +157,6 @@ const activeGameSkinKind = computed(() => gameSkinKind(props.snapshot.gameKey))
 const activeGameSkinStyle = computed(() => (
   activeGameSkinKind.value ? gameSkinCssVariables(activeGameSkin.value) : undefined
 ))
-watch(
-  () => props.snapshot.ai?.defaultDifficulty,
-  (difficulty) => {
-    if (difficulty) selectedAiDifficulty.value = difficulty
-  },
-)
 const activeRoleFamily = computed(() => roleSkinRoleCode(
   avalonSnapshot.value?.self.role?.code ?? '',
 ))
@@ -442,6 +437,10 @@ function aiDifficultyLabel(difficulty?: string | null): string {
   )?.label ?? difficulty
 }
 
+function addAiPlayer(difficulty: string) {
+  void arcade.action('add_ai', { difficulty })
+}
+
 function selfRoleArtwork(): string | null {
   const roleCode = avalonSnapshot.value?.self.role?.code
   return roleCode ? roleArtwork(roleCode, activeRoleSkin.value) : null
@@ -617,6 +616,13 @@ function openSharedChat() {
           @confirm="arcade.kickPlayer(player.id)"
         />
       </article>
+      <RoomAiSeatControl
+        v-if="canAddAiPlayer"
+        :config="snapshot.ai"
+        :available-seats="availableSeats"
+        :busy="arcade.busy"
+        @add="addAiPlayer"
+      />
     </section>
 
     <section v-if="!isSolo || roomSpectators.length" class="surface arcade-spectator-strip" aria-label="房间观众">
@@ -641,28 +647,6 @@ function openSharedChat() {
         <span>掉线保护 10 分钟</span>
       </div>
       <div class="room-rule-actions">
-        <span
-          v-if="snapshot.actions.canAddAiPlayer"
-          class="ai-add-controls"
-        >
-          <label v-if="(snapshot.ai?.difficulties.length ?? 0) > 1">
-            <span class="sr-only">AI 难度</span>
-            <select v-model="selectedAiDifficulty" aria-label="AI 难度">
-              <option
-                v-for="difficulty in snapshot.ai?.difficulties"
-                :key="difficulty.key"
-                :value="difficulty.key"
-              >{{ difficulty.label }}</option>
-            </select>
-          </label>
-          <button
-            type="button"
-            :disabled="arcade.busy"
-            @click="arcade.action('add_ai', { difficulty: selectedAiDifficulty })"
-          >
-            <Bot :size="16" /> 添加 AI
-          </button>
-        </span>
         <button v-if="snapshot.actions.canEditRules" type="button" @click="openRuleEditor">{{ snapshot.phase === 'finished' ? '修改下局规则' : '修改规则' }}</button>
       </div>
     </section>
@@ -889,10 +873,10 @@ function openSharedChat() {
 .spectator-mode-banner { display: flex; align-items: center; gap: 11px; margin: 0 0 18px; padding: 12px 15px; border-color: color-mix(in srgb, #68c8df 38%, var(--line)); background: color-mix(in srgb, #68c8df 7%, var(--surface)); }
 .spectator-mode-banner > svg { flex: 0 0 auto; color: #83d4e7; }.spectator-mode-banner span { min-width: 0; display: grid; gap: 3px; }.spectator-mode-banner strong { color: #9dddeb; font-size: 13px; }.spectator-mode-banner small { color: var(--muted); line-height: 1.45; }
 .arcade-player-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 24px; padding: 14px; }
-.arcade-player-strip article { display: flex; flex: 0 0 var(--player-card-width); gap: 10px; align-items: center; min-width: 0; min-height: 68px; padding: 10px; border: 1px solid color-mix(in srgb, var(--line) 72%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--surface-elevated) 42%, transparent); }
-.arcade-player-strip article > div { min-width: 0; flex: 1; }
-.arcade-player-strip article.self { border-color: color-mix(in srgb, var(--gold) 40%, transparent); background: color-mix(in srgb, var(--gold) 7%, transparent); }
-.arcade-player-strip article > span { width: 34px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 10px; color: var(--gold); background: color-mix(in srgb, var(--gold) 13%, transparent); font-weight: 900; }
+.arcade-player-strip > article:not(.room-ai-seat-control) { display: flex; flex: 0 0 var(--player-card-width); gap: 10px; align-items: center; min-width: 0; min-height: 68px; padding: 10px; border: 1px solid color-mix(in srgb, var(--line) 72%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--surface-elevated) 42%, transparent); }
+.arcade-player-strip > article:not(.room-ai-seat-control) > div { min-width: 0; flex: 1; }
+.arcade-player-strip > article.self { border-color: color-mix(in srgb, var(--gold) 40%, transparent); background: color-mix(in srgb, var(--gold) 7%, transparent); }
+.arcade-player-strip > article:not(.room-ai-seat-control) > span { width: 34px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 10px; color: var(--gold); background: color-mix(in srgb, var(--gold) 13%, transparent); font-weight: 900; }
 .arcade-player-avatar { overflow: hidden; }
 .arcade-player-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .arcade-player-strip strong, .arcade-player-strip small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -914,9 +898,6 @@ function openSharedChat() {
 .arcade-waiting > svg { color: var(--gold); }
 .arcade-waiting h2, .arcade-waiting p { margin: 0; }
 .arcade-waiting p { color: var(--muted); }
-.ai-add-controls { display: inline-flex; align-items: stretch; gap: 8px; }
-.ai-add-controls label { display: flex; }
-.ai-add-controls select { min-width: 78px; border: 1px solid var(--line); border-radius: 10px; padding: 0 28px 0 10px; color: var(--text); background: var(--surface-raised); font: inherit; }
 .room-code-share { margin: 14px 0 0; border: 0; padding: 0; color: var(--text); background: transparent; font-size: 28px; font-weight: 800; letter-spacing: .18em; }
 .arcade-waiting :deep(.invite-link-panel) { width: min(100%, 620px); }
 .arcade-game-stage { display: grid; gap: 22px; }
@@ -930,7 +911,7 @@ function openSharedChat() {
 .rule-editor-modal > p { margin: -4px 0 20px; color: var(--muted); }
 .rule-editor-modal > .wide-button { margin-top: 22px; }
 @media (max-width: 860px) {
-  .arcade-player-strip article { flex-basis: calc(33.333333% - 6.667px); }
+  .arcade-player-strip > article:not(.room-ai-seat-control) { flex-basis: calc(33.333333% - 6.667px); }
 }
 @media (max-width: 620px), (orientation: landscape) and (max-height: 600px) and (max-width: 980px) {
   .arcade-room--active { display: flex; flex-direction: column; }
@@ -948,7 +929,7 @@ function openSharedChat() {
   .arcade-room--active.arcade-room--board-game :deep(.room-page-copy > small) { font-size: 9px; letter-spacing: .08em; }
   .arcade-room--active.arcade-room--board-game :deep(.room-page-title-row h1) { font-size: 23px; }
   .arcade-room--active.arcade-room--board-game :deep(.room-page-actions) { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; }
-  .arcade-player-strip article { flex-basis: calc(50% - 5px); }
+  .arcade-player-strip > article:not(.room-ai-seat-control) { flex-basis: calc(50% - 5px); }
   .room-rule-bar { align-items: stretch; flex-direction: column; }
   .room-rule-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
   .room-rule-actions button { width: 100%; }
@@ -958,7 +939,7 @@ function openSharedChat() {
   .arcade-waiting .room-code-share { margin-top: 7px; font-size: 24px; }
 }
 @media (max-width: 430px) {
-  .arcade-player-strip article { flex-basis: 100%; }
+  .arcade-player-strip > article:not(.room-ai-seat-control) { flex-basis: 100%; }
 }
 @media (orientation: landscape) and (min-width: 621px) and (max-width: 980px) and (max-height: 600px) {
   .arcade-room--active.arcade-room--board-game :deep(.room-page-header) { grid-template-columns: auto minmax(0, 1fr) auto; }

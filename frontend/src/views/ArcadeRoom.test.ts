@@ -424,7 +424,9 @@ describe('ArcadeRoom', () => {
 
     await wrapper.get('.self-number-trigger').trigger('click')
     expect(wrapper.get('.player-number-list').text()).toContain('AI玩家 1')
-    await wrapper.get('.room-rule-actions button').trigger('click')
+    expect(wrapper.get('.room-ai-seat-control').text()).toContain('添加 AI 玩家')
+    expect(wrapper.find('.room-rule-actions .room-ai-seat-control').exists()).toBe(false)
+    await wrapper.get('.room-ai-add-button').trigger('click')
     expect(action).toHaveBeenCalledWith('add_ai', { difficulty: 'normal' })
   })
 
@@ -448,7 +450,10 @@ describe('ArcadeRoom', () => {
     })
 
     await wrapper.get('[aria-label="AI 难度"]').setValue('hard')
-    await wrapper.get('.ai-add-controls button').trigger('click')
+    expect(wrapper.get('.arcade-player-strip .room-ai-seat-control').text()).toContain(
+      '添加 AI 玩家',
+    )
+    await wrapper.get('.room-ai-add-button').trigger('click')
 
     expect(action).toHaveBeenCalledWith('add_ai', { difficulty: 'hard' })
   })
