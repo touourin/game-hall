@@ -18,6 +18,8 @@ describe('RoomAiSeatControl', () => {
     })
 
     expect(wrapper.text()).toContain('还可加入 2 名')
+    expect(wrapper.find('.sr-only').exists()).toBe(false)
+    expect(wrapper.get('.room-ai-seat-actions').findAll('button, select')).toHaveLength(2)
     await wrapper.get('[aria-label="AI 难度"]').setValue('hard')
     await wrapper.get('.room-ai-add-button').trigger('click')
 

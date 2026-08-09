@@ -42,32 +42,35 @@ function addAiPlayer() {
       <strong>添加 AI 玩家</strong>
       <small>填补空席 · 还可加入 {{ availableSeats }} 名</small>
     </div>
-    <label v-if="difficulties.length > 1" class="room-ai-difficulty">
-      <span class="sr-only">AI 难度</span>
-      <select v-model="selectedDifficulty" aria-label="AI 难度">
-        <option
-          v-for="difficulty in difficulties"
-          :key="difficulty.key"
-          :value="difficulty.key"
-        >{{ difficulty.label }}</option>
-      </select>
-    </label>
-    <button
-      type="button"
-      class="room-ai-add-button"
-      aria-label="添加 AI 玩家"
-      :disabled="busy"
-      @click="addAiPlayer"
-    >
-      <Plus :size="16" />
-      <span>添加</span>
-    </button>
+    <div class="room-ai-seat-actions">
+      <label v-if="difficulties.length > 1" class="room-ai-difficulty">
+        <select v-model="selectedDifficulty" aria-label="AI 难度">
+          <option
+            v-for="difficulty in difficulties"
+            :key="difficulty.key"
+            :value="difficulty.key"
+          >{{ difficulty.label }}</option>
+        </select>
+      </label>
+      <button
+        type="button"
+        class="room-ai-add-button"
+        aria-label="添加 AI 玩家"
+        :disabled="busy"
+        @click="addAiPlayer"
+      >
+        <Plus :size="16" />
+        <span>添加</span>
+      </button>
+    </div>
   </article>
 </template>
 
 <style scoped>
 .room-ai-seat-control {
-  display: flex;
+  container: ai-seat / inline-size;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
   flex: 0 0 var(--player-card-width);
   align-items: center;
   gap: 10px;
@@ -80,7 +83,6 @@ function addAiPlayer() {
 }
 
 .room-ai-seat-icon {
-  flex: 0 0 auto;
   width: 34px;
   aspect-ratio: 1;
   display: grid;
@@ -92,7 +94,6 @@ function addAiPlayer() {
 
 .room-ai-seat-copy {
   min-width: 0;
-  flex: 1;
 }
 
 .room-ai-seat-copy strong,
@@ -109,8 +110,14 @@ function addAiPlayer() {
   font-size: 10px;
 }
 
+.room-ai-seat-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
 .room-ai-difficulty {
-  flex: 0 0 auto;
+  display: flex;
 }
 
 .room-ai-difficulty select {
@@ -126,7 +133,6 @@ function addAiPlayer() {
 }
 
 .room-ai-add-button {
-  flex: 0 0 auto;
   min-height: 34px;
   display: inline-flex;
   align-items: center;
@@ -145,24 +151,27 @@ function addAiPlayer() {
   opacity: .55;
 }
 
+@container ai-seat (max-width: 470px) {
+  .room-ai-seat-actions {
+    grid-column: 1 / -1;
+  }
+
+  .room-ai-difficulty {
+    flex: 1 1 auto;
+  }
+
+  .room-ai-difficulty select {
+    width: 100%;
+  }
+
+  .room-ai-add-button {
+    flex: 0 0 auto;
+  }
+}
+
 @media (max-width: 860px) {
   .room-ai-seat-control {
     flex-basis: calc(33.333333% - 6.667px);
-    flex-wrap: wrap;
-  }
-
-  .room-ai-seat-copy {
-    min-width: calc(100% - 44px);
-  }
-
-  .room-ai-difficulty,
-  .room-ai-add-button {
-    flex: 1 1 0;
-  }
-
-  .room-ai-difficulty select,
-  .room-ai-add-button {
-    width: 100%;
   }
 }
 
