@@ -30,9 +30,10 @@ art and an independent selected style while sharing Loyal Servant unlocks.
 
 The two skins below were created with the built-in image generation tool.
 All portraits use a vertical 2:3 composition, one centered waist-up character,
-safe margins, and a darker lower third for the in-game text overlay. They must
-not contain written text, letters, numbers, logos, watermarks, card frames, or
-modern clothing.
+and consistent character scale. Artwork must continue cleanly through the
+bottom edge without a darkened lower third, fade, footer, border, or blank band.
+It must not contain written text, letters, numbers, logos, watermarks, card
+frames, or modern clothing.
 
 ### `classic-tabletop`
 

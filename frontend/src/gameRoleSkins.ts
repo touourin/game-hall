@@ -216,9 +216,6 @@ const DEFAULT_ROLE_ARTWORK_FRAMING: RoleArtworkFraming = {
 const ROLE_ARTWORK_FRAMING: Partial<
   Record<RoleSkinId, Partial<Record<AvalonRoleCode, RoleArtworkFraming>>>
 > = {
-  'classic-tabletop': {
-    merlin: { scale: 1.1, originXPercent: 50, originYPercent: 36 },
-  },
   'stained-glass': {
     percival: {
       scale: 1.09,

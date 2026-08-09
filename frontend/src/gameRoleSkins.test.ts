@@ -18,9 +18,10 @@ describe('Avalon role skin artwork framing', () => {
   beforeEach(() => localStorage.clear())
 
   it('keeps curated thumbnail framing for consistent character scale', () => {
-    expect(roleArtworkFraming('merlin', 'classic-tabletop')).toMatchObject({
-      scale: 1.1,
-      originYPercent: 36,
+    expect(roleArtworkFraming('merlin', 'classic-tabletop')).toEqual({
+      scale: 1,
+      originXPercent: 50,
+      originYPercent: 50,
     })
     expect(roleArtworkFraming('percival', 'stained-glass')).toMatchObject({
       scale: 1.09,
