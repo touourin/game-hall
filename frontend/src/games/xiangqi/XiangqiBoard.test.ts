@@ -13,6 +13,7 @@ interface TestXiangqiGame {
     fromColumn: number
     toRow: number
     toColumn: number
+    captureProtected?: boolean
   }>
 }
 
@@ -145,6 +146,7 @@ describe('XiangqiBoard', () => {
     const cells = wrapper.findAll('.xiangqi-cell')
     await cells[9 * 9 + 4]?.trigger('click')
     expect(cells[8 * 9 + 4]?.classes()).toContain('legal')
+    expect(cells[8 * 9 + 4]?.get('.xiangqi-hint-dot').classes()).toContain('is-yellow')
     await cells[8 * 9 + 4]?.trigger('click')
     expect(action).toHaveBeenCalledWith('move', {
       fromRow: 9,
@@ -154,7 +156,7 @@ describe('XiangqiBoard', () => {
     })
   })
 
-  it('shows every current capture target only when the room reminder is enabled', async () => {
+  it('uses the same red dot for an unprotected capture before and after selection', async () => {
     const enabled = snapshot('p1')
     const enabledGame = enabled.game as unknown as TestXiangqiGame
     enabledGame.board[8][4] = 'bP'
@@ -164,9 +166,42 @@ describe('XiangqiBoard', () => {
     })
 
     const target = enabledWrapper.findAll('.xiangqi-cell')[8 * 9 + 4]
-    expect(target?.classes()).toContain('capture-reminder')
+    expect(target?.get('.xiangqi-hint-dot').classes()).toContain('is-red')
     expect(target?.attributes('aria-label')).toContain('可吃卒')
-    expect(enabledWrapper.text()).toContain('吃子提醒：有 1 个敌子可吃（卒）')
+    expect(enabledWrapper.text()).not.toContain('吃子提醒')
+
+    await enabledWrapper.findAll('.xiangqi-cell')[9 * 9 + 4]?.trigger('click')
+    expect(target?.get('.xiangqi-hint-dot').classes()).toContain('is-red')
+  })
+
+  it('uses the same yellow dot for a protected capture and a normal move', async () => {
+    const protectedCapture = snapshot('p1')
+    const protectedGame = protectedCapture.game as unknown as TestXiangqiGame
+    protectedGame.board[8][4] = 'bP'
+    protectedGame.legalMoves[0].captureProtected = true
+    const protectedWrapper = mount(XiangqiBoard, {
+      props: { snapshot: protectedCapture },
+      global: { plugins: [createPinia()] },
+    })
+    const protectedTarget = protectedWrapper.findAll('.xiangqi-cell')[8 * 9 + 4]
+
+    expect(protectedTarget?.get('.xiangqi-hint-dot').classes()).toContain('is-yellow')
+    await protectedWrapper.findAll('.xiangqi-cell')[9 * 9 + 4]?.trigger('click')
+    expect(protectedTarget?.get('.xiangqi-hint-dot').classes()).toContain('is-yellow')
+
+    const normalMove = snapshot('p1')
+    const normalWrapper = mount(XiangqiBoard, {
+      props: { snapshot: normalMove },
+      global: { plugins: [createPinia()] },
+    })
+    await normalWrapper.findAll('.xiangqi-cell')[9 * 9 + 4]?.trigger('click')
+    expect(
+      normalWrapper.findAll('.xiangqi-cell')[8 * 9 + 4]
+        ?.get('.xiangqi-hint-dot').classes(),
+    ).toContain('is-yellow')
+  })
+
+  it('hides unselected capture dots when the room reminder is disabled', async () => {
 
     const disabled = snapshot('p1', false)
     const disabledGame = disabled.game as unknown as TestXiangqiGame
@@ -177,12 +212,11 @@ describe('XiangqiBoard', () => {
     })
     const disabledTarget = disabledWrapper.findAll('.xiangqi-cell')[8 * 9 + 4]
 
-    expect(disabledTarget?.classes()).not.toContain('capture-reminder')
-    expect(disabledWrapper.text()).not.toContain('吃子提醒：')
+    expect(disabledTarget?.find('.xiangqi-hint-dot').exists()).toBe(false)
 
     await disabledWrapper.findAll('.xiangqi-cell')[9 * 9 + 4]?.trigger('click')
     expect(disabledTarget?.classes()).toContain('legal')
-    expect(disabledTarget?.classes()).not.toContain('capture')
+    expect(disabledTarget?.get('.xiangqi-hint-dot').classes()).toContain('is-yellow')
   })
 
   it('previews a touch destination before submitting it on the second tap', async () => {

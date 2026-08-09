@@ -183,8 +183,8 @@ class XiangqiEngine:
 
     def _legal_moves(
         self, board: list[list[str | None]], color: str
-    ) -> list[dict[str, int]]:
-        moves: list[dict[str, int]] = []
+    ) -> list[dict[str, int | bool]]:
+        moves: list[dict[str, int | bool]] = []
         for source_row in range(ROWS):
             for source_column in range(COLUMNS):
                 piece = board[source_row][source_column]
@@ -200,15 +200,57 @@ class XiangqiEngine:
                             target_row,
                             target_column,
                         ):
-                            moves.append(
-                                {
-                                    "fromRow": source_row,
-                                    "fromColumn": source_column,
-                                    "toRow": target_row,
-                                    "toColumn": target_column,
-                                }
-                            )
+                            move: dict[str, int | bool] = {
+                                "fromRow": source_row,
+                                "fromColumn": source_column,
+                                "toRow": target_row,
+                                "toColumn": target_column,
+                            }
+                            if board[target_row][target_column] is not None:
+                                move["captureProtected"] = (
+                                    self._capture_is_protected(
+                                        board,
+                                        color,
+                                        source_row,
+                                        source_column,
+                                        target_row,
+                                        target_column,
+                                    )
+                                )
+                            moves.append(move)
         return moves
+
+    def _capture_is_protected(
+        self,
+        board: list[list[str | None]],
+        color: str,
+        source_row: int,
+        source_column: int,
+        target_row: int,
+        target_column: int,
+    ) -> bool:
+        """Return whether the opponent can legally recapture on this point."""
+        next_board = [row[:] for row in board]
+        next_board[target_row][target_column] = next_board[source_row][
+            source_column
+        ]
+        next_board[source_row][source_column] = None
+        opponent = self._opponent(color)
+        for row in range(ROWS):
+            for column in range(COLUMNS):
+                piece = next_board[row][column]
+                if piece is None or self._piece_color(piece) != opponent:
+                    continue
+                if self._is_legal_move(
+                    next_board,
+                    opponent,
+                    row,
+                    column,
+                    target_row,
+                    target_column,
+                ):
+                    return True
+        return False
 
     def _is_legal_move(
         self,

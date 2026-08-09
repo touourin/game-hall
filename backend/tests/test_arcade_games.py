@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import pytest
 
@@ -703,6 +704,33 @@ def test_xiangqi_view_exposes_legal_moves_history_and_captures() -> None:
         {"fromRow": 6, "fromColumn": 0, "toRow": 5, "toColumn": 0},
     )
     assert room.state.captured_pieces[-1]["piece"] == "bP"
+
+
+def test_xiangqi_capture_hints_distinguish_protected_targets() -> None:
+    engine = XiangqiEngine()
+    room = make_room(engine, 2)
+
+    def capture_hint(board: list[list[str | None]]) -> dict[str, Any]:
+        room.state.board = board
+        return next(
+            move
+            for move in engine.view(room, room.players[0])["legalMoves"]
+            if move["fromRow"] == 5
+            and move["fromColumn"] == 0
+            and move["toRow"] == 5
+            and move["toColumn"] == 4
+        )
+
+    unprotected = [[None] * 9 for _ in range(10)]
+    unprotected[0][4] = "bK"
+    unprotected[5][0] = "rR"
+    unprotected[5][4] = "bP"
+    unprotected[9][4] = "rK"
+    assert capture_hint(unprotected)["captureProtected"] is False
+
+    protected = [row[:] for row in unprotected]
+    protected[4][4] = "bR"
+    assert capture_hint(protected)["captureProtected"] is True
 
 
 def test_xiangqi_identifies_checkmate_and_stalemate_positions() -> None:

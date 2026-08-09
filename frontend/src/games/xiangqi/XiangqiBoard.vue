@@ -21,7 +21,10 @@ interface LegalMove {
   fromColumn: number
   toRow: number
   toColumn: number
+  captureProtected?: boolean
 }
+
+type HintTone = 'yellow' | 'red'
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
@@ -119,23 +122,34 @@ const placementMarkSegments = placementMarkPoints.flatMap(({ row, column }) => [
   ...(column > 0 ? [{ row, column, side: 'left' as const }] : []),
   ...(column < 8 ? [{ row, column, side: 'right' as const }] : []),
 ])
-const captureTargets = computed(() => {
-  if (!captureHintsEnabled.value || !isMyTurn.value || isReplaying.value) {
-    return new Map<string, string>()
+const boardHints = computed(() => {
+  const hints = new Map<string, HintTone>()
+  if (!isMyTurn.value || isReplaying.value) return hints
+
+  if (selected.value) {
+    for (const move of selectedLegalMoves.value) {
+      const target = game.value.board[move.toRow]?.[move.toColumn]
+      const isUnprotectedCapture = captureHintsEnabled.value
+        && target !== null
+        && target !== undefined
+        && move.captureProtected !== true
+      hints.set(
+        `${move.toRow}:${move.toColumn}`,
+        isUnprotectedCapture ? 'red' : 'yellow',
+      )
+    }
+    return hints
   }
-  const targets = new Map<string, string>()
+
+  if (!captureHintsEnabled.value) return hints
   for (const move of game.value.legalMoves ?? []) {
-    const piece = game.value.board[move.toRow]?.[move.toColumn]
-    if (piece) targets.set(`${move.toRow}:${move.toColumn}`, piece)
+    const target = game.value.board[move.toRow]?.[move.toColumn]
+    if (!target) continue
+    const key = `${move.toRow}:${move.toColumn}`
+    if (hints.get(key) === 'red') continue
+    hints.set(key, move.captureProtected === true ? 'yellow' : 'red')
   }
-  return targets
-})
-const captureReminderText = computed(() => {
-  if (!captureTargets.value.size || selected.value) return ''
-  const pieceNames = [...new Set(
-    [...captureTargets.value.values()].map((piece) => labels[piece] ?? piece),
-  )]
-  return `吃子提醒：有 ${captureTargets.value.size} 个敌子可吃（${pieceNames.join('、')}）`
+  return hints
 })
 const selectedPieceLabel = computed(() => {
   if (!selected.value) return ''
@@ -186,7 +200,13 @@ function isPendingTarget(row: number, column: number): boolean {
 }
 
 function isCaptureTarget(row: number, column: number): boolean {
-  return captureTargets.value.has(`${row}:${column}`)
+  return !selected.value
+    && Boolean(game.value.board[row]?.[column])
+    && boardHints.value.has(`${row}:${column}`)
+}
+
+function hintTone(row: number, column: number): HintTone | null {
+  return boardHints.value.get(`${row}:${column}`) ?? null
 }
 
 function cellAriaLabel(row: number, column: number): string {
@@ -290,7 +310,6 @@ function placementMarkPath(row: number, column: number, side: 'left' | 'right') 
       <strong>{{ isReplaying ? `复盘第 ${replayStep} / ${moveHistory.length} 手` : isMyTurn ? '轮到你走棋' : '等待对手走棋' }}</strong>
       <span>你执{{ game.viewerColor === 'red' ? '红' : '黑' }}</span>
       <span v-if="selected && !isReplaying" class="selection">{{ selectionHint }}</span>
-      <span v-else-if="captureReminderText" class="capture-alert" role="status">{{ captureReminderText }}</span>
       <span v-if="checkedText && !isReplaying" class="check">{{ checkedText }}</span>
     </div>
 
@@ -342,8 +361,6 @@ function placementMarkPath(row: number, column: number, side: 'left' | 'right') 
               selected: selected?.row === row && selected?.column === column,
               confirming: isPendingTarget(row, column),
               legal: !isReplaying && isLegalTarget(row, column),
-              capture: captureHintsEnabled && !isReplaying && isLegalTarget(row, column) && game.board[row][column],
-              'capture-reminder': !selected && isCaptureTarget(row, column),
               latest: (isReplaying ? replayMove : game.lastMove)?.toRow === row && (isReplaying ? replayMove : game.lastMove)?.toColumn === column,
               'last-from': (isReplaying ? replayMove : game.lastMove)?.fromRow === row && (isReplaying ? replayMove : game.lastMove)?.fromColumn === column,
             }"
@@ -354,6 +371,12 @@ function placementMarkPath(row: number, column: number, side: 'left' | 'right') 
               class="xiangqi-piece"
               :class="displayBoard[row][column]?.startsWith('r') ? 'red' : 'black'"
             >{{ labels[displayBoard[row][column] ?? ''] }}</span>
+            <span
+              v-if="hintTone(row, column)"
+              class="xiangqi-hint-dot"
+              :class="`is-${hintTone(row, column)}`"
+              aria-hidden="true"
+            />
           </button>
         </template>
       </div>
@@ -384,7 +407,7 @@ function placementMarkPath(row: number, column: number, side: 'left' | 'right') 
 </template>
 
 <style scoped>
-.xiangqi-panel { display: grid; gap: 15px; justify-items: center; }.xiangqi-status { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 14px; color: var(--muted); text-align: center; }.xiangqi-status strong { color: var(--gold); }.xiangqi-status .selection { color: color-mix(in srgb, var(--gold) 78%, white); font-weight: 800; }.xiangqi-status .capture-alert { color: #f0a16b; font-weight: 800; }.xiangqi-status .check { color: #ff8d86; font-weight: 800; }
+.xiangqi-panel { display: grid; gap: 15px; justify-items: center; }.xiangqi-status { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 14px; color: var(--muted); text-align: center; }.xiangqi-status strong { color: var(--gold); }.xiangqi-status .selection { color: color-mix(in srgb, var(--gold) 78%, white); font-weight: 800; }.xiangqi-status .check { color: #ff8d86; font-weight: 800; }
 .captured-pieces { width: min(92vw, 610px); display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }.captured-pieces > span { min-height: 38px; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; color: var(--muted); background: rgba(0,0,0,.1); }.captured-pieces b { margin-right: 5px; color: var(--text); }.captured-pieces i { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; color: #3b2718; background: #d6a05d; font-family: serif; font-style: normal; font-weight: 900; }.captured-pieces em { font-style: normal; }
 .xiangqi-board-shell {
   --board-padding: clamp(14px, 3vw, 20px);
@@ -469,11 +492,11 @@ function placementMarkPath(row: number, column: number, side: 'left' | 'right') 
   dominant-baseline: central;
   filter: drop-shadow(0 .02px color-mix(in srgb, white 28%, transparent));
 }
-.xiangqi-cell { position: relative; z-index: 2; min-width: 0; min-height: 0; appearance: none; -webkit-appearance: none; touch-action: manipulation; padding: 0; border: 0; border-radius: 0; background: transparent; }.xiangqi-cell:disabled { opacity: 1; }.xiangqi-cell:not(:disabled) { cursor: pointer; }.xiangqi-cell.selected::after, .xiangqi-cell.latest::after { content: ''; position: absolute; inset: 0; z-index: 4; border: 3px solid var(--gold); border-radius: 50%; box-shadow: 0 0 0 2px rgba(255, 235, 168, .35), 0 0 18px rgba(246, 196, 89, .62); }.xiangqi-cell.latest::after { inset: 10%; z-index: 1; border-width: 2px; border-color: #b94337; box-shadow: 0 0 0 2px rgba(255, 229, 186, .34); }.xiangqi-cell.last-from::before { content: ''; position: absolute; inset: 30%; z-index: 1; border-radius: 50%; background: rgba(178, 64, 50, .62); box-shadow: 0 0 0 3px rgba(255, 225, 177, .28); }.xiangqi-cell.legal::before { content: ''; position: absolute; z-index: 3; width: 13px; height: 13px; top: 50%; left: 50%; border-radius: 50%; background: #18875edb; box-shadow: 0 0 0 4px rgba(24, 135, 94, .14); transform: translate(-50%, -50%); }.xiangqi-cell.legal.capture::before { width: 72%; height: 72%; border: 3px solid #18875e; background: transparent; box-shadow: 0 0 0 3px rgba(24, 135, 94, .13); }
+.xiangqi-cell { position: relative; z-index: 2; min-width: 0; min-height: 0; appearance: none; -webkit-appearance: none; touch-action: manipulation; padding: 0; border: 0; border-radius: 0; background: transparent; }.xiangqi-cell:disabled { opacity: 1; }.xiangqi-cell:not(:disabled) { cursor: pointer; }.xiangqi-cell.selected::after, .xiangqi-cell.latest::after { content: ''; position: absolute; inset: 0; z-index: 4; border: 3px solid var(--gold); border-radius: 50%; box-shadow: 0 0 0 2px rgba(255, 235, 168, .35), 0 0 18px rgba(246, 196, 89, .62); }.xiangqi-cell.latest::after { inset: 10%; z-index: 1; border-width: 2px; border-color: #b94337; box-shadow: 0 0 0 2px rgba(255, 229, 186, .34); }.xiangqi-cell.last-from::before { content: ''; position: absolute; inset: 30%; z-index: 1; border-radius: 50%; background: rgba(178, 64, 50, .62); box-shadow: 0 0 0 3px rgba(255, 225, 177, .28); }
+.xiangqi-hint-dot { position: absolute; z-index: 6; top: 50%; left: 50%; width: 13px; height: 13px; border-radius: 50%; color: #e3ba3f; background: currentColor; box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 18%, transparent); transform: translate(-50%, -50%); pointer-events: none; }.xiangqi-hint-dot.is-red { color: #dc493f; }.xiangqi-hint-dot.is-yellow { color: #e3ba3f; }
 .xiangqi-cell.confirming::after { content: ''; position: absolute; inset: 5%; z-index: 5; border: 3px solid var(--gold); border-radius: 50%; background: color-mix(in srgb, var(--gold) 16%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 22%, transparent), 0 0 20px color-mix(in srgb, var(--gold) 62%, transparent); pointer-events: none; }
 .xiangqi-cell:focus-visible { border-radius: 50%; outline-offset: -3px; }
 .xiangqi-piece { position: absolute; inset: 7%; z-index: 3; display: grid; place-items: center; border: 2px solid currentColor; border-radius: 50%; background: var(--game-piece-surface, radial-gradient(circle at 38% 30%, rgba(255, 248, 215, .92), transparent 27%), radial-gradient(circle, #efd398, #bd7d35 76%)); box-shadow: 0 3px 7px #0008, inset 0 0 0 2px var(--game-piece-rim, #edc77d), inset 0 -4px 8px rgba(0, 0, 0, .22); font-family: serif; font-size: clamp(15px, 4.3vw, 27px); line-height: 1; font-weight: 900; transition: transform .14s ease, box-shadow .14s ease, filter .14s ease; }.xiangqi-piece.red { color: #a92b25; }.xiangqi-piece.black { color: #242621; }.xiangqi-cell.selected .xiangqi-piece { transform: translateY(-3px) scale(1.06); filter: saturate(1.12) brightness(1.06); box-shadow: 0 7px 13px rgba(48, 24, 8, .62), 0 0 0 3px #f4cd68, 0 0 22px rgba(246, 196, 82, .78), inset 0 0 0 2px #f3d58d; }
-.xiangqi-cell.capture-reminder .xiangqi-piece { filter: saturate(1.1) brightness(1.04); box-shadow: 0 3px 7px #0008, 0 0 0 3px rgba(193, 70, 48, .78), 0 0 18px rgba(205, 73, 43, .58), inset 0 0 0 2px var(--game-piece-rim, #edc77d), inset 0 -4px 8px rgba(0, 0, 0, .22); }
 .xiangqi-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }.xiangqi-actions > button:not(.arcade-danger-button) { min-height: 42px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 10px; padding: 0 13px; color: var(--text); background: var(--surface); font-weight: 800; }.xiangqi-actions button:disabled { opacity: .4; }
 .replay-backdrop { position: fixed; z-index: 80; inset: 0; display: grid; place-items: center; padding: 18px; background: #020b0bd4; }.replay-panel { width: min(92vw, 560px); max-height: min(82vh, 720px); display: grid; grid-template-rows: auto 1fr auto; gap: 12px; border: 1px solid var(--line); border-radius: 17px; padding: 17px; background: var(--surface-strong); box-shadow: 0 24px 70px #000a; }.replay-panel header { display: flex; justify-content: space-between; align-items: center; }.replay-panel header > div { display: grid; }.replay-panel header small { color: var(--gold); }.replay-panel header button { border: 0; color: var(--muted); background: transparent; }.move-list { min-height: 0; overflow: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }.move-list button { min-height: 42px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; color: var(--text); background: rgba(0,0,0,.11); text-align: left; }.move-list button.active { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, transparent); }.move-list span { color: var(--muted); }.move-list em { color: #ff8d86; font-style: normal; font-size: 12px; }.replay-panel footer { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }.replay-panel footer button { min-height: 42px; display: flex; justify-content: center; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 9px; color: var(--text); background: rgba(0,0,0,.14); }
 @media (max-width: 600px) { .xiangqi-panel { gap: 10px; width: 100%; }.xiangqi-status { position: sticky; z-index: 7; top: max(6px, env(safe-area-inset-top)); width: 100%; border: 1px solid color-mix(in srgb, var(--gold) 28%, var(--line)); border-radius: 12px; padding: 9px 10px; background: color-mix(in srgb, var(--surface-elevated) 94%, transparent); box-shadow: 0 8px 24px rgba(0,0,0,.18); backdrop-filter: blur(14px); }.captured-pieces { width: 100%; grid-template-columns: 1fr 1fr; gap: 6px; }.captured-pieces > span { min-height: 34px; padding: 5px 8px; font-size: 11px; }.captured-pieces i { width: 21px; height: 21px; }.xiangqi-board-shell { --board-padding: clamp(9px, 3vw, 13px); width: 100%; border-width: 2px; border-radius: 13px; }.move-list { grid-template-columns: 1fr; }.replay-panel { width: 100%; max-height: 88dvh; }.xiangqi-piece { inset: 7%; font-size: clamp(14px, 5.1vw, 22px); }.xiangqi-actions { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }.xiangqi-actions > button, .xiangqi-actions > button:not(.arcade-danger-button) { min-width: 0; justify-content: center; padding: 0 7px; font-size: 11px; } }
