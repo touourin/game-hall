@@ -157,7 +157,7 @@ describe('XiangqiBoard', () => {
     })
   })
 
-  it('uses the same red dot for an unprotected capture before and after selection', async () => {
+  it('shows an unrooted capture before selection and then evaluates the landing', async () => {
     const enabled = snapshot('p1')
     const enabledGame = enabled.game as unknown as TestXiangqiGame
     enabledGame.board[8][4] = 'bP'
@@ -172,10 +172,10 @@ describe('XiangqiBoard', () => {
     expect(enabledWrapper.text()).not.toContain('吃子提醒')
 
     await enabledWrapper.findAll('.xiangqi-cell')[9 * 9 + 4]?.trigger('click')
-    expect(target?.get('.xiangqi-hint-dot').classes()).toContain('is-red')
+    expect(target?.get('.xiangqi-hint-dot').classes()).toContain('is-green')
   })
 
-  it('uses yellow for a protected capture and green for a safe normal move', async () => {
+  it('hides rooted captures before selection and warns about an unrooted landing', async () => {
     const protectedCapture = snapshot('p1')
     const protectedGame = protectedCapture.game as unknown as TestXiangqiGame
     protectedGame.board[8][4] = 'bP'
@@ -186,23 +186,12 @@ describe('XiangqiBoard', () => {
     })
     const protectedTarget = protectedWrapper.findAll('.xiangqi-cell')[8 * 9 + 4]
 
-    expect(protectedTarget?.get('.xiangqi-hint-dot').classes()).toContain('is-yellow')
+    expect(protectedTarget?.find('.xiangqi-hint-dot').exists()).toBe(false)
     await protectedWrapper.findAll('.xiangqi-cell')[9 * 9 + 4]?.trigger('click')
-    expect(protectedTarget?.get('.xiangqi-hint-dot').classes()).toContain('is-yellow')
-
-    const normalMove = snapshot('p1')
-    const normalWrapper = mount(XiangqiBoard, {
-      props: { snapshot: normalMove },
-      global: { plugins: [createPinia()] },
-    })
-    await normalWrapper.findAll('.xiangqi-cell')[9 * 9 + 4]?.trigger('click')
-    expect(
-      normalWrapper.findAll('.xiangqi-cell')[8 * 9 + 4]
-        ?.get('.xiangqi-hint-dot').classes(),
-    ).toContain('is-green')
+    expect(protectedTarget?.get('.xiangqi-hint-dot').classes()).toContain('is-red')
   })
 
-  it('uses red for an attacked unrooted move and yellow once the move has a root', async () => {
+  it('uses red only for an attacked unrooted move', async () => {
     const unsafeMove = snapshot('p1')
     const unsafeGame = unsafeMove.game as unknown as TestXiangqiGame
     unsafeGame.legalMoves[0].destinationAttacked = true
@@ -231,7 +220,7 @@ describe('XiangqiBoard', () => {
     expect(
       rootedWrapper.findAll('.xiangqi-cell')[8 * 9 + 4]
         ?.get('.xiangqi-hint-dot').classes(),
-    ).toContain('is-yellow')
+    ).toContain('is-green')
   })
 
   it('hides unselected capture dots when the room reminder is disabled', async () => {
