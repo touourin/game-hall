@@ -733,6 +733,42 @@ def test_xiangqi_capture_hints_distinguish_protected_targets() -> None:
     assert capture_hint(protected)["captureProtected"] is True
 
 
+def test_xiangqi_move_hints_distinguish_rooted_destinations() -> None:
+    engine = XiangqiEngine()
+    room = make_room(engine, 2)
+
+    def move_hint(board: list[list[str | None]]) -> dict[str, Any]:
+        room.state.board = board
+        return next(
+            move
+            for move in engine.view(room, room.players[0])["legalMoves"]
+            if move["fromRow"] == 5
+            and move["fromColumn"] == 0
+            and move["toRow"] == 5
+            and move["toColumn"] == 1
+        )
+
+    unrooted = [[None] * 9 for _ in range(10)]
+    unrooted[0][1] = "bR"
+    unrooted[0][4] = "bK"
+    unrooted[5][0] = "rR"
+    unrooted[5][4] = "rP"
+    unrooted[9][4] = "rK"
+    assert move_hint(unrooted) == {
+        "fromRow": 5,
+        "fromColumn": 0,
+        "toRow": 5,
+        "toColumn": 1,
+        "destinationAttacked": True,
+        "destinationProtected": False,
+    }
+
+    rooted = [row[:] for row in unrooted]
+    rooted[9][1] = "rR"
+    assert move_hint(rooted)["destinationAttacked"] is True
+    assert move_hint(rooted)["destinationProtected"] is True
+
+
 def test_xiangqi_identifies_checkmate_and_stalemate_positions() -> None:
     engine = XiangqiEngine()
     checkmate = [[None] * 9 for _ in range(10)]

@@ -14,6 +14,8 @@ interface TestXiangqiGame {
     toRow: number
     toColumn: number
     captureProtected?: boolean
+    destinationAttacked?: boolean
+    destinationProtected?: boolean
   }>
 }
 
@@ -146,7 +148,7 @@ describe('XiangqiBoard', () => {
     const cells = wrapper.findAll('.xiangqi-cell')
     await cells[9 * 9 + 4]?.trigger('click')
     expect(cells[8 * 9 + 4]?.classes()).toContain('legal')
-    expect(cells[8 * 9 + 4]?.get('.xiangqi-hint-dot').classes()).toContain('is-yellow')
+    expect(cells[8 * 9 + 4]?.get('.xiangqi-hint-dot').classes()).toContain('is-green')
     await cells[8 * 9 + 4]?.trigger('click')
     expect(action).toHaveBeenCalledWith('move', {
       fromRow: 9,
@@ -174,7 +176,7 @@ describe('XiangqiBoard', () => {
     expect(target?.get('.xiangqi-hint-dot').classes()).toContain('is-red')
   })
 
-  it('uses the same yellow dot for a protected capture and a normal move', async () => {
+  it('uses yellow for a protected capture and green for a safe normal move', async () => {
     const protectedCapture = snapshot('p1')
     const protectedGame = protectedCapture.game as unknown as TestXiangqiGame
     protectedGame.board[8][4] = 'bP'
@@ -198,6 +200,38 @@ describe('XiangqiBoard', () => {
     expect(
       normalWrapper.findAll('.xiangqi-cell')[8 * 9 + 4]
         ?.get('.xiangqi-hint-dot').classes(),
+    ).toContain('is-green')
+  })
+
+  it('uses red for an attacked unrooted move and yellow once the move has a root', async () => {
+    const unsafeMove = snapshot('p1')
+    const unsafeGame = unsafeMove.game as unknown as TestXiangqiGame
+    unsafeGame.legalMoves[0].destinationAttacked = true
+    unsafeGame.legalMoves[0].destinationProtected = false
+    const unsafeWrapper = mount(XiangqiBoard, {
+      props: { snapshot: unsafeMove },
+      global: { plugins: [createPinia()] },
+    })
+
+    await unsafeWrapper.findAll('.xiangqi-cell')[9 * 9 + 4]?.trigger('click')
+    expect(
+      unsafeWrapper.findAll('.xiangqi-cell')[8 * 9 + 4]
+        ?.get('.xiangqi-hint-dot').classes(),
+    ).toContain('is-red')
+
+    const rootedMove = snapshot('p1')
+    const rootedGame = rootedMove.game as unknown as TestXiangqiGame
+    rootedGame.legalMoves[0].destinationAttacked = true
+    rootedGame.legalMoves[0].destinationProtected = true
+    const rootedWrapper = mount(XiangqiBoard, {
+      props: { snapshot: rootedMove },
+      global: { plugins: [createPinia()] },
+    })
+
+    await rootedWrapper.findAll('.xiangqi-cell')[9 * 9 + 4]?.trigger('click')
+    expect(
+      rootedWrapper.findAll('.xiangqi-cell')[8 * 9 + 4]
+        ?.get('.xiangqi-hint-dot').classes(),
     ).toContain('is-yellow')
   })
 
@@ -216,7 +250,7 @@ describe('XiangqiBoard', () => {
 
     await disabledWrapper.findAll('.xiangqi-cell')[9 * 9 + 4]?.trigger('click')
     expect(disabledTarget?.classes()).toContain('legal')
-    expect(disabledTarget?.get('.xiangqi-hint-dot').classes()).toContain('is-yellow')
+    expect(disabledTarget?.get('.xiangqi-hint-dot').classes()).toContain('is-green')
   })
 
   it('previews a touch destination before submitting it on the second tap', async () => {

@@ -22,9 +22,11 @@ interface LegalMove {
   toRow: number
   toColumn: number
   captureProtected?: boolean
+  destinationAttacked?: boolean
+  destinationProtected?: boolean
 }
 
-type HintTone = 'yellow' | 'red'
+type HintTone = 'green' | 'yellow' | 'red'
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
@@ -129,13 +131,25 @@ const boardHints = computed(() => {
   if (selected.value) {
     for (const move of selectedLegalMoves.value) {
       const target = game.value.board[move.toRow]?.[move.toColumn]
-      const isUnprotectedCapture = captureHintsEnabled.value
-        && target !== null
-        && target !== undefined
+      const isCapture = target !== null && target !== undefined
+      const isUnprotectedCapture = isCapture
         && move.captureProtected !== true
+      const isUnprotectedDanger = !isCapture
+        && move.destinationAttacked === true
+        && move.destinationProtected !== true
+      const isProtectedDanger = isCapture
+        ? move.captureProtected === true
+        : move.destinationAttacked === true
+          && move.destinationProtected === true
       hints.set(
         `${move.toRow}:${move.toColumn}`,
-        isUnprotectedCapture ? 'red' : 'yellow',
+        !captureHintsEnabled.value
+          ? 'green'
+          : isUnprotectedCapture || isUnprotectedDanger
+            ? 'red'
+            : isProtectedDanger
+              ? 'yellow'
+              : 'green',
       )
     }
     return hints
@@ -493,7 +507,7 @@ function placementMarkPath(row: number, column: number, side: 'left' | 'right') 
   filter: drop-shadow(0 .02px color-mix(in srgb, white 28%, transparent));
 }
 .xiangqi-cell { position: relative; z-index: 2; min-width: 0; min-height: 0; appearance: none; -webkit-appearance: none; touch-action: manipulation; padding: 0; border: 0; border-radius: 0; background: transparent; }.xiangqi-cell:disabled { opacity: 1; }.xiangqi-cell:not(:disabled) { cursor: pointer; }.xiangqi-cell.selected::after, .xiangqi-cell.latest::after { content: ''; position: absolute; inset: 0; z-index: 4; border: 3px solid var(--gold); border-radius: 50%; box-shadow: 0 0 0 2px rgba(255, 235, 168, .35), 0 0 18px rgba(246, 196, 89, .62); }.xiangqi-cell.latest::after { inset: 10%; z-index: 1; border-width: 2px; border-color: #b94337; box-shadow: 0 0 0 2px rgba(255, 229, 186, .34); }.xiangqi-cell.last-from::before { content: ''; position: absolute; inset: 30%; z-index: 1; border-radius: 50%; background: rgba(178, 64, 50, .62); box-shadow: 0 0 0 3px rgba(255, 225, 177, .28); }
-.xiangqi-hint-dot { position: absolute; z-index: 6; top: 50%; left: 50%; width: 13px; height: 13px; border-radius: 50%; color: #e3ba3f; background: currentColor; box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 18%, transparent); transform: translate(-50%, -50%); pointer-events: none; }.xiangqi-hint-dot.is-red { color: #dc493f; }.xiangqi-hint-dot.is-yellow { color: #e3ba3f; }
+.xiangqi-hint-dot { position: absolute; z-index: 6; top: 50%; left: 50%; width: 13px; height: 13px; border-radius: 50%; color: #18875e; background: currentColor; box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 18%, transparent); transform: translate(-50%, -50%); pointer-events: none; }.xiangqi-hint-dot.is-green { color: #18875e; }.xiangqi-hint-dot.is-red { color: #dc493f; }.xiangqi-hint-dot.is-yellow { color: #e3ba3f; }
 .xiangqi-cell.confirming::after { content: ''; position: absolute; inset: 5%; z-index: 5; border: 3px solid var(--gold); border-radius: 50%; background: color-mix(in srgb, var(--gold) 16%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 22%, transparent), 0 0 20px color-mix(in srgb, var(--gold) 62%, transparent); pointer-events: none; }
 .xiangqi-cell:focus-visible { border-radius: 50%; outline-offset: -3px; }
 .xiangqi-piece { position: absolute; inset: 7%; z-index: 3; display: grid; place-items: center; border: 2px solid currentColor; border-radius: 50%; background: var(--game-piece-surface, radial-gradient(circle at 38% 30%, rgba(255, 248, 215, .92), transparent 27%), radial-gradient(circle, #efd398, #bd7d35 76%)); box-shadow: 0 3px 7px #0008, inset 0 0 0 2px var(--game-piece-rim, #edc77d), inset 0 -4px 8px rgba(0, 0, 0, .22); font-family: serif; font-size: clamp(15px, 4.3vw, 27px); line-height: 1; font-weight: 900; transition: transform .14s ease, box-shadow .14s ease, filter .14s ease; }.xiangqi-piece.red { color: #a92b25; }.xiangqi-piece.black { color: #242621; }.xiangqi-cell.selected .xiangqi-piece { transform: translateY(-3px) scale(1.06); filter: saturate(1.12) brightness(1.06); box-shadow: 0 7px 13px rgba(48, 24, 8, .62), 0 0 0 3px #f4cd68, 0 0 22px rgba(246, 196, 82, .78), inset 0 0 0 2px #f3d58d; }

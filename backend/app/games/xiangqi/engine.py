@@ -163,7 +163,11 @@ class XiangqiEngine:
         black_in_check = self._in_check(state.board, "black")
         viewer_color = self._seat_color(viewer.seat)
         legal_moves = (
-            self._legal_moves(state.board, viewer_color)
+            self._legal_moves(
+                state.board,
+                viewer_color,
+                include_hints=True,
+            )
             if room.phase == "playing" and viewer_color == state.turn_color
             else []
         )
@@ -199,7 +203,11 @@ class XiangqiEngine:
         return color, color, player.id in room.winner_player_ids
 
     def _legal_moves(
-        self, board: list[list[str | None]], color: str
+        self,
+        board: list[list[str | None]],
+        color: str,
+        *,
+        include_hints: bool = False,
     ) -> list[dict[str, int | bool]]:
         moves: list[dict[str, int | bool]] = []
         for source_row in range(ROWS):
@@ -223,9 +231,9 @@ class XiangqiEngine:
                                 "toRow": target_row,
                                 "toColumn": target_column,
                             }
-                            if board[target_row][target_column] is not None:
-                                move["captureProtected"] = (
-                                    self._capture_is_protected(
+                            if include_hints:
+                                attacked, protected = (
+                                    self._destination_safety(
                                         board,
                                         color,
                                         source_row,
@@ -234,10 +242,15 @@ class XiangqiEngine:
                                         target_column,
                                     )
                                 )
+                                if attacked:
+                                    move["destinationAttacked"] = True
+                                    move["destinationProtected"] = protected
+                                if board[target_row][target_column] is not None:
+                                    move["captureProtected"] = attacked
                             moves.append(move)
         return moves
 
-    def _capture_is_protected(
+    def _destination_safety(
         self,
         board: list[list[str | None]],
         color: str,
@@ -245,14 +258,20 @@ class XiangqiEngine:
         source_column: int,
         target_row: int,
         target_column: int,
-    ) -> bool:
-        """Return whether the opponent can legally recapture on this point."""
+    ) -> tuple[bool, bool]:
+        """Return whether the destination is attacked and has a legal root.
+
+        A root is counted only when the moving side can legally recapture every
+        opponent piece that can take on the destination. This keeps pinned or
+        blocked pseudo-defenders from turning an unsafe move yellow.
+        """
         next_board = [row[:] for row in board]
         next_board[target_row][target_column] = next_board[source_row][
             source_column
         ]
         next_board[source_row][source_column] = None
         opponent = self._opponent(color)
+        attackers: list[tuple[int, int]] = []
         for row in range(ROWS):
             for column in range(COLUMNS):
                 piece = next_board[row][column]
@@ -261,6 +280,46 @@ class XiangqiEngine:
                 if self._is_legal_move(
                     next_board,
                     opponent,
+                    row,
+                    column,
+                    target_row,
+                    target_column,
+                ):
+                    attackers.append((row, column))
+
+        if not attackers:
+            return False, False
+
+        for attacker_row, attacker_column in attackers:
+            after_capture = [row[:] for row in next_board]
+            after_capture[target_row][target_column] = after_capture[
+                attacker_row
+            ][attacker_column]
+            after_capture[attacker_row][attacker_column] = None
+            if not self._side_can_legally_capture(
+                after_capture,
+                color,
+                target_row,
+                target_column,
+            ):
+                return True, False
+        return True, True
+
+    def _side_can_legally_capture(
+        self,
+        board: list[list[str | None]],
+        color: str,
+        target_row: int,
+        target_column: int,
+    ) -> bool:
+        for row in range(ROWS):
+            for column in range(COLUMNS):
+                piece = board[row][column]
+                if piece is None or self._piece_color(piece) != color:
+                    continue
+                if self._is_legal_move(
+                    board,
+                    color,
                     row,
                     column,
                     target_row,
