@@ -769,6 +769,25 @@ def test_xiangqi_move_hints_distinguish_rooted_destinations() -> None:
     assert move_hint(rooted)["destinationProtected"] is True
 
 
+def test_xiangqi_view_marks_hanging_pieces_for_both_sides() -> None:
+    engine = XiangqiEngine()
+    room = make_room(engine, 2)
+    board = [[None] * 9 for _ in range(10)]
+    board[0][4] = "bK"
+    board[4][6] = "rP"
+    board[4][8] = "bR"
+    board[5][0] = "rR"
+    board[5][2] = "bP"
+    board[5][4] = "rA"
+    board[9][4] = "rK"
+    room.state.board = board
+
+    assert engine.view(room, room.players[0])["hangingPieces"] == [
+        {"row": 4, "column": 6},
+        {"row": 5, "column": 2},
+    ]
+
+
 def test_xiangqi_identifies_checkmate_and_stalemate_positions() -> None:
     engine = XiangqiEngine()
     checkmate = [[None] * 9 for _ in range(10)]

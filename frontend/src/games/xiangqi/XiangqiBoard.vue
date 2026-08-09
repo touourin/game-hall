@@ -43,6 +43,7 @@ const game = computed(() => props.snapshot.game as {
   moveHistory: XiangqiMove[]
   capturedPieces: Array<{ piece: string; capturedBy: 'red' | 'black'; moveNumber: number }>
   legalMoves: LegalMove[]
+  hangingPieces?: Array<{ row: number; column: number }>
   redInCheck: boolean
   blackInCheck: boolean
   checkedColor: 'red' | 'black' | null
@@ -123,6 +124,9 @@ const placementMarkSegments = placementMarkPoints.flatMap(({ row, column }) => [
   ...(column > 0 ? [{ row, column, side: 'left' as const }] : []),
   ...(column < 8 ? [{ row, column, side: 'right' as const }] : []),
 ])
+const hangingPieceKeys = computed(() => new Set(
+  (game.value.hangingPieces ?? []).map(({ row, column }) => `${row}:${column}`),
+))
 
 function selectedMoveHintTone(move: LegalMove): HintTone {
   if (!captureHintsEnabled.value) return 'green'
@@ -134,23 +138,17 @@ function selectedMoveHintTone(move: LegalMove): HintTone {
 
 const boardHints = computed(() => {
   const hints = new Map<string, HintTone>()
-  if (!isMyTurn.value || isReplaying.value) return hints
+  if (isReplaying.value) return hints
 
-  if (selected.value) {
-    for (const move of selectedLegalMoves.value) {
-      hints.set(
-        `${move.toRow}:${move.toColumn}`,
-        selectedMoveHintTone(move),
-      )
-    }
-    return hints
+  if (captureHintsEnabled.value) {
+    for (const key of hangingPieceKeys.value) hints.set(key, 'red')
   }
 
-  if (!captureHintsEnabled.value) return hints
-  for (const move of game.value.legalMoves ?? []) {
-    const target = game.value.board[move.toRow]?.[move.toColumn]
-    if (target && move.destinationAttacked !== true) {
-      hints.set(`${move.toRow}:${move.toColumn}`, 'red')
+  if (isMyTurn.value && selected.value) {
+    for (const move of selectedLegalMoves.value) {
+      const key = `${move.toRow}:${move.toColumn}`
+      const tone = selectedMoveHintTone(move)
+      if (tone === 'red' || !hints.has(key)) hints.set(key, tone)
     }
   }
   return hints
@@ -203,10 +201,8 @@ function isPendingTarget(row: number, column: number): boolean {
   return pendingTarget.value?.row === row && pendingTarget.value?.column === column
 }
 
-function isCaptureTarget(row: number, column: number): boolean {
-  return !selected.value
-    && Boolean(game.value.board[row]?.[column])
-    && boardHints.value.has(`${row}:${column}`)
+function isHangingPiece(row: number, column: number): boolean {
+  return hangingPieceKeys.value.has(`${row}:${column}`)
 }
 
 function hintTone(row: number, column: number): HintTone | null {
@@ -215,12 +211,14 @@ function hintTone(row: number, column: number): HintTone | null {
 
 function cellAriaLabel(row: number, column: number): string {
   const base = `第 ${row + 1} 行第 ${column + 1} 列`
-  if (!selected.value && isCaptureTarget(row, column)) {
-    const piece = game.value.board[row]?.[column]
-    return `${base}，可吃${labels[piece ?? ''] ?? '敌子'}，请先选择己方棋子`
+  const piece = game.value.board[row]?.[column]
+  if (piece && isHangingPiece(row, column)) {
+    const pieceLabel = labels[piece] ?? '棋子'
+    return isOwn(piece)
+      ? `${base}，我方${pieceLabel}无根，可被对方吃`
+      : `${base}，可吃无根${pieceLabel}`
   }
   if (selected.value && captureHintsEnabled.value && isLegalTarget(row, column)) {
-    const piece = game.value.board[row]?.[column]
     if (piece) return `${base}，可吃${labels[piece] ?? '敌子'}`
   }
   return base

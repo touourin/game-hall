@@ -168,15 +168,26 @@ class XiangqiEngine:
         red_in_check = self._in_check(state.board, "red")
         black_in_check = self._in_check(state.board, "black")
         viewer_color = self._seat_color(viewer.seat)
-        legal_moves = (
-            self._legal_moves(
-                state.board,
-                viewer_color,
-                include_safety=True,
-            )
-            if room.phase == "playing" and viewer_color == state.turn_color
-            else []
+        move_analysis = (
+            {
+                color: self._legal_moves(
+                    state.board,
+                    color,
+                    include_safety=True,
+                )
+                for color in ("red", "black")
+            }
+            if room.phase == "playing"
+            and room.options.get("captureHintsEnabled", True)
+            else {}
         )
+        legal_moves: list[dict[str, int | bool]] = []
+        if room.phase == "playing" and viewer_color == state.turn_color:
+            legal_moves = (
+                move_analysis[viewer_color]
+                if viewer_color in move_analysis
+                else self._legal_moves(state.board, viewer_color)
+            )
         return {
             "board": state.board,
             "turnPlayerId": (
@@ -194,6 +205,10 @@ class XiangqiEngine:
             "moveHistory": state.history,
             "capturedPieces": state.captured_pieces,
             "legalMoves": legal_moves,
+            "hangingPieces": self._hanging_piece_positions(
+                state.board,
+                move_analysis,
+            ),
             "redInCheck": red_in_check,
             "blackInCheck": black_in_check,
             "checkedColor": (
@@ -252,6 +267,26 @@ class XiangqiEngine:
                             moves.append(move)
         return moves
 
+    @staticmethod
+    def _hanging_piece_positions(
+        board: list[list[str | None]],
+        moves_by_color: dict[str, list[dict[str, int | bool]]],
+    ) -> list[dict[str, int]]:
+        positions: set[tuple[int, int]] = set()
+        for moves in moves_by_color.values():
+            for move in moves:
+                row = int(move["toRow"])
+                column = int(move["toColumn"])
+                if (
+                    board[row][column] is not None
+                    and move.get("destinationAttacked") is not True
+                ):
+                    positions.add((row, column))
+        return [
+            {"row": row, "column": column}
+            for row, column in sorted(positions)
+        ]
+
     def _destination_safety(
         self,
         board: list[list[str | None]],
@@ -265,7 +300,7 @@ class XiangqiEngine:
 
         A root is counted only when the moving side can legally recapture every
         opponent piece that can take on the destination. This keeps pinned or
-        blocked pseudo-defenders from turning an unsafe move yellow.
+        blocked pseudo-defenders from classifying an unsafe move as rooted.
         """
         next_board = [row[:] for row in board]
         next_board[target_row][target_column] = next_board[source_row][

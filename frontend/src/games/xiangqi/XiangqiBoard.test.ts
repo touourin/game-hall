@@ -8,6 +8,7 @@ import XiangqiBoard from './XiangqiBoard.vue'
 
 interface TestXiangqiGame {
   board: Array<Array<string | null>>
+  hangingPieces: Array<{ row: number; column: number }>
   legalMoves: Array<{
     fromRow: number
     fromColumn: number
@@ -66,6 +67,7 @@ function snapshot(
       lastMove: null,
       moveHistory: [],
       capturedPieces: [],
+      hangingPieces: [],
       legalMoves: [
         { fromRow: 9, fromColumn: 4, toRow: 8, toColumn: 4 },
       ],
@@ -157,10 +159,11 @@ describe('XiangqiBoard', () => {
     })
   })
 
-  it('shows an unrooted capture before selection and then evaluates the landing', async () => {
+  it('keeps an unrooted enemy capture marked before and after selection', async () => {
     const enabled = snapshot('p1')
     const enabledGame = enabled.game as unknown as TestXiangqiGame
     enabledGame.board[8][4] = 'bP'
+    enabledGame.hangingPieces.push({ row: 8, column: 4 })
     const enabledWrapper = mount(XiangqiBoard, {
       props: { snapshot: enabled },
       global: { plugins: [createPinia()] },
@@ -168,11 +171,36 @@ describe('XiangqiBoard', () => {
 
     const target = enabledWrapper.findAll('.xiangqi-cell')[8 * 9 + 4]
     expect(target?.get('.xiangqi-hint-dot').classes()).toContain('is-red')
-    expect(target?.attributes('aria-label')).toContain('可吃卒')
+    expect(target?.attributes('aria-label')).toContain('可吃无根卒')
     expect(enabledWrapper.text()).not.toContain('吃子提醒')
 
     await enabledWrapper.findAll('.xiangqi-cell')[9 * 9 + 4]?.trigger('click')
-    expect(target?.get('.xiangqi-hint-dot').classes()).toContain('is-green')
+    expect(target?.get('.xiangqi-hint-dot').classes()).toContain('is-red')
+  })
+
+  it('keeps an unrooted friendly piece marked at all times', async () => {
+    const current = snapshot('p1')
+    const currentGame = current.game as unknown as TestXiangqiGame
+    currentGame.board[8][3] = 'rP'
+    currentGame.hangingPieces.push({ row: 8, column: 3 })
+    const wrapper = mount(XiangqiBoard, {
+      props: { snapshot: current },
+      global: { plugins: [createPinia()] },
+    })
+    const friendlyTarget = () => wrapper.findAll('.xiangqi-cell')[8 * 9 + 3]
+
+    expect(friendlyTarget()?.get('.xiangqi-hint-dot').classes()).toContain('is-red')
+    expect(friendlyTarget()?.attributes('aria-label')).toContain('我方兵无根')
+
+    await wrapper.findAll('.xiangqi-cell')[9 * 9 + 4]?.trigger('click')
+    expect(friendlyTarget()?.get('.xiangqi-hint-dot').classes()).toContain('is-red')
+
+    const waiting = snapshot('p2')
+    const waitingGame = waiting.game as unknown as TestXiangqiGame
+    waitingGame.board[8][3] = 'rP'
+    waitingGame.hangingPieces.push({ row: 8, column: 3 })
+    await wrapper.setProps({ snapshot: waiting })
+    expect(friendlyTarget()?.get('.xiangqi-hint-dot').classes()).toContain('is-red')
   })
 
   it('hides rooted captures before selection and warns about an unrooted landing', async () => {
