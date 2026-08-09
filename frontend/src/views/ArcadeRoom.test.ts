@@ -72,6 +72,7 @@ function snapshot(gameKey: ArcadeGameKey): ArcadeSnapshot {
       canStart: false,
       canRestart: false,
       canAct: false,
+      canAddAiPlayer: gameKey === 'avalon',
       canKickPlayers: true,
       canDissolve: true,
       canEditRules: true,
@@ -217,7 +218,6 @@ function avalonSnapshot(
       canGrantDagger: false,
       canDissentingAssassinate: false,
       canEarlyAssassinate: false,
-      canAddAiPlayer: phase === 'lobby',
       canRestart: false,
     },
   }
@@ -233,6 +233,7 @@ function avalonSnapshot(
   outer.minimumPlayers = 5
   outer.requiredPlayers = 10
   outer.actions.canStart = false
+  outer.actions.canAddAiPlayer = phase === 'lobby'
   outer.actions.canDissolve = phase === 'lobby'
   outer.actions.canEditRules = phase === 'lobby'
   return { ...outer, gameKey: 'avalon', game: inner }
@@ -424,7 +425,32 @@ describe('ArcadeRoom', () => {
     await wrapper.get('.self-number-trigger').trigger('click')
     expect(wrapper.get('.player-number-list').text()).toContain('AI玩家 1')
     await wrapper.get('.room-rule-actions button').trigger('click')
-    expect(action).toHaveBeenCalledWith('add_ai')
+    expect(action).toHaveBeenCalledWith('add_ai', { difficulty: 'normal' })
+  })
+
+  it('adds a board-game AI with the selected difficulty', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const action = vi.spyOn(arcade, 'action').mockResolvedValue()
+    const room = snapshot('xiangqi')
+    room.actions.canAddAiPlayer = true
+    room.ai = {
+      defaultDifficulty: 'normal',
+      difficulties: [
+        { key: 'easy', label: '简单' },
+        { key: 'normal', label: '普通' },
+        { key: 'hard', label: '困难' },
+      ],
+    }
+    const wrapper = mount(ArcadeRoom, {
+      props: { snapshot: room },
+      global: { plugins: [pinia] },
+    })
+
+    await wrapper.get('[aria-label="AI 难度"]').setValue('hard')
+    await wrapper.get('.ai-add-controls button').trigger('click')
+
+    expect(action).toHaveBeenCalledWith('add_ai', { difficulty: 'hard' })
   })
 
   it('stores a separate selected style for each Avalon role', async () => {

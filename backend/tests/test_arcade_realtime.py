@@ -1,7 +1,18 @@
+import asyncio
+
 import pytest
 from pydantic import ValidationError
 
 from backend.app.arcade.realtime import ActionPayload, ArcadeRealtime
+
+
+class DelayedPikafish:
+    async def best_move(self, fen: str, difficulty: str) -> str:
+        await asyncio.sleep(0.01)
+        return "a6a5"
+
+    async def close(self) -> None:
+        pass
 
 
 class FakeSocketServer:
@@ -39,6 +50,38 @@ def test_action_payload_accepts_legacy_council_action_from_open_browser() -> Non
 def test_action_payload_still_rejects_unbounded_action_names() -> None:
     with pytest.raises(ValidationError):
         ActionPayload.model_validate({"action": "a" * 65})
+
+
+async def test_external_bot_turn_runs_after_releasing_the_room_lock() -> None:
+    realtime = ArcadeRealtime()
+    server = FakeSocketServer()
+    realtime.sio = server  # type: ignore[assignment]
+    engine = realtime.engines["xiangqi"]
+    engine.bot_strategy.client = DelayedPikafish()
+    room, host, _ = realtime.rooms.create_room(
+        "xiangqi",
+        "玩家一",
+        "account-1",
+        {"firstPlayer": "host"},
+    )
+    realtime.rooms.add_ai_player(room, host.id)
+    realtime.rooms.start(room, host.id)
+    realtime.rooms.act(
+        room,
+        host.id,
+        "move",
+        {"fromRow": 6, "fromColumn": 0, "toRow": 5, "toColumn": 0},
+    )
+
+    realtime.schedule_bot_turns(room)
+    task = realtime.bot_tasks[room.code]
+    await asyncio.sleep(0)
+
+    assert room.lock.locked() is False
+    await task
+    assert room.state.turn_color == "red"
+    assert room.state.last_move["fromRow"] == 3
+    await realtime.close()
 
 
 async def test_first_person_spectator_is_visible_fixed_and_read_only() -> None:

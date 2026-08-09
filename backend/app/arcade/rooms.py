@@ -11,6 +11,7 @@ from typing import Any
 
 from backend.app.games.base import GameEngine, GameRuleError
 
+from .bots import ArcadeBotService, BotAction
 from .models import (
     ArcadeChatMessage,
     ArcadeGameRequest,
@@ -88,6 +89,7 @@ class ArcadeRoomManager:
         self.engines = engines
         self.rooms: dict[str, ArcadeRoom] = {}
         self.rng = rng or random.SystemRandom()
+        self.bots = ArcadeBotService()
 
     def create_room(
         self,
@@ -362,6 +364,96 @@ class ArcadeRoomManager:
         payload: dict[str, Any],
     ) -> None:
         engine = self.engine(room.game_key)
+        if action == "add_ai":
+            self.add_ai_player(
+                room,
+                player_id,
+                difficulty=payload.get("difficulty"),
+            )
+            return
+        self._apply_game_action(room, engine, player_id, action, payload)
+        # Lightweight in-process bots can finish immediately. Engines that
+        # expose the asynchronous provider are driven by ArcadeRealtime after
+        # the room lock is released.
+        self._advance_ai_players(room, engine)
+
+    def add_ai_player(
+        self,
+        room: ArcadeRoom,
+        actor_id: str,
+        *,
+        difficulty: Any = None,
+    ) -> ArcadePlayer:
+        engine = self.engine(room.game_key)
+        if not self.bots.supports(engine):
+            raise ArcadeRoomError("这个游戏暂时没有接入 AI")
+        if room.phase != "lobby":
+            raise ArcadeRoomError("只能在等待房间添加 AI 玩家")
+        if room.host_id != actor_id:
+            raise ArcadeRoomError("只有房主可以添加 AI 玩家")
+        if len(room.players) >= engine.max_players:
+            raise ArcadeRoomError("房间已经满员")
+        if difficulty is not None and not isinstance(difficulty, str):
+            raise ArcadeRoomError("AI 难度格式不正确")
+        try:
+            player = self.bots.add_player(
+                room,
+                engine,
+                difficulty=difficulty,
+            )
+        except ValueError as error:
+            raise ArcadeRoomError(str(error)) from error
+        room.revision += 1
+        return player
+
+    def advance_ai_players(self, room: ArcadeRoom) -> int:
+        engine = self.engine(room.game_key)
+        return self._advance_ai_players(room, engine)
+
+    def apply_bot_action(
+        self,
+        room: ArcadeRoom,
+        selected: BotAction,
+    ) -> None:
+        self._apply_bot_action(room, self.engine(room.game_key), selected)
+
+    def _advance_ai_players(
+        self,
+        room: ArcadeRoom,
+        engine: GameEngine,
+    ) -> int:
+        return self.bots.advance(
+            room,
+            engine,
+            lambda selected: self._apply_bot_action(
+                room,
+                engine,
+                selected,
+            ),
+        )
+
+    def _apply_bot_action(
+        self,
+        room: ArcadeRoom,
+        engine: GameEngine,
+        selected: BotAction,
+    ) -> None:
+        self._apply_game_action(
+            room,
+            engine,
+            selected.player_id,
+            selected.action,
+            dict(selected.payload),
+        )
+
+    def _apply_game_action(
+        self,
+        room: ArcadeRoom,
+        engine: GameEngine,
+        player_id: str,
+        action: str,
+        payload: dict[str, Any],
+    ) -> None:
         allowed_phases = getattr(engine, "action_phases", ACTIVE_GAME_PHASES)
         if room.phase not in allowed_phases:
             raise ArcadeRoomError("当前不能进行这个操作")
@@ -402,9 +494,13 @@ class ArcadeRoomManager:
             )
             restart_handler(room, player)
             room.revision += 1
+            self._advance_ai_players(room, engine)
             return
         room.rematch_ready_ids.add(actor_id)
-        if room.rematch_ready_ids == {player.id for player in room.players}:
+        required_ids = {
+            member.id for member in room.players if not member.is_bot
+        }
+        if required_ids <= room.rematch_ready_ids:
             self._start_round(
                 room,
                 engine,
@@ -716,6 +812,7 @@ class ArcadeRoomManager:
             player.disconnect_forfeited = False
             player.left_room = False
         engine.start(room)
+        self._advance_ai_players(room, engine)
 
     def _prepare_lobby(self, room: ArcadeRoom) -> None:
         room.state = self.engine(room.game_key).initial_state()

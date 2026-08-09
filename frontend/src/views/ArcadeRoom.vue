@@ -92,6 +92,9 @@ const showQr = ref(false)
 const showPlayerNumbers = ref(false)
 const showIdentity = ref(false)
 const showAvalonRules = ref(false)
+const selectedAiDifficulty = ref(
+  props.snapshot.ai?.defaultDifficulty ?? 'normal',
+)
 const sharedChat = ref<{ openChat: () => Promise<void> } | null>(null)
 const activeGameSkin = ref<GameSkinId>(storedGameSkin())
 const isSpectating = computed(() => props.snapshot.viewer?.mode === 'spectator')
@@ -153,6 +156,12 @@ const activeGameSkinKind = computed(() => gameSkinKind(props.snapshot.gameKey))
 const activeGameSkinStyle = computed(() => (
   activeGameSkinKind.value ? gameSkinCssVariables(activeGameSkin.value) : undefined
 ))
+watch(
+  () => props.snapshot.ai?.defaultDifficulty,
+  (difficulty) => {
+    if (difficulty) selectedAiDifficulty.value = difficulty
+  },
+)
 const activeRoleFamily = computed(() => roleSkinRoleCode(
   avalonSnapshot.value?.self.role?.code ?? '',
 ))
@@ -426,6 +435,13 @@ function avalonPlayerLabel(playerId: string): string {
   return player ? `${player.seat + 1}号 ${player.name}` : '未知玩家'
 }
 
+function aiDifficultyLabel(difficulty?: string | null): string {
+  if (!difficulty) return '普通'
+  return props.snapshot.ai?.difficulties.find(
+    (option) => option.key === difficulty,
+  )?.label ?? difficulty
+}
+
 function selfRoleArtwork(): string | null {
   const roleCode = avalonSnapshot.value?.self.role?.code
   return roleCode ? roleArtwork(roleCode, activeRoleSkin.value) : null
@@ -581,7 +597,7 @@ function openSharedChat() {
           <strong>{{ player.name }}</strong>
           <small>
             <Crown v-if="player.isHost" :size="13" />
-            {{ player.isHost ? '房主' : '玩家' }}{{ player.isGuest ? ' · 游客' : '' }}
+            {{ player.isBot ? `AI · ${aiDifficultyLabel(player.botDifficulty)}` : player.isHost ? '房主' : '玩家' }}{{ player.isGuest ? ' · 游客' : '' }}
             {{ player.leftRoom
               ? '· 已退出'
               : player.connected
@@ -625,14 +641,28 @@ function openSharedChat() {
         <span>掉线保护 10 分钟</span>
       </div>
       <div class="room-rule-actions">
-        <button
-          v-if="avalonSnapshot?.actions.canAddAiPlayer"
-          type="button"
-          :disabled="arcade.busy"
-          @click="arcade.action('add_ai')"
+        <span
+          v-if="snapshot.actions.canAddAiPlayer"
+          class="ai-add-controls"
         >
-          <Bot :size="16" /> 添加 AI
-        </button>
+          <label v-if="(snapshot.ai?.difficulties.length ?? 0) > 1">
+            <span class="sr-only">AI 难度</span>
+            <select v-model="selectedAiDifficulty" aria-label="AI 难度">
+              <option
+                v-for="difficulty in snapshot.ai?.difficulties"
+                :key="difficulty.key"
+                :value="difficulty.key"
+              >{{ difficulty.label }}</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            :disabled="arcade.busy"
+            @click="arcade.action('add_ai', { difficulty: selectedAiDifficulty })"
+          >
+            <Bot :size="16" /> 添加 AI
+          </button>
+        </span>
         <button v-if="snapshot.actions.canEditRules" type="button" @click="openRuleEditor">{{ snapshot.phase === 'finished' ? '修改下局规则' : '修改规则' }}</button>
       </div>
     </section>
@@ -789,7 +819,7 @@ function openSharedChat() {
           >
             <span>{{ player.seat + 1 }}</span>
             <strong>{{ player.name }}</strong>
-            <small v-if="player.isBot">AI</small>
+            <small v-if="player.isBot">AI · {{ aiDifficultyLabel(player.botDifficulty) }}</small>
             <small v-if="player.id === snapshot.self.id">{{ isSpectating ? '观战视角' : '你' }}</small>
           </div>
         </div>
@@ -884,6 +914,9 @@ function openSharedChat() {
 .arcade-waiting > svg { color: var(--gold); }
 .arcade-waiting h2, .arcade-waiting p { margin: 0; }
 .arcade-waiting p { color: var(--muted); }
+.ai-add-controls { display: inline-flex; align-items: stretch; gap: 8px; }
+.ai-add-controls label { display: flex; }
+.ai-add-controls select { min-width: 78px; border: 1px solid var(--line); border-radius: 10px; padding: 0 28px 0 10px; color: var(--text); background: var(--surface-raised); font: inherit; }
 .room-code-share { margin: 14px 0 0; border: 0; padding: 0; color: var(--text); background: transparent; font-size: 28px; font-weight: 800; letter-spacing: .18em; }
 .arcade-waiting :deep(.invite-link-panel) { width: min(100%, 620px); }
 .arcade-game-stage { display: grid; gap: 22px; }

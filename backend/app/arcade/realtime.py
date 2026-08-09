@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import asyncio
+import copy
+import inspect
 import logging
 import secrets
 from collections import defaultdict
@@ -143,6 +146,9 @@ class ArcadeRealtime:
         self.sid_accounts: dict[str, str] = {}
         self.sio: socketio.AsyncServer | None = None
         self.logger = logger
+        self.bot_tasks: dict[str, asyncio.Task[None]] = {}
+        self.bot_rerun_requested: set[str] = set()
+        self.closing = False
 
     def bind(self, sio: socketio.AsyncServer) -> None:
         self.sio = sio
@@ -607,6 +613,7 @@ class ArcadeRealtime:
                 self.rooms.start(room, player.id)
             await self.broadcast_room(room)
             await self.broadcast_lobby()
+            self.schedule_bot_turns(room)
             return {"ok": True}
         except ACTION_ERRORS as error:
             return error_response(error)
@@ -620,6 +627,7 @@ class ArcadeRealtime:
                 if room.phase == "finished":
                     self._record_room(room)
             await self.broadcast_room(room)
+            self.schedule_bot_turns(room)
             return {"ok": True}
         except (ValidationError, *ACTION_ERRORS) as error:
             return error_response(error)
@@ -633,6 +641,7 @@ class ArcadeRealtime:
                 self.rooms.restart(room, player.id)
             await self.broadcast_room(room)
             await self.broadcast_lobby()
+            self.schedule_bot_turns(room)
             return {"ok": True}
         except ACTION_ERRORS as error:
             return error_response(error)
@@ -758,6 +767,95 @@ class ArcadeRealtime:
                     self._record_room(room)
                 await self.broadcast_room(room)
             await self.broadcast_lobby()
+
+    def schedule_bot_turns(self, room: ArcadeRoom) -> None:
+        """Ensure at most one background AI driver is active per room."""
+        if self.closing:
+            return
+        current = self.bot_tasks.get(room.code)
+        if current is not None and not current.done():
+            self.bot_rerun_requested.add(room.code)
+            return
+        task = asyncio.create_task(
+            self._run_bot_turns(room),
+            name=f"arcade-bot-{room.code}",
+        )
+        self.bot_tasks[room.code] = task
+        task.add_done_callback(
+            lambda completed, room_code=room.code: self._bot_task_done(
+                room_code, completed
+            )
+        )
+
+    async def resume_bot_turns(self) -> None:
+        for room in self.rooms.rooms.values():
+            self.schedule_bot_turns(room)
+
+    async def close(self) -> None:
+        self.closing = True
+        self.bot_rerun_requested.clear()
+        tasks = list(self.bot_tasks.values())
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        self.bot_tasks.clear()
+        for engine in self.engines.values():
+            closer = getattr(engine, "close", None)
+            if callable(closer):
+                result = closer()
+                if inspect.isawaitable(result):
+                    await result
+
+    async def _run_bot_turns(self, room: ArcadeRoom) -> None:
+        engine = self.engines[room.game_key]
+        for _ in range(self.rooms.bots.max_automatic_actions):
+            async with room.lock:
+                if self.rooms.rooms.get(room.code) is not room:
+                    return
+                revision = room.revision
+                snapshot = copy.deepcopy(room)
+
+            selected = await self.rooms.bots.select_action(snapshot, engine)
+            if selected is None:
+                return
+
+            async with room.lock:
+                if self.rooms.rooms.get(room.code) is not room:
+                    return
+                if room.revision != revision:
+                    continue
+                self.rooms.apply_bot_action(room, selected)
+                if room.phase == "finished":
+                    self._record_room(room)
+            await self.broadcast_room(room)
+            if room.phase == "finished":
+                await self.broadcast_lobby()
+        raise RuntimeError("AI 自动行动超过安全上限")
+
+    def _bot_task_done(
+        self,
+        room_code: str,
+        task: asyncio.Task[None],
+    ) -> None:
+        if self.bot_tasks.get(room_code) is task:
+            self.bot_tasks.pop(room_code, None)
+        if task.cancelled():
+            return
+        error = task.exception()
+        if error is not None:
+            self.logger.error(
+                "AI room driver failed",
+                exc_info=(type(error), error, error.__traceback__),
+                extra={"event": "bot.driver_failed", "room_code": room_code},
+            )
+        if (
+            not self.closing
+            and room_code in self.bot_rerun_requested
+            and (room := self.rooms.rooms.get(room_code)) is not None
+        ):
+            self.bot_rerun_requested.discard(room_code)
+            self.schedule_bot_turns(room)
 
     def lobby_view(self) -> list[dict[str, Any]]:
         spectator_counts = {
@@ -1170,6 +1268,7 @@ class ArcadeRealtime:
                     "alignment": alignment,
                     "won": won,
                     "isHost": player.id == room.host_id,
+                    "isBot": player.is_bot,
                     "scoreMs": (
                         score_reader(room, player)
                         if score_reader is not None
@@ -1204,12 +1303,17 @@ class ArcadeRealtime:
                             "seat": player.seat,
                             "role": players[index]["role"],
                             "alignment": players[index]["alignment"],
+                            "isBot": player.is_bot,
                         }
                         for index, player in enumerate(room.players)
                     ],
                     "state": state,
                 },
-                players=players,
+                players=[
+                    result for result in players if not result["isBot"]
+                ],
+                participant_count=len(room.players),
+                ranked=not any(player.is_bot for player in room.players),
             )
             room.recorded = stored
             if stored:

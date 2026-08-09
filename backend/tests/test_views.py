@@ -186,7 +186,7 @@ def test_avalon_views_include_account_avatars():
     assert view["players"][0]["avatarUrl"] == "/avatars/jade-owl.webp"
 
 
-def test_ai_player_marker_and_add_action_are_in_player_view():
+def test_ai_player_marker_is_in_player_view():
     room = make_room(2)
     host, ai_player = room.players
     ai_player.is_bot = True
@@ -198,7 +198,6 @@ def test_ai_player_marker_and_add_action_are_in_player_view():
 
     assert ai_view["isBot"] is True
     assert ai_view["seat"] == 1
-    assert view["actions"]["canAddAiPlayer"] is True
 
 
 def test_only_lobby_host_can_dissolve_avalon_room():

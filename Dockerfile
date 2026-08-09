@@ -8,18 +8,88 @@ COPY third_party_games/ ./third_party_games/
 RUN npm --prefix frontend run build
 
 
+FROM debian:bookworm-slim AS pikafish-builder
+
+ARG TARGETARCH
+ARG PIKAFISH_VERSION=Pikafish-2026-01-02
+ARG PIKAFISH_NET_SHA256=3cd15292bf8c979884262f57fc723959fc0dea43b4d8d544f88db5ceb2479e24
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl g++ make \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+RUN curl -fsSL "https://github.com/official-pikafish/Pikafish/archive/refs/tags/${PIKAFISH_VERSION}.tar.gz" \
+      | tar -xz \
+    && mv "Pikafish-${PIKAFISH_VERSION}" Pikafish \
+    && curl -fsSL "https://github.com/official-pikafish/Networks/releases/download/master-net/pikafish.nnue" \
+      -o Pikafish/src/pikafish.nnue \
+    && echo "${PIKAFISH_NET_SHA256}  Pikafish/src/pikafish.nnue" | sha256sum -c - \
+    && case "$TARGETARCH" in \
+         amd64) pikafish_arch=x86-64 ;; \
+         arm64) pikafish_arch=armv8 ;; \
+         *) pikafish_arch=general-64 ;; \
+       esac \
+    && make -C Pikafish/src -j"$(nproc)" build ARCH="$pikafish_arch" \
+    && mkdir -p /out \
+    && cp Pikafish/src/pikafish Pikafish/src/pikafish.nnue /out/ \
+    && curl -fsSL "https://raw.githubusercontent.com/official-pikafish/Networks/a238f8da2df269c28fec0e2bd2ca0ffd241f83fe/README.md" \
+      -o /out/PIKAFISH-NNUE-LICENSE.md \
+    && make -C Pikafish/src clean \
+    && rm Pikafish/src/pikafish.nnue
+
+
+FROM debian:bookworm-slim AS katago-builder
+
+ARG KATAGO_VERSION=1.17.2
+ARG KATAGO_MODEL_VERSION=1.17.0
+ARG KATAGO_MODEL_SHA256=0ba27eced5180b3e3d0b898b280c541112989765e789d1eb6cd0d31b2b2c1229
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      ca-certificates cmake curl g++ libeigen3-dev make zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+RUN curl -fsSL "https://github.com/lightvector/KataGo/archive/refs/tags/v${KATAGO_VERSION}.tar.gz" \
+      | tar -xz \
+    && mv "KataGo-${KATAGO_VERSION}" KataGo \
+    && cmake -S KataGo/cpp -B KataGo/build \
+      -DUSE_BACKEND=EIGEN -DNO_GIT_REVISION=1 -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build KataGo/build --parallel "$(nproc)" \
+    && curl -fsSL "https://github.com/lightvector/KataGo/releases/download/v${KATAGO_MODEL_VERSION}/b10c384h6nbttflrs.bin.gz" \
+      -o /src/katago-model.bin.gz \
+    && echo "${KATAGO_MODEL_SHA256}  /src/katago-model.bin.gz" | sha256sum -c -
+
+
 FROM python:3.13-slim AS runtime
 
 ARG PIP_INDEX_URL=https://pypi.org/simple
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PIKAFISH_PATH=/opt/game-hall/ai/pikafish \
+    PIKAFISH_EVAL_FILE=/opt/game-hall/ai/pikafish.nnue \
+    KATAGO_PATH=/opt/game-hall/ai/katago \
+    KATAGO_MODEL_PATH=/opt/game-hall/ai/katago-model.bin.gz \
+    KATAGO_CONFIG_PATH=/opt/game-hall/ai/katago-analysis.cfg
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 libstdc++6 zlib1g \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY backend/ ./backend/
 RUN pip install --no-cache-dir --index-url "$PIP_INDEX_URL" ./backend
 COPY third_party_games/ ./third_party_games/
 COPY --from=web-builder /build/frontend/dist ./frontend/dist
+COPY --from=pikafish-builder /out/pikafish /opt/game-hall/ai/pikafish
+COPY --from=pikafish-builder /out/pikafish.nnue /opt/game-hall/ai/pikafish.nnue
+COPY --from=pikafish-builder /src/Pikafish /usr/share/game-hall/source/pikafish
+COPY --from=katago-builder /src/KataGo/build/katago /opt/game-hall/ai/katago
+COPY --from=katago-builder /src/katago-model.bin.gz /opt/game-hall/ai/katago-model.bin.gz
+COPY backend/app/ai/katago-analysis.cfg /opt/game-hall/ai/katago-analysis.cfg
+COPY --from=pikafish-builder /src/Pikafish/Copying.txt /usr/share/game-hall/licenses/PIKAFISH-GPL-3.0.txt
+COPY --from=pikafish-builder /out/PIKAFISH-NNUE-LICENSE.md /usr/share/game-hall/licenses/PIKAFISH-NNUE-LICENSE.md
+COPY --from=katago-builder /src/KataGo/LICENSE /usr/share/game-hall/licenses/KATAGO.txt
 
 EXPOSE 8000
 

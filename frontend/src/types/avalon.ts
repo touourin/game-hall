@@ -114,7 +114,6 @@ export interface RoomActions {
   canGrantDagger: boolean
   canDissentingAssassinate: boolean
   canEarlyAssassinate: boolean
-  canAddAiPlayer: boolean
   canRestart: boolean
 }
 

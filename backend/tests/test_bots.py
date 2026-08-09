@@ -1,4 +1,5 @@
-from backend.app.games.avalon.bots import advance_ai_players
+from backend.app.arcade.bots import ArcadeBotService
+from backend.app.games.avalon.arcade import AvalonEngine
 from backend.app.games.avalon.models import (
     Alignment,
     AvalonMode,
@@ -8,6 +9,22 @@ from backend.app.games.avalon.models import (
 )
 
 from .test_engine import start_room
+
+
+def advance_ai_players(room, rules) -> None:
+    """Exercise Avalon bots through the shared Arcade bot component."""
+    outer_room = AvalonEngine.migrate_legacy_room(room)
+    adapter = AvalonEngine(rules)
+    ArcadeBotService().advance(
+        outer_room,
+        adapter,
+        lambda selected: adapter.act(
+            outer_room,
+            outer_room.player(selected.player_id),
+            selected.action,
+            dict(selected.payload),
+        ),
+    )
 
 
 def test_ai_players_confirm_roles_propose_a_team_and_vote():

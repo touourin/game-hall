@@ -91,6 +91,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_RETENTION_DAYS: ${LOG_RETENTION_DAYS:-30}
       GAME_HALL_SIGNING_SECRET: ${GAME_HALL_SIGNING_SECRET:-game-hall-local-session-v1}
+      PIKAFISH_THREADS: ${PIKAFISH_THREADS:-1}
+      PIKAFISH_HASH_MB: ${PIKAFISH_HASH_MB:-64}
       TZ: ${TZ:-Asia/Shanghai}
     depends_on:
       migrate:

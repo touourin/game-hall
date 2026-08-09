@@ -6,6 +6,8 @@ from typing import Any
 from backend.app.arcade.models import ArcadePlayer, ArcadeRoom
 from backend.app.games.base import GameRuleError
 
+from .bots import GoBotStrategy
+
 
 BOARD_SIZE = 19
 KOMI = 7.5
@@ -23,6 +25,7 @@ class GoState:
     captures: list[int] = field(default_factory=lambda: [0, 0])
     last_move: dict[str, int | bool] | None = None
     move_count: int = 0
+    move_history: list[dict[str, int | bool]] = field(default_factory=list)
     score: dict[str, float | int] | None = None
     position_history: list[str] = field(default_factory=list)
     dead_stones: list[tuple[int, int]] = field(default_factory=list)
@@ -35,6 +38,27 @@ class GoEngine:
     name = "围棋"
     min_players = 2
     max_players = 2
+    bot_difficulties = ("easy", "normal", "hard")
+    default_bot_difficulty = "normal"
+    bot_timeout_seconds = 30.0
+
+    def __init__(self) -> None:
+        self.bot_strategy = GoBotStrategy(self)
+
+    async def choose_bot_action_async(self, room: ArcadeRoom):
+        return await self.bot_strategy.choose_action(room)
+
+    def fallback_bot_action(self, room: ArcadeRoom):
+        return self.bot_strategy.fallback_action(room)
+
+    async def close(self) -> None:
+        await self.bot_strategy.close()
+
+    @staticmethod
+    def repair_restored_room(room: ArcadeRoom) -> None:
+        state = room.state
+        if isinstance(state, GoState) and not hasattr(state, "move_history"):
+            state.move_history = []
 
     def room_options(self, options: dict[str, Any]) -> dict[str, Any]:
         board_size = options.get("boardSize", BOARD_SIZE)
@@ -92,6 +116,7 @@ class GoEngine:
             state.consecutive_passes += 1
             state.move_count += 1
             state.last_move = {"pass": True, "seat": player.seat}
+            state.move_history.append(dict(state.last_move))
             state.turn_seat = 1 - state.turn_seat
             if state.consecutive_passes >= 2:
                 state.dead_stones.clear()
@@ -143,6 +168,7 @@ class GoEngine:
             "seat": player.seat,
             "pass": False,
         }
+        state.move_history.append(dict(state.last_move))
         state.dead_stones.clear()
         state.score_confirmed_player_ids.clear()
         state.resume_requested_by = None
@@ -241,6 +267,10 @@ class GoEngine:
             state.resume_requested_by = None
             state.dead_stones.clear()
             state.consecutive_passes = 0
+            # The server and both players explicitly reopened play. Rebase the
+            # next analysis on the current board so KataGo does not treat the
+            # two earlier passes as a completed game.
+            state.move_history.clear()
             state.score = None
             room.phase = "playing"
             return

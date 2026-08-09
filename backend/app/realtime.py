@@ -105,6 +105,11 @@ async def restore_room_state() -> None:
         )
         for player in room.players:
             player.is_bot = getattr(player, "is_bot", False)
+            player.bot_difficulty = getattr(
+                player,
+                "bot_difficulty",
+                "normal" if player.is_bot else None,
+            )
             player.is_guest = getattr(player, "is_guest", False)
             player.left_room = getattr(player, "left_room", False)
             player.disconnected_at = None
@@ -129,6 +134,14 @@ async def persist_room_state() -> None:
 
 async def close_room_state_store() -> None:
     await room_state_store.close()
+
+
+async def resume_bot_turns() -> None:
+    await arcade_realtime.resume_bot_turns()
+
+
+async def close_game_engines() -> None:
+    await arcade_realtime.close()
 
 
 async def maintain_game_rooms() -> None:

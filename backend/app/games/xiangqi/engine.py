@@ -6,6 +6,8 @@ from typing import Any
 from backend.app.arcade.models import ArcadePlayer, ArcadeRoom
 from backend.app.games.base import GameRuleError
 
+from .bots import XiangqiBotStrategy
+
 
 ROWS = 10
 COLUMNS = 9
@@ -40,6 +42,21 @@ class XiangqiEngine:
     name = "中国象棋"
     min_players = 2
     max_players = 2
+    bot_difficulties = ("easy", "normal", "hard")
+    default_bot_difficulty = "normal"
+    bot_timeout_seconds = 15.0
+
+    def __init__(self) -> None:
+        self.bot_strategy = XiangqiBotStrategy(self)
+
+    async def choose_bot_action_async(self, room: ArcadeRoom):
+        return await self.bot_strategy.choose_action(room)
+
+    def fallback_bot_action(self, room: ArcadeRoom):
+        return self.bot_strategy.fallback_action(room)
+
+    async def close(self) -> None:
+        await self.bot_strategy.close()
 
     def room_options(self, options: dict[str, Any]) -> dict[str, Any]:
         capture_hints_enabled = options.get("captureHintsEnabled", True)

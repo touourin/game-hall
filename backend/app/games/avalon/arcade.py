@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import hashlib
-import secrets
 from datetime import datetime, timezone
 from typing import Any
 
+from backend.app.arcade.bots import ArcadeBotService, BotAction
 from backend.app.arcade.models import (
     ArcadeChatMessage,
     ArcadePlayer,
@@ -13,7 +12,7 @@ from backend.app.arcade.models import (
 )
 from backend.app.games.base import GameRuleError
 
-from .bots import advance_ai_players
+from .bots import choose_ai_action
 from .engine import GameEngine as AvalonRulesEngine
 from .engine import GameRuleError as AvalonRuleError
 from .models import (
@@ -102,7 +101,6 @@ class AvalonEngine:
         domain = self._domain(room)
         try:
             self.rules.start_game(domain, room.host_id)
-            advance_ai_players(domain, self.rules)
         except AvalonRuleError as error:
             raise GameRuleError(str(error)) from error
         self._sync_outer(room, domain)
@@ -117,9 +115,7 @@ class AvalonEngine:
         domain = self._domain(room)
         actor_id = player.id
         try:
-            if action == "add_ai":
-                self._add_ai(room, domain, actor_id)
-            elif action == "confirm_role":
+            if action == "confirm_role":
                 self.rules.confirm_role(domain, actor_id)
             elif action == "propose_team":
                 self.rules.propose_team(
@@ -184,8 +180,6 @@ class AvalonEngine:
                 )
             else:
                 raise GameRuleError("不支持这个阿瓦隆操作")
-            if action != "add_ai":
-                advance_ai_players(domain, self.rules)
         except AvalonRuleError as error:
             raise GameRuleError(str(error)) from error
         self._sync_outer(room, domain)
@@ -254,6 +248,9 @@ class AvalonEngine:
         domain = self._domain(room)
         return build_player_view(domain, domain.player(viewer.id), self.rules)
 
+    def choose_bot_action(self, room: ArcadeRoom) -> BotAction | None:
+        return choose_ai_action(self._domain(room), self.rules)
+
     def repair_restored_room(self, room: ArcadeRoom) -> bool:
         domain = self._domain(room)
         repaired = self.rules.resolve_restored_exile_council_assassination(
@@ -263,7 +260,16 @@ class AvalonEngine:
             not repaired
             and domain.phase == Phase.EXILE_COUNCIL_ASSASSINATION_TARGET
         ):
-            advance_ai_players(domain, self.rules)
+            ArcadeBotService().advance(
+                room,
+                self,
+                lambda selected: self.act(
+                    room,
+                    room.player(selected.player_id),
+                    selected.action,
+                    dict(selected.payload),
+                ),
+            )
             repaired = domain.phase != Phase.EXILE_COUNCIL_ASSASSINATION_TARGET
         if repaired:
             self._sync_outer(room, domain)
@@ -405,42 +411,6 @@ class AvalonEngine:
             room.win_reason = None
             room.ended_at = None
 
-    def _add_ai(
-        self, room: ArcadeRoom, domain: Room, actor_id: str
-    ) -> None:
-        if domain.phase != Phase.LOBBY:
-            raise GameRuleError("只能在等待房间添加 AI 玩家")
-        if room.host_id != actor_id:
-            raise GameRuleError("只有房主可以添加 AI 玩家")
-        if len(room.players) >= self.max_players:
-            raise GameRuleError("房间已经满员")
-
-        existing_names = {player.name.casefold() for player in room.players}
-        number = 1
-        while f"AI玩家 {number}".casefold() in existing_names:
-            number += 1
-        player_id = f"bot-{secrets.token_urlsafe(8)}"
-        token_hash = hashlib.sha256(secrets.token_bytes(32)).hexdigest()
-        arcade_player = ArcadePlayer(
-            id=player_id,
-            account_id=f"bot:{player_id}",
-            name=f"AI玩家 {number}",
-            token_hash=token_hash,
-            seat=len(room.players),
-            is_bot=True,
-        )
-        room.players.append(arcade_player)
-        domain.players.append(
-            Player(
-                id=player_id,
-                name=arcade_player.name,
-                token_hash=token_hash,
-                seat=arcade_player.seat,
-                is_bot=True,
-            )
-        )
-        domain.revision += 1
-
     @staticmethod
     def _apply_options(domain: Room, options: dict[str, Any]) -> None:
         normalized = AvalonEngine.room_options(options)
@@ -489,6 +459,7 @@ class AvalonEngine:
                 seat=player.seat,
                 avatar_url=player.avatar_url,
                 is_bot=player.is_bot,
+                bot_difficulty="normal" if player.is_bot else None,
                 connected=player.connected,
                 disconnected_at=player.disconnected_at,
                 disconnect_timeout_handled=player.disconnect_forfeited,

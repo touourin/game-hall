@@ -36,10 +36,12 @@ from .logging_config import (
     reset_request_context,
 )
 from .realtime import (
+    close_game_engines,
     close_room_state_store,
     maintain_game_rooms,
     persist_room_state,
     replace_account_session_connections,
+    resume_bot_turns,
     restore_room_state,
     sio,
 )
@@ -64,6 +66,7 @@ async def lifespan(_: FastAPI):
         access_signing_secret()
         account_store().initialize()
         await restore_room_state()
+        await resume_bot_turns()
         cleanup_task = asyncio.create_task(maintain_game_rooms())
         logger.info(
             "Game hall is ready",
@@ -81,6 +84,7 @@ async def lifespan(_: FastAPI):
             cleanup_task.cancel()
             with suppress(asyncio.CancelledError):
                 await cleanup_task
+        await close_game_engines()
         await persist_room_state()
         await close_room_state_store()
         logger.info(

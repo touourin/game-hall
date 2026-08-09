@@ -561,6 +561,7 @@ class AccountStore:
         details: dict[str, Any],
         players: list[dict[str, Any]],
         ranked: bool = True,
+        participant_count: int | None = None,
     ) -> bool:
         if (
             not players
@@ -606,7 +607,7 @@ class AccountStore:
                         game_key=game_key,
                         room_code=room_code,
                         mode=self._match_mode(game_key, details),
-                        player_count=len(players),
+                        player_count=participant_count or len(players),
                         winner=winner,
                         reason=reason,
                         ranked=ranked,

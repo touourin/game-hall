@@ -188,6 +188,39 @@ def record_avalon_role_result(
     )
 
 
+def test_ai_match_records_the_human_but_is_not_ranked(tmp_path) -> None:
+    store = AccountStore(tmp_path / "ai-match.sqlite3")
+    human, _ = store.register("human_player", "secret123", "真人棋手")
+
+    assert store.record_game_match(
+        game_key="xiangqi",
+        match_id="xiangqi-ai-match",
+        room_code="ROBO",
+        winner="red",
+        reason="将死",
+        started_at="2026-08-09T00:00:00+00:00",
+        ended_at="2026-08-09T00:10:00+00:00",
+        details={"players": [{"isBot": False}, {"isBot": True}]},
+        players=[
+            {
+                "accountId": human.id,
+                "playerName": human.player_name,
+                "seat": 0,
+                "role": "red",
+                "alignment": "red",
+                "won": True,
+                "isHost": True,
+            }
+        ],
+        ranked=False,
+        participant_count=2,
+    )
+
+    history = store.history_for_account(human.id, game_key="xiangqi")
+    assert history[0]["playerCount"] == 2
+    assert history[0]["ranked"] is False
+
+
 def test_departed_suspicion_match_and_equipment_audit_are_persisted(tmp_path):
     store = AccountStore(tmp_path / "departed-suspicion.sqlite3")
     account = account_for_player(store, 0, "departed")

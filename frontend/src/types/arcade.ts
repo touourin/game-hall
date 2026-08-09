@@ -57,6 +57,7 @@ export interface ArcadePlayer {
   name: string
   avatarUrl?: string | null
   isBot?: boolean
+  botDifficulty?: string | null
   isGuest?: boolean
   seat: number
   connected: boolean
@@ -127,10 +128,15 @@ export interface ArcadeSnapshot {
   winner: string | null
   winnerPlayerIds: string[]
   winReason: string | null
+  ai?: {
+    difficulties: Array<{ key: string; label: string }>
+    defaultDifficulty: string
+  } | null
   actions: {
     canStart: boolean
     canRestart: boolean
     canAct: boolean
+    canAddAiPlayer?: boolean
     canKickPlayers: boolean
     canDissolve: boolean
     canEditRules: boolean

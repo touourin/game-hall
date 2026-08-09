@@ -4,6 +4,7 @@ from typing import Any
 
 from backend.app.games.base import GameEngine
 
+from .bots import ArcadeBotService
 from .models import ArcadePlayer, ArcadeRoom, ArcadeSpectator
 from .rooms import (
     ACTIVE_GAME_PHASES,
@@ -131,6 +132,16 @@ def build_room_view(
         else set()
     )
     end_table_voter_ids = request_voter_ids(room, engine, "end_table")
+    bot_difficulties = (
+        ArcadeBotService.difficulties(engine)
+        if ArcadeBotService.supports(engine)
+        else ()
+    )
+    difficulty_labels = {
+        "easy": "简单",
+        "normal": "普通",
+        "hard": "困难",
+    }
     return {
         "revision": room.revision,
         "roomCode": room.code,
@@ -169,6 +180,7 @@ def build_room_view(
                 "name": player.name,
                 "avatarUrl": getattr(player, "avatar_url", None),
                 "isBot": player.is_bot,
+                "botDifficulty": getattr(player, "bot_difficulty", None),
                 "isGuest": player.is_guest,
                 "seat": player.seat,
                 "connected": player.connected,
@@ -195,10 +207,36 @@ def build_room_view(
         "winner": room.winner,
         "winnerPlayerIds": room.winner_player_ids,
         "winReason": room.win_reason,
+        "ai": (
+            {
+                "difficulties": [
+                    {
+                        "key": difficulty,
+                        "label": difficulty_labels.get(
+                            difficulty, difficulty
+                        ),
+                    }
+                    for difficulty in bot_difficulties
+                ],
+                "defaultDifficulty": getattr(
+                    engine,
+                    "default_bot_difficulty",
+                    bot_difficulties[0],
+                ),
+            }
+            if bot_difficulties
+            else None
+        ),
         "actions": {
             "canStart": can_start,
             "canRestart": can_restart,
             "canAct": is_active_phase,
+            "canAddAiPlayer": (
+                room.phase == "lobby"
+                and viewer.id == room.host_id
+                and len(room.players) < engine.max_players
+                and ArcadeBotService.supports(engine)
+            ),
             "canKickPlayers": room.phase == "lobby" and viewer.id == room.host_id,
             "canDissolve": room.phase == "lobby" and viewer.id == room.host_id,
             "canEditRules": (

@@ -133,7 +133,6 @@ function roleRevealSnapshot(revision: number): RoomSnapshot {
       canGrantDagger: false,
       canDissentingAssassinate: false,
       canEarlyAssassinate: false,
-      canAddAiPlayer: false,
       canRestart: false,
     },
   }

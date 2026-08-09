@@ -19,6 +19,7 @@ class ArcadePlayer:
     seat: int
     avatar_url: str | None = None
     is_bot: bool = False
+    bot_difficulty: str | None = None
     is_guest: bool = False
     connected: bool = True
     disconnected_at: datetime | None = None
