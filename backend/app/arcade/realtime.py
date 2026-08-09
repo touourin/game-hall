@@ -791,6 +791,26 @@ class ArcadeRealtime:
         for room in self.rooms.rooms.values():
             self.schedule_bot_turns(room)
 
+    async def warm_up(self) -> None:
+        """Warm optional external engines without blocking application startup."""
+        for game_key, engine in self.engines.items():
+            warmer = getattr(engine, "warm_up", None)
+            if not callable(warmer):
+                continue
+            try:
+                result = warmer()
+                if inspect.isawaitable(result):
+                    await result
+            except Exception:
+                self.logger.warning(
+                    "Game engine warm-up failed; lazy startup remains available",
+                    exc_info=True,
+                    extra={
+                        "event": "engine.warmup_failed",
+                        "game_key": game_key,
+                    },
+                )
+
     async def close(self) -> None:
         self.closing = True
         self.bot_rerun_requested.clear()

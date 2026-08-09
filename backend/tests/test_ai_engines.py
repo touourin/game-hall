@@ -1,8 +1,16 @@
 from __future__ import annotations
 
+import asyncio
 import sys
+from unittest.mock import AsyncMock
 
-from backend.app.ai.katago import KataGoAnalysisClient
+import pytest
+
+from backend.app.ai.katago import (
+    DEFAULT_VISITS,
+    KataGoAnalysisClient,
+    KataGoBusyError,
+)
 from backend.app.ai.pikafish import PikafishClient
 from backend.app.arcade.bots import ArcadeBotService, BotAction
 from backend.app.arcade.rooms import ArcadeRoomManager
@@ -194,4 +202,147 @@ for line in sys.stdin:
     assert result["moveInfos"][0]["move"] == "pass"
     assert again["moveInfos"][0]["move"] == "pass"
     assert client.process._process is process
+    await client.close()
+
+
+async def test_katago_routes_two_out_of_order_responses(tmp_path) -> None:
+    script = tmp_path / "fake_parallel_katago.py"
+    script.write_text(
+        """import json
+import sys
+
+requests = []
+for line in sys.stdin:
+    request = json.loads(line)
+    if request.get('action') == 'terminate':
+        print(json.dumps(request), flush=True)
+        continue
+    requests.append(request)
+    if len(requests) == 2:
+        for pending in reversed(requests):
+            print(json.dumps({
+                'id': pending['id'],
+                'maxVisits': pending['maxVisits'],
+                'moveInfos': [{'move': 'pass'}],
+            }), flush=True)
+        requests.clear()
+""",
+        encoding="utf-8",
+    )
+    client = KataGoAnalysisClient(max_concurrent=2, max_queued=0)
+    client.process.command = (sys.executable, str(script))
+    query = {
+        "rules": "chinese",
+        "komi": 7.5,
+        "boardXSize": 19,
+        "boardYSize": 19,
+        "moves": [],
+    }
+
+    easy, hard = await asyncio.gather(
+        client.analyze(query, "easy"),
+        client.analyze(query, "hard"),
+    )
+
+    assert easy["maxVisits"] == DEFAULT_VISITS["easy"] == 4
+    assert hard["maxVisits"] == DEFAULT_VISITS["hard"] == 48
+    await client.close()
+
+
+async def test_katago_rejects_requests_beyond_bounded_queue(tmp_path) -> None:
+    script = tmp_path / "fake_slow_katago.py"
+    script.write_text(
+        """import json
+import sys
+import time
+
+for line in sys.stdin:
+    request = json.loads(line)
+    time.sleep(0.1)
+    print(json.dumps({
+        'id': request['id'],
+        'moveInfos': [{'move': 'pass'}],
+    }), flush=True)
+""",
+        encoding="utf-8",
+    )
+    client = KataGoAnalysisClient(max_concurrent=1, max_queued=0)
+    client.process.command = (sys.executable, str(script))
+    query = {
+        "rules": "chinese",
+        "komi": 7.5,
+        "boardXSize": 9,
+        "boardYSize": 9,
+        "moves": [],
+    }
+    active = asyncio.create_task(client.analyze(query, "normal"))
+    while client._outstanding == 0:
+        await asyncio.sleep(0)
+
+    with pytest.raises(KataGoBusyError, match="队列已满"):
+        await client.analyze(query, "normal")
+
+    await active
+    await client.close()
+
+
+async def test_katago_cancels_one_query_without_restarting_process(tmp_path) -> None:
+    script = tmp_path / "fake_cancellable_katago.py"
+    script.write_text(
+        """import json
+import sys
+
+terminated = False
+for line in sys.stdin:
+    request = json.loads(line)
+    if request.get('action') == 'terminate':
+        terminated = True
+        print(json.dumps(request), flush=True)
+    elif terminated:
+        print(json.dumps({
+            'id': request['id'],
+            'moveInfos': [{'move': 'pass'}],
+        }), flush=True)
+""",
+        encoding="utf-8",
+    )
+    client = KataGoAnalysisClient(max_concurrent=1, max_queued=0)
+    client.process.command = (sys.executable, str(script))
+    query = {
+        "rules": "chinese",
+        "komi": 7.5,
+        "boardXSize": 9,
+        "boardYSize": 9,
+        "moves": [],
+    }
+    cancelled = asyncio.create_task(client.analyze(query, "hard"))
+    while not client._pending:
+        await asyncio.sleep(0)
+    await asyncio.sleep(0.01)
+    process = client.process._process
+
+    cancelled.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await cancelled
+    result = await client.analyze(query, "easy")
+
+    assert result["moveInfos"][0]["move"] == "pass"
+    assert client.process._process is process
+    await client.close()
+
+
+async def test_katago_warm_up_uses_one_visit() -> None:
+    client = KataGoAnalysisClient(
+        executable="/fake/katago",
+        model="/fake/model.bin.gz",
+        config="/fake/analysis.cfg",
+    )
+    client.analyze = AsyncMock(return_value={"moveInfos": [{"move": "pass"}]})
+
+    await client.warm_up()
+
+    query, difficulty = client.analyze.await_args.args
+    assert query["boardXSize"] == query["boardYSize"] == 9
+    assert difficulty == "easy"
+    assert client.analyze.await_args.kwargs == {"max_visits": 1}
     await client.close()

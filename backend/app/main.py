@@ -44,6 +44,7 @@ from .realtime import (
     resume_bot_turns,
     restore_room_state,
     sio,
+    warm_game_engines,
 )
 
 
@@ -54,7 +55,8 @@ GAME_NAMES = {item["key"]: item["name"] for item in GAME_CATALOG}
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     log_dir = configure_logging()
-    cleanup_task: asyncio.Task | None = None
+    cleanup_task: asyncio.Task[None] | None = None
+    warmup_task: asyncio.Task[None] | None = None
     try:
         logger.info(
             "Game hall is starting",
@@ -66,6 +68,10 @@ async def lifespan(_: FastAPI):
         access_signing_secret()
         account_store().initialize()
         await restore_room_state()
+        warmup_task = asyncio.create_task(
+            warm_game_engines(),
+            name="game-engine-warmup",
+        )
         await resume_bot_turns()
         cleanup_task = asyncio.create_task(maintain_game_rooms())
         logger.info(
@@ -80,6 +86,10 @@ async def lifespan(_: FastAPI):
         )
         raise
     finally:
+        if warmup_task is not None:
+            warmup_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await warmup_task
         if cleanup_task is not None:
             cleanup_task.cancel()
             with suppress(asyncio.CancelledError):

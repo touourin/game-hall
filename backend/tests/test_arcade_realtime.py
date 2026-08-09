@@ -1,4 +1,5 @@
 import asyncio
+from unittest.mock import AsyncMock
 
 import pytest
 from pydantic import ValidationError
@@ -81,6 +82,17 @@ async def test_external_bot_turn_runs_after_releasing_the_room_lock() -> None:
     await task
     assert room.state.turn_color == "red"
     assert room.state.last_move["fromRow"] == 3
+    await realtime.close()
+
+
+async def test_optional_game_engines_are_warmed_in_the_background() -> None:
+    realtime = ArcadeRealtime()
+    go_client = realtime.engines["go"].bot_strategy.client
+    go_client.warm_up = AsyncMock()
+
+    await realtime.warm_up()
+
+    go_client.warm_up.assert_awaited_once_with()
     await realtime.close()
 
 

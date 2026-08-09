@@ -40,7 +40,7 @@ class GoEngine:
     max_players = 2
     bot_difficulties = ("easy", "normal", "hard")
     default_bot_difficulty = "normal"
-    bot_timeout_seconds = 30.0
+    bot_timeout_seconds = 12.0
 
     def __init__(self) -> None:
         self.bot_strategy = GoBotStrategy(self)
@@ -53,6 +53,9 @@ class GoEngine:
 
     async def close(self) -> None:
         await self.bot_strategy.close()
+
+    async def warm_up(self) -> None:
+        await self.bot_strategy.warm_up()
 
     @staticmethod
     def repair_restored_room(room: ArcadeRoom) -> None:

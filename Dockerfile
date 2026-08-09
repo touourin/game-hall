@@ -1,3 +1,7 @@
+ARG DEBIAN_MIRROR=http://mirrors.aliyun.com/debian
+ARG DEBIAN_SECURITY_MIRROR=http://mirrors.aliyun.com/debian-security
+ARG GITHUB_DOWNLOAD_PREFIX=https://ghfast.top/
+
 FROM node:24-alpine AS web-builder
 
 WORKDIR /build
@@ -8,21 +12,54 @@ COPY third_party_games/ ./third_party_games/
 RUN npm --prefix frontend run build
 
 
-FROM debian:bookworm-slim AS pikafish-builder
+FROM debian:bookworm-slim AS ai-builder-base
+
+ARG DEBIAN_MIRROR
+ARG DEBIAN_SECURITY_MIRROR
+ARG GITHUB_DOWNLOAD_PREFIX
+
+RUN sed -i \
+      -e "s|http://deb.debian.org/debian-security|${DEBIAN_SECURITY_MIRROR}|g" \
+      -e "s|http://deb.debian.org/debian|${DEBIAN_MIRROR}|g" \
+      /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+      ca-certificates cmake curl g++ libeigen3-dev make p7zip-full zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+
+FROM ai-builder-base AS pikafish-builder
 
 ARG TARGETARCH
 ARG PIKAFISH_VERSION=Pikafish-2026-01-02
-ARG PIKAFISH_NET_SHA256=3cd15292bf8c979884262f57fc723959fc0dea43b4d8d544f88db5ceb2479e24
+ARG PIKAFISH_SOURCE_SHA256=d1482fb903c0b757f8c8cc09c5d057e27f0a8b17934715faf2c58797dd999493
+ARG PIKAFISH_RELEASE_SHA256=84257063905615919fb4ee6a70273a94843bb6ec04c45e3ac706098838bc1a49
+ARG PIKAFISH_NET_SHA256=c4026370d7516d9b0f668447f9ca1931241538bdc689cde6fec6a991ac4d5f77
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl g++ make \
-    && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
-RUN curl -fsSL "https://github.com/official-pikafish/Pikafish/archive/refs/tags/${PIKAFISH_VERSION}.tar.gz" \
-      | tar -xz \
+RUN download_verified() { \
+      expected="$1"; target="$2"; url="$3"; \
+      for candidate in "${GITHUB_DOWNLOAD_PREFIX}${url}" "$url"; do \
+        if curl -fL --retry 5 --retry-all-errors --connect-timeout 15 \
+             "$candidate" -o "$target" \
+          && echo "${expected}  ${target}" | sha256sum -c -; then \
+          return 0; \
+        fi; \
+      done; \
+      return 1; \
+    } \
+    && download_verified \
+      "$PIKAFISH_SOURCE_SHA256" "/tmp/pikafish-source.tar.gz" \
+      "https://github.com/official-pikafish/Pikafish/archive/refs/tags/${PIKAFISH_VERSION}.tar.gz" \
+    && tar -xzf /tmp/pikafish-source.tar.gz \
     && mv "Pikafish-${PIKAFISH_VERSION}" Pikafish \
-    && curl -fsSL "https://github.com/official-pikafish/Networks/releases/download/master-net/pikafish.nnue" \
-      -o Pikafish/src/pikafish.nnue \
+    && download_verified \
+      "$PIKAFISH_RELEASE_SHA256" "/tmp/pikafish-release.7z" \
+      "https://github.com/official-pikafish/Pikafish/releases/download/${PIKAFISH_VERSION}/Pikafish.2026-01-02.7z" \
+    && mkdir -p /tmp/pikafish-release \
+    && 7z e -y -o/tmp/pikafish-release \
+      /tmp/pikafish-release.7z pikafish.nnue >/dev/null \
+    && cp /tmp/pikafish-release/pikafish.nnue Pikafish/src/pikafish.nnue \
     && echo "${PIKAFISH_NET_SHA256}  Pikafish/src/pikafish.nnue" | sha256sum -c - \
     && case "$TARGETARCH" in \
          amd64) pikafish_arch=x86-64 ;; \
@@ -38,31 +75,43 @@ RUN curl -fsSL "https://github.com/official-pikafish/Pikafish/archive/refs/tags/
     && rm Pikafish/src/pikafish.nnue
 
 
-FROM debian:bookworm-slim AS katago-builder
+FROM ai-builder-base AS katago-builder
 
 ARG KATAGO_VERSION=1.17.2
 ARG KATAGO_MODEL_VERSION=1.17.0
+ARG KATAGO_SOURCE_SHA256=d4531e969df138e1d0bc91f02dfd737c88c08296c922e78e63289af443ec501e
 ARG KATAGO_MODEL_SHA256=0ba27eced5180b3e3d0b898b280c541112989765e789d1eb6cd0d31b2b2c1229
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-      ca-certificates cmake curl g++ libeigen3-dev make zlib1g-dev \
-    && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
-RUN curl -fsSL "https://github.com/lightvector/KataGo/archive/refs/tags/v${KATAGO_VERSION}.tar.gz" \
-      | tar -xz \
+RUN download_verified() { \
+      expected="$1"; target="$2"; url="$3"; \
+      for candidate in "${GITHUB_DOWNLOAD_PREFIX}${url}" "$url"; do \
+        if curl -fL --retry 5 --retry-all-errors --connect-timeout 15 \
+             "$candidate" -o "$target" \
+          && echo "${expected}  ${target}" | sha256sum -c -; then \
+          return 0; \
+        fi; \
+      done; \
+      return 1; \
+    } \
+    && download_verified \
+      "$KATAGO_SOURCE_SHA256" "/tmp/katago-source.tar.gz" \
+      "https://github.com/lightvector/KataGo/archive/refs/tags/v${KATAGO_VERSION}.tar.gz" \
+    && tar -xzf /tmp/katago-source.tar.gz \
     && mv "KataGo-${KATAGO_VERSION}" KataGo \
     && cmake -S KataGo/cpp -B KataGo/build \
       -DUSE_BACKEND=EIGEN -DNO_GIT_REVISION=1 -DCMAKE_BUILD_TYPE=Release \
     && cmake --build KataGo/build --parallel "$(nproc)" \
-    && curl -fsSL "https://github.com/lightvector/KataGo/releases/download/v${KATAGO_MODEL_VERSION}/b10c384h6nbttflrs.bin.gz" \
-      -o /src/katago-model.bin.gz \
-    && echo "${KATAGO_MODEL_SHA256}  /src/katago-model.bin.gz" | sha256sum -c -
+    && download_verified \
+      "$KATAGO_MODEL_SHA256" "/src/katago-model.bin.gz" \
+      "https://github.com/lightvector/KataGo/releases/download/v${KATAGO_MODEL_VERSION}/b10c384h6nbttflrs.bin.gz"
 
 
 FROM python:3.13-slim AS runtime
 
-ARG PIP_INDEX_URL=https://pypi.org/simple
+ARG DEBIAN_MIRROR
+ARG DEBIAN_SECURITY_MIRROR
+ARG PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -72,7 +121,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     KATAGO_MODEL_PATH=/opt/game-hall/ai/katago-model.bin.gz \
     KATAGO_CONFIG_PATH=/opt/game-hall/ai/katago-analysis.cfg
 
-RUN apt-get update \
+RUN sed -i \
+      -e "s|http://deb.debian.org/debian-security|${DEBIAN_SECURITY_MIRROR}|g" \
+      -e "s|http://deb.debian.org/debian|${DEBIAN_MIRROR}|g" \
+      /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
     && apt-get install -y --no-install-recommends libgomp1 libstdc++6 zlib1g \
     && rm -rf /var/lib/apt/lists/*
 

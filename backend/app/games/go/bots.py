@@ -87,6 +87,11 @@ class GoBotStrategy:
     async def close(self) -> None:
         await self.client.close()
 
+    async def warm_up(self) -> None:
+        warmer = getattr(self.client, "warm_up", None)
+        if callable(warmer):
+            await warmer()
+
     def _active_bot(self, room: ArcadeRoom) -> ArcadePlayer | None:
         if len(room.players) != 2:
             return None
