@@ -37,6 +37,12 @@ class XiangqiState:
     position_history: list[str] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class DestinationSafety:
+    attacked: bool
+    rooted: bool
+
+
 class XiangqiEngine:
     key = "xiangqi"
     name = "中国象棋"
@@ -166,7 +172,7 @@ class XiangqiEngine:
             self._legal_moves(
                 state.board,
                 viewer_color,
-                include_hints=True,
+                include_safety=True,
             )
             if room.phase == "playing" and viewer_color == state.turn_color
             else []
@@ -207,7 +213,7 @@ class XiangqiEngine:
         board: list[list[str | None]],
         color: str,
         *,
-        include_hints: bool = False,
+        include_safety: bool = False,
     ) -> list[dict[str, int | bool]]:
         moves: list[dict[str, int | bool]] = []
         for source_row in range(ROWS):
@@ -231,22 +237,18 @@ class XiangqiEngine:
                                 "toRow": target_row,
                                 "toColumn": target_column,
                             }
-                            if include_hints:
-                                attacked, protected = (
-                                    self._destination_safety(
-                                        board,
-                                        color,
-                                        source_row,
-                                        source_column,
-                                        target_row,
-                                        target_column,
-                                    )
+                            if include_safety:
+                                safety = self._destination_safety(
+                                    board,
+                                    color,
+                                    source_row,
+                                    source_column,
+                                    target_row,
+                                    target_column,
                                 )
-                                if attacked:
+                                if safety.attacked:
                                     move["destinationAttacked"] = True
-                                    move["destinationProtected"] = protected
-                                if board[target_row][target_column] is not None:
-                                    move["captureProtected"] = attacked
+                                    move["destinationProtected"] = safety.rooted
                             moves.append(move)
         return moves
 
@@ -258,7 +260,7 @@ class XiangqiEngine:
         source_column: int,
         target_row: int,
         target_column: int,
-    ) -> tuple[bool, bool]:
+    ) -> DestinationSafety:
         """Return whether the destination is attacked and has a legal root.
 
         A root is counted only when the moving side can legally recapture every
@@ -288,7 +290,7 @@ class XiangqiEngine:
                     attackers.append((row, column))
 
         if not attackers:
-            return False, False
+            return DestinationSafety(attacked=False, rooted=False)
 
         for attacker_row, attacker_column in attackers:
             after_capture = [row[:] for row in next_board]
@@ -302,8 +304,8 @@ class XiangqiEngine:
                 target_row,
                 target_column,
             ):
-                return True, False
-        return True, True
+                return DestinationSafety(attacked=True, rooted=False)
+        return DestinationSafety(attacked=True, rooted=True)
 
     def _side_can_legally_capture(
         self,

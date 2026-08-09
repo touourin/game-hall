@@ -13,7 +13,6 @@ interface TestXiangqiGame {
     fromColumn: number
     toRow: number
     toColumn: number
-    captureProtected?: boolean
     destinationAttacked?: boolean
     destinationProtected?: boolean
   }>
@@ -180,7 +179,7 @@ describe('XiangqiBoard', () => {
     const protectedCapture = snapshot('p1')
     const protectedGame = protectedCapture.game as unknown as TestXiangqiGame
     protectedGame.board[8][4] = 'bP'
-    protectedGame.legalMoves[0].captureProtected = true
+    protectedGame.legalMoves[0].destinationAttacked = true
     const protectedWrapper = mount(XiangqiBoard, {
       props: { snapshot: protectedCapture },
       global: { plugins: [createPinia()] },

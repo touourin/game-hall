@@ -726,11 +726,11 @@ def test_xiangqi_capture_hints_distinguish_protected_targets() -> None:
     unprotected[5][0] = "rR"
     unprotected[5][4] = "bP"
     unprotected[9][4] = "rK"
-    assert capture_hint(unprotected)["captureProtected"] is False
+    assert capture_hint(unprotected).get("destinationAttacked", False) is False
 
     protected = [row[:] for row in unprotected]
     protected[4][4] = "bR"
-    assert capture_hint(protected)["captureProtected"] is True
+    assert capture_hint(protected)["destinationAttacked"] is True
 
 
 def test_xiangqi_move_hints_distinguish_rooted_destinations() -> None:

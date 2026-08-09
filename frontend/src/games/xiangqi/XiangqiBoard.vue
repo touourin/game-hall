@@ -21,7 +21,6 @@ interface LegalMove {
   fromColumn: number
   toRow: number
   toColumn: number
-  captureProtected?: boolean
   destinationAttacked?: boolean
   destinationProtected?: boolean
 }
@@ -124,6 +123,14 @@ const placementMarkSegments = placementMarkPoints.flatMap(({ row, column }) => [
   ...(column > 0 ? [{ row, column, side: 'left' as const }] : []),
   ...(column < 8 ? [{ row, column, side: 'right' as const }] : []),
 ])
+
+function moveHintTone(move: LegalMove, isCapture: boolean): HintTone {
+  if (!captureHintsEnabled.value) return 'green'
+  if (isCapture) return move.destinationAttacked === true ? 'yellow' : 'red'
+  if (move.destinationAttacked !== true) return 'green'
+  return move.destinationProtected === true ? 'yellow' : 'red'
+}
+
 const boardHints = computed(() => {
   const hints = new Map<string, HintTone>()
   if (!isMyTurn.value || isReplaying.value) return hints
@@ -132,24 +139,9 @@ const boardHints = computed(() => {
     for (const move of selectedLegalMoves.value) {
       const target = game.value.board[move.toRow]?.[move.toColumn]
       const isCapture = target !== null && target !== undefined
-      const isUnprotectedCapture = isCapture
-        && move.captureProtected !== true
-      const isUnprotectedDanger = !isCapture
-        && move.destinationAttacked === true
-        && move.destinationProtected !== true
-      const isProtectedDanger = isCapture
-        ? move.captureProtected === true
-        : move.destinationAttacked === true
-          && move.destinationProtected === true
       hints.set(
         `${move.toRow}:${move.toColumn}`,
-        !captureHintsEnabled.value
-          ? 'green'
-          : isUnprotectedCapture || isUnprotectedDanger
-            ? 'red'
-            : isProtectedDanger
-              ? 'yellow'
-              : 'green',
+        moveHintTone(move, isCapture),
       )
     }
     return hints
@@ -161,7 +153,7 @@ const boardHints = computed(() => {
     if (!target) continue
     const key = `${move.toRow}:${move.toColumn}`
     if (hints.get(key) === 'red') continue
-    hints.set(key, move.captureProtected === true ? 'yellow' : 'red')
+    hints.set(key, moveHintTone(move, true))
   }
   return hints
 })
