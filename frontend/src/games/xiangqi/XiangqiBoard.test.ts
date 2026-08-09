@@ -85,9 +85,23 @@ describe('XiangqiBoard', () => {
     })
     const king = wrapper.findAll('.xiangqi-cell')[9 * 9 + 4]
 
-    expect(wrapper.find('.xiangqi-lines').exists()).toBe(true)
-    expect(wrapper.find('.palace-lines').exists()).toBe(true)
-    expect(wrapper.find('.xiangqi-grid').exists()).toBe(true)
+    const boardArt = wrapper.get('.xiangqi-board-art')
+    const boundary = wrapper.get('.xiangqi-board-boundary')
+
+    expect(boardArt.attributes('viewBox')).toBe('0 0 9 10')
+    expect(wrapper.find('.xiangqi-board-stage').exists()).toBe(true)
+    expect(wrapper.findAll('.xiangqi-lattice-lines')).toHaveLength(2)
+    expect(wrapper.find('.xiangqi-palace-lines').exists()).toBe(true)
+    expect(boundary.attributes()).toMatchObject({
+      x: '0.5',
+      y: '0.5',
+      width: '8',
+      height: '9',
+    })
+    expect(wrapper.findAll('.xiangqi-river-label text').map((node) => node.text())).toEqual([
+      '楚 河',
+      '汉 界',
+    ])
     expect(wrapper.findAll('.xiangqi-position-mark')).toHaveLength(24)
     expect(wrapper.findAll('[data-position="3-0"]')).toHaveLength(1)
     expect(wrapper.findAll('[data-position="3-4"]')).toHaveLength(2)
