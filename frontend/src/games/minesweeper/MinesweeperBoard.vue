@@ -14,6 +14,7 @@ import {
 } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
+import SoloResultCard from '../shared/solo/SoloResultCard.vue'
 
 type CellState = 'hidden' | 'open' | 'flagged' | 'mine' | 'exploded' | 'wrong_flag'
 
@@ -289,20 +290,23 @@ onBeforeUnmount(() => {
       </footer>
     </section>
 
-    <section v-if="snapshot.phase === 'finished'" class="surface minesweeper-result" :class="{ won }">
-      <span v-if="won"><Trophy :size="22" />排雷完成</span>
-      <span v-else><Bomb :size="22" />本轮结束</span>
-      <h2>{{ won ? `${game.difficultyLabel}通关` : '踩中地雷' }}</h2>
-      <p>{{ snapshot.winReason }}</p>
-      <div>
-        <span><b>{{ formatTime(game.elapsedMs) }}</b>完成用时</span>
-        <span><b>{{ game.revealedCount }}</b>安全格</span>
-        <span><b>{{ game.flaggedCount }}</b>旗帜</span>
-      </div>
-      <button v-if="snapshot.actions.canRestart" type="button" class="primary-button" @click="restartGame">
-        <RotateCcw :size="18" />再挑战一次
-      </button>
-    </section>
+    <SoloResultCard
+      v-if="snapshot.phase === 'finished'"
+      class="minesweeper-result"
+      :eyebrow="won ? '排雷完成' : '本轮结束'"
+      :title="won ? `${game.difficultyLabel}通关` : '踩中地雷'"
+      :description="snapshot.winReason"
+      :tone="won ? 'success' : 'danger'"
+      :metrics="[
+        { label: '完成用时', value: formatTime(game.elapsedMs) },
+        { label: '安全格', value: game.revealedCount },
+        { label: '旗帜', value: game.flaggedCount },
+      ]"
+      :can-restart="snapshot.actions.canRestart"
+      @restart="restartGame"
+    >
+      <template #icon><Trophy v-if="won" :size="22" /><Bomb v-else :size="22" /></template>
+    </SoloResultCard>
   </section>
 </template>
 

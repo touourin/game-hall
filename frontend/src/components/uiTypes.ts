@@ -76,3 +76,9 @@ export interface ModeGuideContent {
   }
   footer: string
 }
+
+export interface GameMetricItem {
+  label: string
+  value: string | number
+  tone?: 'default' | 'success' | 'warning' | 'danger'
+}

@@ -1,6 +1,7 @@
 import { createPinia } from 'pinia'
 import { mount } from '@vue/test-utils'
 import { THIRD_PARTY_GAME_PLUGINS } from '../thirdPartyGameRegistry'
+import { useArcadeStore } from '../stores/arcade'
 import GameHall from './GameHall.vue'
 
 describe('GameHall', () => {
@@ -21,10 +22,10 @@ describe('GameHall', () => {
     const gameCards = wrapper.findAll('.game-card')
     expect(gameCards).toHaveLength(13)
     expect(wrapper.findAll('.game-card-art')).toHaveLength(12)
-    expect(wrapper.find('.featured-art-emerald').exists()).toBe(true)
-    expect(wrapper.find('.featured-art-midnight').exists()).toBe(true)
-    expect(wrapper.find('.featured-art-royal').exists()).toBe(true)
-    expect(wrapper.find('.mobile-salon-dock').exists()).toBe(false)
+    expect(wrapper.find('.nexus-avalon-signal').exists()).toBe(true)
+    expect(wrapper.find('.nexus-feature').exists()).toBe(true)
+    expect(wrapper.find('.nexus-live-rooms').exists()).toBe(true)
+    expect(wrapper.find('.nexus-mobile-dock').exists()).toBe(true)
     expect(wrapper.findAll('.account-bar-actions button')).toHaveLength(3)
     expect(wrapper.get('.account-bar-actions [aria-label="查看全部战绩"]').text()).toContain('全部战绩')
     expect(wrapper.get('[aria-label="退出登录"]').text()).toContain('退出')
@@ -42,7 +43,8 @@ describe('GameHall', () => {
     await wrapper.get('[aria-label="关闭第三方游戏"]').trigger('click')
     expect(wrapper.find('[role="dialog"][aria-label="第三方游戏"]').exists()).toBe(false)
     expect(wrapper.get('.account-identity-copy').text()).toContain('玩家账号 · tester')
-    expect(wrapper.get('.hall-highlights').text()).toBe('实时联机·独立战绩')
+    expect(wrapper.get('.nexus-title-block').text()).toContain('竞技大厅')
+    expect(wrapper.get('.nexus-system-metrics').text()).toContain('0 ROOMS')
     expect(wrapper.text()).not.toContain('PRIVATE')
     expect(wrapper.text()).not.toContain('私人席位')
     expect(wrapper.text()).not.toContain('11 款游戏')
@@ -87,7 +89,44 @@ describe('GameHall', () => {
     expect(wrapper.text()).toContain('游客席位 · 对局不计战绩')
     expect(wrapper.find('[aria-label="查看全部战绩"]').exists()).toBe(false)
     expect(wrapper.find('[aria-label="退出游客模式"]').exists()).toBe(true)
-    expect(wrapper.find('.mobile-salon-dock').exists()).toBe(false)
+    expect(wrapper.find('.nexus-mobile-dock').exists()).toBe(true)
     expect(wrapper.find('[aria-label="打开设置"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('好友')
+  })
+
+  it('uses the real lobby signal and opens the selected live room', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    arcade.availableRooms = [{
+      roomCode: 'NX42',
+      roomName: '冠军桌',
+      gameKey: 'avalon',
+      gameName: '阿瓦隆',
+      hostName: '测试房主',
+      playerCount: 6,
+      maxPlayers: 10,
+      options: {},
+      phase: 'lobby',
+    }]
+    const wrapper = mount(GameHall, {
+      props: {
+        account: {
+          id: 'account-1',
+          username: 'tester',
+          playerName: '测试玩家',
+          nextRenameAt: null,
+          createdAt: '2026-08-01T00:00:00Z',
+        },
+      },
+      global: { plugins: [pinia] },
+    })
+
+    expect(wrapper.get('.nexus-system-metrics').text()).toContain('6 ONLINE')
+    expect(wrapper.get('.nexus-feature-copy').text()).toContain('冠军桌')
+    await wrapper.get('.nexus-room-row').trigger('click')
+    expect(wrapper.emitted('openRoom')?.[0]?.[0]).toEqual({
+      gameKey: 'avalon',
+      roomCode: 'NX42',
+    })
   })
 })

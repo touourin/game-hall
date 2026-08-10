@@ -245,7 +245,10 @@ describe('ArcadeRoom', () => {
     sessionStorage.clear()
   })
 
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    document.body.innerHTML = ''
+  })
 
   it('shows the fixed perspective and everyone currently watching', () => {
     const next = snapshot('gomoku')
@@ -635,12 +638,12 @@ describe('ArcadeRoom', () => {
     expect(qrButtons).toHaveLength(2)
     await qrButtons[0]?.trigger('click')
 
-    expect(wrapper.get('.qr-modal').text()).toContain('扫描加入测试游戏房间')
-    expect(wrapper.get('.qr-modal').text()).toContain('TEST')
+    expect(document.body.querySelector('.qr-modal')?.textContent).toContain('扫描加入测试游戏房间')
+    expect(document.body.querySelector('.qr-modal')?.textContent).toContain('TEST')
 
     await wrapper.setProps({ snapshot: snapshot('hanoi') })
     expect(wrapper.find('[aria-label="显示加入二维码"]').exists()).toBe(false)
-    expect(wrapper.find('.qr-modal').exists()).toBe(false)
+    expect(document.body.querySelector('.qr-modal')).toBeNull()
   })
 
   it('uses the shared confirmation before dissolving a multiplayer room', async () => {
@@ -653,12 +656,12 @@ describe('ArcadeRoom', () => {
     })
 
     await wrapper.get('.dissolve-room-trigger').trigger('click')
-    expect(wrapper.get('.dissolve-room-modal').text()).toContain(
+    expect(document.body.querySelector('.dissolve-room-modal')?.textContent).toContain(
       '所有等待中的玩家都会返回大厅',
     )
     expect(dissolveRoom).not.toHaveBeenCalled()
 
-    await wrapper.get('.dissolve-room-actions .danger').trigger('click')
+    document.body.querySelector<HTMLButtonElement>('.confirm-modal-actions .danger')!.click()
     await flushPromises()
 
     expect(dissolveRoom).toHaveBeenCalledOnce()
@@ -701,7 +704,7 @@ describe('ArcadeRoom', () => {
 
     await wrapper.get('[aria-label="移除玩家二"]').trigger('click')
     expect(document.body.querySelector('.kick-player-modal')?.textContent).toContain('移除玩家二？')
-    document.body.querySelector<HTMLButtonElement>('.kick-player-actions .danger')?.click()
+    document.body.querySelector<HTMLButtonElement>('.confirm-modal-actions .danger')?.click()
     await flushPromises()
 
     expect(kickPlayer).toHaveBeenCalledWith('p2')
@@ -719,12 +722,13 @@ describe('ArcadeRoom', () => {
     })
 
     await wrapper.get('.exit-room-trigger').trigger('click')
-    expect(wrapper.get('.exit-room-modal').text()).toContain(
+    expect(document.body.querySelector('.exit-room-modal')?.textContent).toContain(
       '离开房间并让出座位',
     )
     expect(leaveRoom).not.toHaveBeenCalled()
 
-    await wrapper.get('.exit-room-modal .danger-button').trigger('click')
+    document.body.querySelector<HTMLButtonElement>('.exit-room-modal .danger-button')!.click()
+    await wrapper.vm.$nextTick()
 
     expect(leaveRoom).toHaveBeenCalledOnce()
   })
@@ -743,13 +747,15 @@ describe('ArcadeRoom', () => {
     })
 
     await wrapper.get('.exit-room-trigger').trigger('click')
-    expect(wrapper.get('.exit-room-modal').text()).toContain('暂时返回')
-    expect(wrapper.get('.exit-room-modal').text()).toContain('认输并退出')
-    await wrapper.get('.exit-room-modal .secondary-button').trigger('click')
+    expect(document.body.querySelector('.exit-room-modal')?.textContent).toContain('暂时返回')
+    expect(document.body.querySelector('.exit-room-modal')?.textContent).toContain('认输并退出')
+    document.body.querySelector<HTMLButtonElement>('.exit-room-modal .secondary-button')!.click()
+    await wrapper.vm.$nextTick()
     expect(detachRoom).toHaveBeenCalledOnce()
 
     await wrapper.get('.exit-room-trigger').trigger('click')
-    await wrapper.get('.exit-room-modal .danger-button').trigger('click')
+    document.body.querySelector<HTMLButtonElement>('.exit-room-modal .danger-button')!.click()
+    await wrapper.vm.$nextTick()
     expect(abandonRoom).toHaveBeenCalledOnce()
   })
 
@@ -766,8 +772,9 @@ describe('ArcadeRoom', () => {
     })
 
     await wrapper.get('.exit-room-trigger').trigger('click')
-    expect(wrapper.get('.exit-room-modal').text()).toContain('放弃当前进度')
-    await wrapper.get('.exit-room-modal .danger-button').trigger('click')
+    expect(document.body.querySelector('.exit-room-modal')?.textContent).toContain('放弃当前进度')
+    document.body.querySelector<HTMLButtonElement>('.exit-room-modal .danger-button')!.click()
+    await wrapper.vm.$nextTick()
     expect(abandonRoom).toHaveBeenCalledOnce()
   })
 

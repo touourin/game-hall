@@ -11,11 +11,14 @@ describe('RoomInviteModal', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('扫描加入五子棋房间')
-    expect(wrapper.text()).toContain('ABCD')
-    expect(wrapper.text()).toContain('game=gomoku')
+    const dialog = document.body.querySelector<HTMLElement>('[role="dialog"]')!
+    expect(dialog.textContent).toContain('扫描加入五子棋房间')
+    expect(dialog.textContent).toContain('ABCD')
+    expect(dialog.textContent).toContain('game=gomoku')
 
-    await wrapper.get('[aria-label="关闭二维码"]').trigger('click')
+    document.body.querySelector<HTMLButtonElement>('[aria-label="关闭二维码"]')!.click()
+    await wrapper.vm.$nextTick()
     expect(wrapper.emitted('close')).toHaveLength(1)
+    wrapper.unmount()
   })
 })

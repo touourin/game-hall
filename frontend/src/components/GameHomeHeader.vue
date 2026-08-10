@@ -33,17 +33,18 @@ defineEmits<{
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: flex-start;
   gap: 18px;
-  min-height: 198px;
-  padding: 34px 0 46px;
+  min-height: 178px;
+  border-bottom: 1px solid var(--line);
+  padding: 31px 0 38px;
 }
 
 .game-home-header::after {
   position: absolute;
   right: 2px;
-  bottom: 23px;
-  left: 58px;
+  bottom: -1px;
+  left: 0;
   height: 1px;
-  background: linear-gradient(90deg, var(--line-strong), transparent 72%);
+  background: linear-gradient(90deg, var(--gold), var(--accent-secondary) 35%, transparent 78%);
   content: '';
 }
 
@@ -53,7 +54,8 @@ defineEmits<{
 
 .game-home-copy small {
   color: var(--gold);
-  font-size: 11px;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 8px;
   font-weight: 800;
   letter-spacing: .14em;
   text-transform: uppercase;
@@ -61,10 +63,10 @@ defineEmits<{
 
 .game-home-copy h1 {
   margin: 7px 0 8px;
-  font-family: "Songti SC", "STSong", serif;
-  font-size: clamp(42px, 6vw, 64px);
-  font-weight: 650;
-  letter-spacing: -.035em;
+  font-family: Inter, "PingFang SC", sans-serif;
+  font-size: clamp(36px, 5vw, 56px);
+  font-weight: 800;
+  letter-spacing: -.045em;
   line-height: 1.05;
 }
 
@@ -85,10 +87,10 @@ defineEmits<{
   align-items: center;
   gap: 6px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  border-radius: 4px;
   padding: 10px 12px;
   color: var(--text-soft);
-  background: var(--surface-inset);
+  background: linear-gradient(145deg,color-mix(in srgb,var(--gold) 5%,transparent),transparent),var(--surface-inset);
   font-size: 12px;
   font-weight: 800;
   cursor: pointer;
@@ -103,11 +105,11 @@ defineEmits<{
     grid-template-columns: auto minmax(0, 1fr);
     gap: 14px;
     min-height: 0;
-    padding: 21px 0 32px;
+    padding: 18px 0 25px;
   }
 
-  .game-home-header::after { right: 0; bottom: 15px; left: 0; }
-  .game-home-copy h1 { font-size: 39px; }
+  .game-home-header::after { right: 0; bottom: -1px; left: 0; }
+  .game-home-copy h1 { font-size: 34px; }
 
   .game-home-actions {
     grid-column: 1 / -1;

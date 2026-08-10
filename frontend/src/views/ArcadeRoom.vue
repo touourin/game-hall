@@ -27,6 +27,7 @@ import ModeGuide from '../components/ModeGuide.vue'
 import PressRevealCard from '../components/PressRevealCard.vue'
 import RoomAiSeatControl from '../components/RoomAiSeatControl.vue'
 import RoleSkinLoadoutPicker from '../components/RoleSkinLoadoutPicker.vue'
+import AvatarImage from '../components/AvatarImage.vue'
 import { useArcadeStore } from '../stores/arcade'
 import {
   isAvalonArcadeSnapshot,
@@ -583,15 +584,12 @@ function openSharedChat() {
         :key="player.id"
         :class="{ self: player.id === snapshot.self.id, perspective: isSpectating && player.id === snapshot.self.id }"
       >
-        <span class="arcade-player-avatar">
-          <img
-            v-if="player.avatarUrl"
-            :src="player.avatarUrl"
-            alt=""
-            draggable="false"
-          />
-          <template v-else>{{ player.seat + 1 }}</template>
-        </span>
+        <AvatarImage
+          class="arcade-player-avatar"
+          :src="player.avatarUrl"
+          :name="player.name"
+          :fallback="player.seat + 1"
+        />
         <div>
           <strong>{{ player.name }}</strong>
           <small>
@@ -629,10 +627,11 @@ function openSharedChat() {
       <header><span><Eye :size="17" /><strong>观战席</strong></span><b>{{ roomSpectators.length }} 人</b></header>
       <div v-if="roomSpectators.length">
         <article v-for="spectator in roomSpectators" :key="spectator.id">
-          <span class="arcade-spectator-avatar">
-            <img v-if="spectator.avatarUrl" :src="spectator.avatarUrl" alt="" draggable="false" />
-            <template v-else>{{ spectator.name.slice(0, 1) }}</template>
-          </span>
+          <AvatarImage
+            class="arcade-spectator-avatar"
+            :src="spectator.avatarUrl"
+            :name="spectator.name"
+          />
           <span><strong>{{ spectator.name }}{{ spectator.id === snapshot.viewer?.id ? '（你）' : '' }}</strong><small>正在观看 {{ spectator.targetPlayerName }}</small></span>
         </article>
       </div>
@@ -872,33 +871,37 @@ function openSharedChat() {
 .guest-match-notice strong,.guest-match-notice span { display: block; }.guest-match-notice strong { color: var(--gold); font-size: 13px; }.guest-match-notice span { margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .spectator-mode-banner { display: flex; align-items: center; gap: 11px; margin: 0 0 18px; padding: 12px 15px; border-color: color-mix(in srgb, #68c8df 38%, var(--line)); background: color-mix(in srgb, #68c8df 7%, var(--surface)); }
 .spectator-mode-banner > svg { flex: 0 0 auto; color: #83d4e7; }.spectator-mode-banner span { min-width: 0; display: grid; gap: 3px; }.spectator-mode-banner strong { color: #9dddeb; font-size: 13px; }.spectator-mode-banner small { color: var(--muted); line-height: 1.45; }
-.arcade-player-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 24px; padding: 14px; }
-.arcade-player-strip > article:not(.room-ai-seat-control) { display: flex; flex: 0 0 var(--player-card-width); gap: 10px; align-items: center; min-width: 0; min-height: 68px; padding: 10px; border: 1px solid color-mix(in srgb, var(--line) 72%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--surface-elevated) 42%, transparent); }
+.arcade-player-strip { position: relative; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 24px; padding: 31px 14px 14px; border-color: color-mix(in srgb, var(--gold) 24%, var(--line)); }
+.arcade-player-strip::before { position: absolute; top: 10px; left: 14px; color: var(--gold); font-family: ui-monospace,"SFMono-Regular",Consolas,monospace; font-size: 6px; font-weight: 800; letter-spacing: .17em; content: 'PLAYER SIGNAL ARRAY'; }
+.arcade-player-strip > article:not(.room-ai-seat-control) { position: relative; display: flex; flex: 0 0 var(--player-card-width); gap: 10px; align-items: center; min-width: 0; min-height: 68px; overflow: hidden; padding: 10px; border: 1px solid color-mix(in srgb, var(--line) 78%, transparent); border-radius: 4px; background: linear-gradient(145deg,color-mix(in srgb,var(--gold) 4%,transparent),transparent),color-mix(in srgb,var(--surface-elevated) 72%,transparent); }
+.arcade-player-strip > article:not(.room-ai-seat-control)::after { position:absolute; right:-10px; bottom:-10px; width:23px; aspect-ratio:1; border:1px solid color-mix(in srgb,var(--gold) 18%,transparent); transform:rotate(45deg); content:''; }
 .arcade-player-strip > article:not(.room-ai-seat-control) > div { min-width: 0; flex: 1; }
-.arcade-player-strip > article.self { border-color: color-mix(in srgb, var(--gold) 40%, transparent); background: color-mix(in srgb, var(--gold) 7%, transparent); }
-.arcade-player-strip > article:not(.room-ai-seat-control) > span { width: 34px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 10px; color: var(--gold); background: color-mix(in srgb, var(--gold) 13%, transparent); font-weight: 900; }
+.arcade-player-strip > article.self { border-color: color-mix(in srgb, var(--gold) 52%, transparent); background: linear-gradient(145deg,color-mix(in srgb,var(--gold) 10%,transparent),transparent),color-mix(in srgb,var(--surface-elevated) 68%,transparent); box-shadow: inset 3px 0 0 var(--gold), var(--glow-primary); }
+.arcade-player-strip > article:not(.room-ai-seat-control) > span { width: 36px; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid color-mix(in srgb,var(--gold) 30%,var(--line)); border-radius: 4px; color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); font-weight: 900; }
 .arcade-player-avatar { overflow: hidden; }
 .arcade-player-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .arcade-player-strip strong, .arcade-player-strip small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .arcade-player-strip small { margin-top: 2px; color: var(--muted); }
 .arcade-player-strip small svg { vertical-align: -2px; color: var(--gold); }
-.arcade-spectator-strip { display: grid; gap: 10px; margin: -10px 0 24px; padding: 12px 14px; }
+.arcade-spectator-strip { display: grid; gap: 10px; margin: -10px 0 24px; padding: 12px 14px; border-style: dashed; }
 .arcade-spectator-strip > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }.arcade-spectator-strip > header span { display: inline-flex; align-items: center; gap: 7px; color: #83d4e7; }.arcade-spectator-strip > header b { color: var(--muted); font-size: 10px; }
-.arcade-spectator-strip > div { display: flex; flex-wrap: wrap; gap: 8px; }.arcade-spectator-strip article { min-width: min(100%, 190px); display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 11px; padding: 8px 10px; background: var(--surface-inset); }.arcade-spectator-strip article > span:last-child { min-width: 0; display: grid; gap: 1px; }.arcade-spectator-strip article strong,.arcade-spectator-strip article small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.arcade-spectator-strip article small { color: var(--muted); font-size: 9px; }.arcade-spectator-strip > p { margin: 0; color: var(--muted); font-size: 10px; }
-.arcade-spectator-avatar { flex: 0 0 auto; width: 30px; aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: 9px; color: #83d4e7; background: color-mix(in srgb, #68c8df 12%, var(--surface-elevated)); font-size: 11px; font-weight: 900; }.arcade-spectator-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.arcade-spectator-strip > div { display: flex; flex-wrap: wrap; gap: 8px; }.arcade-spectator-strip article { min-width: min(100%, 190px); display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; background: var(--surface-inset); }.arcade-spectator-strip article > span:last-child { min-width: 0; display: grid; gap: 1px; }.arcade-spectator-strip article strong,.arcade-spectator-strip article small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.arcade-spectator-strip article small { color: var(--muted); font-size: 9px; }.arcade-spectator-strip > p { margin: 0; color: var(--muted); font-size: 10px; }
+.arcade-spectator-avatar { flex: 0 0 auto; width: 30px; aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: 4px; color: #83d4e7; background: color-mix(in srgb, #68c8df 12%, var(--surface-elevated)); font-size: 11px; font-weight: 900; }.arcade-spectator-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .room-rule-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -12px 0 24px; padding: 11px 13px; }
 .room-rule-bar > div { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; min-width: 0; }
 .room-rule-bar svg { flex: 0 0 auto; color: var(--gold); }
-.room-rule-bar span { border: 1px solid var(--line); border-radius: 999px; padding: 4px 8px; color: var(--muted); background: rgba(0, 0, 0, .1); font-size: 10px; }
+.room-rule-bar span { border: 1px solid var(--line); border-radius: 3px; padding: 4px 8px; color: var(--muted); background: rgba(0, 0, 0, .1); font-family: ui-monospace,"SFMono-Regular",Consolas,monospace; font-size: 8px; }
 .room-rule-actions { flex: 0 0 auto; display: flex; gap: 8px; }
 .room-rule-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; border: 1px solid color-mix(in srgb, var(--gold) 38%, var(--line)); border-radius: 10px; padding: 0 11px; color: var(--gold); background: color-mix(in srgb, var(--gold) 7%, transparent); font-weight: 850; }
 .game-skin-card + .arcade-waiting,
 .role-skin-loadout + .arcade-waiting { margin-top: 18px; }
-.arcade-waiting { min-height: min(390px, 48dvh); display: grid; place-items: center; align-content: center; gap: 12px; padding: 30px 18px; text-align: center; }
-.arcade-waiting > svg { color: var(--gold); }
+.arcade-waiting { position:relative; min-height: min(390px, 48dvh); display: grid; place-items: center; align-content: center; gap: 12px; overflow:hidden; padding: 30px 18px; border-color:color-mix(in srgb,var(--gold) 30%,var(--line)); text-align: center; }
+.arcade-waiting::before,.arcade-waiting::after { position:absolute; width:230px; aspect-ratio:1; border:1px solid color-mix(in srgb,var(--gold) 10%,transparent); border-radius:50%; content:''; }.arcade-waiting::after { width:150px; border-color:color-mix(in srgb,var(--accent-secondary) 13%,transparent); border-style:dashed; }
+.arcade-waiting > * { position:relative; z-index:1; }
+.arcade-waiting > svg { color: var(--gold); filter:drop-shadow(0 0 12px color-mix(in srgb,var(--gold) 38%,transparent)); }
 .arcade-waiting h2, .arcade-waiting p { margin: 0; }
 .arcade-waiting p { color: var(--muted); }
-.room-code-share { margin: 14px 0 0; border: 0; padding: 0; color: var(--text); background: transparent; font-size: 28px; font-weight: 800; letter-spacing: .18em; }
+.room-code-share { margin: 14px 0 0; border: 1px solid var(--line-strong); border-radius:4px; padding:9px 14px; color: var(--gold); background: color-mix(in srgb,var(--gold) 7%,var(--surface-inset)); box-shadow:var(--glow-primary); font-family:ui-monospace,"SFMono-Regular",Consolas,monospace; font-size: 23px; font-weight: 800; letter-spacing: .18em; }
 .arcade-waiting :deep(.invite-link-panel) { width: min(100%, 620px); }
 .arcade-game-stage { display: grid; gap: 22px; }
 .result-banner { padding: 18px; text-align: center; }

@@ -3,6 +3,8 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Clock3, Grid3X3, RotateCcw, ScanSearch, Target, TriangleAlert } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
+import SoloMetricGrid from '../shared/solo/SoloMetricGrid.vue'
+import SoloResultCard from '../shared/solo/SoloResultCard.vue'
 
 interface SchulteView {
   gridSize: number
@@ -237,29 +239,32 @@ onBeforeUnmount(() => {
         </p>
       </section>
 
-      <section class="schulte-metrics" aria-label="舒尔特方格挑战数据">
-        <div class="surface"><small>当前用时</small><strong>{{ formatTime(elapsedMs) }} 秒</strong></div>
-        <div class="surface"><small>点击错误</small><strong :class="{ warning: game.mistakes }">{{ game.mistakes }}</strong></div>
-        <div class="surface"><small>完成进度</small><strong>{{ Math.round(progress) }}%</strong></div>
-      </section>
+      <SoloMetricGrid
+        class="schulte-metrics"
+        aria-label="舒尔特方格挑战数据"
+        :items="[
+          { label: '当前用时', value: `${formatTime(elapsedMs)} 秒` },
+          { label: '点击错误', value: game.mistakes, tone: game.mistakes ? 'warning' : 'default' },
+          { label: '完成进度', value: `${Math.round(progress)}%` },
+        ]"
+      />
     </template>
 
-    <section v-if="snapshot.phase === 'finished'" class="surface schulte-result">
-      <span>5×5 标准挑战完成</span>
-      <strong>{{ formatTime(game.elapsedMs) }} <small>秒</small></strong>
-      <p>成绩由服务端计时并验证点击顺序</p>
-      <div>
-        <span><b>{{ game.averageCellMs }} ms</b>平均每格</span>
-        <span><b>{{ game.mistakes }}</b>错误点击</span>
-        <span><b>{{ game.accuracy }}%</b>点击准确率</span>
-      </div>
-      <button
-        v-if="snapshot.actions.canRestart"
-        type="button"
-        class="primary-button"
-        @click="restartChallenge"
-      ><RotateCcw :size="18" />再挑战一次</button>
-    </section>
+    <SoloResultCard
+      v-if="snapshot.phase === 'finished'"
+      class="schulte-result"
+      eyebrow="5×5 标准挑战完成"
+      title="服务端已验证完整点击顺序"
+      :score="formatTime(game.elapsedMs)"
+      score-unit="秒"
+      :metrics="[
+        { label: '平均每格', value: `${game.averageCellMs} ms` },
+        { label: '错误点击', value: game.mistakes, tone: game.mistakes ? 'warning' : 'default' },
+        { label: '点击准确率', value: `${game.accuracy}%` },
+      ]"
+      :can-restart="snapshot.actions.canRestart"
+      @restart="restartChallenge"
+    />
   </section>
 </template>
 

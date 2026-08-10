@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { QrCode, X } from '@lucide/vue'
+import { QrCode } from '@lucide/vue'
 import QrcodeVue from 'qrcode.vue'
+import BaseModal from './ui/BaseModal.vue'
 
 withDefaults(
   defineProps<{
@@ -21,21 +22,20 @@ defineEmits<{
 </script>
 
 <template>
-  <div class="modal-backdrop" @click.self="$emit('close')">
-    <section class="modal-card qr-modal" role="dialog" aria-modal="true" :aria-label="title">
-      <button class="modal-close" type="button" aria-label="关闭二维码" @click="$emit('close')">
-        <X :size="20" />
-      </button>
-      <span class="modal-icon"><QrCode :size="25" /></span>
-      <h2>{{ title }}</h2>
-      <p>{{ description }}</p>
-      <div class="qr-frame">
-        <QrcodeVue :value="url" :size="196" level="M" />
-      </div>
-      <strong class="modal-room-code">{{ roomCode }}</strong>
-      <small>{{ url }}</small>
-    </section>
-  </div>
+  <BaseModal
+    :title="title"
+    :description="description"
+    panel-class="qr-modal"
+    close-label="关闭二维码"
+    @close="$emit('close')"
+  >
+    <template #icon><QrCode :size="25" /></template>
+    <div class="qr-frame">
+      <QrcodeVue :value="url" :size="196" level="M" />
+    </div>
+    <strong class="modal-room-code">{{ roomCode }}</strong>
+    <small class="qr-url">{{ url }}</small>
+  </BaseModal>
 </template>
 
 <style scoped>
@@ -56,7 +56,7 @@ defineEmits<{
   letter-spacing: .16em;
 }
 
-.qr-modal > small {
+.qr-url {
   display: block;
   max-width: 100%;
   margin-top: 8px;

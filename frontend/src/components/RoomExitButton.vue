@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { ArrowLeft, DoorOpen, Flag, X } from '@lucide/vue'
+import { ArrowLeft, DoorOpen, Flag } from '@lucide/vue'
 import BackNavigationButton from './BackNavigationButton.vue'
+import ConfirmModal from './ui/ConfirmModal.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -53,28 +54,16 @@ function confirm(action: 'leave' | 'detach' | 'abandon') {
     @click="showConfirmation = true"
   />
 
-  <div
+  <ConfirmModal
     v-if="showConfirmation"
-    class="modal-backdrop"
-    @click.self="showConfirmation = false"
+    :title="title"
+    :description="description"
+    close-label="取消退出"
+    panel-class="exit-room-modal"
+    @close="showConfirmation = false"
   >
-    <section
-      class="modal-card exit-room-modal"
-      role="dialog"
-      aria-modal="true"
-      :aria-label="title"
-    >
-      <button
-        class="modal-close"
-        type="button"
-        aria-label="取消退出"
-        @click="showConfirmation = false"
-      >
-        <X :size="20" />
-      </button>
-      <span class="modal-icon"><DoorOpen :size="25" /></span>
-      <h2>{{ title }}</h2>
-      <p>{{ description }}</p>
+    <template #icon><DoorOpen :size="25" /></template>
+    <template #actions>
       <div class="exit-room-actions">
         <button
           v-if="mode !== 'multiplayer-active'"
@@ -104,6 +93,6 @@ function confirm(action: 'leave' | 'detach' | 'abandon') {
           {{ dangerLabel }}
         </button>
       </div>
-    </section>
-  </div>
+    </template>
+  </ConfirmModal>
 </template>

@@ -49,9 +49,9 @@ const themes: Array<{
   description: string
   colors: string[]
 }> = [
-  { id: 'emerald', name: '墨玉会所', description: '黑玉漆面、香槟金与东方纸纹', colors: ['#071412', '#173d35', '#d6b76e'] },
-  { id: 'midnight', name: '午夜铬光', description: '石墨蓝黑、冰蓝与微量紫光', colors: ['#070d16', '#172f49', '#75c6e9'] },
-  { id: 'royal', name: '象牙棋院', description: '暖象牙、墨色与朱砂点睛', colors: ['#e9e1d2', '#f7f2e8', '#a54e40'] },
+  { id: 'emerald', name: '星舰青', description: '深空蓝黑、信号青与竞技 HUD 微光', colors: ['#060812', '#14203e', '#5ce2ec'] },
+  { id: 'midnight', name: '深空紫', description: '暗紫舱体、冷白文字与跃迁紫光', colors: ['#070712', '#221c4c', '#a68cff'] },
+  { id: 'royal', name: '月面白', description: '冷月灰白、深蓝文字与工程青', colors: ['#dde4ea', '#f5f9fb', '#197f97'] },
 ]
 
 const nextRenameDate = computed(() => {

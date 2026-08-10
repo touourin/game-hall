@@ -348,6 +348,7 @@ onMounted(async () => {
         @logout="logout"
         @settings="showSettings = true"
         @select="openGame"
+        @open-room="openRoom"
         @resume-room="resumeRoom"
       />
       <component

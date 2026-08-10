@@ -25,11 +25,25 @@ defineProps<{
 
 <style scoped>
 .room-page-header {
+  position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 18px;
+  min-height: 82px;
   margin-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+  padding: 10px 0 15px;
+}
+
+.room-page-header::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--gold), var(--accent-secondary) 34%, transparent 72%);
+  content: '';
 }
 
 .room-page-navigation {
@@ -43,6 +57,8 @@ defineProps<{
 .room-page-copy > small {
   display: block;
   color: var(--gold);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 8px;
   font-weight: 800;
   letter-spacing: .14em;
 }
@@ -57,7 +73,9 @@ defineProps<{
 
 .room-page-title-row h1 {
   margin: 0;
-  font-size: clamp(24px, 4vw, 38px);
+  font-size: clamp(24px, 4vw, 36px);
+  font-weight: 800;
+  letter-spacing: -.025em;
 }
 
 .room-page-actions {
@@ -72,6 +90,8 @@ defineProps<{
   .room-page-header {
     grid-template-columns: auto minmax(0, 1fr);
     gap: 11px;
+    min-height: 0;
+    padding-top: 5px;
   }
 
   .room-page-actions {

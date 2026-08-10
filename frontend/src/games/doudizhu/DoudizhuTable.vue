@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Crown, Flag, History } from '@lucide/vue'
+import { Crown, Flag } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
+import AvatarImage from '../../components/AvatarImage.vue'
+import PlayingCard from '../shared/cards/PlayingCard.vue'
+import GameHistoryPanel from '../shared/history/GameHistoryPanel.vue'
 
 interface PlayingCard {
   id: string
@@ -77,6 +80,7 @@ const selectedCards = computed(() =>
   game.value.hand.filter((card) => selectedIds.value.includes(card.id)),
 )
 const normalizedHistory = computed(() => game.value.history)
+const historyEntries = computed(() => normalizedHistory.value.map((entry) => historyText(entry)))
 const canPass = computed(
   () => isMyTurn.value
     && game.value.lastPlay !== null
@@ -253,7 +257,7 @@ function historyText(entry: HistoryEntry): string {
           class="opponent"
           :class="[`opponent-${index + 1}`, { active: game.currentPlayerId === player.id }]"
         >
-          <span class="player-avatar">{{ player.name.slice(0, 1) }}</span>
+          <AvatarImage class="player-avatar" :src="player.avatarUrl" :name="player.name" />
           <div class="player-identity">
             <strong>{{ player.name }}</strong>
             <small :class="game.teams[player.id]">
@@ -269,22 +273,30 @@ function historyText(entry: HistoryEntry): string {
 
       <div v-if="game.bottomCards.length" class="bottom-cards">
         <span>底牌</span>
-        <b
+        <PlayingCard
           v-for="card in game.bottomCards"
           :key="card.id"
-          :class="{ red: isRed(card), wild: isWild(card) }"
-        >{{ card.label }}{{ suitSymbol(card.suit) }}</b>
+          :rank="card.label"
+          :suit="suitSymbol(card.suit)"
+          :red="isRed(card)"
+          :wild="isWild(card)"
+          size="bottom"
+        />
       </div>
 
       <div class="table-center">
         <template v-if="game.lastPlay">
           <small>{{ lastPlayerName }} · {{ game.lastPlay.pattern.label ?? '出牌' }}</small>
           <div class="played-cards">
-            <span
+            <PlayingCard
               v-for="card in game.lastPlay.cards"
               :key="card.id"
-              :class="{ red: isRed(card), wild: isWild(card) }"
-            ><b>{{ card.label }}</b><i>{{ suitSymbol(card.suit) }}</i></span>
+              :rank="card.label"
+              :suit="suitSymbol(card.suit)"
+              :red="isRed(card)"
+              :wild="isWild(card)"
+              size="compact"
+            />
           </div>
         </template>
         <p v-else>
@@ -294,7 +306,7 @@ function historyText(entry: HistoryEntry): string {
       </div>
 
       <article class="self-seat" :class="{ active: isMyTurn }">
-        <span class="player-avatar">{{ snapshot.self.name.slice(0, 1) }}</span>
+        <AvatarImage class="player-avatar" :src="snapshot.self.avatarUrl" :name="snapshot.self.name" />
         <div>
           <strong>{{ snapshot.self.name }}</strong>
           <small :class="selfTeam">
@@ -346,23 +358,22 @@ function historyText(entry: HistoryEntry): string {
       </div>
 
       <div class="hand" :style="handGridStyle" aria-label="我的手牌">
-        <button
+        <PlayingCard
           v-for="(card, index) in game.hand"
           :key="card.id"
-          type="button"
-          class="playing-card"
-          :class="{ selected: selectedIds.includes(card.id), red: isRed(card), wild: isWild(card), joker: !card.suit }"
           :style="{ '--card-index': index }"
+          :rank="card.label"
+          :suit="suitSymbol(card.suit)"
+          :red="isRed(card)"
+          :wild="isWild(card)"
+          :joker="!card.suit"
+          :selected="selectedIds.includes(card.id)"
+          interactive
+          size="hand"
           :disabled="snapshot.phase !== 'playing' || arcade.busy"
-          :aria-pressed="selectedIds.includes(card.id)"
           :aria-label="`${card.label}${suitSymbol(card.suit)}${isWild(card) ? '，癞子' : ''}`"
-          @click="toggleCard(card.id)"
-        >
-          <b>{{ card.label }}</b>
-          <span>{{ suitSymbol(card.suit) }}</span>
-          <i aria-hidden="true">{{ suitSymbol(card.suit) || card.label.slice(0, 1) }}</i>
-          <em v-if="isWild(card)">癞</em>
-        </button>
+          @select="toggleCard(card.id)"
+        />
       </div>
 
       <div v-if="snapshot.phase === 'playing'" class="play-actions" aria-describedby="doudizhu-selection-hint">
@@ -385,10 +396,7 @@ function historyText(entry: HistoryEntry): string {
     </section>
 
     <div class="landlord-tools">
-      <details class="history-panel">
-        <summary><History :size="16" />完整记录（{{ normalizedHistory.length }}）</summary>
-        <ol><li v-for="(entry, index) in normalizedHistory" :key="index">{{ historyText(entry) }}</li></ol>
-      </details>
+      <GameHistoryPanel class="history-panel" title="完整记录" :entries="historyEntries" />
     </div>
   </section>
 </template>
@@ -541,18 +549,7 @@ function historyText(entry: HistoryEntry): string {
   background: rgba(0, 0, 0, .2);
   transform: translateX(-50%);
 }
-.bottom-cards span { margin-right: 2px; color: var(--muted); font-size: 10px; }
-.bottom-cards b {
-  min-width: 30px;
-  min-height: 38px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--game-card-border, #cbbda5);
-  border-radius: 5px;
-  color: #20231f;
-  background: var(--game-card-face, linear-gradient(145deg, #fffdf8, #eee2ce));
-  box-shadow: 0 3px 7px rgba(0,0,0,.28);
-}
+.bottom-cards > span:not(.playing-card) { margin-right: 2px; color: var(--muted); font-size: 10px; }
 .table-center {
   position: absolute;
   z-index: 2;
@@ -570,24 +567,7 @@ function historyText(entry: HistoryEntry): string {
 .table-center > small { color: color-mix(in srgb, var(--text) 80%, var(--muted)); font-weight: 800; }
 .table-center > p { margin: 0; color: color-mix(in srgb, var(--gold) 74%, var(--text)); font-weight: 850; }
 .played-cards { max-width: 100%; display: flex; justify-content: center; margin-top: 9px; }
-.played-cards span {
-  position: relative;
-  min-width: 45px;
-  height: 66px;
-  margin-left: -8px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  border: 1px solid var(--game-card-border, #c8baa3);
-  border-radius: 7px;
-  padding: 6px;
-  color: #20231f;
-  background: var(--game-card-face, linear-gradient(145deg, #fffef9, #eee4d2));
-  box-shadow: 0 5px 10px rgba(0,0,0,.4);
-}
-.played-cards span:first-child { margin-left: 0; }
-.played-cards span b { font-size: 16px; line-height: 1; }
-.played-cards span i { font-size: 17px; font-style: normal; }
+.played-cards .playing-card + .playing-card { margin-left: -8px; }
 .pass-bubble {
   margin-top: 9px;
   border-radius: 999px;
@@ -705,53 +685,6 @@ function historyText(entry: HistoryEntry): string {
   align-items: end;
   padding: 30px 34px 7px;
 }
-.playing-card {
-  --card-index: 0;
-  position: relative;
-  z-index: calc(var(--card-index) + 1);
-  width: clamp(49px, 6.4vw, 65px);
-  height: clamp(94px, 11vw, 121px);
-  min-width: 0;
-  justify-self: center;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  overflow: hidden;
-  border: 1px solid var(--game-card-border, #c8baa3);
-  border-radius: 9px;
-  padding: 8px 5px;
-  color: #1d211e;
-  background: var(--game-card-face, linear-gradient(145deg, #fff, #f3ead9));
-  box-shadow: 0 5px 12px rgba(0,0,0,.52), inset 0 0 0 1px rgba(255,255,255,.55);
-  transform-origin: bottom center;
-  transition: transform .15s ease, border-color .15s, box-shadow .15s, filter .15s;
-}
-.playing-card:not(:disabled) { cursor: pointer; }
-.playing-card:disabled { opacity: 1; }
-.playing-card:hover:not(:disabled) { transform: translateY(-7px); }
-.playing-card.selected {
-  z-index: 80;
-  overflow: visible;
-  border-color: #f1c65c;
-  box-shadow: 0 9px 18px rgba(0,0,0,.55), 0 0 0 3px rgba(241,198,92,.38), 0 0 22px rgba(241,198,92,.35);
-  transform: translateY(-22px) scale(1.035);
-}
-.playing-card b { font-size: clamp(17px, 2vw, 21px); line-height: 1; }
-.playing-card > span { font-size: clamp(18px, 2.2vw, 24px); line-height: 1; }
-.playing-card > i {
-  position: absolute;
-  right: 3px;
-  bottom: -5px;
-  color: currentColor;
-  font-size: clamp(28px, 4vw, 46px);
-  font-style: normal;
-  opacity: .13;
-}
-.playing-card > em { position: absolute; right: 4px; bottom: 4px; color: #a42691; font-style: normal; font-weight: 900; }
-.playing-card.joker b { font-size: clamp(13px, 1.7vw, 17px); writing-mode: vertical-rl; letter-spacing: .08em; }
-.playing-card.joker > i { font-size: 34px; }
-.red { color: #bd312e !important; }
-.wild { box-shadow: 0 0 0 2px #c854bd, 0 5px 13px rgba(0,0,0,.5) !important; }
 .play-actions { display: flex; justify-content: center; gap: 8px; padding-top: 3px; }
 .play-actions .primary { min-width: 124px; }
 .play-actions .primary small {
@@ -773,8 +706,7 @@ function historyText(entry: HistoryEntry): string {
 .landlord-tools { width: 100%; display: grid; grid-template-columns: 1fr; gap: 10px; }
 .landlord-tools details { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: rgba(0,0,0,.1); }
 .landlord-tools summary { display: flex; align-items: center; gap: 7px; cursor: pointer; color: var(--gold); font-weight: 800; }
-.history-panel ol { max-height: 260px; overflow: auto; margin: 10px 0 0; padding-left: 25px; color: var(--muted); }
-.history-panel li { margin: 5px 0; }
+.history-panel { --game-history-max-height: 260px; }
 @media (max-width: 700px) {
   .landlord-table { gap: 11px; }
   .landlord-felt { min-height: 330px; border-width: 5px; border-radius: 34px; }
@@ -788,9 +720,10 @@ function historyText(entry: HistoryEntry): string {
   .card-count { font-size: 15px; }
   .player-identity strong { font-size: 12px; }
   .table-center { top: 53%; width: 80%; min-height: 100px; }
-  .played-cards span { min-width: 38px; height: 57px; margin-left: -12px; padding: 5px; }
+  .played-cards .playing-card { width: 38px; height: 57px; padding: 5px; }
+  .played-cards .playing-card + .playing-card { margin-left: -12px; }
   .bottom-cards { top: 7px; padding: 3px 5px; }
-  .bottom-cards b { min-width: 25px; min-height: 31px; font-size: 11px; }
+  .bottom-cards .playing-card { width: 25px; height: 31px; }
   .self-seat { bottom: 9px; left: 10px; max-width: calc(100% - 20px); padding: 6px 9px 6px 6px; }
   .self-seat > em { display: none; }
   .landlord-felt:has(.bid-panel) .self-seat { display: none; }
@@ -802,8 +735,6 @@ function historyText(entry: HistoryEntry): string {
   .self-hand-header { padding: 0 3px; }
   .selection-feedback { align-items: flex-start; flex-direction: column; gap: 2px; text-align: left; }
   .hand { min-height: 126px; padding: 29px 24px 6px; }
-  .playing-card { width: 50px; height: 102px; padding: 7px 4px; }
-  .playing-card.selected { transform: translateY(-19px) scale(1.025); }
   .play-actions {
     position: sticky;
     z-index: 45;

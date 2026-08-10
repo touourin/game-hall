@@ -6,12 +6,12 @@ import {
   Clock3,
   Crown,
   Dices,
-  History,
   Landmark,
   MapPin,
 } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
+import GameHistoryPanel from '../shared/history/GameHistoryPanel.vue'
 
 interface MonopolyCell {
   index: number
@@ -290,12 +290,13 @@ function submit(action: string) {
           <p v-else>还没有地产。掷骰抵达无主街区后即可购买。</p>
         </section>
 
-        <details class="fortune-history surface-inset" open>
-          <summary><span><History :size="16" />城市动态</span><small>最近 {{ game.history.length }} 条</small></summary>
-          <ol>
-            <li v-for="(message, index) in game.history" :key="`${index}-${message}`">{{ message }}</li>
-          </ol>
-        </details>
+        <GameHistoryPanel
+          class="fortune-history surface-inset"
+          title="城市动态"
+          :entries="game.history"
+          :count-label="`最近 ${game.history.length} 条`"
+          open
+        />
       </aside>
     </div>
   </section>
@@ -328,10 +329,10 @@ function submit(action: string) {
 .fortune-turn-copy { width: min(92%, 410px); display: grid; gap: 3px; }.fortune-turn-copy > small { color: var(--fortune-gold); font-size: clamp(6px, .9vw, 9px); font-weight: 850; }.fortune-turn-copy > strong { font-size: clamp(9px, 1.55vw, 16px); }.fortune-turn-copy > p { min-height: 2.6em; margin: 1px 0 0; color: #9eada4; font-size: clamp(6px, 1vw, 10px); line-height: 1.35; }.fortune-turn-copy.mine > strong { color: #f0d391; }
 .fortune-actions { min-height: clamp(29px, 4.4vw, 45px); display: flex; align-items: center; justify-content: center; gap: 6px; }.fortune-actions button { min-height: clamp(28px, 4vw, 42px); display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid rgba(224,182,94,.3); border-radius: 10px; padding: 0 clamp(7px, 1.3vw, 14px); color: #d8ded9; background: rgba(255,255,255,.045); font-size: clamp(7px, 1vw, 10px); font-weight: 850; cursor: pointer; }.fortune-actions .fortune-primary { border-color: #dab258; color: #172016; background: linear-gradient(145deg, #f2d183, #c89539); box-shadow: 0 7px 18px rgba(203,151,55,.2); }.fortune-actions button:disabled { cursor: not-allowed; opacity: .55; }.fortune-actions > span { display: flex; align-items: center; gap: 5px; color: #94a69b; font-size: clamp(7px, 1vw, 10px); }
 
-.fortune-sidebar { display: grid; gap: 10px; }.surface-inset { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: var(--surface-inset); }.fortune-sidebar section > header,.fortune-history summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; list-style: none; }.fortune-sidebar header > span,.fortune-history summary > span { display: flex; align-items: center; gap: 6px; color: var(--fortune-gold); font-size: 11px; font-weight: 850; }.fortune-sidebar header > small,.fortune-history summary > small { color: var(--muted); font-size: 8px; }
-.fortune-ranking ol,.fortune-history ol { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }.fortune-ranking li { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; border-radius: 9px; padding: 7px; background: color-mix(in srgb, var(--surface-elevated) 68%, transparent); }.fortune-ranking li.self { box-shadow: inset 0 0 0 1px rgba(224,182,94,.26); }.fortune-ranking li.bankrupt { opacity: .48; }.fortune-ranking li > b { width: 23px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 50%; color: var(--fortune-gold); background: rgba(224,182,94,.1); font-size: 9px; }.fortune-ranking li > span { min-width: 0; display: grid; gap: 1px; }.fortune-ranking li strong { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }.fortune-ranking li small { color: var(--muted); font-size: 7px; }.fortune-ranking li em { color: var(--text-soft); font-size: 9px; font-style: normal; font-weight: 850; }
+.fortune-sidebar { display: grid; gap: 10px; }.surface-inset { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: var(--surface-inset); }.fortune-sidebar section > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; list-style: none; }.fortune-sidebar header > span { display: flex; align-items: center; gap: 6px; color: var(--fortune-gold); font-size: 11px; font-weight: 850; }.fortune-sidebar header > small { color: var(--muted); font-size: 8px; }
+.fortune-ranking ol { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }.fortune-ranking li { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; border-radius: 9px; padding: 7px; background: color-mix(in srgb, var(--surface-elevated) 68%, transparent); }.fortune-ranking li.self { box-shadow: inset 0 0 0 1px rgba(224,182,94,.26); }.fortune-ranking li.bankrupt { opacity: .48; }.fortune-ranking li > b { width: 23px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 50%; color: var(--fortune-gold); background: rgba(224,182,94,.1); font-size: 9px; }.fortune-ranking li > span { min-width: 0; display: grid; gap: 1px; }.fortune-ranking li strong { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }.fortune-ranking li small { color: var(--muted); font-size: 7px; }.fortune-ranking li em { color: var(--text-soft); font-size: 9px; font-style: normal; font-weight: 850; }
 .fortune-ledger > div { max-height: 190px; display: grid; gap: 5px; overflow-y: auto; }.fortune-ledger article { min-width: 0; display: grid; grid-template-columns: 4px minmax(0, 1fr) auto; align-items: center; gap: 7px; border-radius: 8px; padding: 7px; background: color-mix(in srgb, var(--surface-elevated) 68%, transparent); }.fortune-ledger article > i { width: 4px; height: 100%; min-height: 27px; border-radius: 4px; }.fortune-ledger article > span { min-width: 0; display: grid; gap: 2px; }.fortune-ledger article strong { font-size: 9px; }.fortune-ledger article small { color: var(--muted); font-size: 7px; }.fortune-ledger article em { color: var(--fortune-gold); font-size: 8px; font-style: normal; }.fortune-ledger > p { margin: 0; color: var(--muted); font-size: 9px; line-height: 1.55; }
-.fortune-history summary { margin: 0; cursor: pointer; }.fortune-history summary::-webkit-details-marker { display: none; }.fortune-history[open] summary { margin-bottom: 9px; }.fortune-history ol { max-height: 214px; overflow-y: auto; counter-reset: event; }.fortune-history li { position: relative; border-left: 1px solid rgba(224,182,94,.22); padding: 3px 0 3px 10px; color: var(--text-soft); font-size: 8px; line-height: 1.45; }.fortune-history li::before { position: absolute; top: 7px; left: -3px; width: 5px; aspect-ratio: 1; border-radius: 50%; background: var(--fortune-gold); content: ''; }
+.fortune-history { --game-history-accent: var(--fortune-gold); --game-history-max-height: 214px; }
 
 @keyframes dice-arrive { from { opacity: 0; transform: translateY(-8px) rotate(-4deg) scale(.85); } to { opacity: 1; transform: none; } }
 @media (hover: hover) { .fortune-actions button:hover:not(:disabled) { border-color: var(--fortune-gold); transform: translateY(-1px); } }

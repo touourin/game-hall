@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Activity, CircleAlert, Gauge, RotateCcw, Zap } from '@lucide/vue'
+import { Activity, CircleAlert, Gauge, Zap } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
+import SoloMetricGrid from '../shared/solo/SoloMetricGrid.vue'
+import SoloResultCard from '../shared/solo/SoloResultCard.vue'
 
 type TestStage =
   | 'intro'
@@ -219,39 +221,28 @@ onBeforeUnmount(() => {
       <p class="keyboard-hint"><kbd>SPACE</kbd> 电脑按空格 · 手机点击按钮</p>
     </div>
 
-    <section class="reaction-metrics" aria-label="当前测试成绩">
-      <div class="surface">
-        <small>已完成</small>
-        <strong>{{ completedRounds }} / {{ game.roundsRequired }}</strong>
-      </div>
-      <div class="surface">
-        <small>当前最佳</small>
-        <strong>{{ game.bestMs === null ? '—' : `${game.bestMs} ms` }}</strong>
-      </div>
-      <div class="surface">
-        <small>当前平均</small>
-        <strong>{{ game.averageMs === null ? '—' : `${game.averageMs} ms` }}</strong>
-      </div>
-    </section>
+    <SoloMetricGrid
+      class="reaction-metrics"
+      aria-label="当前测试成绩"
+      :items="[
+        { label: '已完成', value: `${completedRounds} / ${game.roundsRequired}` },
+        { label: '当前最佳', value: game.bestMs === null ? '—' : `${game.bestMs} ms` },
+        { label: '当前平均', value: game.averageMs === null ? '—' : `${game.averageMs} ms` },
+      ]"
+    />
 
-    <section v-if="snapshot.phase === 'finished'" class="surface reaction-result">
-      <span>三轮测试完成</span>
-      <strong>{{ game.averageMs }} <small>ms</small></strong>
-      <p>平均反应时间</p>
-      <div>
-        <span v-for="(result, index) in game.resultsMs" :key="index">
-          第 {{ index + 1 }} 轮 <b>{{ result }} ms</b>
-        </span>
-      </div>
-      <button
-        v-if="snapshot.actions.canRestart"
-        type="button"
-        class="primary-button"
-        @click="restartTest"
-      >
-        <RotateCcw :size="18" /> 再测一次
-      </button>
-    </section>
+    <SoloResultCard
+      v-if="snapshot.phase === 'finished'"
+      class="reaction-result"
+      eyebrow="三轮测试完成"
+      title="平均反应时间"
+      :score="game.averageMs"
+      score-unit="ms"
+      :metrics="game.resultsMs.map((result, index) => ({ label: `第 ${index + 1} 轮`, value: `${result} ms` }))"
+      :can-restart="snapshot.actions.canRestart"
+      restart-label="再测一次"
+      @restart="restartTest"
+    />
   </section>
 </template>
 

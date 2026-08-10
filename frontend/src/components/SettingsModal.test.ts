@@ -206,13 +206,13 @@ describe('SettingsModal', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('墨玉会所')
-    expect(wrapper.text()).toContain('午夜铬光')
-    expect(wrapper.text()).toContain('象牙棋院')
+    expect(wrapper.text()).toContain('星舰青')
+    expect(wrapper.text()).toContain('深空紫')
+    expect(wrapper.text()).toContain('月面白')
 
     const ivory = wrapper
       .findAll('.settings-theme-list button')
-      .find((button) => button.text().includes('象牙棋院'))
+      .find((button) => button.text().includes('月面白'))
     await ivory?.trigger('click')
 
     expect(document.documentElement.dataset.theme).toBe('royal')

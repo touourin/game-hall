@@ -3,6 +3,8 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Clock3, Lightbulb, MousePointerClick, RotateCcw, Sparkles } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
+import SoloMetricGrid from '../shared/solo/SoloMetricGrid.vue'
+import SoloResultCard from '../shared/solo/SoloResultCard.vue'
 
 interface HanoiView {
   discCount: number
@@ -179,12 +181,17 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="hanoi-game">
-    <header class="hanoi-metrics" aria-label="汉诺塔挑战状态">
-      <div><span>{{ game.discCount }}</span><small>挑战层数</small></div>
-      <div><span>{{ game.moves }} / {{ game.optimalMoves }}</span><small>当前 / 最少步数</small></div>
-      <div><span>{{ formatTime(elapsedMs) }}</span><small>挑战用时</small></div>
-      <div><span>{{ efficiency }}%</span><small>步数效率</small></div>
-    </header>
+    <SoloMetricGrid
+      class="hanoi-metrics"
+      aria-label="汉诺塔挑战状态"
+      :columns="4"
+      :items="[
+        { label: '挑战层数', value: game.discCount },
+        { label: '当前 / 最少步数', value: `${game.moves} / ${game.optimalMoves}` },
+        { label: '挑战用时', value: formatTime(elapsedMs) },
+        { label: '步数效率', value: `${efficiency}%`, tone: efficiency === 100 ? 'success' : 'default' },
+      ]"
+    />
 
     <section class="surface hanoi-board" :class="{ finished: snapshot.phase === 'finished' }">
       <div class="hanoi-board-glow" />
@@ -242,28 +249,26 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <section v-if="snapshot.phase === 'finished'" class="surface hanoi-result">
-      <span><Sparkles :size="22" />挑战完成</span>
-      <h2>{{ game.isOptimal ? '完美解法' : `${game.discCount} 层通关` }}</h2>
-      <p>{{ snapshot.winReason }}</p>
-      <div>
-        <span><b>{{ game.moves }}</b>实际步数</span>
-        <span><b>{{ game.optimalMoves }}</b>理论最少</span>
-        <span><b>{{ formatTime(game.elapsedMs) }}</b>完成时间</span>
-      </div>
-      <p v-if="!game.isOptimal" class="hanoi-result-tip">
-        <Lightbulb :size="16" />还可以减少 {{ game.moves - game.optimalMoves }} 步
-      </p>
-      <button
-        v-if="snapshot.actions.canRestart"
-        type="button"
-        class="primary-button"
-        :disabled="arcade.busy"
-        @click="restartChallenge"
-      >
-        <RotateCcw :size="18" />再挑战一次
-      </button>
-    </section>
+    <SoloResultCard
+      v-if="snapshot.phase === 'finished'"
+      class="hanoi-result"
+      eyebrow="挑战完成"
+      :title="game.isOptimal ? '完美解法' : `${game.discCount} 层通关`"
+      :description="snapshot.winReason"
+      :metrics="[
+        { label: '实际步数', value: game.moves, tone: game.isOptimal ? 'success' : 'default' },
+        { label: '理论最少', value: game.optimalMoves },
+        { label: '完成时间', value: formatTime(game.elapsedMs) },
+      ]"
+      :can-restart="snapshot.actions.canRestart"
+      :busy="arcade.busy"
+      @restart="restartChallenge"
+    >
+      <template #icon><Sparkles :size="22" /></template>
+      <template v-if="!game.isOptimal" #note>
+        <p class="hanoi-result-tip"><Lightbulb :size="16" />还可以减少 {{ game.moves - game.optimalMoves }} 步</p>
+      </template>
+    </SoloResultCard>
   </section>
 </template>
 
