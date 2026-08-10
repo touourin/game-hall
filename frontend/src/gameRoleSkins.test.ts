@@ -28,13 +28,15 @@ describe('Avalon role skin artwork framing', () => {
       preserveFrame: true,
     })
     expect(roleArtworkFraming('merlin', 'royal-codex')).toMatchObject({
-      scale: 1.26,
-      originYPercent: 42,
+      scale: 1,
+      originXPercent: 50,
+      originYPercent: 50,
       treatment: 'codex-ink-wash',
     })
     expect(roleArtworkFraming('dissenting_courtier', 'royal-codex')).toMatchObject({
-      scale: 1.1,
-      originYPercent: 42,
+      scale: 1,
+      originXPercent: 50,
+      originYPercent: 50,
     })
     expect(roleArtworkFraming('assassin', 'grail-myth')).toMatchObject({
       scale: 1.18,

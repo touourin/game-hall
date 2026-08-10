@@ -224,44 +224,6 @@ const ROLE_ARTWORK_FRAMING: Partial<
       preserveFrame: true,
     },
   },
-  'royal-codex': {
-    shadow_merlin: {
-      scale: 1,
-      originXPercent: 50,
-      originYPercent: 50,
-      preserveFrame: true,
-    },
-    merlin: {
-      scale: 1.26,
-      originXPercent: 50,
-      originYPercent: 42,
-      preserveFrame: true,
-    },
-    percival: {
-      scale: 1.08,
-      originXPercent: 50,
-      originYPercent: 38,
-      preserveFrame: true,
-    },
-    dissenting_courtier: {
-      scale: 1.1,
-      originXPercent: 50,
-      originYPercent: 42,
-      preserveFrame: true,
-    },
-    mordred: {
-      scale: 1.12,
-      originXPercent: 50,
-      originYPercent: 38,
-      preserveFrame: true,
-    },
-    oberon: {
-      scale: 1.15,
-      originXPercent: 50,
-      originYPercent: 38,
-      preserveFrame: true,
-    },
-  },
   'grail-myth': {
     assassin: { scale: 1.18, originXPercent: 50, originYPercent: 60 },
     morgana: { scale: 1.1, originXPercent: 50, originYPercent: 29 },
