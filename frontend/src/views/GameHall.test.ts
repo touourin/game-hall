@@ -21,9 +21,10 @@ describe('GameHall', () => {
 
     const gameCards = wrapper.findAll('.game-card')
     expect(gameCards).toHaveLength(13)
-    expect(wrapper.findAll('.game-card-art')).toHaveLength(12)
-    expect(wrapper.find('.nexus-avalon-signal').exists()).toBe(true)
+    expect(wrapper.findAll('.nexus-game-module .game-card-art')).toHaveLength(13)
+    expect(wrapper.find('.art-avalon img').attributes('src')).toContain('avalon')
     expect(wrapper.find('.nexus-feature').exists()).toBe(true)
+    expect(wrapper.find('.nexus-feature .art-avalon').exists()).toBe(true)
     expect(wrapper.find('.nexus-live-rooms').exists()).toBe(true)
     expect(wrapper.find('.nexus-mobile-dock').exists()).toBe(true)
     expect(wrapper.findAll('.account-bar-actions button')).toHaveLength(3)

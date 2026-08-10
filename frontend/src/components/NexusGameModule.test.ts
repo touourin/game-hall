@@ -26,7 +26,7 @@ describe('NexusGameModule', () => {
     expect(wrapper.emitted('select')).toHaveLength(1)
   })
 
-  it('uses the shared signal artwork for Avalon', () => {
+  it('uses the shared premium artwork treatment for Avalon', () => {
     const wrapper = mount(NexusGameModule, {
       props: {
         game: {
@@ -41,7 +41,7 @@ describe('NexusGameModule', () => {
       },
     })
 
-    expect(wrapper.find('.nexus-avalon-signal').exists()).toBe(true)
-    expect(wrapper.find('.game-card-art').exists()).toBe(false)
+    expect(wrapper.find('.game-card-art').exists()).toBe(true)
+    expect(wrapper.find('.art-avalon img').attributes('src')).toContain('avalon')
   })
 })

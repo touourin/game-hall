@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowUpRight, Crosshair } from '@lucide/vue'
+import { ArrowUpRight } from '@lucide/vue'
 import type { GameCatalogEntry } from '../gameCatalog'
 import GameCardArtwork from './GameCardArtwork.vue'
 
@@ -29,11 +29,7 @@ defineEmits<{
       <em v-else>{{ game.players }}</em>
     </span>
 
-    <span v-if="game.key === 'avalon'" class="nexus-avalon-signal" aria-hidden="true">
-      <i /><i /><i />
-      <b><Crosshair :size="25" :stroke-width="1.3" /></b>
-    </span>
-    <GameCardArtwork v-else :game-key="game.key" />
+    <GameCardArtwork :game-key="game.key" />
 
     <span class="nexus-module-copy">
       <span><strong>{{ game.name }}</strong><small>{{ game.description }}</small></span>
@@ -135,29 +131,6 @@ defineEmits<{
     rgba(var(--surface-deep-rgb), .66);
 }
 
-.nexus-avalon-signal {
-  position: relative;
-  min-height: 112px;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--module-tone) 20%, var(--line));
-  border-radius: 3px;
-  background: radial-gradient(circle, color-mix(in srgb, var(--module-tone) 8%, transparent), transparent 58%), var(--surface-inset);
-}
-
-.nexus-avalon-signal > i {
-  position: absolute;
-  width: 78px;
-  aspect-ratio: 1;
-  border: 1px solid color-mix(in srgb, var(--module-tone) 32%, transparent);
-  border-radius: 50%;
-}
-
-.nexus-avalon-signal > i:nth-child(2) { width: 52px; border-style: dashed; }
-.nexus-avalon-signal > i:nth-child(3) { width: 102px; opacity: .35; }
-.nexus-avalon-signal > b { z-index: 1; display: grid; width: 40px; aspect-ratio: 1; place-items: center; border: 1px solid var(--module-tone); border-radius: 50%; color: var(--module-tone); background: var(--surface-elevated); box-shadow: 0 0 24px color-mix(in srgb, var(--module-tone) 30%, transparent); }
-
 .nexus-module-copy > span { min-width: 0; display: grid; gap: 4px; }
 .nexus-module-copy strong,.nexus-module-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nexus-module-copy strong { font-size: 14px; font-weight: 800; }
@@ -178,7 +151,7 @@ defineEmits<{
 
 @media (max-width: 680px) {
   .nexus-game-module { min-height: 168px; padding: 10px; }
-  .nexus-game-module :deep(.game-card-art),.nexus-avalon-signal { min-height: 78px; }
+  .nexus-game-module :deep(.game-card-art) { min-height: 78px; }
   .nexus-module-copy small { display: none; }
   .nexus-module-copy strong { font-size: 12px; }
 }
