@@ -8,8 +8,8 @@ import pytest
 from backend.app.arcade.models import ArcadePlayer, ArcadeRoom
 from backend.app.games.base import GameRuleError
 from backend.app.games.departed_suspicion.cards import (
+    BOMBERS_EQUIPMENT_IDS,
     EQUIPMENT_CARDS,
-    EXPANDED_EQUIPMENT_IDS,
 )
 from backend.app.games.departed_suspicion.engine import DepartedSuspicionEngine
 
@@ -17,8 +17,9 @@ from backend.app.games.departed_suspicion.engine import DepartedSuspicionEngine
 def make_room(
     player_count: int = 4,
     *,
-    equipment_set: str = "expanded",
+    equipment_set: str = "bombers",
     seed: int = 7,
+    deal_starting_equipment: bool = False,
 ) -> tuple[DepartedSuspicionEngine, ArcadeRoom]:
     engine = DepartedSuspicionEngine(rng=random.Random(seed))
     players = [
@@ -42,6 +43,11 @@ def make_room(
         started_at="2026-08-06T00:00:00+00:00",
     )
     engine.start(room)
+    if not deal_starting_equipment:
+        room.state.equipment_deck = list(room.state.initial_equipment_order)
+        room.state.equipment_draw_history.clear()
+        for board in room.state.boards.values():
+            board.equipment.clear()
     return engine, room
 
 
@@ -61,27 +67,61 @@ def normal_card_index(room: ArcadeRoom, seat: int) -> int:
     )
 
 
-def test_catalog_keeps_all_33_cards_and_excludes_only_cover_card_from_deck() -> None:
+def test_catalog_keeps_all_33_cards_and_only_complete_modes_enter_the_deck() -> None:
     assert len(EQUIPMENT_CARDS) == 33
     assert len({card.id for card in EQUIPMENT_CARDS}) == 33
-    assert len(EXPANDED_EQUIPMENT_IDS) == 32
-    assert "new_assignment" not in EXPANDED_EQUIPMENT_IDS
+    assert len(BOMBERS_EQUIPMENT_IDS) == 21
+    assert all(
+        card.expansion in {"base", "bombers"}
+        for card in EQUIPMENT_CARDS
+        if card.id in BOMBERS_EQUIPMENT_IDS
+    )
+    assert "new_assignment" not in BOMBERS_EQUIPMENT_IDS
 
 
 def test_production_engine_uses_system_randomness() -> None:
     assert isinstance(DepartedSuspicionEngine().rng, random.SystemRandom)
 
 
+def test_legacy_expanded_option_migrates_to_the_complete_bombers_deck() -> None:
+    options = DepartedSuspicionEngine().room_options(
+        {"equipmentSet": "expanded"}
+    )
+
+    assert options["equipmentSet"] == "bombers"
+
+
 @pytest.mark.parametrize("player_count", range(4, 9))
-def test_setup_deals_three_cards_and_separates_leaders(player_count: int) -> None:
-    _, room = make_room(player_count, seed=player_count)
+def test_setup_deals_integrity_and_one_private_equipment_per_player(
+    player_count: int,
+) -> None:
+    engine, room = make_room(
+        player_count,
+        seed=player_count,
+        deal_starting_equipment=True,
+    )
 
     assert all(len(board.cards) == 3 for board in room.state.boards.values())
     agent_seat, _ = leader_owner(room, "agent")
     kingpin_seat, _ = leader_owner(room, "kingpin")
     assert agent_seat != kingpin_seat
     assert room.state.gun_total == (2 if player_count == 4 else 3 if player_count <= 6 else 4)
-    assert all(not board.equipment for board in room.state.boards.values())
+    assert all(len(board.equipment) == 1 for board in room.state.boards.values())
+    assert [room.state.boards[seat].equipment[0] for seat in range(player_count)] == list(
+        room.state.initial_equipment_order[:player_count]
+    )
+    assert [
+        (draw.sequence, draw.seat, draw.card_id, draw.source)
+        for draw in room.state.equipment_draw_history
+    ] == [
+        (seat + 1, seat, room.state.initial_equipment_order[seat], "setup")
+        for seat in range(player_count)
+    ]
+    assert len(room.state.equipment_deck) == 21 - player_count
+    for viewer in room.players:
+        view = engine.view(room, viewer)
+        assert len(view["equipmentHand"]) == 1
+        assert all(board["equipmentCount"] == 1 for board in view["players"])
 
 
 @pytest.mark.parametrize(
@@ -118,7 +158,9 @@ def test_private_view_never_leaks_other_hidden_integrity() -> None:
     self_board = next(board for board in own_view["players"] if board["seat"] == 0)
 
     assert all(card["kind"] is None for card in other_board["cards"])
+    assert all(card["knowledgeKey"] is None for card in other_board["cards"])
     assert all(card["kind"] is not None for card in self_board["cards"])
+    assert all(card["knowledgeKey"] is None for card in self_board["cards"])
 
 
 def test_investigation_is_private_and_does_not_reveal_card() -> None:
@@ -135,7 +177,149 @@ def test_investigation_is_private_and_does_not_reveal_card() -> None:
     investigator_view = engine.view(room, room.players[0])
     bystander_view = engine.view(room, room.players[2])
     assert investigator_view["players"][1]["cards"][0]["kind"] == investigated.kind
+    assert investigator_view["players"][1]["cards"][0]["knowledgeKey"] == investigated.id
+    assert investigator_view["players"][1]["cards"][0]["knowledge"] == "known"
     assert bystander_view["players"][1]["cards"][0]["kind"] is None
+    assert bystander_view["players"][1]["cards"][0]["knowledgeKey"] is None
+
+
+@pytest.mark.parametrize(
+    ("card_id", "payload", "learned"),
+    [
+        (
+            "wiretap",
+            {
+                "firstSeat": 1,
+                "firstCardIndex": 0,
+                "secondSeat": 2,
+                "secondCardIndex": 1,
+            },
+            [(1, 0), (2, 1)],
+        ),
+        (
+            "fingerprint_kit",
+            {"targetSeat": 1, "cardIndex": 1},
+            [(1, 1)],
+        ),
+        (
+            "security_wand",
+            {"targetSeat": 1, "cardIndex": 2},
+            [(1, 2)],
+        ),
+    ],
+)
+def test_targeted_investigation_equipment_updates_only_the_users_private_view(
+    card_id: str,
+    payload: dict[str, int],
+    learned: list[tuple[int, int]],
+) -> None:
+    engine, room = make_room()
+    room.state.boards[0].equipment = [card_id]
+
+    engine.act(
+        room,
+        room.players[0],
+        "play_equipment",
+        {"cardId": card_id, **payload},
+    )
+
+    user_view = engine.view(room, room.players[0])
+    bystander_view = engine.view(room, room.players[3])
+    for target, card_index in learned:
+        card = room.state.boards[target].cards[card_index]
+        private_card = user_view["players"][target]["cards"][card_index]
+        assert private_card["knowledgeKey"] == card.id
+        assert private_card["kind"] == card.kind
+        assert private_card["knowledge"] == "known"
+        assert bystander_view["players"][target]["cards"][card_index]["kind"] is None
+
+
+def test_polygraph_gives_each_player_the_other_players_hidden_cards() -> None:
+    engine, room = make_room()
+    room.state.boards[0].equipment = ["polygraph"]
+
+    engine.act(
+        room,
+        room.players[0],
+        "play_equipment",
+        {"cardId": "polygraph", "targetSeat": 1},
+    )
+
+    actor_view = engine.view(room, room.players[0])
+    target_view = engine.view(room, room.players[1])
+    assert all(
+        card["knowledge"] == "known"
+        for card in actor_view["players"][1]["cards"]
+    )
+    assert all(
+        card["knowledge"] == "known"
+        for card in target_view["players"][0]["cards"]
+    )
+
+
+def test_inspection_gloves_show_option_teaches_every_player_the_hidden_cards() -> None:
+    engine, room = make_room()
+    room.state.boards[0].equipment = ["inspection_gloves"]
+
+    engine.act(
+        room,
+        room.players[0],
+        "play_equipment",
+        {"cardId": "inspection_gloves", "targetSeat": 1},
+    )
+    engine.act(
+        room,
+        room.players[1],
+        "inspection_choice",
+        {"choice": "show_integrity"},
+    )
+
+    assert all(not card.revealed for card in room.state.boards[1].cards)
+    for viewer in room.players:
+        view = engine.view(room, viewer)
+        if viewer.seat == 1:
+            assert all(card["knowledge"] == "own" for card in view["players"][1]["cards"])
+        else:
+            assert all(card["knowledge"] == "known" for card in view["players"][1]["cards"])
+
+
+def test_metal_detector_requires_and_honors_a_choice_for_every_armed_player() -> None:
+    engine, room = make_room()
+    state = room.state
+    state.boards[0].equipment = ["metal_detector"]
+    state.boards[1].gun = True
+    state.boards[2].gun = True
+
+    assert "metal_detector" in engine.view(room, room.players[0])["legal"][
+        "playableEquipmentIds"
+    ]
+    with pytest.raises(GameRuleError, match="每名持枪玩家"):
+        engine.act(
+            room,
+            room.players[0],
+            "play_equipment",
+            {"cardId": "metal_detector"},
+        )
+
+    assert room.state.boards[0].equipment == ["metal_detector"]
+    engine.act(
+        room,
+        room.players[0],
+        "play_equipment",
+        {"cardId": "metal_detector", "choices": {"1": 1, "2": 2}},
+    )
+
+    assert room.state.boards[1].cards[1].id in room.state.knowledge[0]
+    assert room.state.boards[2].cards[2].id in room.state.knowledge[0]
+
+
+def test_metal_detector_is_not_advertised_without_an_eligible_armed_player() -> None:
+    engine, room = make_room()
+    room.state.boards[0].equipment = ["metal_detector"]
+
+    assert "metal_detector" not in engine.view(room, room.players[0])["legal"][
+        "playableEquipmentIds"
+    ]
 
 
 def test_equip_reveals_a_card_and_draws_without_starting_equipment() -> None:
@@ -176,21 +360,17 @@ def test_equip_reveals_a_card_and_draws_without_starting_equipment() -> None:
 
 
 @pytest.mark.parametrize("action", ["equip", "arm"])
-def test_fully_revealed_player_can_equip_or_arm(action: str) -> None:
+def test_fully_revealed_player_cannot_pay_to_equip_or_arm(action: str) -> None:
     engine, room = make_room(equipment_set="base")
     board = room.state.boards[0]
     for card in board.cards:
         card.revealed = True
 
     payload = {"targetSeat": 1} if action == "arm" else {}
-    engine.act(room, room.players[0], action, payload)
+    with pytest.raises(GameRuleError, match="没有暗置底细"):
+        engine.act(room, room.players[0], action, payload)
 
-    assert room.state.action_done is True
-    if action == "arm":
-        assert board.gun is True
-        assert board.aim_seat == 1
-    else:
-        assert len(board.equipment) == 1
+    assert room.state.action_done is False
 
 
 @pytest.mark.parametrize("action", ["equip", "arm"])
@@ -202,7 +382,7 @@ def test_hidden_card_is_still_required_as_cost_when_available(action: str) -> No
         engine.act(room, room.players[0], action, payload)
 
 
-def test_crutches_revives_an_all_revealed_player_who_can_still_equip() -> None:
+def test_crutches_revives_an_all_revealed_player_who_can_skip_turn() -> None:
     engine, room = make_room(equipment_set="base")
     state = room.state
     actor = state.turn_seat
@@ -233,7 +413,8 @@ def test_crutches_revives_an_all_revealed_player_who_can_still_equip() -> None:
     revived.effects.append("key")
     view = engine.view(room, room.players[target])
     assert view["legal"]["canTakeNormalAction"] is True
-    assert view["legal"]["normalActionIds"] == ["equip"]
+    assert view["legal"]["normalActionIds"] == []
+    assert view["legal"]["canPassNormalAction"] is True
     assert view["legal"]["canTakeExtraInvestigation"] is False
 
     with pytest.raises(GameRuleError, match="只能执行获取装备"):
@@ -241,15 +422,16 @@ def test_crutches_revives_an_all_revealed_player_who_can_still_equip() -> None:
     with pytest.raises(GameRuleError, match="只能执行获取装备"):
         engine.act(room, room.players[target], "extra_investigate", {})
 
-    state.equipment_deck = ["coffee"]
-    engine.act(room, room.players[target], "equip", {})
+    with pytest.raises(GameRuleError, match="没有暗置底细"):
+        engine.act(room, room.players[target], "equip", {})
+    engine.act(room, room.players[target], "pass_turn", {})
 
     assert state.action_done is True
-    assert revived.equipment == ["coffee"]
+    assert revived.equipment == []
 
 
 @pytest.mark.parametrize("player_count", range(4, 9))
-def test_every_fully_revealed_player_can_finish_repeated_turns(
+def test_every_fully_revealed_player_can_skip_repeated_turns(
     player_count: int,
 ) -> None:
     engine, room = make_room(player_count, equipment_set="base")
@@ -262,9 +444,10 @@ def test_every_fully_revealed_player_can_finish_repeated_turns(
     for _ in range(player_count * 5):
         seat = state.turn_seat
         view = engine.view(room, room.players[seat])
-        assert "equip" in view["legal"]["normalActionIds"]
+        assert view["legal"]["normalActionIds"] == []
+        assert view["legal"]["canPassNormalAction"] is True
 
-        engine.act(room, room.players[seat], "equip", {})
+        engine.act(room, room.players[seat], "pass_turn", {})
         assert engine.view(room, room.players[seat])["legal"]["canEndTurn"] is True
         engine.act(room, room.players[seat], "end_turn", {})
 
@@ -283,7 +466,8 @@ def test_only_actions_that_can_resolve_are_advertised() -> None:
 
     view = engine.view(room, room.players[actor])
 
-    assert view["legal"]["normalActionIds"] == ["equip"]
+    assert view["legal"]["normalActionIds"] == []
+    assert view["legal"]["canPassNormalAction"] is True
     assert view["legal"]["canTakeExtraInvestigation"] is False
 
 
@@ -383,6 +567,83 @@ def test_helmet_cancels_shot_but_consumes_the_shooters_action() -> None:
     assert state.boards[1].alive is True
 
 
+def test_equipment_without_explicit_timing_is_usable_on_another_players_turn() -> None:
+    engine, room = make_room()
+    state = room.state
+    state.turn_seat = 0
+    state.boards[1].equipment = ["smoke_grenade"]
+
+    legal = engine.view(room, room.players[1])["legal"]
+
+    assert legal["playableEquipmentIds"] == ["smoke_grenade"]
+    assert legal["equipmentOptions"] == [
+        {"cardId": "smoke_grenade", "fields": []}
+    ]
+    engine.act(
+        room,
+        room.players[1],
+        "play_equipment",
+        {"cardId": "smoke_grenade"},
+    )
+    assert state.direction == -1
+
+
+def test_anytime_equipment_can_respond_before_a_declared_action_resolves() -> None:
+    engine, room = make_room()
+    state = room.state
+    state.boards[1].equipment = ["smoke_grenade"]
+
+    engine.act(
+        room,
+        room.players[0],
+        "investigate",
+        {"targetSeat": 2, "cardIndex": 0},
+    )
+
+    assert state.pending_action is not None
+    assert engine._response_seat(state.pending_action) == 1
+    assert engine.view(room, room.players[1])["legal"]["responseEquipmentIds"] == [
+        "smoke_grenade"
+    ]
+    engine.act(
+        room,
+        room.players[1],
+        "play_equipment",
+        {"cardId": "smoke_grenade"},
+    )
+
+    assert state.pending_action is None
+    assert state.action_done is True
+    assert state.direction == -1
+
+
+def test_taser_remains_restricted_to_its_owners_turn() -> None:
+    engine, room = make_room()
+    state = room.state
+    state.boards[0].gun = True
+    state.boards[0].aim_seat = 1
+    state.boards[2].equipment = ["taser"]
+    state.turn_seat = 0
+
+    assert "taser" not in engine.view(room, room.players[2])["legal"][
+        "playableEquipmentIds"
+    ]
+    with pytest.raises(GameRuleError, match="使用时机"):
+        engine.act(
+            room,
+            room.players[2],
+            "play_equipment",
+            {"cardId": "taser", "targetSeat": 0, "aimSeat": 1},
+        )
+
+    state.turn_seat = 2
+    option = engine.view(room, room.players[2])["legal"]["equipmentOptions"][0]
+    assert option["cardId"] == "taser"
+    assert option["fields"][0]["options"] == [
+        {"value": 0, "label": room.players[0].name}
+    ]
+
+
 def test_blackmail_can_create_the_immediate_solo_leader_victory() -> None:
     engine, room = make_room()
     agent_seat, _ = leader_owner(room, "agent")
@@ -409,6 +670,17 @@ def test_blackmail_can_create_the_immediate_solo_leader_victory() -> None:
     assert room.phase == "finished"
     assert room.winner == "solo"
     assert room.winner_player_ids == [room.players[agent_seat].id]
+    assert "blackmail" in room.state.equipment_deck
+    assert room.state.history[-1]["cardId"] == "blackmail"
+    assert engine.record_state(room)["equipmentPlayHistory"] == [
+        {
+            "sequence": 1,
+            "turnNumber": 1,
+            "seat": actor,
+            "cardId": "blackmail",
+            "targetSeats": [agent_seat, kingpin_seat],
+        }
+    ]
 
 
 def test_wound_token_moves_with_a_transferred_leader_card() -> None:
@@ -447,6 +719,36 @@ def test_planted_evidence_inverts_only_an_ordinary_players_team() -> None:
     )
 
     assert engine._team(state.boards[ordinary]) != original_team
+
+
+def test_planted_evidence_changes_team_membership_in_final_settlement() -> None:
+    engine, room = make_room()
+    state = room.state
+    ordinary = next(
+        seat
+        for seat, board in state.boards.items()
+        if engine._leader_card(board) is None
+    )
+    for card in state.boards[ordinary].cards:
+        card.kind = "honest"
+    actor = state.turn_seat
+    state.boards[actor].equipment = ["planted_evidence"]
+
+    engine.act(
+        room,
+        room.players[actor],
+        "play_equipment",
+        {"cardId": "planted_evidence", "targetSeat": ordinary},
+    )
+    agent_seat, _ = leader_owner(room, "agent")
+    engine._eliminate(state, agent_seat)
+    engine._check_victory(room, state)
+
+    assert room.winner == "crooked"
+    assert room.players[ordinary].id in room.winner_player_ids
+    _, alignment, won = engine.player_result(room, room.players[ordinary])
+    assert alignment == "crooked"
+    assert won is True
 
 
 def test_failed_equipment_validation_rolls_back_the_card_and_board() -> None:
@@ -606,13 +908,14 @@ def test_restraining_order_redirects_and_completes_the_original_shot() -> None:
     assert all(not card.revealed for card in state.boards[1].cards)
 
 
-def test_classified_orders_lets_the_selected_player_redirect_immediately() -> None:
+def test_classified_orders_redirects_then_reopens_the_response_window() -> None:
     engine, room = make_room()
     state = room.state
     state.boards[0].gun = True
     state.boards[0].aim_seat = 1
     state.acquired_gun_turn[0] = 0
     state.boards[1].equipment = ["classified_orders"]
+    state.boards[3].equipment = ["helmet"]
 
     engine.act(room, room.players[0], "shoot", {})
     engine.act(
@@ -635,6 +938,11 @@ def test_classified_orders_lets_the_selected_player_redirect_immediately() -> No
     assert decider_prompt["sourceCardId"] == "classified_orders"
     assert engine.view(room, room.players[3])["currentPrompt"]["isMyDecision"] is False
     engine.act(room, room.players[2], "choose_redirect", {"targetSeat": 3})
+
+    assert state.pending_action is not None
+    assert engine._response_seat(state.pending_action) == 3
+    assert all(not card.revealed for card in state.boards[3].cards)
+    engine.act(room, room.players[3], "pass_response", {})
 
     assert state.pending_action is None
     assert all(card.revealed for card in state.boards[3].cards)
@@ -1150,9 +1458,18 @@ def test_automated_games_finish_without_wait_state_deadlocks(
                 engine.act(room, player, "shoot", {})
             elif "arm" in action_ids:
                 target = next(
-                    target
-                    for target, board in state.boards.items()
-                    if target != seat and board.alive
+                    (
+                        target
+                        for target, board in state.boards.items()
+                        if target != seat
+                        and board.alive
+                        and engine._leader_card(board) is not None
+                    ),
+                    next(
+                        target
+                        for target, board in state.boards.items()
+                        if target != seat and board.alive
+                    ),
                 )
                 payload: dict[str, int] = {"targetSeat": target}
                 hidden = [
@@ -1163,7 +1480,7 @@ def test_automated_games_finish_without_wait_state_deadlocks(
                 if hidden:
                     payload["cardIndex"] = hidden[0]
                 engine.act(room, player, "arm", payload)
-            else:
+            elif "equip" in action_ids:
                 hidden = [
                     index
                     for index, card in enumerate(state.boards[seat].cards)
@@ -1171,6 +1488,24 @@ def test_automated_games_finish_without_wait_state_deadlocks(
                 ]
                 payload = {"cardIndex": hidden[0]} if hidden else {}
                 engine.act(room, player, "equip", payload)
+            elif "investigate" in action_ids:
+                target = next(
+                    target
+                    for target in engine._investigation_target_seats(state, seat)
+                )
+                card_index = next(
+                    index
+                    for index, card in enumerate(state.boards[target].cards)
+                    if not card.revealed
+                )
+                engine.act(
+                    room,
+                    player,
+                    "investigate",
+                    {"targetSeat": target, "cardIndex": card_index},
+                )
+            else:
+                engine.act(room, player, "pass_turn", {})
 
         assert room.phase == "finished", (
             f"{player_count}人局 seed={seed} 在等待状态中未能结束"

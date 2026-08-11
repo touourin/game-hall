@@ -10,9 +10,9 @@ from backend.app.games.base import GameRuleError
 
 from .cards import (
     BASE_EQUIPMENT_IDS,
+    BOMBERS_EQUIPMENT_IDS,
     EQUIPMENT_BY_ID,
     EQUIPMENT_CARDS,
-    EXPANDED_EQUIPMENT_IDS,
 )
 
 
@@ -31,7 +31,7 @@ ACTION_NAMES = {
     "extra_investigate": "额外调查",
 }
 NORMAL_ACTIONS = ("investigate", "equip", "arm", "shoot")
-EQUIPMENT_SETS = {"base", "expanded"}
+EQUIPMENT_SETS = {"base", "bombers"}
 NORMAL_INTEGRITY_PER_TEAM = {
     4: 5,
     5: 7,
@@ -100,6 +100,15 @@ class EquipmentDraw:
     source: str
 
 
+@dataclass(frozen=True)
+class EquipmentPlay:
+    sequence: int
+    turn_number: int
+    seat: int
+    card_id: str
+    target_seats: tuple[int, ...]
+
+
 @dataclass
 class ExtraTurnSchedule:
     pending_seats: list[int] = field(default_factory=list)
@@ -116,6 +125,7 @@ class DepartedSuspicionState:
     equipment_deck: list[str] = field(default_factory=list)
     initial_equipment_order: list[str] = field(default_factory=list)
     equipment_draw_history: list[EquipmentDraw] = field(default_factory=list)
+    equipment_play_history: list[EquipmentPlay] = field(default_factory=list)
     equipment_audit_complete: bool = True
     gun_total: int = 0
     turn_number: int = 1
@@ -140,9 +150,11 @@ class DepartedSuspicionEngine:
         self.rng = rng if rng is not None else random.SystemRandom()
 
     def room_options(self, options: dict[str, Any]) -> dict[str, Any]:
-        equipment_set = str(options.get("equipmentSet", "expanded"))
+        equipment_set = str(options.get("equipmentSet", "bombers"))
+        if equipment_set == "expanded":
+            equipment_set = "bombers"
         if equipment_set not in EQUIPMENT_SETS:
-            raise GameRuleError("请选择基础16张或扩展32张装备牌库")
+            raise GameRuleError("请选择基础16张或炸弹客/叛徒21张装备牌库")
         return {
             "equipmentSet": equipment_set,
             "firstPlayer": (
@@ -158,11 +170,16 @@ class DepartedSuspicionEngine:
         state = room.state
         if not isinstance(state, DepartedSuspicionState):
             return
+        if room.options.get("equipmentSet") == "expanded":
+            room.options["equipmentSet"] = "bombers"
         if not hasattr(state, "initial_equipment_order"):
             state.initial_equipment_order = list(state.equipment_deck)
             state.equipment_audit_complete = False
         if not hasattr(state, "equipment_draw_history"):
             state.equipment_draw_history = []
+            state.equipment_audit_complete = False
+        if not hasattr(state, "equipment_play_history"):
+            state.equipment_play_history = []
             state.equipment_audit_complete = False
         if not hasattr(state, "equipment_audit_complete"):
             state.equipment_audit_complete = False
@@ -197,7 +214,7 @@ class DepartedSuspicionEngine:
         equipment_ids = list(
             BASE_EQUIPMENT_IDS
             if room.options.get("equipmentSet") == "base"
-            else EXPANDED_EQUIPMENT_IDS
+            else BOMBERS_EQUIPMENT_IDS
         )
         self.rng.shuffle(equipment_ids)
         room.state = DepartedSuspicionState(
@@ -208,6 +225,12 @@ class DepartedSuspicionEngine:
             gun_total=self._gun_count(player_count),
             knowledge={seat: set() for seat in range(player_count)},
         )
+        for seat in range(player_count):
+            self._draw_equipment(
+                room.state,
+                seat,
+                source="setup",
+            )
         room.phase = "playing"
         self._log(room.state, "game_start", f"{player_count}人对局开始")
 
@@ -252,6 +275,19 @@ class DepartedSuspicionEngine:
             raise GameRuleError("你已经出局")
         if action == "end_turn":
             self._end_turn(room, state, seat, payload)
+            return
+        if action == "pass_turn":
+            if state.action_done:
+                raise GameRuleError("本回合已经执行过正常行动")
+            if self._normal_action_ids(state, seat):
+                raise GameRuleError("仍有合法正常行动，不能跳过")
+            state.action_done = True
+            self._log(
+                state,
+                "action_skipped",
+                f"{room.players[seat].name}没有合法正常行动，跳过行动",
+                playerId=room.players[seat].id,
+            )
             return
         if action in NORMAL_ACTIONS:
             if state.action_done:
@@ -300,6 +336,19 @@ class DepartedSuspicionEngine:
             and state.pending_shot is None
             and state.post_shot is None
         )
+        normal_action_ids = (
+            self._normal_action_ids(state, viewer_seat)
+            if can_take_normal_action
+            else []
+        )
+        equipment_options = (
+            self._equipment_options_view(room, state, viewer_seat)
+            if room.phase == "playing"
+            else []
+        )
+        playable_equipment_ids = [
+            option["cardId"] for option in equipment_options
+        ]
         return {
             "turnPlayerId": self._player_id(room, state.turn_seat),
             "turnNumber": state.turn_number,
@@ -318,7 +367,16 @@ class DepartedSuspicionEngine:
             ),
             "equipmentHand": equipment_hand,
             "equipmentCatalog": [
-                card.as_dict(available=not card.requires_cover)
+                card.as_dict(
+                    available=(
+                        card.id
+                        in (
+                            BASE_EQUIPMENT_IDS
+                            if room.options.get("equipmentSet") == "base"
+                            else BOMBERS_EQUIPMENT_IDS
+                        )
+                    )
+                )
                 for card in EQUIPMENT_CARDS
             ],
             "pendingAction": (
@@ -357,6 +415,11 @@ class DepartedSuspicionEngine:
                 {
                     "kind": state.post_shot.get("kind"),
                     "isMyDecision": post_shot_actor == viewer_seat,
+                    "targetPlayerIds": [
+                        room.players[target].id
+                        for target, target_board in state.boards.items()
+                        if target != post_shot_actor and target_board.alive
+                    ],
                 }
                 if state.post_shot is not None
                 else None
@@ -370,10 +433,9 @@ class DepartedSuspicionEngine:
             ),
             "legal": {
                 "canTakeNormalAction": can_take_normal_action,
-                "normalActionIds": (
-                    self._normal_action_ids(state, viewer_seat)
-                    if can_take_normal_action
-                    else []
+                "normalActionIds": normal_action_ids,
+                "canPassNormalAction": (
+                    can_take_normal_action and not normal_action_ids
                 ),
                 "investigationTargetPlayerIds": [
                     room.players[target].id
@@ -406,18 +468,15 @@ class DepartedSuspicionEngine:
                 ),
                 "canRespond": response_seat == viewer_seat,
                 "responseEquipmentIds": (
-                    self._response_equipment_ids(state, viewer_seat, pending)
+                    playable_equipment_ids
                     if pending is not None and response_seat == viewer_seat
                     else []
                 ),
-                "playableEquipmentIds": (
-                    self._playable_equipment_ids(state, viewer_seat)
-                    if room.phase == "playing"
-                    else []
-                ),
+                "playableEquipmentIds": playable_equipment_ids,
+                "equipmentOptions": equipment_options,
             },
             "history": state.history[-30:],
-            "rulesNotice": "卧底牌能力尚未启用；新任务保留在33张资料库中但不会进入牌堆。",
+            "rulesNotice": "当前实战牌堆不混入依赖掩护系统的卧底扩展；33张牌均保留在资料库中。",
         }
 
     def player_result(
@@ -447,6 +506,16 @@ class DepartedSuspicionEngine:
                     "source": draw.source,
                 }
                 for draw in state.equipment_draw_history
+            ],
+            "equipmentPlayHistory": [
+                {
+                    "sequence": play.sequence,
+                    "turnNumber": play.turn_number,
+                    "seat": play.seat,
+                    "cardId": play.card_id,
+                    "targetSeats": list(play.target_seats),
+                }
+                for play in state.equipment_play_history
             ],
             "equipmentAuditComplete": state.equipment_audit_complete,
             "remainingEquipmentDeck": list(state.equipment_deck),
@@ -513,8 +582,8 @@ class DepartedSuspicionEngine:
         self._validate_action(room, state, seat, action, payload)
         state.last_investigation = None
         pending = PendingAction(seat, action, dict(payload))
-        pending.response_order = self._response_order(state, pending)
         state.pending_action = pending
+        pending.response_order = self._response_order(room, state, pending)
         self._log(
             state,
             "action_declared",
@@ -548,12 +617,10 @@ class DepartedSuspicionEngine:
             self._hidden_card(target_board, payload.get("cardIndex"))
             return
         if action == "equip":
-            if any(not card.revealed for card in board.cards):
-                self._hidden_card(board, payload.get("cardIndex"))
+            self._hidden_card(board, payload.get("cardIndex"))
             return
         if action == "arm":
-            if any(not card.revealed for card in board.cards):
-                self._hidden_card(board, payload.get("cardIndex"))
+            self._hidden_card(board, payload.get("cardIndex"))
             self._target_seat(room, state, payload, other_than=seat)
             return
 
@@ -610,8 +677,7 @@ class DepartedSuspicionEngine:
             )
             return
         if action == "equip":
-            if any(not card.revealed for card in actor.cards):
-                self._hidden_card(actor, pending.payload.get("cardIndex")).revealed = True
+            self._hidden_card(actor, pending.payload.get("cardIndex")).revealed = True
             state.action_done = True
             self._draw_equipment(
                 state,
@@ -621,8 +687,7 @@ class DepartedSuspicionEngine:
             self._log(state, "equip", f"{room.players[pending.actor_seat].name}获取了装备")
             return
         if action == "arm":
-            if any(not card.revealed for card in actor.cards):
-                self._hidden_card(actor, pending.payload.get("cardIndex")).revealed = True
+            self._hidden_card(actor, pending.payload.get("cardIndex")).revealed = True
             actor.gun = True
             actor.aim_seat = int(pending.payload["targetSeat"])
             state.acquired_gun_turn[pending.actor_seat] = state.turn_number
@@ -671,7 +736,12 @@ class DepartedSuspicionEngine:
             state.pending_action = None
             self._log(state, "shot_cancelled", "射手失去枪，射击取消并可重新选择行动")
             return
-        pending.response_order = self._response_order(state, pending, after=after)
+        pending.response_order = self._response_order(
+            room,
+            state,
+            pending,
+            after=after,
+        )
         pending.response_index = 0
         if not pending.response_order:
             self._resolve_pending_action(room, state)
@@ -689,14 +759,19 @@ class DepartedSuspicionEngine:
             seat
             for seat in remaining
             if state.boards[seat].alive
-            and self._response_equipment_ids(state, seat, pending)
+            and self._response_equipment_ids(room, state, seat, pending)
         ]
         pending.response_index = 0
         if not pending.response_order:
             self._resolve_pending_action(room, state)
 
     def _response_order(
-        self, state: DepartedSuspicionState, pending: PendingAction, *, after: int | None = None
+        self,
+        room: ArcadeRoom,
+        state: DepartedSuspicionState,
+        pending: PendingAction,
+        *,
+        after: int | None = None,
     ) -> list[int]:
         start = pending.actor_seat if after is None else after
         seats: list[int] = []
@@ -709,7 +784,7 @@ class DepartedSuspicionEngine:
         return [
             seat
             for seat in seats
-            if self._response_equipment_ids(state, seat, pending)
+            if self._response_equipment_ids(room, state, seat, pending)
         ]
 
     @staticmethod
@@ -720,33 +795,25 @@ class DepartedSuspicionEngine:
 
     def _response_equipment_ids(
         self,
+        room: ArcadeRoom,
         state: DepartedSuspicionState,
         seat: int,
         pending: PendingAction | None,
     ) -> list[str]:
         if pending is None:
             return []
-        result: list[str] = []
-        for card_id in state.boards[seat].equipment:
-            timing = EQUIPMENT_BY_ID[card_id].timing
-            if timing == "anytime":
-                result.append(card_id)
-            elif timing == "other_turn" and seat != state.turn_seat:
-                result.append(card_id)
-            elif timing == "shoot_response" and pending.action == "shoot":
-                result.append(card_id)
-            elif timing == "own_shoot" and pending.action == "shoot" and seat == pending.actor_seat:
-                result.append(card_id)
-            elif (
-                timing == "self_shot"
-                and pending.action == "shoot"
-                and state.boards[pending.actor_seat].aim_seat == seat
-            ):
-                result.append(card_id)
-        return result
+        return [
+            card_id
+            for card_id in state.boards[seat].equipment
+            if self._equipment_timing_allows(state, seat, card_id, pending)
+            and self._equipment_form(room, state, seat, card_id) is not None
+        ]
 
     def _playable_equipment_ids(
-        self, state: DepartedSuspicionState, seat: int
+        self,
+        room: ArcadeRoom,
+        state: DepartedSuspicionState,
+        seat: int,
     ) -> list[str]:
         board = state.boards.get(seat)
         if board is None or not board.alive:
@@ -760,19 +827,496 @@ class DepartedSuspicionEngine:
         if state.pending_action is not None:
             if self._response_seat(state.pending_action) != seat:
                 return []
-            return self._response_equipment_ids(state, seat, state.pending_action)
-        result: list[str] = []
-        for card_id in board.equipment:
-            timing = EQUIPMENT_BY_ID[card_id].timing
-            if timing == "anytime":
-                result.append(card_id)
-            elif timing == "active" and seat == state.turn_seat:
-                result.append(card_id)
-            elif timing == "other_turn" and seat != state.turn_seat:
-                result.append(card_id)
-            elif timing == "after_investigate" and state.last_investigation is not None:
-                result.append(card_id)
-        return result
+            return self._response_equipment_ids(
+                room,
+                state,
+                seat,
+                state.pending_action,
+            )
+        return [
+            card_id
+            for card_id in board.equipment
+            if self._equipment_timing_allows(state, seat, card_id, None)
+            and self._equipment_form(room, state, seat, card_id) is not None
+        ]
+
+    def _equipment_options_view(
+        self,
+        room: ArcadeRoom,
+        state: DepartedSuspicionState,
+        seat: int,
+    ) -> list[dict[str, Any]]:
+        return [
+            {
+                "cardId": card_id,
+                "fields": self._equipment_form(room, state, seat, card_id) or [],
+            }
+            for card_id in self._playable_equipment_ids(room, state, seat)
+        ]
+
+    @staticmethod
+    def _equipment_timing_allows(
+        state: DepartedSuspicionState,
+        seat: int,
+        card_id: str,
+        pending: PendingAction | None,
+    ) -> bool:
+        timing = EQUIPMENT_BY_ID[card_id].timing
+        if timing == "anytime":
+            return True
+        if timing == "own_turn":
+            return seat == state.turn_seat
+        if timing == "other_turn":
+            return seat != state.turn_seat
+        if timing == "after_investigate":
+            return pending is None and state.last_investigation is not None
+        if pending is None or pending.action != "shoot":
+            return False
+        if timing == "shoot_response":
+            return True
+        if timing == "own_shoot":
+            return seat == pending.actor_seat
+        if timing == "self_shot":
+            return state.boards[pending.actor_seat].aim_seat == seat
+        return False
+
+    def _equipment_form(
+        self,
+        room: ArcadeRoom,
+        state: DepartedSuspicionState,
+        seat: int,
+        card_id: str,
+    ) -> list[dict[str, Any]] | None:
+        """Return the complete legal input contract, or None when unusable."""
+
+        board = state.boards[seat]
+        alive = [target for target, item in state.boards.items() if item.alive]
+
+        def player_field(
+            key: str,
+            label: str,
+            seats: list[int],
+            **extra: Any,
+        ) -> dict[str, Any]:
+            return {
+                "key": key,
+                "label": label,
+                "kind": "player",
+                "required": True,
+                "options": [
+                    {"value": target, "label": room.players[target].name}
+                    for target in seats
+                ],
+                **extra,
+            }
+
+        def card_options(
+            target: int,
+            indices: list[int],
+            *,
+            show_identity: bool = False,
+        ) -> list[dict[str, Any]]:
+            result: list[dict[str, Any]] = []
+            for index in indices:
+                card = state.boards[target].cards[index]
+                label = f"第{index + 1}张"
+                if show_identity:
+                    label += f" · {INTEGRITY_NAMES[card.kind]}"
+                result.append({"value": index, "label": label})
+            return result
+
+        def dependent_card_field(
+            key: str,
+            label: str,
+            depends_on: str,
+            seats: list[int],
+            indices_by_seat: dict[int, list[int]],
+            *,
+            show_identity: bool = False,
+            **extra: Any,
+        ) -> dict[str, Any]:
+            return {
+                "key": key,
+                "label": label,
+                "kind": "card",
+                "required": True,
+                "dependsOn": depends_on,
+                "optionsByValue": {
+                    str(target): card_options(
+                        target,
+                        indices_by_seat[target],
+                        show_identity=show_identity,
+                    )
+                    for target in seats
+                },
+                **extra,
+            }
+
+        hidden_by_seat = {
+            target: [
+                index
+                for index, card in enumerate(target_board.cards)
+                if not card.revealed
+            ]
+            for target, target_board in state.boards.items()
+        }
+        all_indices = {target: list(range(3)) for target in state.boards}
+
+        def equipment_after_play(target: int) -> list[str]:
+            equipment = list(state.boards[target].equipment)
+            if target == seat and card_id in equipment:
+                equipment.remove(card_id)
+            return equipment
+
+        if card_id == "blackmail":
+            targets = [target for target in alive if target != seat]
+            if len(targets) < 2:
+                return None
+            return [
+                player_field("firstSeat", "第一名玩家", targets),
+                dependent_card_field(
+                    "firstCardIndex",
+                    "第一张底细",
+                    "firstSeat",
+                    targets,
+                    all_indices,
+                ),
+                player_field(
+                    "secondSeat",
+                    "第二名玩家",
+                    targets,
+                    distinctFrom="firstSeat",
+                ),
+                dependent_card_field(
+                    "secondCardIndex",
+                    "第二张底细",
+                    "secondSeat",
+                    targets,
+                    all_indices,
+                ),
+            ]
+        if card_id == "coffee":
+            return [] if seat != state.turn_seat else None
+        if card_id in {"defibrillator", "crutches"}:
+            targets = [
+                target
+                for target, target_board in state.boards.items()
+                if target != seat
+                and not target_board.alive
+                and self._leader_card(target_board) is None
+            ]
+            return [player_field("targetSeat", "复活目标", targets)] if targets else None
+        if card_id == "evidence_bag":
+            owners = [
+                target
+                for target in alive
+                if equipment_after_play(target)
+            ]
+            recipients = [target for target in alive if target != seat]
+            if not owners or not recipients:
+                return None
+            return [
+                player_field("ownerSeat", "装备持有者", owners),
+                player_field(
+                    "recipientSeat",
+                    "装备接收者",
+                    recipients,
+                    distinctFrom="ownerSeat",
+                ),
+            ]
+        if card_id == "flashbang":
+            targets = [target for target in alive if len(hidden_by_seat[target]) >= 2]
+            return [player_field("targetSeat", "目标玩家", targets)] if targets else None
+        if card_id == "k9_unit":
+            targets = [target for target in alive if state.boards[target].gun]
+            return [player_field("targetSeat", "持枪玩家", targets)] if targets else None
+        if card_id == "metal_detector":
+            targets = self._metal_detector_target_seats(state, seat)
+            if not targets:
+                return None
+            return [
+                {
+                    "key": f"choices.{target}",
+                    "label": f"{room.players[target].name}的暗置底细",
+                    "kind": "card",
+                    "required": True,
+                    "options": card_options(target, hidden_by_seat[target]),
+                }
+                for target in targets
+            ]
+        if card_id in {"planted_evidence", "disguise"}:
+            targets = alive
+            if card_id == "disguise":
+                targets = [
+                    target
+                    for target in targets
+                    if "disguise" not in state.boards[target].effects
+                ]
+            return [player_field("targetSeat", "目标玩家", targets)] if targets else None
+        if card_id == "polygraph":
+            targets = [target for target in alive if target != seat]
+            return [player_field("targetSeat", "目标玩家", targets)] if targets else None
+        if card_id == "report_audit":
+            return [] if any(hidden_by_seat[target] for target in alive) else None
+        if card_id == "restraining_order":
+            pending = state.pending_action
+            if pending is None or pending.action != "shoot":
+                return None
+            shooter = pending.actor_seat
+            old_target = state.boards[shooter].aim_seat
+            targets = [
+                target
+                for target in alive
+                if target != shooter and target != old_target
+            ]
+            return [player_field("targetSeat", "新的射击目标", targets)] if targets else None
+        if card_id == "smoke_grenade":
+            return []
+        if card_id == "surveillance_camera":
+            return [] if state.last_investigation is not None else None
+        if card_id == "taser":
+            armed = [target for target in alive if target != seat and state.boards[target].gun]
+            aims = [target for target in alive if target != seat]
+            if board.gun or not armed or not aims:
+                return None
+            return [
+                player_field("targetSeat", "夺枪目标", armed),
+                player_field("aimSeat", "新的瞄准目标", aims),
+            ]
+        if card_id == "truth_serum":
+            targets = [target for target in alive if hidden_by_seat[target]]
+            return [player_field("targetSeat", "目标玩家", targets)] if targets else None
+        if card_id == "wiretap":
+            targets = [
+                target
+                for target in alive
+                if "disguise" not in state.boards[target].effects
+                and hidden_by_seat[target]
+            ]
+            if len(targets) < 2:
+                return None
+            return [
+                player_field("firstSeat", "第一名玩家", targets),
+                dependent_card_field(
+                    "firstCardIndex",
+                    "第一张暗置底细",
+                    "firstSeat",
+                    targets,
+                    hidden_by_seat,
+                ),
+                player_field(
+                    "secondSeat",
+                    "第二名玩家",
+                    targets,
+                    distinctFrom="firstSeat",
+                ),
+                dependent_card_field(
+                    "secondCardIndex",
+                    "第二张暗置底细",
+                    "secondSeat",
+                    targets,
+                    hidden_by_seat,
+                ),
+            ]
+        if card_id == "classified_orders":
+            pending = state.pending_action
+            if pending is None or pending.action != "shoot":
+                return None
+            targets = [target for target in alive if target != seat]
+            return [player_field("deciderSeat", "决定新目标的玩家", targets)] if targets else None
+        if card_id == "fake_id":
+            indices_by_seat = {
+                target: [
+                    index
+                    for index, card in enumerate(state.boards[target].cards)
+                    if card.revealed and card.kind in {"honest", "crooked"}
+                ]
+                for target in alive
+            }
+            targets = [target for target in alive if indices_by_seat[target]]
+            if len(targets) < 2:
+                return None
+            return [
+                player_field("firstSeat", "第一名玩家", targets),
+                dependent_card_field(
+                    "firstCardIndex",
+                    "第一张公开底细",
+                    "firstSeat",
+                    targets,
+                    indices_by_seat,
+                    show_identity=True,
+                ),
+                player_field(
+                    "secondSeat",
+                    "第二名玩家",
+                    targets,
+                    distinctFrom="firstSeat",
+                ),
+                dependent_card_field(
+                    "secondCardIndex",
+                    "第二张公开底细",
+                    "secondSeat",
+                    targets,
+                    indices_by_seat,
+                    show_identity=True,
+                ),
+            ]
+        if card_id in {"fingerprint_kit", "security_wand"}:
+            targets = [
+                target
+                for target in alive
+                if target != seat
+                and "disguise" not in state.boards[target].effects
+                and hidden_by_seat[target]
+            ]
+            if not targets:
+                return None
+            fields = [
+                player_field("targetSeat", "调查目标", targets),
+                dependent_card_field(
+                    "cardIndex",
+                    "目标暗置底细",
+                    "targetSeat",
+                    targets,
+                    hidden_by_seat,
+                ),
+            ]
+            if card_id == "fingerprint_kit" and hidden_by_seat[seat]:
+                fields.extend(
+                    [
+                        {
+                            "key": "returnToHand",
+                            "label": "公开自己一张暗牌，让指纹工具回到手中",
+                            "kind": "boolean",
+                            "required": False,
+                            "default": False,
+                        },
+                        {
+                            "key": "ownCardIndex",
+                            "label": "公开自己的底细",
+                            "kind": "card",
+                            "required": True,
+                            "options": card_options(
+                                seat,
+                                hidden_by_seat[seat],
+                                show_identity=True,
+                            ),
+                            "visibleWhen": {
+                                "field": "returnToHand",
+                                "equals": True,
+                            },
+                        },
+                    ]
+                )
+            elif card_id == "security_wand":
+                public = [
+                    index
+                    for index, card in enumerate(board.cards)
+                    if card.revealed
+                ]
+                fields.append(
+                    {
+                        "key": "ownCardIndex",
+                        "label": "可选：重新暗置自己的公开底细",
+                        "kind": "card",
+                        "required": False,
+                        "options": card_options(
+                            seat,
+                            public,
+                            show_identity=True,
+                        ),
+                    }
+                )
+            return fields
+        if card_id == "grenade":
+            targets = [
+                target
+                for target in alive
+                if target != seat and not state.boards[target].grenade_stage
+            ]
+            return [player_field("targetSeat", "第一位接收者", targets)] if targets else None
+        if card_id == "holster":
+            pending = state.pending_action
+            if pending is None or pending.action != "shoot" or pending.actor_seat != seat:
+                return None
+            old_target = state.boards[seat].aim_seat
+            targets = [
+                target
+                for target in alive
+                if target != seat and target != old_target
+            ]
+            return [player_field("targetSeat", "新的射击目标", targets)] if targets else None
+        if card_id == "concussion_grenade":
+            return [] if any(item.gun for item in state.boards.values()) else None
+        if card_id == "helmet":
+            pending = state.pending_action
+            if (
+                pending is not None
+                and pending.action == "shoot"
+                and state.boards[pending.actor_seat].aim_seat == seat
+            ):
+                return []
+            return None
+        if card_id == "inspection_gloves":
+            targets = [
+                target
+                for target in alive
+                if equipment_after_play(target) or hidden_by_seat[target]
+            ]
+            return [player_field("targetSeat", "搜查目标", targets)] if targets else None
+        if card_id == "key":
+            targets = [
+                target
+                for target in alive
+                if target != seat and "key" not in state.boards[target].effects
+            ]
+            return [player_field("targetSeat", "获得钥匙的玩家", targets)] if targets else None
+        if card_id == "med_kit":
+            targets = [
+                target
+                for target in alive
+                if (leader := self._leader_card(state.boards[target])) is not None
+                and leader.wounded
+            ]
+            return [player_field("targetSeat", "受伤领袖", targets)] if targets else None
+        if card_id == "sunglasses":
+            indices_by_seat = {
+                target: [
+                    index
+                    for index, card in enumerate(state.boards[target].cards)
+                    if card.revealed
+                ]
+                for target in alive
+            }
+            targets = [target for target in alive if indices_by_seat[target]]
+            if sum(len(indices_by_seat[target]) for target in targets) < 2:
+                return None
+            return [
+                player_field("firstSeat", "第一张底细的玩家", targets),
+                dependent_card_field(
+                    "firstCardIndex",
+                    "第一张公开底细",
+                    "firstSeat",
+                    targets,
+                    indices_by_seat,
+                    show_identity=True,
+                ),
+                player_field("secondSeat", "第二张底细的玩家", targets),
+                dependent_card_field(
+                    "secondCardIndex",
+                    "第二张公开底细",
+                    "secondSeat",
+                    targets,
+                    indices_by_seat,
+                    show_identity=True,
+                    distinctLocationFrom={
+                        "seatField": "firstSeat",
+                        "cardField": "firstCardIndex",
+                        "ownSeatField": "secondSeat",
+                    },
+                ),
+            ]
+        return None
 
     def _play_equipment(
         self,
@@ -785,7 +1329,7 @@ class DepartedSuspicionEngine:
         board = self._board(state, seat)
         if card_id not in board.equipment:
             raise GameRuleError("你没有这张装备")
-        if card_id not in self._playable_equipment_ids(state, seat):
+        if card_id not in self._playable_equipment_ids(room, state, seat):
             raise GameRuleError("当前不是这张装备的使用时机")
         if card_id == "new_assignment":
             raise GameRuleError("卧底牌能力尚未启用，新任务暂时不能使用")
@@ -794,8 +1338,6 @@ class DepartedSuspicionEngine:
         board.equipment.remove(card_id)
         keep_card = card_id == "fingerprint_kit" and bool(payload.get("returnToHand"))
         try:
-            if card_id != "surveillance_camera" and state.last_investigation is not None:
-                state.last_investigation = None
             self._resolve_equipment(room, state, seat, card_id, payload)
             if state.choice is not None and state.choice.source_card_id is None:
                 state.choice.source_card_id = card_id
@@ -803,13 +1345,20 @@ class DepartedSuspicionEngine:
         except Exception:
             room.state = original_state
             raise
-        if room.phase == "finished":
-            return
         definition = EQUIPMENT_BY_ID[card_id]
         if keep_card:
             board.equipment.append(card_id)
         elif not definition.persistent:
             state.equipment_deck.append(card_id)
+        state.equipment_play_history.append(
+            EquipmentPlay(
+                sequence=len(state.equipment_play_history) + 1,
+                turn_number=state.turn_number,
+                seat=seat,
+                card_id=card_id,
+                target_seats=self._equipment_target_seats(payload),
+            )
+        )
         self._log(
             state,
             "equipment",
@@ -818,6 +1367,8 @@ class DepartedSuspicionEngine:
             cardId=card_id,
             targetPlayerIds=self._equipment_target_player_ids(room, payload),
         )
+        if room.phase == "finished":
+            return
 
         pending = state.pending_action
         if pending is not None and state.choice is None:
@@ -881,15 +1432,20 @@ class DepartedSuspicionEngine:
             self._drop_gun(state, target)
             return
         if card_id == "metal_detector":
+            targets = self._metal_detector_target_seats(state, seat)
+            if not targets:
+                raise GameRuleError("当前没有可调查的持枪玩家")
             choices = payload.get("choices", {})
-            for target, target_board in state.boards.items():
-                if target == seat or not target_board.alive or not target_board.gun:
-                    continue
-                if "disguise" in target_board.effects:
-                    continue
-                index = self._choice_index(choices, target, target_board)
-                if index is not None:
-                    state.knowledge[seat].add(target_board.cards[index].id)
+            selected_cards: list[IntegrityCard] = []
+            for target in targets:
+                target_board = state.boards[target]
+                index = self._metal_detector_choice_index(
+                    choices,
+                    target,
+                    target_board,
+                )
+                selected_cards.append(target_board.cards[index])
+            state.knowledge[seat].update(card.id for card in selected_cards)
             return
         if card_id == "planted_evidence":
             target = self._target_seat(room, state, payload)
@@ -1437,6 +1993,8 @@ class DepartedSuspicionEngine:
                 raise GameRuleError("机密指令缺少射手信息")
             shooter = choice.shooter_seat
             target = self._target_seat(room, state, payload, other_than=shooter)
+            if target == state.boards[shooter].aim_seat:
+                raise GameRuleError("机密指令必须选择新的射击目标")
             state.boards[shooter].aim_seat = target
             self._log(
                 state,
@@ -1449,10 +2007,7 @@ class DepartedSuspicionEngine:
                 targetPlayerId=room.players[target].id,
                 choiceKind=kind,
             )
-            state.choice = None
-            state.pending_action = None
-            state.action_done = True
-            self._begin_shot(room, state, shooter, target, source="gun")
+            self._finish_choice(room, state, choice)
             return
         if kind == "grenade_pass":
             if action != "pass_grenade":
@@ -1754,15 +2309,22 @@ class DepartedSuspicionEngine:
             is_own = seat == viewer_seat
             visible = finished or is_own or card.revealed
             remembered = card.id in viewer_knowledge
+            if is_own:
+                knowledge = "own"
+            elif card.revealed or finished:
+                knowledge = "public"
+            elif remembered:
+                knowledge = "known"
+            else:
+                knowledge = "hidden"
             cards.append(
                 {
                     "index": index,
+                    "knowledgeKey": card.id if remembered and not visible else None,
                     "kind": card.kind if visible or remembered else None,
                     "label": INTEGRITY_NAMES[card.kind] if visible or remembered else "未知",
                     "revealed": card.revealed,
-                    "knowledge": (
-                        "own" if is_own else "public" if card.revealed or finished else "investigated" if remembered else "hidden"
-                    ),
+                    "knowledge": knowledge,
                     "wounded": card.wounded if visible else False,
                 }
             )
@@ -1804,6 +2366,26 @@ class DepartedSuspicionEngine:
             ]
         if kind == "classified_redirect":
             result["shooterPlayerId"] = self._player_id(room, choice.shooter_seat)
+            old_target = (
+                state.boards[choice.shooter_seat].aim_seat
+                if choice.shooter_seat is not None
+                else None
+            )
+            result["targetPlayerIds"] = [
+                room.players[target].id
+                for target, board in state.boards.items()
+                if board.alive
+                and target != choice.shooter_seat
+                and target != old_target
+            ]
+        if kind == "grenade_pass":
+            result["targetPlayerIds"] = [
+                room.players[target].id
+                for target, board in state.boards.items()
+                if board.alive
+                and target != choice.seat
+                and not board.grenade_stage
+            ]
         return result
 
     @staticmethod
@@ -1937,17 +2519,34 @@ class DepartedSuspicionEngine:
             raise GameRuleError("请选择一张暗置底细")
         return card
 
-    def _choice_index(
+    def _metal_detector_choice_index(
         self, choices: Any, seat: int, board: PlayerBoard
-    ) -> int | None:
+    ) -> int:
         hidden = [index for index, card in enumerate(board.cards) if not card.revealed]
         if not hidden:
-            return None
+            raise GameRuleError("持枪玩家没有可调查的暗置底细")
         if isinstance(choices, dict):
             value = choices.get(str(seat), choices.get(seat))
             if isinstance(value, int) and value in hidden:
                 return value
-        return hidden[0]
+        raise GameRuleError("请为每名持枪玩家选择一张暗置底细")
+
+    @staticmethod
+    def _metal_detector_target_seats(
+        state: DepartedSuspicionState,
+        seat: int,
+    ) -> list[int]:
+        return [
+            target
+            for target, board in state.boards.items()
+            if (
+                target != seat
+                and board.alive
+                and board.gun
+                and "disguise" not in board.effects
+                and any(not card.revealed for card in board.cards)
+            )
+        ]
 
     def _pending_shoot(self, state: DepartedSuspicionState) -> PendingAction:
         pending = state.pending_action
@@ -2010,8 +2609,14 @@ class DepartedSuspicionEngine:
                 else "当前没有可调查的暗置底细"
             )
         if action == "equip":
-            return None
+            return (
+                None
+                if any(not card.revealed for card in board.cards)
+                else "你没有暗置底细，无法支付获取装备的成本"
+            )
         if action == "arm":
+            if not any(not card.revealed for card in board.cards):
+                return "你没有暗置底细，无法支付武装的成本"
             if board.gun:
                 return "你已经持有一把枪"
             if self._central_guns(state) <= 0:
@@ -2149,6 +2754,34 @@ class DepartedSuspicionEngine:
         return f"{actor_name}使用了{card_name}"
 
     @staticmethod
+    def _equipment_target_seats(
+        payload: dict[str, Any],
+    ) -> tuple[int, ...]:
+        result: list[int] = []
+        for key in (
+            "targetSeat",
+            "ownerSeat",
+            "recipientSeat",
+            "firstSeat",
+            "secondSeat",
+            "aimSeat",
+            "deciderSeat",
+        ):
+            value = payload.get(key)
+            if isinstance(value, int) and value not in result:
+                result.append(value)
+        choices = payload.get("choices")
+        if isinstance(choices, dict):
+            for raw_seat in choices:
+                try:
+                    target = int(raw_seat)
+                except (TypeError, ValueError):
+                    continue
+                if target not in result:
+                    result.append(target)
+        return tuple(result)
+
+    @staticmethod
     def _equipment_target_player_ids(
         room: ArcadeRoom,
         payload: dict[str, Any],
@@ -2194,7 +2827,7 @@ class DepartedSuspicionEngine:
             "selfTeam": None,
             "equipmentHand": [],
             "equipmentCatalog": [
-                card.as_dict(available=not card.requires_cover)
+                card.as_dict(available=card.id in BOMBERS_EQUIPMENT_IDS)
                 for card in EQUIPMENT_CARDS
             ],
             "pendingAction": None,
@@ -2206,15 +2839,17 @@ class DepartedSuspicionEngine:
             "legal": {
                 "canTakeNormalAction": False,
                 "normalActionIds": [],
+                "canPassNormalAction": False,
                 "investigationTargetPlayerIds": [],
                 "canTakeExtraInvestigation": False,
                 "canEndTurn": False,
                 "canRespond": False,
                 "responseEquipmentIds": [],
                 "playableEquipmentIds": [],
+                "equipmentOptions": [],
             },
             "history": [],
-            "rulesNotice": "卧底牌能力尚未启用；新任务保留在33张资料库中但不会进入牌堆。",
+            "rulesNotice": "当前实战牌堆不混入依赖掩护系统的卧底扩展；33张牌均保留在资料库中。",
         }
 
     @staticmethod

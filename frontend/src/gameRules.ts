@@ -35,7 +35,7 @@ export function defaultGameRules(
   }
   if (gameKey === 'departed_suspicion') {
     return {
-      equipmentSet: 'expanded',
+      equipmentSet: 'bombers',
       firstPlayer: 'random',
       allowGuests: true,
       allowSpectators: true,
@@ -111,7 +111,7 @@ export function gameRuleLabels(
   if (gameKey === 'departed_suspicion') {
     return [
       '4–8 人基础身份局',
-      options.equipmentSet === 'base' ? '基础16张装备' : '扩展32张可用装备',
+      options.equipmentSet === 'base' ? '基础16张装备' : '基础＋炸弹客/叛徒21张装备',
       options.firstPlayer === 'host' ? '房主先手' : '随机先手',
       options.allowGuests ? '允许游客' : '仅登录玩家',
     ]

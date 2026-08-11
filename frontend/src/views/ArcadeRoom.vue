@@ -239,7 +239,7 @@ const roomHeaderEyebrow = computed(() => {
   const suffix = props.snapshot.gameKey === 'avalon'
     ? ` · ${avalonSnapshot.value?.settings.mode === 'court_undercurrent' ? '王庭暗流' : '标准模式'} · ${avalonPhaseLabel.value}`
     : props.snapshot.gameKey === 'departed_suspicion'
-      ? ` · ${props.snapshot.options.equipmentSet === 'base' ? '基础装备局' : '扩展装备局'}`
+      ? ` · ${props.snapshot.options.equipmentSet === 'base' ? '基础装备局' : '炸弹客/叛徒装备局'}`
     : props.snapshot.gameKey === 'junqi'
     ? ` · ${props.snapshot.options.mode === 'flip' ? '翻棋军旗' : '暗军旗'}`
     : props.snapshot.gameKey === 'reaction'

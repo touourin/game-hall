@@ -48,10 +48,10 @@ function setOption(key: string, value: unknown) {
     </section>
 
     <section v-if="gameKey === 'departed_suspicion'" class="rule-setting-group">
-      <header><strong>装备牌库</strong><small>卧底身份牌尚未启用；依赖卧底牌的“新任务”只保留在资料库</small></header>
+      <header><strong>装备牌库</strong><small>卧底扩展依赖完整掩护系统，因此不混入普通身份局</small></header>
       <div class="rule-option-grid">
-        <button type="button" :class="{ active: option('equipmentSet') === 'expanded' }" @click="setOption('equipmentSet', 'expanded')">
-          <strong>扩展装备</strong><small>基础、炸弹客与可独立运行的卧底装备，共32张可用</small>
+        <button type="button" :class="{ active: option('equipmentSet') === 'bombers' }" @click="setOption('equipmentSet', 'bombers')">
+          <strong>炸弹客/叛徒装备</strong><small>基础16张加该扩展5张，共21张</small>
         </button>
         <button type="button" :class="{ active: option('equipmentSet') === 'base' }" @click="setOption('equipmentSet', 'base')">
           <strong>基础装备</strong><small>只使用经典16张，适合第一次教学</small>
