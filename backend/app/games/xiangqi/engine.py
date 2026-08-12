@@ -3,17 +3,32 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from backend.app.arcade.models import ArcadePlayer, ArcadeRoom
+from backend.app.arcade.models import ArcadePlayer, ArcadeRoom, undo_entry_state
 from backend.app.games.base import GameRuleError
+from backend.app.games.handicap import (
+    handicap_seat_assignment,
+    normalize_handicap_giver,
+)
 
 from .bots import XiangqiBotStrategy
 
 
 ROWS = 10
 COLUMNS = 9
+HANDICAP_REMOVALS = {
+    "none": (),
+    "cannon": ((7, 7),),
+    "horse": ((9, 7),),
+    "rook": ((9, 8),),
+    "nine": (
+        (6, 0), (6, 2), (6, 4), (6, 6), (6, 8),
+        (9, 2), (9, 3), (9, 5), (9, 6),
+    ),
+}
+HANDICAPS = frozenset(HANDICAP_REMOVALS)
 
 
-def initial_board() -> list[list[str | None]]:
+def initial_board(handicap: str = "none") -> list[list[str | None]]:
     board: list[list[str | None]] = [[None] * COLUMNS for _ in range(ROWS)]
     back_rank = ["R", "H", "E", "A", "K", "A", "E", "H", "R"]
     board[0] = [f"b{piece}" for piece in back_rank]
@@ -23,12 +38,15 @@ def initial_board() -> list[list[str | None]]:
         board[6][column] = "rP"
     board[7][1] = board[7][7] = "rC"
     board[9] = [f"r{piece}" for piece in back_rank]
+    for row, column in HANDICAP_REMOVALS[handicap]:
+        board[row][column] = None
     return board
 
 
 @dataclass
 class XiangqiState:
     board: list[list[str | None]] = field(default_factory=initial_board)
+    seat_colors: list[str] = field(default_factory=lambda: ["red", "black"])
     turn_color: str = "red"
     last_move: dict[str, Any] | None = None
     move_count: int = 0
@@ -64,11 +82,32 @@ class XiangqiEngine:
     async def close(self) -> None:
         await self.bot_strategy.close()
 
+    @staticmethod
+    def repair_restored_room(room: ArcadeRoom) -> None:
+        states = [room.state] + [
+            undo_entry_state(entry) for entry in room.undo_history
+        ]
+        for state in states:
+            if isinstance(state, XiangqiState) and not hasattr(
+                state, "seat_colors"
+            ):
+                state.seat_colors = ["red", "black"]
+
     def room_options(self, options: dict[str, Any]) -> dict[str, Any]:
         capture_hints_enabled = options.get("captureHintsEnabled", True)
         if not isinstance(capture_hints_enabled, bool):
             raise GameRuleError("吃子提醒设置格式不正确")
-        return {"captureHintsEnabled": capture_hints_enabled}
+        handicap = options.get("handicap", "none")
+        if handicap not in HANDICAPS:
+            raise GameRuleError("请选择无让子、让炮、让马、让车或让九子")
+        handicap_giver = normalize_handicap_giver(
+            options.get("handicapGiver", "host")
+        )
+        return {
+            "captureHintsEnabled": capture_hints_enabled,
+            "handicap": handicap,
+            "handicapGiver": handicap_giver,
+        }
 
     def initial_state(self) -> XiangqiState:
         state = XiangqiState()
@@ -78,7 +117,21 @@ class XiangqiEngine:
         return state
 
     def start(self, room: ArcadeRoom) -> None:
-        room.state = self.initial_state()
+        handicap = str(room.options.get("handicap", "none"))
+        if handicap == "none":
+            seat_colors = ["red", "black"]
+        else:
+            seat_colors = handicap_seat_assignment(
+                room,
+                giver="red",
+                receiver="black",
+            )
+        board = initial_board(handicap)
+        room.state = XiangqiState(
+            board=board,
+            seat_colors=seat_colors,
+            position_history=[self._position_key(board, "red")],
+        )
         room.phase = "playing"
 
     def act(
@@ -89,11 +142,11 @@ class XiangqiEngine:
         payload: dict[str, Any],
     ) -> None:
         state: XiangqiState = room.state
-        player_color = self._seat_color(player.seat)
+        player_color = state.seat_colors[player.seat]
         if action == "resign":
             opponent = room.players[1 - player.seat]
             room.finish(
-                self._seat_color(opponent.seat),
+                state.seat_colors[opponent.seat],
                 [opponent.id],
                 f"{player.name} 认输",
             )
@@ -167,7 +220,7 @@ class XiangqiEngine:
         state: XiangqiState = room.state
         red_in_check = self._in_check(state.board, "red")
         black_in_check = self._in_check(state.board, "black")
-        viewer_color = self._seat_color(viewer.seat)
+        viewer_color = state.seat_colors[viewer.seat]
         move_analysis = (
             {
                 color: self._legal_moves(
@@ -191,13 +244,13 @@ class XiangqiEngine:
         return {
             "board": state.board,
             "turnPlayerId": (
-                room.players[0 if state.turn_color == "red" else 1].id
+                room.players[state.seat_colors.index(state.turn_color)].id
                 if room.phase == "playing"
                 else None
             ),
             "colors": {
-                room.players[0].id: "red",
-                room.players[1].id: "black",
+                player.id: state.seat_colors[player.seat]
+                for player in room.players
             }
             if len(room.players) == 2
             else {},
@@ -215,12 +268,16 @@ class XiangqiEngine:
                 "red" if red_in_check else "black" if black_in_check else None
             ),
             "viewerColor": viewer_color,
+            "initialBoard": initial_board(
+                str(room.options.get("handicap", "none"))
+            ),
         }
 
     def player_result(
         self, room: ArcadeRoom, player: ArcadePlayer
     ) -> tuple[str, str, bool]:
-        color = self._seat_color(player.seat)
+        state: XiangqiState = room.state
+        color = state.seat_colors[player.seat]
         return color, color, player.id in room.winner_player_ids
 
     def _legal_moves(
@@ -551,10 +608,6 @@ class XiangqiEngine:
     @staticmethod
     def _opponent(color: str) -> str:
         return "black" if color == "red" else "red"
-
-    @staticmethod
-    def _seat_color(seat: int) -> str:
-        return "red" if seat == 0 else "black"
 
     @staticmethod
     def _coordinate(payload: dict[str, Any], key: str, limit: int) -> int:

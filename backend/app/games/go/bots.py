@@ -111,8 +111,7 @@ class GoBotStrategy:
             )
         return None
 
-    @staticmethod
-    def _query(room: ArcadeRoom) -> dict:
+    def _query(self, room: ArcadeRoom) -> dict:
         state: GoState = room.state
         board_size = len(state.board)
         history = getattr(state, "move_history", [])
@@ -123,7 +122,11 @@ class GoBotStrategy:
             "boardYSize": board_size,
             "moves": [
                 [
-                    "B" if int(move["seat"]) == 0 else "W",
+                    (
+                        "B"
+                        if state.seat_stones[int(move["seat"])] == 1
+                        else "W"
+                    ),
                     "pass"
                     if move.get("pass")
                     else GoBotStrategy._to_gtp(
@@ -133,17 +136,26 @@ class GoBotStrategy:
                 for move in history
             ],
         }
+        handicap = int(room.options.get("handicap", 0))
         if not history and any(cell for row in state.board for cell in row):
             query["initialStones"] = [
                 [
                     "B" if stone == 1 else "W",
-                    GoBotStrategy._to_gtp(row, column, board_size),
+                    self._to_gtp(row, column, board_size),
                 ]
                 for row, line in enumerate(state.board)
                 for column, stone in enumerate(line)
                 if stone
             ]
-            query["initialPlayer"] = "B" if state.turn_seat == 0 else "W"
+            query["initialPlayer"] = (
+                "B" if state.seat_stones[state.turn_seat] == 1 else "W"
+            )
+        elif handicap:
+            query["initialStones"] = [
+                ["W", self._to_gtp(row, column, board_size)]
+                for row, column in self.engine.handicap_points[handicap]
+            ]
+            query["initialPlayer"] = "B"
         return query
 
     def _is_legal(self, room: ArcadeRoom, action: BotAction) -> bool:

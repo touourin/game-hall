@@ -3,8 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from backend.app.arcade.models import ArcadePlayer, ArcadeRoom
+from backend.app.arcade.models import ArcadePlayer, ArcadeRoom, undo_entry_state
 from backend.app.games.base import GameRuleError
+from backend.app.games.handicap import (
+    handicap_seat_assignment,
+    normalize_handicap_giver,
+)
 
 from .bots import GoBotStrategy
 
@@ -13,6 +17,17 @@ BOARD_SIZE = 19
 KOMI = 7.5
 BOARD_SIZES = {9, 13, 19}
 KOMI_VALUES = {0.0, 6.5, 7.5}
+HANDICAP_POINTS = {
+    2: ((15, 3), (3, 15)),
+    3: ((15, 3), (3, 15), (3, 3)),
+    6: ((3, 3), (3, 15), (9, 3), (9, 15), (15, 3), (15, 15)),
+    9: (
+        (3, 3), (3, 9), (3, 15),
+        (9, 3), (9, 9), (9, 15),
+        (15, 3), (15, 9), (15, 15),
+    ),
+}
+HANDICAPS = frozenset({0, *HANDICAP_POINTS})
 
 
 @dataclass
@@ -21,6 +36,7 @@ class GoState:
         default_factory=lambda: [[0] * BOARD_SIZE for _ in range(BOARD_SIZE)]
     )
     turn_seat: int = 0
+    seat_stones: list[int] = field(default_factory=lambda: [1, 2])
     consecutive_passes: int = 0
     captures: list[int] = field(default_factory=lambda: [0, 0])
     last_move: dict[str, int | bool] | None = None
@@ -41,6 +57,7 @@ class GoEngine:
     bot_difficulties = ("easy", "normal", "hard")
     default_bot_difficulty = "normal"
     bot_timeout_seconds = 12.0
+    handicap_points = HANDICAP_POINTS
 
     def __init__(self) -> None:
         self.bot_strategy = GoBotStrategy(self)
@@ -59,13 +76,26 @@ class GoEngine:
 
     @staticmethod
     def repair_restored_room(room: ArcadeRoom) -> None:
-        state = room.state
-        if isinstance(state, GoState) and not hasattr(state, "move_history"):
-            state.move_history = []
+        states = [room.state] + [
+            undo_entry_state(entry) for entry in room.undo_history
+        ]
+        for state in states:
+            if isinstance(state, GoState) and not hasattr(
+                state, "move_history"
+            ):
+                state.move_history = []
+            if isinstance(state, GoState) and not hasattr(
+                state, "seat_stones"
+            ):
+                state.seat_stones = [1, 2]
 
     def room_options(self, options: dict[str, Any]) -> dict[str, Any]:
         board_size = options.get("boardSize", BOARD_SIZE)
         komi = options.get("komi", KOMI)
+        handicap = options.get("handicap", 0)
+        handicap_giver = normalize_handicap_giver(
+            options.get("handicapGiver", "host")
+        )
         if (
             not isinstance(board_size, int)
             or isinstance(board_size, bool)
@@ -78,16 +108,44 @@ class GoEngine:
             or float(komi) not in KOMI_VALUES
         ):
             raise GameRuleError("贴目只能选择 0、6.5 或 7.5")
-        return {"boardSize": board_size, "komi": float(komi)}
+        if (
+            not isinstance(handicap, int)
+            or isinstance(handicap, bool)
+            or handicap not in HANDICAPS
+        ):
+            raise GameRuleError("19 路围棋只能选择不让子或让二、三、六、九子")
+        if handicap and board_size != BOARD_SIZE:
+            raise GameRuleError("围棋让子只适用于 19 路棋盘")
+        return {
+            "boardSize": board_size,
+            "komi": 0.0 if handicap else float(komi),
+            "handicap": handicap,
+            "handicapGiver": handicap_giver,
+        }
 
     def initial_state(self) -> GoState:
         return GoState()
 
     def start(self, room: ArcadeRoom) -> None:
         board_size = room.options.get("boardSize", BOARD_SIZE)
+        handicap = int(room.options.get("handicap", 0))
         board = [[0] * board_size for _ in range(board_size)]
+        for row, column in HANDICAP_POINTS.get(handicap, ()):
+            board[row][column] = 2
+        if handicap:
+            seat_stones = handicap_seat_assignment(
+                room,
+                giver=1,
+                receiver=2,
+            )
+            turn_seat = seat_stones.index(1)
+        else:
+            seat_stones = [1, 2]
+            turn_seat = 0
         room.state = GoState(
             board=board,
+            seat_stones=seat_stones,
+            turn_seat=turn_seat,
             position_history=[self._board_key(board)],
         )
         room.phase = "playing"
@@ -103,7 +161,7 @@ class GoEngine:
         if action == "resign":
             opponent = room.players[1 - player.seat]
             room.finish(
-                self._color_name(opponent.seat),
+                self._stone_name(state.seat_stones[opponent.seat]),
                 [opponent.id],
                 f"{player.name} 认输",
             )
@@ -137,7 +195,7 @@ class GoEngine:
         if state.board[row][column] != 0:
             raise GameRuleError("这个交叉点已经有棋子")
 
-        stone = player.seat + 1
+        stone = state.seat_stones[player.seat]
         opponent = 2 if stone == 1 else 1
         old_board = [line[:] for line in state.board]
         next_board = [line[:] for line in state.board]
@@ -162,7 +220,7 @@ class GoEngine:
         if not state.position_history:
             state.position_history.append(self._board_key(old_board))
         state.position_history.append(next_position)
-        state.captures[player.seat] += captured
+        state.captures[stone - 1] += captured
         state.consecutive_passes = 0
         state.move_count += 1
         state.last_move = {
@@ -194,8 +252,8 @@ class GoEngine:
                 else None
             ),
             "colors": {
-                room.players[0].id: "black",
-                room.players[1].id: "white",
+                player.id: self._stone_name(state.seat_stones[player.seat])
+                for player in room.players
             }
             if len(room.players) == 2
             else {},
@@ -223,7 +281,8 @@ class GoEngine:
     def player_result(
         self, room: ArcadeRoom, player: ArcadePlayer
     ) -> tuple[str, str, bool]:
-        color = self._color_name(player.seat)
+        state: GoState = room.state
+        color = self._stone_name(state.seat_stones[player.seat])
         return color, color, player.id in room.winner_player_ids
 
     def _act_scoring(
@@ -295,16 +354,18 @@ class GoEngine:
         white_score = float(state.score["white"])
         if black_score > white_score:
             margin = black_score - white_score
+            black_seat = state.seat_stones.index(1)
             room.finish(
                 "black",
-                [room.players[0].id],
+                [room.players[black_seat].id],
                 f"双方确认数子，黑方领先 {margin:g}",
             )
         elif white_score > black_score:
             margin = white_score - black_score
+            white_seat = state.seat_stones.index(2)
             room.finish(
                 "white",
-                [room.players[1].id],
+                [room.players[white_seat].id],
                 f"双方确认数子，白方领先 {margin:g}",
             )
         else:
@@ -434,5 +495,5 @@ class GoEngine:
         return "".join(str(cell) for row in board for cell in row)
 
     @staticmethod
-    def _color_name(seat: int) -> str:
-        return "black" if seat == 0 else "white"
+    def _stone_name(stone: int) -> str:
+        return "black" if stone == 1 else "white"

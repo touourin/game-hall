@@ -13,6 +13,7 @@ from .rooms import (
     HOST_TRANSFER_GRACE,
     MAX_CHAT_LENGTH,
     UNDO_GAMES,
+    can_undo_for_player,
     request_voter_ids,
 )
 
@@ -247,7 +248,7 @@ def build_room_view(
                 room.phase == "playing"
                 and room.game_key in UNDO_GAMES
                 and room.options.get("allowUndo", True)
-                and bool(room.undo_history)
+                and can_undo_for_player(room, viewer.id)
                 and pending_request is None
             ),
             "canRequestDraw": (

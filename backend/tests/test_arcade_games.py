@@ -8,6 +8,7 @@ import pytest
 
 from backend.app.accounts import AccountStore
 from backend.app.arcade.models import ArcadePlayer, ArcadeRoom, ArcadeSpectator
+from backend.app.arcade.bots import BotAction
 from backend.app.arcade.rooms import (
     ActiveRoomError,
     ArcadeRoomError,
@@ -493,6 +494,43 @@ def test_go_supports_small_boards_and_zero_komi_draws() -> None:
     assert room.state.score["neutralPoints"] == 81
 
 
+@pytest.mark.parametrize("handicap", [2, 3, 6, 9])
+def test_go_handicap_places_white_stones_and_gives_black_to_giver(
+    handicap: int,
+) -> None:
+    engine = GoEngine()
+    room = make_room(
+        engine,
+        2,
+        {
+            "boardSize": 19,
+            "komi": 0.0,
+            "handicap": handicap,
+            "handicapGiver": "host",
+        },
+    )
+
+    assert sum(cell == 2 for row in room.state.board for cell in row) == handicap
+    assert room.state.seat_stones == [1, 2]
+    assert room.state.turn_seat == room.host.seat
+    assert engine.view(room, room.host)["colors"] == {
+        room.players[0].id: "black",
+        room.players[1].id: "white",
+    }
+
+
+def test_go_handicap_requires_nineteen_lines_and_forces_zero_komi() -> None:
+    engine = GoEngine()
+
+    assert engine.room_options(
+        {"boardSize": 19, "komi": 7.5, "handicap": 6}
+    )["komi"] == 0.0
+    with pytest.raises(GameRuleError, match="只适用于 19 路"):
+        engine.room_options({"boardSize": 13, "handicap": 2})
+    with pytest.raises(GameRuleError, match="房主或对手"):
+        engine.room_options({"handicapGiver": "random"})
+
+
 def test_go_dead_stone_changes_reset_confirmation_and_affect_score() -> None:
     engine = GoEngine()
     room = make_room(engine, 2, {"boardSize": 9, "komi": 0.0})
@@ -609,12 +647,54 @@ def test_xiangqi_validates_piece_ownership_and_turns() -> None:
 def test_xiangqi_validates_capture_hint_room_option() -> None:
     engine = XiangqiEngine()
 
-    assert engine.room_options({}) == {"captureHintsEnabled": True}
+    assert engine.room_options({}) == {
+        "captureHintsEnabled": True,
+        "handicap": "none",
+        "handicapGiver": "host",
+    }
     assert engine.room_options({"captureHintsEnabled": False}) == {
-        "captureHintsEnabled": False
+        "captureHintsEnabled": False,
+        "handicap": "none",
+        "handicapGiver": "host",
     }
     with pytest.raises(GameRuleError, match="吃子提醒设置格式不正确"):
         engine.room_options({"captureHintsEnabled": "yes"})
+
+
+@pytest.mark.parametrize(
+    ("handicap", "missing"),
+    [
+        ("cannon", {(7, 7)}),
+        ("horse", {(9, 7)}),
+        ("rook", {(9, 8)}),
+        (
+            "nine",
+            {
+                (6, 0), (6, 2), (6, 4), (6, 6), (6, 8),
+                (9, 2), (9, 3), (9, 5), (9, 6),
+            },
+        ),
+    ],
+)
+def test_xiangqi_handicap_removes_red_pieces_and_giver_stays_red(
+    handicap: str,
+    missing: set[tuple[int, int]],
+) -> None:
+    engine = XiangqiEngine()
+    room = make_room(
+        engine,
+        2,
+        {"handicap": handicap, "handicapGiver": "host"},
+    )
+
+    assert all(room.state.board[row][column] is None for row, column in missing)
+    assert room.state.seat_colors[room.host.seat] == "red"
+    assert room.state.turn_color == "red"
+
+
+def test_xiangqi_handicap_rejects_random_giver() -> None:
+    with pytest.raises(GameRuleError, match="房主或对手"):
+        XiangqiEngine().room_options({"handicapGiver": "random"})
 
 
 @pytest.mark.parametrize(
@@ -1716,6 +1796,128 @@ def test_rematch_waits_for_every_player_and_rotates_sides() -> None:
     assert room.round_number == 2
     assert room.players[1].id == first_black.id
     assert room.rematch_ready_ids == set()
+
+
+@pytest.mark.parametrize(
+    (
+        "game_key",
+        "handicap",
+        "handicap_giver",
+        "color_key",
+        "giver_color",
+    ),
+    [
+        ("xiangqi", "horse", "host", "seat_colors", "red"),
+        ("xiangqi", "horse", "opponent", "seat_colors", "red"),
+        ("go", 3, "host", "seat_stones", 1),
+        ("go", 3, "opponent", "seat_stones", 1),
+    ],
+)
+def test_handicap_giver_identity_survives_rematch_seat_rotation(
+    game_key: str,
+    handicap: str | int,
+    handicap_giver: str,
+    color_key: str,
+    giver_color: str | int,
+) -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, host, _ = manager.create_room(
+        game_key,
+        "甲",
+        "account-1",
+        {
+            "firstPlayer": "host",
+            "handicap": handicap,
+            "handicapGiver": handicap_giver,
+        },
+    )
+    _, opponent, _ = manager.join_room(
+        room.code, game_key, "乙", "account-2"
+    )
+    manager.start(room, host.id)
+    giver = host if handicap_giver == "host" else opponent
+    first_seat = giver.seat
+    manager.act(room, opponent.id, "resign", {})
+    manager.restart(room, host.id)
+    manager.restart(room, opponent.id)
+
+    assert giver.seat != first_seat
+    assert getattr(room.state, color_key)[giver.seat] == giver_color
+
+
+@pytest.mark.parametrize("game_key", ["xiangqi", "go"])
+def test_ai_immediately_accepts_undo_and_rewinds_its_reply_too(
+    game_key: str,
+) -> None:
+    engine = XiangqiEngine() if game_key == "xiangqi" else GoEngine()
+    manager = ArcadeRoomManager({engine.key: engine})
+    room, host, _ = manager.create_room(
+        engine.key,
+        "房主",
+        "account-host",
+        {"firstPlayer": "host", "allowUndo": True},
+    )
+    bot = manager.add_ai_player(room, host.id)
+    manager.start(room, host.id)
+
+    if game_key == "xiangqi":
+        manager.act(
+            room,
+            host.id,
+            "move",
+            {"fromRow": 6, "fromColumn": 0, "toRow": 5, "toColumn": 0},
+        )
+        bot_action = BotAction(
+            bot.id,
+            "move",
+            {"fromRow": 3, "fromColumn": 0, "toRow": 4, "toColumn": 0},
+        )
+    else:
+        manager.act(room, host.id, "place", {"row": 3, "column": 3})
+        bot_action = BotAction(
+            bot.id,
+            "place",
+            {"row": 3, "column": 4},
+        )
+    manager.apply_bot_action(room, bot_action)
+
+    assert manager.request_game_action(room, host.id, "undo") is False
+    assert room.pending_request is None
+    assert room.state.move_count == 0
+    if game_key == "xiangqi":
+        assert room.state.board[6][0] == "rP"
+        assert room.state.board[3][0] == "bP"
+    else:
+        assert room.state.board[3][3] == 0
+        assert room.state.board[3][4] == 0
+    assert room.undo_history == []
+
+
+def test_ai_undo_while_thinking_rewinds_the_human_move() -> None:
+    engine = XiangqiEngine()
+    manager = ArcadeRoomManager({engine.key: engine})
+    room, host, _ = manager.create_room(
+        engine.key,
+        "房主",
+        "account-host",
+        {"firstPlayer": "host", "allowUndo": True},
+    )
+    manager.add_ai_player(room, host.id)
+    manager.start(room, host.id)
+    manager.act(
+        room,
+        host.id,
+        "move",
+        {"fromRow": 6, "fromColumn": 0, "toRow": 5, "toColumn": 0},
+    )
+
+    revision_before_undo = room.revision
+    manager.request_game_action(room, host.id, "undo")
+
+    assert room.revision > revision_before_undo
+    assert room.state.move_count == 0
+    assert room.state.board[6][0] == "rP"
+    assert room.undo_history == []
 
 
 def test_gomoku_players_can_accept_undo_and_draw_requests() -> None:

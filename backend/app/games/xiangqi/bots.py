@@ -111,7 +111,7 @@ class XiangqiBotStrategy:
         if room.phase != "playing" or len(room.players) != 2:
             return None
         state: XiangqiState = room.state
-        seat = 0 if state.turn_color == "red" else 1
+        seat = state.seat_colors.index(state.turn_color)
         player = room.players[seat]
         return player if player.is_bot else None
 

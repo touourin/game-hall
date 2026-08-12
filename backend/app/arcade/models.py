@@ -54,6 +54,17 @@ class ArcadeGameRequest:
     approved_player_ids: set[str] = field(default_factory=set)
 
 
+@dataclass(frozen=True)
+class ArcadeUndoEntry:
+    player_id: str
+    state: Any
+
+
+def undo_entry_state(entry: Any) -> Any:
+    """Unwrap a tracked undo entry while accepting legacy raw snapshots."""
+    return entry.state if isinstance(entry, ArcadeUndoEntry) else entry
+
+
 @dataclass
 class ArcadeRoom:
     code: str

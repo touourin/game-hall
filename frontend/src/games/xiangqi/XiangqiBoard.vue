@@ -36,6 +36,7 @@ const replayStep = ref(0)
 
 const game = computed(() => props.snapshot.game as {
   board: Array<Array<string | null>>
+  initialBoard: Array<Array<string | null>>
   turnPlayerId: string | null
   colors: Record<string, 'red' | 'black'>
   viewerColor: 'red' | 'black'
@@ -175,6 +176,9 @@ watch(
 )
 
 function makeInitialBoard(): Array<Array<string | null>> {
+  if (game.value.initialBoard) {
+    return game.value.initialBoard.map((row) => [...row])
+  }
   const board: Array<Array<string | null>> = Array.from({ length: 10 }, () => Array(9).fill(null))
   const backRank = ['R', 'H', 'E', 'A', 'K', 'A', 'E', 'H', 'R']
   board[0] = backRank.map((piece) => `b${piece}`)

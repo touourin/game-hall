@@ -97,6 +97,60 @@ async def test_go_adapter_sends_history_and_translates_gtp_move() -> None:
     assert difficulty == "hard"
 
 
+async def test_go_adapter_keeps_handicap_stones_with_move_history() -> None:
+    engine = GoEngine()
+    fake = FakeKataGo("pass")
+    engine.bot_strategy.client = fake
+    manager = ArcadeRoomManager({engine.key: engine})
+    room, host, _ = manager.create_room(
+        engine.key,
+        "房主",
+        "account-host",
+        {
+            "firstPlayer": "host",
+            "handicap": 3,
+            "handicapGiver": "host",
+        },
+    )
+    manager.add_ai_player(room, host.id, difficulty="hard")
+    manager.start(room, host.id)
+    manager.act(room, host.id, "place", {"row": 9, "column": 9})
+
+    await engine.choose_bot_action_async(room)
+
+    query, _ = fake.calls[0]
+    assert query["initialStones"] == [
+        ["W", "D4"],
+        ["W", "Q16"],
+        ["W", "D16"],
+    ]
+    assert query["initialPlayer"] == "B"
+    assert query["moves"] == [["B", "K10"]]
+
+
+async def test_go_adapter_rebases_full_handicap_board_after_resuming() -> None:
+    engine = GoEngine()
+    fake = FakeKataGo("pass")
+    engine.bot_strategy.client = fake
+    manager = ArcadeRoomManager({engine.key: engine})
+    room, host, _ = manager.create_room(
+        engine.key,
+        "房主",
+        "account-host",
+        {"handicap": 2, "handicapGiver": "host"},
+    )
+    manager.add_ai_player(room, host.id, difficulty="hard")
+    manager.start(room, host.id)
+    room.state.board[9][9] = 1
+    room.state.move_history.clear()
+    room.state.turn_seat = host.seat
+
+    query = engine.bot_strategy._query(room)
+    assert ["B", "K10"] in query["initialStones"]
+    assert len(query["initialStones"]) == 3
+    assert query["moves"] == []
+
+
 async def test_go_bot_passes_and_confirms_the_scoring_phase() -> None:
     engine = GoEngine()
     engine.bot_strategy.client = FakeKataGo("pass")

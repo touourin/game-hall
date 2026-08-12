@@ -1,5 +1,10 @@
 import { mount } from '@vue/test-utils'
-import { defaultGameRules, gameRuleLabels } from '../gameRules'
+import {
+  applyGameRuleChange,
+  defaultGameRules,
+  gameRuleLabels,
+  hasGameHandicap,
+} from '../gameRules'
 import GameRuleSettings from './GameRuleSettings.vue'
 
 describe('GameRuleSettings', () => {
@@ -256,6 +261,65 @@ describe('GameRuleSettings', () => {
     expect(gameRuleLabels('xiangqi', { captureHintsEnabled: false })).toContain(
       '关闭吃子提醒',
     )
+  })
+
+  it('offers Xiangqi handicaps with only host or opponent as giver', async () => {
+    const wrapper = mount(GameRuleSettings, {
+      props: {
+        gameKey: 'xiangqi',
+        modelValue: defaultGameRules('xiangqi'),
+      },
+    })
+    const nine = wrapper.findAll('button').find((button) => button.text().trim() === '让九子')
+    expect(wrapper.text()).not.toContain('房主让子')
+
+    await nine?.trigger('click')
+    const rules = wrapper.emitted('update:modelValue')?.[0]?.[0] as Record<string, unknown>
+    await wrapper.setProps({ modelValue: rules })
+
+    expect(wrapper.text()).toContain('房主让子')
+    expect(wrapper.text()).toContain('对手让子')
+    expect(wrapper.text()).not.toContain('随机让子')
+    expect(wrapper.text()).not.toContain('首局先手')
+    expect(gameRuleLabels('xiangqi', rules)).toContain('让九子')
+  })
+
+  it('limits Go handicaps to 19 lines and zero komi', async () => {
+    const wrapper = mount(GameRuleSettings, {
+      props: {
+        gameKey: 'go',
+        modelValue: defaultGameRules('go'),
+      },
+    })
+    const six = wrapper.findAll('button').find((button) => button.text().trim() === '让 6 子')
+    await six?.trigger('click')
+    const rules = wrapper.emitted('update:modelValue')?.[0]?.[0] as Record<string, unknown>
+    expect(rules).toMatchObject({ boardSize: 19, komi: 0, handicap: 6 })
+
+    await wrapper.setProps({ modelValue: rules })
+    expect(wrapper.findAll('button').find((button) => button.text().trim() === '7.5')?.attributes('disabled')).toBeDefined()
+    expect(gameRuleLabels('go', rules)).toContain('让 6 子')
+
+    const thirteen = wrapper.findAll('button').find((button) => button.text().trim() === '13 路')
+    await thirteen?.trigger('click')
+    expect(wrapper.emitted('update:modelValue')?.at(-1)?.[0]).toMatchObject({
+      boardSize: 13,
+      handicap: 0,
+    })
+  })
+
+  it('keeps handicap constraints reusable outside the settings component', () => {
+    const rules = applyGameRuleChange(
+      'go',
+      defaultGameRules('go'),
+      'handicap',
+      9,
+    )
+
+    expect(rules).toMatchObject({ boardSize: 19, komi: 0, handicap: 9 })
+    expect(hasGameHandicap('go', rules)).toBe(true)
+    expect(hasGameHandicap('xiangqi', { handicap: 'none' })).toBe(false)
+    expect(hasGameHandicap('xiangqi', { handicap: 'rook' })).toBe(true)
   })
 
   it('offers all three classic Minesweeper difficulties', async () => {

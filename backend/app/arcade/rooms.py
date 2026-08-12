@@ -17,6 +17,8 @@ from .models import (
     ArcadeGameRequest,
     ArcadePlayer,
     ArcadeRoom,
+    ArcadeUndoEntry,
+    undo_entry_state,
     utc_now_iso,
 )
 
@@ -61,6 +63,18 @@ def request_voter_ids(
     if selector is None:
         return human_ids
     return human_ids & set(selector(room, kind))
+
+
+def can_undo_for_player(room: ArcadeRoom, player_id: str) -> bool:
+    if not room.undo_history:
+        return False
+    if not any(player.is_bot for player in room.players):
+        return True
+    return any(
+        isinstance(entry, ArcadeUndoEntry)
+        and entry.player_id == player_id
+        for entry in room.undo_history
+    )
 
 
 class ArcadeRoomError(ValueError):
@@ -471,7 +485,9 @@ class ArcadeRoomManager:
         previous_state = copy.deepcopy(room.state) if should_track_undo else None
         engine.act(room, player, action, payload)
         if previous_state is not None:
-            room.undo_history.append(previous_state)
+            room.undo_history.append(
+                ArcadeUndoEntry(player_id=player.id, state=previous_state)
+            )
             room.undo_history = room.undo_history[-MAX_UNDO_HISTORY:]
         room.pending_request = None
         room.revision += 1
@@ -542,7 +558,7 @@ class ArcadeRoomManager:
                 raise ArcadeRoomError("这个游戏不支持悔棋")
             if not room.options.get("allowUndo", True):
                 raise ArcadeRoomError("本房间没有开启悔棋")
-            if not room.undo_history:
+            if not can_undo_for_player(room, player.id):
                 raise ArcadeRoomError("当前还没有可以撤回的操作")
         elif kind == "draw":
             if room.phase != "playing":
@@ -560,6 +576,12 @@ class ArcadeRoomManager:
                 raise ArcadeRoomError("只有仍在本桌的玩家可以发起申请")
         else:
             raise ArcadeRoomError("不支持这个申请")
+        if kind == "undo" and any(
+            member.is_bot for member in room.players if member.id != player.id
+        ):
+            self._undo_to_before_player_action(room, player.id)
+            room.revision += 1
+            return False
         room.pending_request = ArcadeGameRequest(
             kind=kind,
             requester_id=player_id,
@@ -607,12 +629,30 @@ class ArcadeRoomManager:
         elif request.kind == "undo":
             if not room.undo_history:
                 raise ArcadeRoomError("当前没有可以撤回的操作")
-            room.state = room.undo_history.pop()
+            room.state = undo_entry_state(room.undo_history.pop())
         elif request.kind == "end_table":
             self._prepare_lobby(room)
             return True
         room.revision += 1
         return False
+
+    @staticmethod
+    def _undo_to_before_player_action(
+        room: ArcadeRoom, player_id: str
+    ) -> None:
+        target_index = next(
+            (
+                index
+                for index in range(len(room.undo_history) - 1, -1, -1)
+                if isinstance(room.undo_history[index], ArcadeUndoEntry)
+                and room.undo_history[index].player_id == player_id
+            ),
+            None,
+        )
+        if target_index is None:
+            raise ArcadeRoomError("当前还没有可以撤回的操作")
+        while len(room.undo_history) > target_index:
+            room.state = undo_entry_state(room.undo_history.pop())
 
     def get_room(self, code: str) -> ArcadeRoom:
         normalized = code.strip().upper()

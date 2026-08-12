@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import type { ArcadeGameKey } from '../types/arcade'
-import { withDefaultGameRules } from '../gameRules'
+import {
+  applyGameRuleChange,
+  GO_HANDICAP_OPTIONS,
+  hasGameHandicap,
+  withDefaultGameRules,
+  XIANGQI_HANDICAP_OPTIONS,
+} from '../gameRules'
 import ModeGuide from './ModeGuide.vue'
 import { AVALON_COURT_GUIDE } from '../gameModeGuides'
 
@@ -18,18 +24,17 @@ function option(key: string): unknown {
 }
 
 function setOption(key: string, value: unknown) {
-  const nextValue = { ...props.modelValue, [key]: value }
-  if (props.gameKey === 'gomoku' && key === 'winRule' && value === 'renju') {
-    nextValue.openingRule = 'standard'
-  }
-  if (props.gameKey === 'avalon' && key === 'mode' && value === 'court_undercurrent') {
-    nextValue.ladyEnabled = false
-    nextValue.earlyAssassinationEnabled = false
-  }
-  if (props.gameKey === 'avalon' && key === 'mode' && value === 'standard') {
-    nextValue.shadowMerlinEnabled = false
-  }
-  emit('update:modelValue', nextValue)
+  emit(
+    'update:modelValue',
+    applyGameRuleChange(props.gameKey, props.modelValue, key, value),
+  )
+}
+
+function hasHandicap(): boolean {
+  return hasGameHandicap(
+    props.gameKey,
+    withDefaultGameRules(props.gameKey, props.modelValue),
+  )
 }
 </script>
 
@@ -186,6 +191,32 @@ function setOption(key: string, value: unknown) {
       </div>
     </section>
 
+    <section v-if="gameKey === 'xiangqi'" class="rule-setting-group">
+      <header><strong>让子规则</strong><small>让子方固定执红并先走；让九子移除五兵、双仕、双相</small></header>
+      <div class="rule-segmented five">
+        <button v-for="item in XIANGQI_HANDICAP_OPTIONS" :key="item.value" type="button" :class="{ active: option('handicap') === item.value }" @click="setOption('handicap', item.value)">{{ item.label }}</button>
+      </div>
+    </section>
+
+    <section v-if="gameKey === 'go'" class="rule-setting-group">
+      <header><strong>让子规则</strong><small>仅限 19 路；被让子方执白并预置白子，让子方执黑先走，贴目固定为 0</small></header>
+      <div class="rule-segmented five">
+        <button v-for="count in GO_HANDICAP_OPTIONS" :key="count" type="button" :class="{ active: option('handicap') === count }" @click="setOption('handicap', count)">{{ count ? `让 ${count} 子` : '不让子' }}</button>
+      </div>
+    </section>
+
+    <section v-if="['xiangqi', 'go'].includes(gameKey) && hasHandicap()" class="rule-setting-group">
+      <header><strong>让子方</strong><small>按玩家身份固定，再来一局不会因座位轮换而改变</small></header>
+      <div class="rule-option-grid">
+        <button type="button" :class="{ active: option('handicapGiver') === 'host' }" @click="setOption('handicapGiver', 'host')">
+          <strong>房主让子</strong><small>房主作为让子方</small>
+        </button>
+        <button type="button" :class="{ active: option('handicapGiver') === 'opponent' }" @click="setOption('handicapGiver', 'opponent')">
+          <strong>对手让子</strong><small>加入房间的玩家或 AI 作为让子方</small>
+        </button>
+      </div>
+    </section>
+
     <section v-if="gameKey === 'doudizhu'" class="rule-setting-group">
       <header><strong>斗地主玩法</strong><small>三种玩法共用叫地主、抢地主与倍数结算</small></header>
       <div class="rule-option-grid three">
@@ -232,11 +263,11 @@ function setOption(key: string, value: unknown) {
     <section v-if="gameKey === 'go'" class="rule-setting-group">
       <header><strong>贴目</strong><small>终局数子时计入白方</small></header>
       <div class="rule-segmented three">
-        <button v-for="komi in [0, 6.5, 7.5]" :key="komi" type="button" :class="{ active: option('komi') === komi }" @click="setOption('komi', komi)">{{ komi }}</button>
+        <button v-for="komi in [0, 6.5, 7.5]" :key="komi" type="button" :disabled="hasHandicap()" :class="{ active: option('komi') === komi }" @click="setOption('komi', komi)">{{ komi }}</button>
       </div>
     </section>
 
-    <section v-if="!['avalon', 'reaction', 'schulte', 'minesweeper', 'hanoi', 'poker'].includes(gameKey)" class="rule-setting-group">
+    <section v-if="!['avalon', 'reaction', 'schulte', 'minesweeper', 'hanoi', 'poker'].includes(gameKey) && !hasHandicap()" class="rule-setting-group">
       <header><strong>{{ gameKey === 'doudizhu' ? '首叫玩家' : gameKey === 'gomoku' && option('openingRule') === 'swap2' ? '首局摆子者' : '首局先手' }}</strong><small>再来一局时仍会自动轮换</small></header>
       <div class="rule-option-grid">
         <button type="button" :class="{ active: option('firstPlayer') === 'random' }" @click="setOption('firstPlayer', 'random')">
@@ -266,10 +297,10 @@ function setOption(key: string, value: unknown) {
     </section>
 
     <section v-if="['gomoku', 'xiangqi', 'go'].includes(gameKey)" class="rule-setting-group">
-      <header><strong>对局协商</strong><small>申请仍需对手确认</small></header>
+      <header><strong>对局协商</strong><small>真人对局需对手确认；AI 会自动同意悔棋</small></header>
       <div class="rule-toggle-list">
         <button type="button" :class="{ active: option('allowUndo') }" @click="setOption('allowUndo', !option('allowUndo'))">
-          <span><strong>允许悔棋</strong><small>可以向对手申请撤回一步</small></span><b>{{ option('allowUndo') ? '开' : '关' }}</b>
+          <span><strong>允许悔棋</strong><small>真人撤回一步；人机局撤回玩家上一步及 AI 回应</small></span><b>{{ option('allowUndo') ? '开' : '关' }}</b>
         </button>
         <button type="button" :class="{ active: option('allowDraw') }" @click="setOption('allowDraw', !option('allowDraw'))">
           <span><strong>允许和棋</strong><small>可以向对手发起和棋申请</small></span><b>{{ option('allowDraw') ? '开' : '关' }}</b>
@@ -322,9 +353,11 @@ function setOption(key: string, value: unknown) {
 .rule-option-grid button:disabled { cursor: not-allowed; opacity: .48; }
 .rule-segmented { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 3px; overflow: hidden; background: var(--surface-inset); }
 .rule-segmented.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.rule-segmented.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .rule-segmented.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .rule-segmented button { min-height: 44px; border: 0; border-radius: 7px; color: var(--muted); background: transparent; font-size: 12px; font-weight: 850; cursor: pointer; }
 .rule-segmented button.active { color: var(--gold); background: var(--surface-elevated); box-shadow: 0 4px 12px color-mix(in srgb, var(--bg) 20%, transparent); }
+.rule-segmented button:disabled { cursor: not-allowed; opacity: .48; }
 .rule-toggle-list { display: grid; gap: 8px; }
 .rule-toggle-list button { min-height: 62px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 13px; color: var(--text); background: var(--surface-inset); text-align: left; cursor: pointer; }
 .rule-toggle-list button:disabled { cursor: not-allowed; opacity: .48; }
@@ -351,7 +384,7 @@ function setOption(key: string, value: unknown) {
   .rule-option-grid button { min-height: 80px; padding: 10px; }
   .rule-option-grid button strong { font-size: 12px; }.rule-option-grid small { font-size: 10px; }
   .rule-option-grid.three button:first-child { grid-column: 1 / -1; min-height: 66px; }
-  .rule-segmented.six { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .rule-segmented.five, .rule-segmented.six { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 350px) {
   .rule-option-grid, .rule-option-grid.three { grid-template-columns: 1fr; }
