@@ -5,7 +5,7 @@ import { useArcadeStore } from '../stores/arcade'
 import GameHall from './GameHall.vue'
 
 describe('GameHall', () => {
-  it('shows fourteen games and selects the requested game', async () => {
+  it('shows fifteen games and selects the requested game', async () => {
     const wrapper = mount(GameHall, {
       props: {
         account: {
@@ -20,8 +20,8 @@ describe('GameHall', () => {
     })
 
     const gameCards = wrapper.findAll('.game-card')
-    expect(gameCards).toHaveLength(14)
-    expect(wrapper.findAll('.nexus-game-module .game-card-art')).toHaveLength(14)
+    expect(gameCards).toHaveLength(15)
+    expect(wrapper.findAll('.nexus-game-module .game-card-art')).toHaveLength(15)
     expect(wrapper.find('.art-avalon img').attributes('src')).toContain('avalon')
     expect(wrapper.find('.nexus-feature').exists()).toBe(true)
     expect(wrapper.find('.nexus-feature .art-avalon').exists()).toBe(true)
@@ -59,6 +59,7 @@ describe('GameHall', () => {
     expect(wrapper.text()).toContain('汉诺塔')
     expect(wrapper.text()).toContain('大富翁')
     expect(wrapper.text()).toContain('无间疑云')
+    expect(wrapper.text()).toContain('一夜狼人')
     expect(gameCards.findIndex((card) => card.text().includes('德州扑克'))).toBeLessThan(
       gameCards.findIndex((card) => card.text().includes('斗地主')),
     )

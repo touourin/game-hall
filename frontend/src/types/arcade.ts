@@ -1,6 +1,7 @@
 export type BuiltinArcadeGameKey =
   | 'avalon'
   | 'departed_suspicion'
+  | 'one_night_werewolf'
   | 'gomoku'
   | 'xiangqi'
   | 'go'
@@ -194,3 +195,6 @@ export type ArcadePhase =
   | 'exile_council_ballot'
   | 'exile_council_assassination_decision'
   | 'exile_council_assassination_target'
+  | 'night'
+  | 'discussion'
+  | 'voting'

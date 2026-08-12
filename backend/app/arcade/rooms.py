@@ -727,6 +727,10 @@ class ArcadeRoomManager:
         changed: list[ArcadeRoom] = []
         for room in list(self.rooms.values()):
             self.update_presence(room, now=current)
+            engine = self.engine(room.game_key)
+            engine_maintainer = getattr(engine, "maintain", None)
+            if callable(engine_maintainer) and engine_maintainer(room, current):
+                changed.append(room)
             offline_since = room.all_humans_offline_since
             if (
                 offline_since is not None

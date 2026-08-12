@@ -10,6 +10,7 @@ import hanoiArtwork from '../assets/game-hall/icons/hanoi.webp'
 import junqiArtwork from '../assets/game-hall/icons/junqi.webp'
 import minesweeperArtwork from '../assets/game-hall/icons/minesweeper.webp'
 import monopolyArtwork from '../assets/game-hall/icons/monopoly.webp'
+import oneNightWerewolfArtwork from '../assets/game-hall/icons/one-night-werewolf.webp'
 import pokerArtwork from '../assets/game-hall/icons/poker.webp'
 import reactionArtwork from '../assets/game-hall/icons/reaction.webp'
 import schulteArtwork from '../assets/game-hall/icons/schulte.webp'
@@ -21,6 +22,7 @@ const props = defineProps<{ gameKey: GameCatalogItem['key'] }>()
 const artworkByGame = {
   avalon: avalonArtwork,
   departed_suspicion: departedSuspicionArtwork,
+  one_night_werewolf: oneNightWerewolfArtwork,
   gomoku: gomokuArtwork,
   xiangqi: xiangqiArtwork,
   go: goArtwork,

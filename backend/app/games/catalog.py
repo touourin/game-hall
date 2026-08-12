@@ -15,6 +15,12 @@ BUILTIN_GAME_CATALOG: tuple[dict[str, str], ...] = (
         "description": "调查底细、装备应变并找出敌方领袖",
     },
     {
+        "key": "one_night_werewolf",
+        "name": "一夜狼人",
+        "players": "3–10 人",
+        "description": "一晚行动、晨间推理与一次终局投票",
+    },
+    {
         "key": "gomoku",
         "name": "五子棋",
         "players": "2 人",

@@ -88,6 +88,15 @@ export function defaultGameRules(
       allowSpectators: true,
     }
   }
+  if (gameKey === 'one_night_werewolf') {
+    return {
+      rolePreset: 'standard',
+      discussionSeconds: 300,
+      listed: true,
+      allowGuests: true,
+      allowSpectators: false,
+    }
+  }
   if (gameKey === 'reaction' || gameKey === 'schulte' || gameKey === 'tetris') return { allowSpectators: false }
   if (gameKey === 'minesweeper') return { difficulty: 'beginner', allowSpectators: true }
   if (gameKey === 'hanoi') return { discCount: 5, allowSpectators: true }
@@ -166,6 +175,20 @@ export function gameRuleLabels(
       '4–8 人基础身份局',
       options.equipmentSet === 'base' ? '基础16张装备' : '基础＋炸弹客/叛徒21张装备',
       options.firstPlayer === 'host' ? '房主先手' : '随机先手',
+      options.allowGuests ? '允许游客' : '仅登录玩家',
+    ]
+  }
+  if (gameKey === 'one_night_werewolf') {
+    const preset = options.rolePreset === 'beginner'
+      ? '初见月夜'
+      : options.rolePreset === 'chaos'
+        ? '混沌之夜'
+        : '标准疑云'
+    return [
+      '3–10 人',
+      preset,
+      `${Number(options.discussionSeconds) / 60} 分钟讨论`,
+      options.listed ? '公开房间' : '私密房间',
       options.allowGuests ? '允许游客' : '仅登录玩家',
     ]
   }

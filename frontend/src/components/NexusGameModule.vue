@@ -139,7 +139,7 @@ defineEmits<{
 
 .tone-red { --module-tone: #f08285; }.tone-jade { --module-tone: #63d9ad; }.tone-blue { --module-tone: #73baf1; }.tone-ink { --module-tone: #b5c8d2; }
 .tone-army { --module-tone: #c0d076; }.tone-pulse { --module-tone: #53e1c5; }.tone-focus { --module-tone: #70bde8; }.tone-mine { --module-tone: #e6779c; }
-.tone-tower { --module-tone: #bd93ee; }.tone-blocks { --module-tone: #62d8f0; }.tone-poker { --module-tone: #f17b85; }.tone-fortune { --module-tone: #e8b96f; }.tone-suspicion { --module-tone: #d79a69; }
+.tone-tower { --module-tone: #bd93ee; }.tone-blocks { --module-tone: #62d8f0; }.tone-poker { --module-tone: #f17b85; }.tone-fortune { --module-tone: #e8b96f; }.tone-suspicion { --module-tone: #d79a69; }.tone-moon { --module-tone: #9dafea; }
 
 @media (hover: hover) {
   .nexus-game-module:hover { border-color: color-mix(in srgb, var(--module-tone) 58%, var(--line)); box-shadow: 0 18px 48px rgba(0,0,0,.28), 0 0 24px color-mix(in srgb, var(--module-tone) 10%, transparent); transform: translateY(-3px); }

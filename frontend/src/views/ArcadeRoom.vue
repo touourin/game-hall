@@ -78,6 +78,7 @@ import MinesweeperBoard from '../games/minesweeper/MinesweeperBoard.vue'
 import HanoiGame from '../games/hanoi/HanoiGame.vue'
 import TetrisGame from '../games/tetris/TetrisGame.vue'
 import MonopolyBoard from '../games/monopoly/MonopolyBoard.vue'
+import OneNightWerewolfTable from '../games/one_night_werewolf/OneNightWerewolfTable.vue'
 import PokerTable from '../games/poker/PokerTable.vue'
 import AvalonTable from '../games/avalon/AvalonTable.vue'
 import { thirdPartyGameComponent } from '../thirdPartyGameRegistry'
@@ -237,10 +238,20 @@ const avalonPhaseLabel = computed(() => {
   }[phase]
 })
 const roomHeaderEyebrow = computed(() => {
+  const oneNightPhaseLabels: Partial<Record<ArcadeSnapshot['phase'], string>> = {
+    lobby: '等待集结',
+    role_reveal: '确认身份',
+    night: '秘密夜晚',
+    discussion: '晨间讨论',
+    voting: '秘密投票',
+    finished: '真相揭晓',
+  }
   const suffix = props.snapshot.gameKey === 'avalon'
     ? ` · ${avalonSnapshot.value?.settings.mode === 'court_undercurrent' ? '王庭暗流' : '标准模式'} · ${avalonPhaseLabel.value}`
     : props.snapshot.gameKey === 'departed_suspicion'
       ? ` · ${props.snapshot.options.equipmentSet === 'base' ? '基础装备局' : '炸弹客/叛徒装备局'}`
+    : props.snapshot.gameKey === 'one_night_werewolf'
+      ? ` · ${oneNightPhaseLabels[props.snapshot.phase] ?? props.snapshot.phase}`
     : props.snapshot.gameKey === 'junqi'
     ? ` · ${props.snapshot.options.mode === 'flip' ? '翻棋军旗' : '暗军旗'}`
     : props.snapshot.gameKey === 'reaction'
@@ -468,7 +479,7 @@ function openSharedChat() {
   <main
     class="arcade-room page-container adaptive-layout-root"
     :class="{
-      'arcade-room--wide': ['avalon', 'departed_suspicion', 'poker', 'doudizhu', 'junqi', 'minesweeper', 'monopoly'].includes(snapshot.gameKey),
+      'arcade-room--wide': ['avalon', 'departed_suspicion', 'one_night_werewolf', 'poker', 'doudizhu', 'junqi', 'minesweeper', 'monopoly'].includes(snapshot.gameKey),
       'arcade-room--active': snapshot.phase !== 'lobby',
       'arcade-room--board-game': ['gomoku', 'xiangqi', 'go', 'junqi'].includes(snapshot.gameKey),
       'arcade-room--spectating': isSpectating,
@@ -728,6 +739,7 @@ function openSharedChat() {
 
       <GomokuBoard v-if="snapshot.gameKey === 'gomoku'" :snapshot="snapshot" />
       <DepartedSuspicionTable v-else-if="snapshot.gameKey === 'departed_suspicion'" :snapshot="snapshot" />
+      <OneNightWerewolfTable v-else-if="snapshot.gameKey === 'one_night_werewolf'" :snapshot="snapshot" />
       <XiangqiBoard v-else-if="snapshot.gameKey === 'xiangqi'" :snapshot="snapshot" />
       <GoBoard v-else-if="snapshot.gameKey === 'go'" :snapshot="snapshot" />
       <PokerTable v-else-if="snapshot.gameKey === 'poker'" :snapshot="snapshot" />

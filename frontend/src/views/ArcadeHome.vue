@@ -147,6 +147,7 @@ async function submit() {
     />
 
     <SpectatorBrowser
+      v-if="gameKey !== 'one_night_werewolf'"
       :game-key="gameKey"
       :game-name="game.name"
       :rooms="watchRooms"

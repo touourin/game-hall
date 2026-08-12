@@ -64,6 +64,40 @@ function hasHandicap(): boolean {
       </div>
     </section>
 
+    <section v-if="gameKey === 'one_night_werewolf'" class="rule-setting-group">
+      <header><strong>角色组合</strong><small>所有组合都包含玩家人数加三张牌；多皮者留待后续扩展</small></header>
+      <div class="rule-option-grid three">
+        <button type="button" :class="{ active: option('rolePreset') === 'beginner' }" @click="setOption('rolePreset', 'beginner')">
+          <strong>初见月夜</strong><small>核心换牌角色，适合第一次教学</small>
+        </button>
+        <button type="button" :class="{ active: option('rolePreset') === 'standard' }" @click="setOption('rolePreset', 'standard')">
+          <strong>标准疑云</strong><small>加入爪牙与皮匠，阵营判断更丰富</small>
+        </button>
+        <button type="button" :class="{ active: option('rolePreset') === 'chaos' }" @click="setOption('rolePreset', 'chaos')">
+          <strong>混沌之夜</strong><small>高人数加入守夜人，信息交叉更多</small>
+        </button>
+      </div>
+    </section>
+
+    <section v-if="gameKey === 'one_night_werewolf'" class="rule-setting-group">
+      <header><strong>晨间讨论</strong><small>倒计时结束后由服务端自动进入秘密投票</small></header>
+      <div class="rule-segmented three">
+        <button v-for="seconds in [180, 300, 480]" :key="seconds" type="button" :class="{ active: option('discussionSeconds') === seconds }" @click="setOption('discussionSeconds', seconds)">{{ seconds / 60 }} 分钟</button>
+      </div>
+    </section>
+
+    <section v-if="gameKey === 'one_night_werewolf'" class="rule-setting-group">
+      <header><strong>房间发现</strong><small>进行中固定关闭观战，避免第一人称视角泄露私密身份</small></header>
+      <div class="rule-option-grid">
+        <button type="button" :class="{ active: option('listed') }" @click="setOption('listed', true)">
+          <strong>公开房间</strong><small>等待阶段可以在大厅中被发现</small>
+        </button>
+        <button type="button" :class="{ active: !option('listed') }" @click="setOption('listed', false)">
+          <strong>私密房间</strong><small>只有拿到房间码或邀请链接的玩家可加入</small>
+        </button>
+      </div>
+    </section>
+
     <details
       v-if="gameKey === 'avalon' && option('mode') === 'court_undercurrent'"
       class="avalon-mode-guide-disclosure"
@@ -267,7 +301,7 @@ function hasHandicap(): boolean {
       </div>
     </section>
 
-    <section v-if="!['avalon', 'reaction', 'schulte', 'minesweeper', 'hanoi', 'poker'].includes(gameKey) && !hasHandicap()" class="rule-setting-group">
+    <section v-if="!['avalon', 'one_night_werewolf', 'reaction', 'schulte', 'minesweeper', 'hanoi', 'poker'].includes(gameKey) && !hasHandicap()" class="rule-setting-group">
       <header><strong>{{ gameKey === 'doudizhu' ? '首叫玩家' : gameKey === 'gomoku' && option('openingRule') === 'swap2' ? '首局摆子者' : '首局先手' }}</strong><small>再来一局时仍会自动轮换</small></header>
       <div class="rule-option-grid">
         <button type="button" :class="{ active: option('firstPlayer') === 'random' }" @click="setOption('firstPlayer', 'random')">
@@ -320,7 +354,7 @@ function hasHandicap(): boolean {
       </div>
     </section>
 
-    <section class="rule-setting-group spectator-access-rules">
+    <section v-if="gameKey !== 'one_night_werewolf'" class="rule-setting-group spectator-access-rules">
       <header><strong>第一人称观战</strong><small>观众固定观看一名玩家，只能看到该玩家当时可见的内容</small></header>
       <div class="rule-option-grid">
         <button type="button" :class="{ active: option('allowSpectators') }" @click="setOption('allowSpectators', true)">

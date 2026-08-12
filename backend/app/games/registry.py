@@ -11,6 +11,7 @@ from backend.app.games.hanoi import HanoiEngine
 from backend.app.games.junqi import JunqiEngine
 from backend.app.games.minesweeper import MinesweeperEngine
 from backend.app.games.monopoly import MonopolyEngine
+from backend.app.games.one_night_werewolf import OneNightWerewolfEngine
 from backend.app.games.poker import PokerEngine
 from backend.app.games.reaction import ReactionEngine
 from backend.app.games.schulte import SchulteEngine
@@ -23,6 +24,7 @@ def build_engine_registry() -> dict[str, GameEngine]:
     engines: list[GameEngine] = [
         AvalonEngine(),
         DepartedSuspicionEngine(),
+        OneNightWerewolfEngine(),
         GomokuEngine(),
         XiangqiEngine(),
         GoEngine(),

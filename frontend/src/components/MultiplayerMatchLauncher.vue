@@ -64,6 +64,14 @@ const identities: Partial<Record<ArcadeGameKey, MatchIdentity>> = {
     accent: '#e1bc68',
     glow: '#a77a2d',
   },
+  one_night_werewolf: {
+    protocol: 'ONE NIGHT PROTOCOL',
+    kicker: '月落之前，每个人都可能换了身份',
+    title: '召集月夜村庄',
+    description: '一晚完成所有行动，天亮后通过发言和一次秘密投票找出狼人。',
+    accent: '#95a9ee',
+    glow: '#4d5f9e',
+  },
   gomoku: {
     protocol: 'FIVE IN A ROW',
     kicker: '纵横十五路，一线定胜负',
