@@ -32,9 +32,10 @@ withDefaults(defineProps<{
   --game-history-accent: var(--accent, var(--gold));
   min-width: 0;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-card);
   padding: 12px;
-  background: var(--surface-inset);
+  background: var(--surface-glass);
+  box-shadow: inset 0 1px 0 var(--metal-edge);
 }
 .game-history-panel summary {
   display: flex;

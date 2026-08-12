@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
-import { History, LoaderCircle, Shield, Swords, X } from '@lucide/vue'
+import { History, LoaderCircle, Shield, Swords } from '@lucide/vue'
 import BackNavigationButton from './BackNavigationButton.vue'
+import BaseModal from './ui/BaseModal.vue'
 import {
   loadMatchDetail,
   loadPersonalStats,
@@ -201,11 +202,14 @@ watch([activeGameMode, activeAvalonVariant], loadStats)
 </script>
 
 <template>
-  <div class="modal-backdrop" @click.self="$emit('close')">
-    <section class="modal-card stats-modal" role="dialog" aria-modal="true">
-      <button class="modal-close" type="button" aria-label="关闭战绩" @click="$emit('close')">
-        <X :size="20" />
-      </button>
+  <BaseModal
+    aria-label="战绩"
+    panel-class="stats-modal"
+    close-label="关闭战绩"
+    mobile-sheet
+    inline
+    @close="$emit('close')"
+  >
 
       <template v-if="selectedMatch">
         <BackNavigationButton
@@ -682,6 +686,5 @@ watch([activeGameMode, activeAvalonVariant], loadStats)
       </template>
 
       <p v-if="error" class="account-error" role="alert">{{ error }}</p>
-    </section>
-  </div>
+  </BaseModal>
 </template>

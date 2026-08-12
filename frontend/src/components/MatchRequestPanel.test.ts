@@ -14,7 +14,7 @@ describe('MatchRequestPanel', () => {
     expect(wrapper.get('.end-table-modal').text()).toContain('当前进度不会计入战绩')
     expect(wrapper.emitted('request')).toBeUndefined()
 
-    await wrapper.get('.end-table-modal-actions .danger').trigger('click')
+    await wrapper.get('.end-table-modal .confirm').trigger('click')
     expect(wrapper.emitted('request')).toEqual([['end_table']])
   })
 

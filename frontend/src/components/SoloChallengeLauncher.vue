@@ -23,7 +23,7 @@ interface ChallengeMetric {
 
 interface SoloChallengeConfig {
   icon: Component
-  protocol: string
+  category: string
   kicker: string
   title: string
   description: string
@@ -51,7 +51,7 @@ const rules = computed({
   set: (value: Record<string, unknown>) => emit('update:modelValue', value),
 })
 
-const hasRules = computed(() => ['minesweeper', 'hanoi'].includes(props.gameKey))
+const hasRules = computed(() => ['minesweeper', 'hanoi', 'tetris'].includes(props.gameKey))
 const catalogGame = computed(() => gameCatalogItem(props.gameKey))
 
 const challenge = computed<SoloChallengeConfig>(() => {
@@ -59,7 +59,7 @@ const challenge = computed<SoloChallengeConfig>(() => {
     const game = catalogGame.value
     return {
       icon: Gamepad2,
-      protocol: 'EXTENSION SOLO',
+      category: '第三方单人挑战',
       kicker: '第三方单人挑战',
       title: game?.name ?? '插件挑战',
       description: game?.description ?? '由第三方插件提供的单人挑战。',
@@ -78,7 +78,7 @@ const challenge = computed<SoloChallengeConfig>(() => {
   if (props.gameKey === 'schulte') {
     return {
       icon: Grid3X3,
-      protocol: 'FOCUS GRID',
+      category: '专注力挑战',
       kicker: '视觉搜索与持续专注',
       title: '按顺序找到 1–25',
       description: '让视线覆盖整张方格，在不漏号、不跳号的前提下压缩每一次搜索时间。',
@@ -115,7 +115,7 @@ const challenge = computed<SoloChallengeConfig>(() => {
     }
     return {
       icon: Bomb,
-      protocol: 'MINEFIELD',
+      category: '逻辑排雷',
       kicker: '逻辑排雷与风险控制',
       title: '清除所有安全方格',
       description: '从数字线索推演雷区结构；首次点击必定安全，插旗与清除均为经典规则。',
@@ -131,7 +131,7 @@ const challenge = computed<SoloChallengeConfig>(() => {
     const discCount = Number(props.modelValue.discCount ?? 5)
     return {
       icon: Layers3,
-      protocol: 'TOWER LOGIC',
+      category: '空间推演',
       kicker: '递归推演与最短路径',
       title: '把整座圆盘移到最右侧',
       description: '每次只能移动最上方一块圆盘，大圆盘不能压在小圆盘上。',
@@ -148,27 +148,33 @@ const challenge = computed<SoloChallengeConfig>(() => {
   }
 
   if (props.gameKey === 'tetris') {
+    const timed = props.modelValue.challengeMode !== 'endless'
+    const duration = Number(props.modelValue.durationSeconds ?? 180)
     return {
       icon: Blocks,
-      protocol: 'BLOCK STACK',
+      category: '空间排列',
       kicker: '空间规划与即时决策',
       title: '排列方块，持续消行',
-      description: '预判接下来的方块，用旋转、暂存和快速落底保持棋盘整洁，冲击更高分数。',
+      description: timed
+        ? `在 ${duration / 60} 分钟内预判方块，用旋转、暂存和快速落底冲击高分。`
+        : '预判接下来的方块，用旋转、暂存和快速落底保持棋盘整洁，冲击更高分数。',
       button: '进入落块挑战',
-      features: ['7-bag 公平随机', '键盘与拇指控制', '高分排行榜'],
+      features: ['7-bag 公平随机', '键盘与拇指控制', timed ? '到点自动结算' : '堆顶自动结算'],
       metrics: [
+        { label: '挑战模式', value: timed ? `${duration / 60} 分钟` : '无限' },
         { label: '标准棋盘', value: '10 × 20' },
         { label: '方块种类', value: '7 种' },
-        { label: '排名依据', value: '最高得分' },
       ],
       stages: ['规划落点', '排列消行', '挑战高分'],
-      recordNote: '方块堆到顶部后，本轮得分、消行数与等级会保存到个人战绩。',
+      recordNote: timed
+        ? '倒计时结束或方块提前堆顶后，本轮成绩会保存到对应时长排行榜。'
+        : '方块堆到顶部后，本轮得分、消行数与等级会保存到无限挑战排行榜。',
     }
   }
 
   return {
     icon: Zap,
-    protocol: 'REFLEX SIGNAL',
+    category: '反应速度',
     kicker: '视觉信号与瞬时反应',
     title: '挑战你的毫秒反应',
     description: '保持专注，等待信号真正亮起后再行动；抢跑同样会被准确记录。',
@@ -199,7 +205,7 @@ const challenge = computed<SoloChallengeConfig>(() => {
       </div>
 
       <div class="solo-story-copy">
-        <p class="solo-protocol"><span>{{ challenge.protocol }}</span><b>SOLO</b></p>
+        <p class="solo-protocol"><span>{{ challenge.category }}</span><b>单人挑战</b></p>
         <p class="solo-kicker">{{ challenge.kicker }}</p>
         <h2>{{ challenge.title }}</h2>
         <p class="solo-description">{{ challenge.description }}</p>
@@ -215,8 +221,8 @@ const challenge = computed<SoloChallengeConfig>(() => {
 
     <div class="solo-console">
       <header class="solo-console-header">
-        <span><small>CHALLENGE CONSOLE</small><strong>挑战控制台</strong></span>
-        <b class="solo-ready"><i></i>READY</b>
+        <span><small>设置与挑战数据</small><strong>挑战控制台</strong></span>
+        <b class="solo-ready"><i></i>可开始</b>
       </header>
 
       <form @submit.prevent="emit('start')">
@@ -245,7 +251,7 @@ const challenge = computed<SoloChallengeConfig>(() => {
 
         <button type="submit" class="solo-start-button" :disabled="disabled">
           <span class="solo-start-icon"><Play :size="18" fill="currentColor" /></span>
-          <span><small>START CHALLENGE</small><strong>{{ challenge.button }}</strong></span>
+          <span><small>创建挑战并开始计时</small><strong>{{ challenge.button }}</strong></span>
           <i aria-hidden="true"></i>
         </button>
 
@@ -268,10 +274,10 @@ const challenge = computed<SoloChallengeConfig>(() => {
   overflow: hidden;
   border-color: color-mix(in srgb, var(--solo-accent) 26%, var(--line));
   background:
-    radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--solo-accent) 13%, transparent), transparent 34%),
-    linear-gradient(122deg, color-mix(in srgb, var(--surface-elevated) 82%, transparent), var(--surface) 54%),
+    radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--solo-accent) 9%, transparent), transparent 34%),
+    linear-gradient(122deg, var(--surface-glass), var(--surface-primary) 54%),
     var(--material-pattern);
-  box-shadow: 0 34px 90px color-mix(in srgb, var(--bg) 64%, transparent);
+  box-shadow: var(--shadow-raised), inset 0 1px 0 var(--metal-edge);
   isolation: isolate;
 }
 
@@ -279,18 +285,16 @@ const challenge = computed<SoloChallengeConfig>(() => {
   position: absolute;
   z-index: -1;
   inset: 0;
-  background:
-    linear-gradient(90deg, transparent 49.9%, color-mix(in srgb, var(--solo-accent) 14%, transparent) 50%, transparent 50.1%),
-    repeating-linear-gradient(0deg, transparent 0 28px, color-mix(in srgb, var(--solo-accent) 3%, transparent) 29px);
+  background: radial-gradient(ellipse at 30% 0, color-mix(in srgb, var(--solo-accent) 6%, transparent), transparent 38%);
   content: '';
   pointer-events: none;
 }
 
-.solo-launcher-reaction { --solo-accent: #75cbea; }
-.solo-launcher-schulte { --solo-accent: #a9a0f7; }
-.solo-launcher-minesweeper { --solo-accent: #71d3ad; }
-.solo-launcher-hanoi { --solo-accent: #dfbc73; }
-.solo-launcher-tetris { --solo-accent: #62d8f0; }
+.solo-launcher-reaction { --solo-accent: #7299a8; }
+.solo-launcher-schulte { --solo-accent: #8584a6; }
+.solo-launcher-minesweeper { --solo-accent: #6e9d89; }
+.solo-launcher-hanoi { --solo-accent: #a48a65; }
+.solo-launcher-tetris { --solo-accent: #719aa3; }
 
 .solo-story {
   position: relative;
@@ -368,7 +372,7 @@ const challenge = computed<SoloChallengeConfig>(() => {
 .solo-protocol::after { order: 2; width: 42px; height: 1px; background: color-mix(in srgb, var(--solo-accent) 40%, transparent); content: ''; }
 .solo-protocol b { order: 3; color: var(--muted); font-size: 8px; white-space: nowrap; }
 .solo-kicker { margin: 0 0 8px; color: var(--text-soft); font-size: 12px; font-weight: 800; letter-spacing: .08em; }
-.solo-story h2 { max-width: 360px; margin: 0; font-family: "Songti SC", "STSong", serif; font-size: clamp(27px, 2.4vw, 34px); font-weight: 650; letter-spacing: -.025em; line-height: 1.18; }
+.solo-story h2 { max-width: 360px; margin: 0; font-size: clamp(27px, 2.4vw, 34px); font-weight: 800; letter-spacing: -.04em; line-height: 1.18; }
 .solo-description { max-width: 410px; margin: 15px 0 0; color: var(--muted); font-size: 13px; line-height: 1.8; }
 
 .solo-feature-list {
@@ -389,19 +393,19 @@ const challenge = computed<SoloChallengeConfig>(() => {
   flex-direction: column;
   margin: 14px;
   border: 1px solid color-mix(in srgb, var(--solo-accent) 18%, var(--line));
-  border-radius: calc(var(--radius-lg) - 7px);
+  border-radius: calc(var(--radius-panel) - 7px);
   padding: 26px;
   background:
     linear-gradient(145deg, color-mix(in srgb, var(--solo-accent) 5%, transparent), transparent 38%),
-    color-mix(in srgb, var(--surface-inset) 86%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, white 4%, transparent);
+    var(--surface-inset);
+  box-shadow: inset 0 1px 0 var(--metal-edge);
 }
 
 .solo-console form { min-height: 0; display: flex; flex: 1; flex-direction: column; }
 
 .solo-console-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 23px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
 .solo-console-header > span { display: grid; gap: 4px; }
-.solo-console-header small { color: var(--solo-accent); font-size: 8px; font-weight: 900; letter-spacing: .18em; }
+.solo-console-header small { color: var(--solo-accent); font-size: 9px; font-weight: 850; letter-spacing: .05em; }
 .solo-console-header strong { font-size: 16px; letter-spacing: .02em; }
 .solo-ready { display: inline-flex; align-items: center; gap: 6px; border: 1px solid color-mix(in srgb, var(--solo-accent) 30%, var(--line)); border-radius: 999px; padding: 6px 9px; color: var(--solo-accent); background: color-mix(in srgb, var(--solo-accent) 7%, transparent); font-size: 8px; letter-spacing: .12em; }
 .solo-ready i { width: 5px; aspect-ratio: 1; border-radius: 50%; background: currentColor; box-shadow: 0 0 9px currentColor; animation: solo-ready-pulse 1.8s ease-in-out infinite; }
@@ -418,7 +422,7 @@ const challenge = computed<SoloChallengeConfig>(() => {
 
 .solo-metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .solo-metric-grid.with-rules { padding-top: 19px; border-top: 1px solid var(--line); }
-.solo-metric { min-width: 0; display: grid; gap: 7px; border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; background: color-mix(in srgb, var(--surface-elevated) 35%, transparent); }
+.solo-metric { min-width: 0; display: grid; gap: 7px; border: 1px solid var(--line); border-radius: var(--radius-control); padding: 11px 12px; background: var(--surface-glass); box-shadow: inset 0 1px 0 var(--metal-edge); }
 .solo-metric small { overflow: hidden; color: var(--muted); font-size: 8px; font-weight: 800; letter-spacing: .06em; text-overflow: ellipsis; white-space: nowrap; }
 .solo-metric strong { overflow: hidden; color: var(--text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -429,7 +433,7 @@ const challenge = computed<SoloChallengeConfig>(() => {
   gap: 8px;
   margin: 17px 0 0;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   padding: 12px 10px;
   background: color-mix(in srgb, var(--surface-elevated) 24%, transparent);
   list-style: none;
@@ -452,11 +456,11 @@ const challenge = computed<SoloChallengeConfig>(() => {
   overflow: hidden;
   margin-top: 19px;
   border: 1px solid color-mix(in srgb, var(--solo-accent) 76%, white 12%);
-  border-radius: 15px;
+  border-radius: var(--radius-control);
   padding: 0 18px;
   color: var(--accent-contrast);
   background: linear-gradient(125deg, color-mix(in srgb, var(--solo-accent) 76%, white), var(--solo-accent));
-  box-shadow: 0 16px 34px color-mix(in srgb, var(--solo-accent) 22%, transparent);
+  box-shadow: var(--shadow-contact);
   text-align: left;
   cursor: pointer;
 }

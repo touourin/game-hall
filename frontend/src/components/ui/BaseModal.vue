@@ -9,6 +9,8 @@ const props = withDefaults(defineProps<{
   panelClass?: string
   closeOnBackdrop?: boolean
   closeLabel?: string
+  mobileSheet?: boolean
+  inline?: boolean
 }>(), {
   title: '',
   description: '',
@@ -16,6 +18,8 @@ const props = withDefaults(defineProps<{
   panelClass: '',
   closeOnBackdrop: true,
   closeLabel: '关闭弹窗',
+  mobileSheet: false,
+  inline: false,
 })
 
 const emit = defineEmits<{ close: [] }>()
@@ -84,12 +88,16 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <Teleport to="body">
-    <div class="modal-backdrop base-modal-backdrop" @click.self="handleBackdrop">
+  <Teleport to="body" :disabled="inline">
+    <div
+      class="modal-backdrop base-modal-backdrop"
+      :class="{ 'base-modal-backdrop--mobile-sheet': mobileSheet }"
+      @click.self="handleBackdrop"
+    >
       <section
         ref="panel"
         class="modal-card base-modal-card"
-        :class="panelClass"
+        :class="[panelClass, { 'base-modal-card--mobile-sheet': mobileSheet }]"
         role="dialog"
         aria-modal="true"
         :aria-labelledby="title || slots.title ? titleId : undefined"
@@ -114,7 +122,9 @@ onBeforeUnmount(() => {
 .base-modal-footer { display: flex; justify-content: flex-end; gap: 9px; margin-top: 18px; }
 @media (max-width: 600px) {
   .base-modal-backdrop { align-items: end; padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom)); }
-  .base-modal-card { width: 100%; max-height: min(92dvh, 820px); border-radius: 10px 10px 7px 7px; }
+  .base-modal-card { width: 100%; max-height: min(92dvh, 820px); border-radius: var(--radius-panel) var(--radius-panel) var(--radius-control) var(--radius-control); }
+  .base-modal-backdrop--mobile-sheet { padding-bottom: 0; }
+  .base-modal-card--mobile-sheet { max-height: calc(94dvh - env(safe-area-inset-top)); border-radius: var(--radius-panel) var(--radius-panel) 0 0; padding-bottom: calc(22px + env(safe-area-inset-bottom)); }
   .base-modal-footer { position: sticky; bottom: 0; margin-right: -12px; margin-bottom: -12px; margin-left: -12px; padding: 12px; background: linear-gradient(180deg, transparent, var(--modal-surface) 28%); }
 }
 </style>

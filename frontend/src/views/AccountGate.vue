@@ -79,7 +79,7 @@ function submit() {
       <aside class="surface account-intro" aria-label="游戏大厅介绍">
         <div class="account-brand">
           <span><Crown :size="30" /></span>
-          <p><small>NEXUS GAME GRID</small><strong>多人游戏厅</strong></p>
+          <p><small>竞技大厅</small><strong>多人游戏厅</strong></p>
         </div>
         <div class="account-intro-copy">
           <p class="eyebrow">PLAY AT THE SAME TABLE</p>

@@ -55,7 +55,7 @@ const lastCoordinate = computed(() => props.size - 0.5)
   display: grid;
   grid-template-columns: repeat(var(--board-size), minmax(0, 1fr));
   border: var(--board-border-width) solid var(--game-board-frame, #74451f);
-  border-radius: 14px;
+  border-radius: var(--radius-card);
   background-color: var(--game-board-surface, #d5a45d);
   background-image:
     linear-gradient(
@@ -74,7 +74,7 @@ const lastCoordinate = computed(() => props.size - 0.5)
     inset 0 16px 30px color-mix(in srgb, white 7%, transparent),
     inset 0 -18px 34px color-mix(in srgb, black 13%, transparent),
     0 3px 0 color-mix(in srgb, var(--game-board-frame, #74451f) 72%, black),
-    0 20px 50px rgba(0, 0, 0, .42),
+    var(--shadow-raised),
     var(
       --board-status-ring,
       0 0 0 1px color-mix(in srgb, var(--gold) 24%, transparent)
@@ -88,7 +88,7 @@ const lastCoordinate = computed(() => props.size - 0.5)
   z-index: 0;
   inset: 4px;
   border: 1px solid color-mix(in srgb, var(--game-board-highlight, #f1cd88) 66%, transparent);
-  border-radius: 7px;
+  border-radius: calc(var(--radius-card) - 7px);
   box-shadow: inset 0 0 26px rgba(54, 27, 8, .12);
 }
 

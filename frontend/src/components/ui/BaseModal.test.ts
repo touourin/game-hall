@@ -31,4 +31,26 @@ describe('BaseModal', () => {
     expect(wrapper.emitted('close')).toHaveLength(2)
     wrapper.unmount()
   })
+
+  it('supports an inline mobile sheet while keeping the shared shell', () => {
+    const wrapper = mount(BaseModal, {
+      props: {
+        ariaLabel: '手机设置',
+        panelClass: 'settings-modal',
+        mobileSheet: true,
+        inline: true,
+      },
+    })
+
+    expect(wrapper.get('[role="dialog"]').attributes('aria-label')).toBe('手机设置')
+    expect(wrapper.get('.base-modal-backdrop').classes()).toContain(
+      'base-modal-backdrop--mobile-sheet',
+    )
+    expect(wrapper.get('.base-modal-card').classes()).toEqual(
+      expect.arrayContaining([
+        'settings-modal',
+        'base-modal-card--mobile-sheet',
+      ]),
+    )
+  })
 })

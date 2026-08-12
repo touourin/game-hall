@@ -14,8 +14,8 @@ describe('SoloChallengeLauncher', () => {
       })
 
       expect(wrapper.find('.solo-visual-index').exists()).toBe(false)
-      expect(wrapper.get('.solo-protocol b').text()).toBe('SOLO')
-      expect(wrapper.text()).not.toMatch(/SOLO \/ 0\d/)
+      expect(wrapper.get('.solo-protocol b').text()).toBe('单人挑战')
+      expect(wrapper.text()).not.toContain('SOLO')
     },
   )
 })

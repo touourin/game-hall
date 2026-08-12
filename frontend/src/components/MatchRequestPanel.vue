@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Handshake, OctagonX, Undo2, X } from '@lucide/vue'
+import { Handshake, OctagonX, Undo2 } from '@lucide/vue'
 import type { ArcadeGameRequest } from '../types/arcade'
+import ConfirmModal from './ui/ConfirmModal.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -98,34 +99,22 @@ function requestEndTable() {
     </template>
   </section>
 
-  <div
+  <ConfirmModal
     v-if="showEndTableConfirmation"
-    class="modal-backdrop"
-    @click.self="showEndTableConfirmation = false"
+    title="申请结束本桌？"
+    description="所有真人玩家同意后，本桌立即终止并返回等待房间；当前进度不会计入战绩。"
+    confirm-label="发起申请"
+    cancel-label="取消"
+    close-label="取消申请"
+    panel-class="end-table-modal"
+    tone="danger"
+    :busy="busy"
+    inline
+    @close="showEndTableConfirmation = false"
+    @confirm="requestEndTable"
   >
-    <section
-      class="modal-card end-table-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-label="申请结束本桌"
-    >
-      <button
-        class="modal-close"
-        type="button"
-        aria-label="取消申请"
-        @click="showEndTableConfirmation = false"
-      >
-        <X :size="20" />
-      </button>
-      <OctagonX :size="28" />
-      <h2>申请结束本桌？</h2>
-      <p>所有真人玩家同意后，本桌立即终止并返回等待房间；当前进度不会计入战绩。</p>
-      <div class="end-table-modal-actions">
-        <button type="button" @click="showEndTableConfirmation = false">取消</button>
-        <button type="button" class="danger" :disabled="busy" @click="requestEndTable">发起申请</button>
-      </div>
-    </section>
-  </div>
+    <template #icon><OctagonX :size="28" /></template>
+  </ConfirmModal>
 </template>
 
 <style scoped>
@@ -140,13 +129,7 @@ function requestEndTable() {
 .request-waiting-actions { justify-content: flex-end; }
 .request-response-actions button.accept { border-color: color-mix(in srgb, var(--gold) 38%, var(--line)); color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, transparent); }
 .match-request-panel .end-table-button { border-color: rgba(225, 114, 114, .3); color: #efaaa7; background: rgba(133, 47, 52, .12); }
-.end-table-modal { width: min(92vw, 460px); text-align: center; }
-.end-table-modal > svg { color: #efaaa7; }
-.end-table-modal h2 { margin: 12px 0 6px; }
-.end-table-modal p { color: var(--muted); line-height: 1.65; }
-.end-table-modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 18px; }
-.end-table-modal-actions button { min-height: 43px; border: 1px solid var(--line); border-radius: 11px; color: var(--text); background: transparent; font-weight: 850; }
-.end-table-modal-actions button.danger { border-color: rgba(225, 114, 114, .34); color: #f1b0b0; background: rgba(133, 47, 52, .18); }
+:global(.modal-card.end-table-modal) { width: min(92vw, 460px); text-align: center; }
 @media (max-width: 620px) {
   .match-request-panel { align-items: stretch; flex-direction: column; }
   .request-actions,.request-response-actions { display: grid; grid-template-columns: 1fr 1fr; }

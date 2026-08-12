@@ -39,7 +39,7 @@ withDefaults(defineProps<{
 
 <style scoped>
 .solo-metric-grid { width: 100%; min-width: 0; display: grid; grid-template-columns: repeat(var(--solo-metric-columns), minmax(0, 1fr)); gap: 9px; }
-.solo-metric-card { min-width: 0; display: grid; gap: 5px; padding: 13px 10px; text-align: center; }
+.solo-metric-card { min-width: 0; display: grid; gap: 5px; padding: 13px 10px; border-radius: var(--radius-card); background: var(--surface-glass); box-shadow: var(--shadow-contact), inset 0 1px 0 var(--metal-edge); text-align: center; }
 .solo-metric-card small { overflow: hidden; color: var(--muted); font-size: 9px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
 .solo-metric-card strong { overflow: hidden; color: var(--gold); font-size: clamp(15px, 2.5vw, 19px); font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
 .solo-metric-card.tone-success strong { color: var(--green); }

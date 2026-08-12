@@ -206,13 +206,13 @@ describe('SettingsModal', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('星舰青')
-    expect(wrapper.text()).toContain('深空紫')
-    expect(wrapper.text()).toContain('月面白')
+    expect(wrapper.text()).toContain('极光雾舱')
+    expect(wrapper.text()).toContain('暖钛陶瓷')
+    expect(wrapper.text()).toContain('月白陶瓷')
 
     const ivory = wrapper
       .findAll('.settings-theme-list button')
-      .find((button) => button.text().includes('月面白'))
+      .find((button) => button.text().includes('月白陶瓷'))
     await ivory?.trigger('click')
 
     expect(document.documentElement.dataset.theme).toBe('royal')

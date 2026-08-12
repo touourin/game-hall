@@ -1,9 +1,9 @@
 import { mount } from '@vue/test-utils'
-import NexusGameModule from './NexusGameModule.vue'
+import GameLibraryCard from './GameLibraryCard.vue'
 
-describe('NexusGameModule', () => {
+describe('GameLibraryCard', () => {
   it('renders the shared game identity and emits selection', async () => {
-    const wrapper = mount(NexusGameModule, {
+    const wrapper = mount(GameLibraryCard, {
       props: {
         game: {
           key: 'gomoku',
@@ -18,8 +18,8 @@ describe('NexusGameModule', () => {
       },
     })
 
-    expect(wrapper.get('.nexus-module-meta').text()).toContain('03 / 棋类竞技')
-    expect(wrapper.get('.nexus-module-meta').text()).toContain('3 ROOMS')
+    expect(wrapper.get('.game-library-meta').text()).toContain('03 · 棋类竞技')
+    expect(wrapper.get('.game-library-meta').text()).toContain('3 个房间')
     expect(wrapper.find('.game-card-art').exists()).toBe(true)
 
     await wrapper.get('button').trigger('click')
@@ -27,7 +27,7 @@ describe('NexusGameModule', () => {
   })
 
   it('uses the shared premium artwork treatment for Avalon', () => {
-    const wrapper = mount(NexusGameModule, {
+    const wrapper = mount(GameLibraryCard, {
       props: {
         game: {
           key: 'avalon',

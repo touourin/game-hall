@@ -78,8 +78,9 @@ function addAiPlayer() {
   min-height: 68px;
   padding: 10px;
   border: 1px dashed color-mix(in srgb, var(--gold) 48%, var(--line));
-  border-radius: 4px;
-  background: linear-gradient(145deg,color-mix(in srgb,var(--gold) 6%,transparent),transparent),color-mix(in srgb, var(--surface-elevated) 82%,transparent);
+  border-radius: var(--radius-card);
+  background: var(--surface-glass);
+  box-shadow: var(--shadow-contact), inset 0 1px 0 var(--metal-edge);
 }
 
 .room-ai-seat-icon {
@@ -88,7 +89,7 @@ function addAiPlayer() {
   display: grid;
   place-items: center;
   border: 1px solid color-mix(in srgb,var(--gold) 28%,var(--line));
-  border-radius: 4px;
+  border-radius: var(--radius-control);
   color: var(--gold);
   background: color-mix(in srgb, var(--gold) 13%, transparent);
 }
@@ -125,7 +126,7 @@ function addAiPlayer() {
   min-width: 76px;
   min-height: 34px;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: var(--radius-control);
   padding: 0 25px 0 9px;
   color: var(--text);
   background: var(--surface-raised);
@@ -140,7 +141,7 @@ function addAiPlayer() {
   justify-content: center;
   gap: 4px;
   border: 1px solid color-mix(in srgb, var(--gold) 58%, var(--line));
-  border-radius: 4px;
+  border-radius: var(--radius-control);
   padding: 0 10px;
   color: var(--surface-inset);
   background: var(--gold);

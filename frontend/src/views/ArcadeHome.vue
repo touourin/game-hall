@@ -88,6 +88,7 @@ async function submit() {
 <template>
   <main class="arcade-home page-container adaptive-layout-root" :class="[`game-home-${game.key}`, { 'solo-arcade-home': isSolo }]">
     <GameHomeHeader
+      :game-key="game.key"
       :eyebrow="game.players"
       :title="game.name"
       :description="game.description"

@@ -67,7 +67,7 @@ defineEmits<{ select: [] }>()
 </template>
 
 <style scoped>
-.playing-card { position: relative; flex: 0 0 auto; width: clamp(42px, 9vw, 64px); aspect-ratio: 5 / 7; min-width: 0; display: grid; align-content: space-between; overflow: hidden; border: 1px solid var(--game-card-border, #d8d4c6); border-radius: 7px; padding: 5px; color: #17211f; background: var(--game-card-face, linear-gradient(145deg, #fffdf6, #ddd9cc)); box-shadow: 0 5px 10px #001017aa; font-family: Georgia, serif; font-style: normal; }
+.playing-card { position: relative; flex: 0 0 auto; width: clamp(42px, 9vw, 64px); aspect-ratio: 5 / 7; min-width: 0; display: grid; align-content: space-between; overflow: hidden; border: 1px solid var(--game-card-border, #d8d4c6); border-radius: 9px; padding: 5px; color: #17211f; background: var(--game-card-face, linear-gradient(145deg, #fffef9, #e2ded4)); box-shadow: 0 7px 16px #0010178a, inset 0 1px 0 rgba(255,255,255,.76); font-family: Georgia, serif; font-style: normal; }
 button.playing-card { font: inherit; font-family: Georgia, serif; }
 .playing-card b { line-height: 1; font-size: clamp(16px, 3.8vw, 24px); }
 .playing-card i { justify-self: end; line-height: 1; font-size: clamp(18px, 4vw, 26px); font-style: normal; }
@@ -80,7 +80,7 @@ button.playing-card { font: inherit; font-family: Georgia, serif; }
 .playing-card--compact i { justify-self: start; font-size: 17px; }
 .playing-card--bottom { width: 30px; height: 38px; aspect-ratio: auto; place-items: center; padding: 2px; }
 .playing-card--bottom b { font-size: 12px; }
-.playing-card--hand { --card-index: 0; z-index: calc(var(--card-index) + 1); width: clamp(49px, 6.4vw, 65px); height: clamp(94px, 11vw, 121px); aspect-ratio: auto; justify-self: center; display: flex; flex-direction: column; align-items: flex-start; border-radius: 9px; padding: 8px 5px; box-shadow: 0 5px 12px rgba(0,0,0,.52), inset 0 0 0 1px rgba(255,255,255,.55); transform-origin: bottom center; transition: transform .15s ease, border-color .15s, box-shadow .15s, filter .15s; }
+.playing-card--hand { --card-index: 0; z-index: calc(var(--card-index) + 1); width: clamp(49px, 6.4vw, 65px); height: clamp(94px, 11vw, 121px); aspect-ratio: auto; justify-self: center; display: flex; flex-direction: column; align-items: flex-start; border-radius: 10px; padding: 8px 5px; box-shadow: 0 7px 16px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.7); transform-origin: bottom center; transition: transform .15s ease, border-color .15s, box-shadow .15s, filter .15s; }
 .playing-card--hand:not(:disabled) { cursor: pointer; }
 .playing-card--hand:disabled { opacity: 1; }
 .playing-card--hand:hover:not(:disabled) { transform: translateY(-7px); }

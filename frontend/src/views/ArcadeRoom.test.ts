@@ -7,6 +7,7 @@ import type {
 } from '../types/arcade'
 import * as clipboard from '../clipboard'
 import RoomPageHeader from '../components/RoomPageHeader.vue'
+import RoomPlayerSeat from '../components/RoomPlayerSeat.vue'
 import { useArcadeStore } from '../stores/arcade'
 import type { RoomSnapshot as AvalonRoomSnapshot } from '../types/avalon'
 import ArcadeRoom from './ArcadeRoom.vue'
@@ -545,7 +546,7 @@ describe('ArcadeRoom', () => {
     })
 
     const playerStrip = wrapper.get('.arcade-player-strip')
-    const playerCards = playerStrip.findAll('article')
+    const playerCards = playerStrip.findAllComponents(RoomPlayerSeat)
     expect(playerStrip.attributes('data-player-columns')).toBe('4')
     expect(playerStrip.attributes('style')).toContain(
       '--player-card-width: calc(25% - 7.5px)',
@@ -601,7 +602,10 @@ describe('ArcadeRoom', () => {
     })
     const wrapper = shallowMount(ArcadeRoom, {
       props: { snapshot: playingRoom },
-      global: { plugins: [createPinia()] },
+      global: {
+        plugins: [createPinia()],
+        stubs: { RoomPlayerSeat: false },
+      },
     })
 
     expect(wrapper.text()).toContain('掉线保护 10 分钟')

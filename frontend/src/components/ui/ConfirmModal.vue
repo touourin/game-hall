@@ -10,6 +10,8 @@ withDefaults(defineProps<{
   panelClass?: string
   busy?: boolean
   tone?: 'default' | 'danger'
+  mobileSheet?: boolean
+  inline?: boolean
 }>(), {
   confirmLabel: '确认',
   cancelLabel: '取消',
@@ -17,6 +19,8 @@ withDefaults(defineProps<{
   panelClass: '',
   busy: false,
   tone: 'default',
+  mobileSheet: false,
+  inline: false,
 })
 
 defineEmits<{
@@ -31,6 +35,8 @@ defineEmits<{
     :description="description"
     :close-label="closeLabel"
     :panel-class="['confirm-modal', panelClass].filter(Boolean).join(' ')"
+    :mobile-sheet="mobileSheet"
+    :inline="inline"
     @close="$emit('close')"
   >
     <template v-if="$slots.icon" #icon>

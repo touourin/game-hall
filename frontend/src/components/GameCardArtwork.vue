@@ -128,12 +128,12 @@ const artwork = computed(() => artworkByGame[props.gameKey as BuiltinArcadeGameK
   filter: saturate(.96) contrast(1.05) brightness(1.045);
 }
 
-:global(.nexus-game-module:hover) .game-card-art img {
+:global(.game-library-card:hover) .game-card-art img {
   filter: saturate(1.08) contrast(1.04) brightness(1.04);
   transform: scale(1.07);
 }
 
-:global(.nexus-game-module:hover) .game-card-art-scan {
+:global(.game-library-card:hover) .game-card-art-scan {
   opacity: 1;
   animation: artwork-scan .8s ease-out;
 }
@@ -149,6 +149,6 @@ const artwork = computed(() => artworkByGame[props.gameKey as BuiltinArcadeGameK
 
 @media (prefers-reduced-motion: reduce) {
   .game-card-art img { transition: none; }
-  :global(.nexus-game-module:hover) .game-card-art-scan { animation: none; }
+  :global(.game-library-card:hover) .game-card-art-scan { animation: none; }
 }
 </style>

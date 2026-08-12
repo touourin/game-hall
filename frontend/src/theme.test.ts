@@ -8,10 +8,10 @@ describe('theme preferences', () => {
   })
 
   it('uses the default theme when no valid preference exists', () => {
-    expect(storedTheme()).toBe('emerald')
+    expect(storedTheme()).toBe('royal')
 
     localStorage.setItem('game-hall:theme', 'unknown')
-    expect(storedTheme()).toBe('emerald')
+    expect(storedTheme()).toBe('royal')
   })
 
   it('persists and applies the selected theme', () => {

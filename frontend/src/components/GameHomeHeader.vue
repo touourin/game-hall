@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import type { GameCatalogItem } from '../types/arcade'
 import BackNavigationButton from './BackNavigationButton.vue'
+import GameCardArtwork from './GameCardArtwork.vue'
 
 defineProps<{
+  gameKey: GameCatalogItem['key']
   eyebrow: string
   title: string
   description: string
@@ -13,10 +16,13 @@ defineEmits<{
 </script>
 
 <template>
-  <header class="game-home-header">
+  <header class="game-home-header surface">
     <BackNavigationButton label="返回游戏大厅" @click="$emit('back')" />
+    <div class="game-home-art">
+      <GameCardArtwork :game-key="gameKey" />
+    </div>
     <div class="game-home-copy">
-      <small>{{ eyebrow }}</small>
+      <small>游戏入口 · {{ eyebrow }}</small>
       <h1>{{ title }}</h1>
       <p>{{ description }}</p>
     </div>
@@ -30,22 +36,45 @@ defineEmits<{
 .game-home-header {
   position: relative;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: flex-start;
-  gap: 18px;
-  min-height: 178px;
-  border-bottom: 1px solid var(--line);
-  padding: 31px 0 38px;
+  grid-template-columns: auto 112px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 22px;
+  min-height: 164px;
+  margin: 20px 0 18px;
+  overflow: hidden;
+  padding: 22px;
 }
 
 .game-home-header::after {
   position: absolute;
-  right: 2px;
-  bottom: -1px;
-  left: 0;
-  height: 1px;
-  background: linear-gradient(90deg, var(--gold), var(--accent-secondary) 35%, transparent 78%);
+  top: -64px;
+  right: 20%;
+  width: 280px;
+  height: 190px;
+  border: 1px solid color-mix(in srgb, var(--gold) 14%, transparent);
+  border-radius: 50%;
   content: '';
+  pointer-events: none;
+  transform: rotate(-16deg);
+}
+
+.game-home-header > :deep(.back-navigation-button) {
+  align-self: start;
+}
+
+.game-home-art {
+  position: relative;
+  z-index: 1;
+  width: 112px;
+  aspect-ratio: 1;
+}
+
+.game-home-art :deep(.game-card-art) {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: 26%;
+  box-shadow: var(--shadow-contact);
 }
 
 .game-home-copy {
@@ -54,17 +83,14 @@ defineEmits<{
 
 .game-home-copy small {
   color: var(--gold);
-  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: .14em;
-  text-transform: uppercase;
+  letter-spacing: .05em;
 }
 
 .game-home-copy h1 {
-  margin: 7px 0 8px;
-  font-family: Inter, "PingFang SC", sans-serif;
-  font-size: clamp(36px, 5vw, 56px);
+  margin: 7px 0 6px;
+  font-size: clamp(32px, 4vw, 48px);
   font-weight: 800;
   letter-spacing: -.045em;
   line-height: 1.05;
@@ -87,11 +113,13 @@ defineEmits<{
   align-items: center;
   gap: 6px;
   border: 1px solid var(--line);
-  border-radius: 4px;
-  padding: 10px 12px;
+  min-height: 42px;
+  border-radius: var(--radius-control);
+  padding: 10px 13px;
   color: var(--text-soft);
-  background: linear-gradient(145deg,color-mix(in srgb,var(--gold) 5%,transparent),transparent),var(--surface-inset);
-  font-size: 12px;
+  background: var(--surface-glass);
+  box-shadow: var(--shadow-contact), inset 0 1px 0 var(--metal-edge);
+  font-size: 11px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -102,14 +130,16 @@ defineEmits<{
 
 @container (max-width: 600px) {
   .game-home-header {
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 14px;
+    grid-template-columns: auto 76px minmax(0, 1fr);
+    gap: 12px;
     min-height: 0;
-    padding: 18px 0 25px;
+    margin-top: 10px;
+    padding: 15px;
   }
 
-  .game-home-header::after { right: 0; bottom: -1px; left: 0; }
-  .game-home-copy h1 { font-size: 34px; }
+  .game-home-art { width: 76px; }
+  .game-home-copy h1 { font-size: 29px; }
+  .game-home-copy p { font-size: 11px; }
 
   .game-home-actions {
     grid-column: 1 / -1;

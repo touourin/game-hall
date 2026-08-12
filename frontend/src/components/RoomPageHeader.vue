@@ -30,19 +30,24 @@ defineProps<{
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 18px;
-  min-height: 82px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--line);
-  padding: 10px 0 15px;
+  min-height: 76px;
+  margin: 14px 0 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 11px 14px;
+  background: var(--surface-glass);
+  box-shadow: var(--shadow-contact), inset 0 1px 0 var(--metal-edge);
+  backdrop-filter: blur(22px) saturate(112%);
 }
 
 .room-page-header::after {
   position: absolute;
-  right: 0;
-  bottom: -1px;
+  top: 12px;
+  bottom: 12px;
   left: 0;
-  height: 1px;
-  background: linear-gradient(90deg, var(--gold), var(--accent-secondary) 34%, transparent 72%);
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--gold);
   content: '';
 }
 
@@ -57,10 +62,9 @@ defineProps<{
 .room-page-copy > small {
   display: block;
   color: var(--gold);
-  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
-  letter-spacing: .14em;
+  letter-spacing: .06em;
 }
 
 .room-page-title-row {
@@ -91,7 +95,8 @@ defineProps<{
     grid-template-columns: auto minmax(0, 1fr);
     gap: 11px;
     min-height: 0;
-    padding-top: 5px;
+    margin-top: 8px;
+    padding: 10px;
   }
 
   .room-page-actions {

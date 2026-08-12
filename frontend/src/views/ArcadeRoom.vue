@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue'
 import {
   ChevronRight,
   CircleHelp,
-  Crown,
   Eye,
   QrCode,
   RotateCcw,
@@ -28,6 +27,8 @@ import PressRevealCard from '../components/PressRevealCard.vue'
 import RoomAiSeatControl from '../components/RoomAiSeatControl.vue'
 import RoleSkinLoadoutPicker from '../components/RoleSkinLoadoutPicker.vue'
 import AvatarImage from '../components/AvatarImage.vue'
+import RoomPlayerSeat from '../components/RoomPlayerSeat.vue'
+import BaseModal from '../components/ui/BaseModal.vue'
 import { useArcadeStore } from '../stores/arcade'
 import {
   isAvalonArcadeSnapshot,
@@ -614,41 +615,34 @@ function openSharedChat() {
       :style="playerStripStyle"
       aria-label="房间玩家"
     >
-      <article
+      <RoomPlayerSeat
         v-for="player in snapshot.players"
         :key="player.id"
-        :class="{ self: player.id === snapshot.self.id, perspective: isSpectating && player.id === snapshot.self.id }"
+        :avatar-url="player.avatarUrl"
+        :name="player.name"
+        :seat="player.seat"
+        :host="player.isHost"
+        :bot="player.isBot"
+        :bot-difficulty="aiDifficultyLabel(player.botDifficulty)"
+        :guest="player.isGuest"
+        :connected="player.connected"
+        :left-room="player.leftRoom"
+        :disconnect-forfeited="player.disconnectForfeited"
+        :disconnect-forfeit-at="player.disconnectForfeitAt"
+        :self="player.id === snapshot.self.id"
+        :perspective="isSpectating && player.id === snapshot.self.id"
       >
-        <AvatarImage
-          class="arcade-player-avatar"
-          :src="player.avatarUrl"
-          :name="player.name"
-          :fallback="player.seat + 1"
-        />
-        <div>
-          <strong>{{ player.name }}</strong>
-          <small>
-            <Crown v-if="player.isHost" :size="13" />
-            {{ player.isBot ? `AI · ${aiDifficultyLabel(player.botDifficulty)}` : player.isHost ? '房主' : '玩家' }}{{ player.isGuest ? ' · 游客' : '' }}
-            {{ player.leftRoom
-              ? '· 已退出'
-              : player.connected
-              ? '· 在线'
-              : player.disconnectForfeited
-                ? '· 掉线弃权'
-                : player.disconnectForfeitAt
-                  ? '· 离线，10 分钟后弃权'
-                  : '· 离线' }}
-            {{ isSpectating && player.id === snapshot.self.id ? ' · 当前观战视角' : '' }}
-          </small>
-        </div>
-        <RoomKickButton
+        <template
           v-if="snapshot.actions.canKickPlayers && player.id !== snapshot.self.id"
-          :player-name="player.name"
-          :busy="arcade.busy"
-          @confirm="arcade.kickPlayer(player.id)"
-        />
-      </article>
+          #actions
+        >
+          <RoomKickButton
+            :player-name="player.name"
+            :busy="arcade.busy"
+            @confirm="arcade.kickPlayer(player.id)"
+          />
+        </template>
+      </RoomPlayerSeat>
       <RoomAiSeatControl
         v-if="canAddAiPlayer"
         :config="snapshot.ai"
@@ -811,24 +805,31 @@ function openSharedChat() {
       @close="showQr = false"
     />
 
-    <div v-if="ruleEditor" class="modal-backdrop" @click.self="ruleEditor = null">
-      <section class="modal-card rule-editor-modal" role="dialog" aria-modal="true">
-        <button class="modal-close" type="button" aria-label="关闭规则设置" @click="ruleEditor = null">
-          <X :size="20" />
-        </button>
+    <BaseModal
+      v-if="ruleEditor"
+      aria-label="房间规则"
+      panel-class="rule-editor-modal"
+      close-label="关闭规则设置"
+      mobile-sheet
+      inline
+      @close="ruleEditor = null"
+    >
         <span class="modal-icon"><Settings2 :size="25" /></span>
         <h2>房间规则</h2>
         <p>{{ snapshot.phase === 'finished' ? '保存后所有玩家会返回等待阶段，新规则从下一局生效。' : '保存后会同步给房间中的所有玩家，开局后不可修改。' }}</p>
         <GameRuleSettings v-model="ruleEditor" :game-key="snapshot.gameKey" :guest-mode="viewerIsGuest" />
         <button type="button" class="primary-button wide-button" :disabled="arcade.busy" @click="saveRules">保存规则</button>
-      </section>
-    </div>
+    </BaseModal>
 
-    <div v-if="showPlayerNumbers && avalonSnapshot" class="modal-backdrop" @click.self="showPlayerNumbers = false">
-      <section class="modal-card player-number-modal" role="dialog" aria-modal="true" aria-label="玩家号码表">
-        <button class="modal-close" type="button" aria-label="关闭玩家号码表" @click="showPlayerNumbers = false">
-          <X :size="20" />
-        </button>
+    <BaseModal
+      v-if="showPlayerNumbers && avalonSnapshot"
+      aria-label="玩家号码表"
+      panel-class="player-number-modal"
+      close-label="关闭玩家号码表"
+      mobile-sheet
+      inline
+      @close="showPlayerNumbers = false"
+    >
         <span class="modal-icon"><UsersRound :size="25" /></span>
         <h2>玩家号码表</h2>
         <p>本局号码保持不变</p>
@@ -844,8 +845,7 @@ function openSharedChat() {
             <small v-if="player.id === snapshot.self.id">{{ isSpectating ? '观战视角' : '你' }}</small>
           </div>
         </div>
-      </section>
-    </div>
+    </BaseModal>
 
     <div v-if="showIdentity && avalonSnapshot?.self.role" class="modal-backdrop" @click.self="showIdentity = false">
       <section class="modal-card identity-modal" role="dialog" aria-modal="true">
@@ -875,11 +875,15 @@ function openSharedChat() {
       </section>
     </div>
 
-    <div v-if="showAvalonRules && avalonSnapshot" class="modal-backdrop" @click.self="showAvalonRules = false">
-      <section class="modal-card rules-modal" role="dialog" aria-modal="true">
-        <button class="modal-close" type="button" aria-label="关闭玩法说明" @click="showAvalonRules = false">
-          <X :size="20" />
-        </button>
+    <BaseModal
+      v-if="showAvalonRules && avalonSnapshot"
+      aria-label="阿瓦隆玩法说明"
+      panel-class="rules-modal"
+      close-label="关闭玩法说明"
+      mobile-sheet
+      inline
+      @close="showAvalonRules = false"
+    >
         <span class="modal-icon"><CircleHelp :size="25" /></span>
         <h2>{{ avalonSnapshot.settings.mode === 'court_undercurrent' ? '王庭暗流 · 玩法说明' : '标准阿瓦隆 · 玩法说明' }}</h2>
         <p>{{ avalonSnapshot.settings.mode === 'court_undercurrent' ? '背景故事、特殊角色与终局规则集中在这里。' : '本局采用标准阿瓦隆规则。' }}</p>
@@ -898,14 +902,17 @@ function openSharedChat() {
             <li v-if="avalonSnapshot.settings.ladyEnabled">仙女只查阵营，持有者可以谎报查验结果。</li>
           </ul>
         </section>
-      </section>
-    </div>
+    </BaseModal>
 
-    <div v-if="showOneNightRules && oneNightSnapshot" class="modal-backdrop" @click.self="showOneNightRules = false">
-      <section class="modal-card one-night-rules-modal" role="dialog" aria-modal="true" aria-label="一夜狼人规则与角色说明">
-        <button class="modal-close" type="button" aria-label="关闭规则与角色说明" @click="showOneNightRules = false">
-          <X :size="20" />
-        </button>
+    <BaseModal
+      v-if="showOneNightRules && oneNightSnapshot"
+      aria-label="一夜狼人规则与角色说明"
+      panel-class="one-night-rules-modal"
+      close-label="关闭规则与角色说明"
+      mobile-sheet
+      inline
+      @close="showOneNightRules = false"
+    >
         <span class="modal-icon"><CircleHelp :size="25" /></span>
         <h2>一夜狼人 · 规则与角色</h2>
         <p>玩法流程、角色技能、行动限制与胜负条件统一整理在这里。</p>
@@ -913,8 +920,7 @@ function openSharedChat() {
           :roles="oneNightSnapshot.roleGuide"
           :active-role-codes="oneNightActiveRoleCodes"
         />
-      </section>
-    </div>
+    </BaseModal>
   </main>
 </template>
 
@@ -924,37 +930,27 @@ function openSharedChat() {
 .guest-match-notice strong,.guest-match-notice span { display: block; }.guest-match-notice strong { color: var(--gold); font-size: 13px; }.guest-match-notice span { margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .spectator-mode-banner { display: flex; align-items: center; gap: 11px; margin: 0 0 18px; padding: 12px 15px; border-color: color-mix(in srgb, #68c8df 38%, var(--line)); background: color-mix(in srgb, #68c8df 7%, var(--surface)); }
 .spectator-mode-banner > svg { flex: 0 0 auto; color: #83d4e7; }.spectator-mode-banner span { min-width: 0; display: grid; gap: 3px; }.spectator-mode-banner strong { color: #9dddeb; font-size: 13px; }.spectator-mode-banner small { color: var(--muted); line-height: 1.45; }
-.arcade-player-strip { position: relative; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 24px; padding: 31px 14px 14px; border-color: color-mix(in srgb, var(--gold) 24%, var(--line)); }
-.arcade-player-strip::before { position: absolute; top: 10px; left: 14px; color: var(--gold); font-family: ui-monospace,"SFMono-Regular",Consolas,monospace; font-size: 6px; font-weight: 800; letter-spacing: .17em; content: 'PLAYER SIGNAL ARRAY'; }
-.arcade-player-strip > article:not(.room-ai-seat-control) { position: relative; display: flex; flex: 0 0 var(--player-card-width); gap: 10px; align-items: center; min-width: 0; min-height: 68px; overflow: hidden; padding: 10px; border: 1px solid color-mix(in srgb, var(--line) 78%, transparent); border-radius: 4px; background: linear-gradient(145deg,color-mix(in srgb,var(--gold) 4%,transparent),transparent),color-mix(in srgb,var(--surface-elevated) 72%,transparent); }
-.arcade-player-strip > article:not(.room-ai-seat-control)::after { position:absolute; right:-10px; bottom:-10px; width:23px; aspect-ratio:1; border:1px solid color-mix(in srgb,var(--gold) 18%,transparent); transform:rotate(45deg); content:''; }
-.arcade-player-strip > article:not(.room-ai-seat-control) > div { min-width: 0; flex: 1; }
-.arcade-player-strip > article.self { border-color: color-mix(in srgb, var(--gold) 52%, transparent); background: linear-gradient(145deg,color-mix(in srgb,var(--gold) 10%,transparent),transparent),color-mix(in srgb,var(--surface-elevated) 68%,transparent); box-shadow: inset 3px 0 0 var(--gold), var(--glow-primary); }
-.arcade-player-strip > article:not(.room-ai-seat-control) > span { width: 36px; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid color-mix(in srgb,var(--gold) 30%,var(--line)); border-radius: 4px; color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); font-weight: 900; }
-.arcade-player-avatar { overflow: hidden; }
-.arcade-player-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.arcade-player-strip strong, .arcade-player-strip small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.arcade-player-strip small { margin-top: 2px; color: var(--muted); }
-.arcade-player-strip small svg { vertical-align: -2px; color: var(--gold); }
+.arcade-player-strip { position: relative; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 24px; padding: 39px 14px 14px; border-color: color-mix(in srgb, var(--gold) 24%, var(--line)); }
+.arcade-player-strip::before { position: absolute; top: 13px; left: 16px; color: var(--gold); font-size: 9px; font-weight: 800; letter-spacing: .06em; content: '房间座位'; }
 .arcade-spectator-strip { display: grid; gap: 10px; margin: -10px 0 24px; padding: 12px 14px; border-style: dashed; }
 .arcade-spectator-strip > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }.arcade-spectator-strip > header span { display: inline-flex; align-items: center; gap: 7px; color: #83d4e7; }.arcade-spectator-strip > header b { color: var(--muted); font-size: 10px; }
-.arcade-spectator-strip > div { display: flex; flex-wrap: wrap; gap: 8px; }.arcade-spectator-strip article { min-width: min(100%, 190px); display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; background: var(--surface-inset); }.arcade-spectator-strip article > span:last-child { min-width: 0; display: grid; gap: 1px; }.arcade-spectator-strip article strong,.arcade-spectator-strip article small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.arcade-spectator-strip article small { color: var(--muted); font-size: 9px; }.arcade-spectator-strip > p { margin: 0; color: var(--muted); font-size: 10px; }
+.arcade-spectator-strip > div { display: flex; flex-wrap: wrap; gap: 8px; }.arcade-spectator-strip article { min-width: min(100%, 190px); display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: var(--radius-control); padding: 8px 10px; background: var(--surface-glass); }.arcade-spectator-strip article > span:last-child { min-width: 0; display: grid; gap: 1px; }.arcade-spectator-strip article strong,.arcade-spectator-strip article small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.arcade-spectator-strip article small { color: var(--muted); font-size: 9px; }.arcade-spectator-strip > p { margin: 0; color: var(--muted); font-size: 10px; }
 .arcade-spectator-avatar { flex: 0 0 auto; width: 30px; aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: 4px; color: #83d4e7; background: color-mix(in srgb, #68c8df 12%, var(--surface-elevated)); font-size: 11px; font-weight: 900; }.arcade-spectator-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .room-rule-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -12px 0 24px; padding: 11px 13px; }
 .room-rule-bar > div { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; min-width: 0; }
 .room-rule-bar svg { flex: 0 0 auto; color: var(--gold); }
-.room-rule-bar span { border: 1px solid var(--line); border-radius: 3px; padding: 4px 8px; color: var(--muted); background: rgba(0, 0, 0, .1); font-family: ui-monospace,"SFMono-Regular",Consolas,monospace; font-size: 8px; }
+.room-rule-bar span { border: 1px solid var(--line); border-radius: 999px; padding: 5px 9px; color: var(--muted); background: var(--surface-inset); font-size: 9px; }
 .room-rule-actions { flex: 0 0 auto; display: flex; gap: 8px; }
 .room-rule-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; border: 1px solid color-mix(in srgb, var(--gold) 38%, var(--line)); border-radius: 10px; padding: 0 11px; color: var(--gold); background: color-mix(in srgb, var(--gold) 7%, transparent); font-weight: 850; }
 .game-skin-card + .arcade-waiting,
 .role-skin-loadout + .arcade-waiting { margin-top: 18px; }
-.arcade-waiting { position:relative; min-height: min(390px, 48dvh); display: grid; place-items: center; align-content: center; gap: 12px; overflow:hidden; padding: 30px 18px; border-color:color-mix(in srgb,var(--gold) 30%,var(--line)); text-align: center; }
+.arcade-waiting { position:relative; min-height: min(390px, 48dvh); display: grid; place-items: center; align-content: center; gap: 12px; overflow:hidden; padding: 30px 18px; border-color:color-mix(in srgb,var(--gold) 26%,var(--line)); text-align: center; }
 .arcade-waiting::before,.arcade-waiting::after { position:absolute; width:230px; aspect-ratio:1; border:1px solid color-mix(in srgb,var(--gold) 10%,transparent); border-radius:50%; content:''; }.arcade-waiting::after { width:150px; border-color:color-mix(in srgb,var(--accent-secondary) 13%,transparent); border-style:dashed; }
 .arcade-waiting > * { position:relative; z-index:1; }
 .arcade-waiting > svg { color: var(--gold); filter:drop-shadow(0 0 12px color-mix(in srgb,var(--gold) 38%,transparent)); }
 .arcade-waiting h2, .arcade-waiting p { margin: 0; }
 .arcade-waiting p { color: var(--muted); }
-.room-code-share { margin: 14px 0 0; border: 1px solid var(--line-strong); border-radius:4px; padding:9px 14px; color: var(--gold); background: color-mix(in srgb,var(--gold) 7%,var(--surface-inset)); box-shadow:var(--glow-primary); font-family:ui-monospace,"SFMono-Regular",Consolas,monospace; font-size: 23px; font-weight: 800; letter-spacing: .18em; }
+.room-code-share { margin: 14px 0 0; border: 1px solid var(--line-strong); border-radius:var(--radius-control); padding:10px 16px; color: var(--gold); background: var(--surface-glass); box-shadow:var(--shadow-contact); font-family:ui-monospace,"SFMono-Regular",Consolas,monospace; font-size: 23px; font-weight: 800; letter-spacing: .18em; }
 .arcade-waiting :deep(.invite-link-panel) { width: min(100%, 620px); }
 .arcade-game-stage { display: grid; gap: 22px; }
 .result-banner { padding: 18px; text-align: center; }
@@ -963,12 +959,12 @@ function openSharedChat() {
 .result-banner p { color: var(--muted); }
 .result-banner .rematch-progress { margin-bottom: 0; font-size: 11px; }
 .result-banner .primary-button { margin: 12px auto 0; }
-.rule-editor-modal { width: min(94vw, 620px); max-height: min(88vh, 820px); overflow-y: auto; }
-.one-night-rules-modal { width:min(94vw,780px); max-height:min(88vh,880px); overflow-y:auto; }
-.rule-editor-modal > p { margin: -4px 0 20px; color: var(--muted); }
-.rule-editor-modal > .wide-button { margin-top: 22px; }
+:global(.modal-card.rule-editor-modal) { width: min(94vw, 620px); max-height: min(88vh, 820px); overflow-y: auto; }
+:global(.modal-card.one-night-rules-modal) { width:min(94vw,780px); max-height:min(88vh,880px); overflow-y:auto; }
+:global(.modal-card.rule-editor-modal) > p { margin: -4px 0 20px; color: var(--muted); }
+:global(.modal-card.rule-editor-modal) > .wide-button { margin-top: 22px; }
 @media (max-width: 860px) {
-  .arcade-player-strip > article:not(.room-ai-seat-control) { flex-basis: calc(33.333333% - 6.667px); }
+  .arcade-player-strip > :deep(.room-player-seat) { flex-basis: calc(33.333333% - 6.667px); }
 }
 @media (max-width: 620px), (orientation: landscape) and (max-height: 600px) and (max-width: 980px) {
   .arcade-room--active { display: flex; flex-direction: column; }
@@ -986,7 +982,7 @@ function openSharedChat() {
   .arcade-room--active.arcade-room--board-game :deep(.room-page-copy > small) { font-size: 9px; letter-spacing: .08em; }
   .arcade-room--active.arcade-room--board-game :deep(.room-page-title-row h1) { font-size: 23px; }
   .arcade-room--active.arcade-room--board-game :deep(.room-page-actions) { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; }
-  .arcade-player-strip > article:not(.room-ai-seat-control) { flex-basis: calc(50% - 5px); }
+  .arcade-player-strip > :deep(.room-player-seat) { flex-basis: calc(50% - 5px); }
   .room-rule-bar { align-items: stretch; flex-direction: column; }
   .room-rule-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
   .room-rule-actions button { width: 100%; }
@@ -996,7 +992,7 @@ function openSharedChat() {
   .arcade-waiting .room-code-share { margin-top: 7px; font-size: 24px; }
 }
 @media (max-width: 430px) {
-  .arcade-player-strip > article:not(.room-ai-seat-control) { flex-basis: 100%; }
+  .arcade-player-strip > :deep(.room-player-seat) { flex-basis: 100%; }
 }
 @media (orientation: landscape) and (min-width: 621px) and (max-width: 980px) and (max-height: 600px) {
   .arcade-room--active.arcade-room--board-game :deep(.room-page-header) { grid-template-columns: auto minmax(0, 1fr) auto; }

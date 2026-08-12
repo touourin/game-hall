@@ -16,7 +16,7 @@ export function storedTheme(): ThemeName {
     return migratedTheme as ThemeName
   }
 
-  return 'emerald'
+  return 'royal'
 }
 
 export function applyTheme(theme: ThemeName): void {

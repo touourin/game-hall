@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
-import { LoaderCircle, Trophy, X } from '@lucide/vue'
+import { LoaderCircle, Trophy } from '@lucide/vue'
 import {
   loadLeaderboard,
   type AvalonStatsVariant,
   type LeaderboardEntry,
 } from '../stats'
 import AvatarImage from './AvatarImage.vue'
+import BaseModal from './ui/BaseModal.vue'
 
 const props = defineProps<{ accountId: string; gameKey: string; gameName: string; gameMode?: string }>()
 defineEmits<{ close: [] }>()
@@ -35,6 +36,11 @@ function difficultyLabel(value: string | undefined): string {
   if (value === 'intermediate') return '中级'
   if (value === 'beginner') return '初级'
   return ''
+}
+
+function tetrisModeLabel(value: string | undefined): string {
+  if (value?.startsWith('timed_')) return `${Number(value.slice(6)) / 60} 分钟限时`
+  return '无限挑战'
 }
 
 function avalonModeLabel(): string {
@@ -75,14 +81,17 @@ watch([activeGameMode, activeAvalonVariant], loadPlayers)
 </script>
 
 <template>
-  <div class="modal-backdrop" @click.self="$emit('close')">
-    <section class="modal-card leaderboard-modal" role="dialog" aria-modal="true">
-      <button class="modal-close" type="button" aria-label="关闭排行榜" @click="$emit('close')">
-        <X :size="20" />
-      </button>
+  <BaseModal
+    aria-label="排行榜"
+    panel-class="leaderboard-modal"
+    close-label="关闭排行榜"
+    mobile-sheet
+    inline
+    @close="$emit('close')"
+  >
       <span class="modal-icon"><Trophy :size="25" /></span>
       <h2>
-        {{ props.gameName }}{{ props.gameKey === 'avalon' ? ` · ${avalonModeLabel()}` : difficultyLabel(activeGameMode) }}排行榜
+        {{ props.gameName }}{{ props.gameKey === 'avalon' ? ` · ${avalonModeLabel()}` : props.gameKey === 'tetris' ? ` · ${tetrisModeLabel(activeGameMode)}` : difficultyLabel(activeGameMode) }}排行榜
       </h2>
       <p>{{ props.gameKey === 'reaction' ? '按个人历史最佳三轮平均时间排序，数值越低越快。' : props.gameKey === 'schulte' ? '按个人最快完成时间排序，数值越低越快。' : props.gameKey === 'minesweeper' ? '三种难度独立排名，按个人最快通关时间排序。' : props.gameKey === 'tetris' ? '按个人历史最高得分排序，分数越高排名越前。' : props.gameKey === 'hanoi' ? '按累计通关次数排序，同次数时优先更早完成挑战的玩家。' : '按胜场排序，同胜场时依次比较胜率和有效场次。' }}</p>
 
@@ -155,8 +164,7 @@ watch([activeGameMode, activeAvalonVariant], loadPlayers)
       <div v-else class="stats-empty">还没有符合条件的真人对局</div>
       <p class="leaderboard-note">{{ props.gameKey === 'reaction' ? '排行榜采用完成三轮后的平均反应时间。' : props.gameKey === 'schulte' ? '排行榜采用服务端计时，并验证 1–25 的完整点击顺序。' : props.gameKey === 'minesweeper' ? '仅成功清除全部安全方格的服务端计时成绩会进入排行榜。' : props.gameKey === 'tetris' ? '每轮结束后保存最终得分；最高分优先，总平均分用于同分参考。' : props.gameKey === 'hanoi' ? '不同层数都会累计为一次有效通关，详细步数和时间保存在个人战绩中。' : '含 AI 的测试局不会计入排行榜。' }}</p>
       <p v-if="error" class="account-error" role="alert">{{ error }}</p>
-    </section>
-  </div>
+  </BaseModal>
 </template>
 
 <style scoped>
@@ -168,7 +176,8 @@ watch([activeGameMode, activeAvalonVariant], loadPlayers)
   width: 39px;
   height: 39px;
   border: 1px solid color-mix(in srgb, var(--gold) 30%, var(--line));
-  border-radius: 12px;
-  background: rgba(0, 0, 0, .16);
+  border-radius: 50%;
+  background: var(--surface-inset);
+  box-shadow: var(--shadow-contact);
 }
 </style>

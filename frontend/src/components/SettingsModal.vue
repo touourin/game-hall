@@ -8,7 +8,6 @@ import {
   Upload,
   UserRound,
   UserRoundPen,
-  X,
 } from '@lucide/vue'
 import {
   ACCEPTED_AVATAR_TYPES,
@@ -20,6 +19,7 @@ import {
 import { applyTheme, storedTheme, type ThemeName } from '../theme'
 import AvatarCropModal from './AvatarCropModal.vue'
 import AvatarImage from './AvatarImage.vue'
+import BaseModal from './ui/BaseModal.vue'
 
 const props = defineProps<{
   account: AccountProfile
@@ -49,9 +49,24 @@ const themes: Array<{
   description: string
   colors: string[]
 }> = [
-  { id: 'emerald', name: '星舰青', description: '深空蓝黑、信号青与竞技 HUD 微光', colors: ['#060812', '#14203e', '#5ce2ec'] },
-  { id: 'midnight', name: '深空紫', description: '暗紫舱体、冷白文字与跃迁紫光', colors: ['#070712', '#221c4c', '#a68cff'] },
-  { id: 'royal', name: '月面白', description: '冷月灰白、深蓝文字与工程青', colors: ['#dde4ea', '#f5f9fb', '#197f97'] },
+  {
+    id: 'emerald',
+    name: '极光雾舱',
+    description: '深空灰、雾面玻璃与低饱和极光',
+    colors: ['#080f17', '#152731', '#78bcb5'],
+  },
+  {
+    id: 'midnight',
+    name: '暖钛陶瓷',
+    description: '黑钛底盘、暖陶表面与香槟金属',
+    colors: ['#12110f', '#302a23', '#b99168'],
+  },
+  {
+    id: 'royal',
+    name: '月白陶瓷',
+    description: '冷月灰陶瓷、乳雾玻璃与自然铝',
+    colors: ['#cbd3d9', '#f4f2ec', '#4d8b7b'],
+  },
 ]
 
 const nextRenameDate = computed(() => {
@@ -166,11 +181,14 @@ function confirmAvatarCrop(file: File) {
 </script>
 
 <template>
-  <div class="modal-backdrop" @click.self="$emit('close')">
-    <section class="modal-card settings-modal" role="dialog" aria-modal="true">
-      <button class="modal-close" type="button" aria-label="关闭设置" @click="$emit('close')">
-        <X :size="20" />
-      </button>
+  <BaseModal
+    aria-label="设置"
+    panel-class="settings-modal"
+    close-label="关闭设置"
+    mobile-sheet
+    inline
+    @close="$emit('close')"
+  >
       <span class="modal-icon"><Settings :size="25" /></span>
       <h2>设置</h2>
       <p>{{ account.isGuest ? '游客可以调整本机界面主题；游客昵称和头像在本次身份期间保持不变。' : '账号名用于登录；游戏昵称用于大厅、对局、聊天和排行榜。' }}</p>
@@ -300,8 +318,7 @@ function confirmAvatarCrop(file: File) {
           </button>
         </div>
       </section>
-    </section>
-  </div>
+  </BaseModal>
   <AvatarCropModal
     v-if="pendingAvatarFile"
     :file="pendingAvatarFile"
@@ -311,35 +328,36 @@ function confirmAvatarCrop(file: File) {
 </template>
 
 <style scoped>
-.settings-modal { width: min(660px, calc(100vw - 28px)); max-height: calc(100dvh - 36px); overflow-y: auto; }
-.settings-section { margin-top: 20px; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius-md); background: color-mix(in srgb, var(--surface) 82%, transparent); }
+:global(.modal-card.settings-modal) { width: min(680px, calc(100vw - 28px)); max-height: calc(100dvh - 36px); overflow-y: auto; }
+.settings-section { margin-top: 20px; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface-glass); box-shadow: inset 0 1px 0 var(--metal-edge); }
 .settings-section > header { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; color: var(--gold); }
 .settings-section form { display: grid; gap: 11px; }
 .settings-hint { color: var(--muted); line-height: 1.6; }
 .settings-success { margin: 0; color: #8fe0bd; font-size: 12px; font-weight: 700; line-height: 1.55; }
 .settings-theme-list { display: grid; gap: 9px; }
-.settings-theme-list button { min-height: 68px; padding: 11px 13px; display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; border: 1px solid var(--line); border-radius: 13px; color: var(--text); background: var(--surface-inset); text-align: left; cursor: pointer; }
-.settings-theme-list button.selected { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, var(--surface)); }
+.settings-theme-list button { min-height: 76px; padding: 12px 14px; display: grid; grid-template-columns: auto 1fr auto; gap: 13px; align-items: center; border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--text); background: var(--surface-inset); box-shadow: inset 0 1px 0 var(--metal-edge); text-align: left; cursor: pointer; }
+.settings-theme-list button.selected { border-color: var(--line-strong); background: color-mix(in srgb, var(--gold) 8%, var(--surface-glass)); box-shadow: var(--shadow-contact), inset 0 1px 0 var(--metal-edge); }
 .theme-copy { display: grid; gap: 4px; }.theme-copy strong { font-size: 13px; }.theme-copy small { color: var(--muted); font-size: 11px; line-height: 1.35; }
 .theme-swatches { display: flex; }
 .theme-swatches i { width: 18px; height: 30px; display: block; border: 1px solid #ffffff20; }
 .theme-swatches i:first-child { border-radius: 8px 0 0 8px; }
 .theme-swatches i:last-child { border-radius: 0 8px 8px 0; }
 .current-avatar-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }
-.current-avatar { width: 68px; height: 68px; border: 2px solid rgba(225, 188, 104, .54); border-radius: 50%; background: rgba(0, 0, 0, .2); box-shadow: 0 9px 24px rgba(0, 0, 0, .24); }
+.current-avatar { width: 68px; height: 68px; border: 2px solid var(--line-strong); border-radius: 50%; background: var(--surface-inset); box-shadow: var(--shadow-contact); }
 .current-avatar-row > div { min-width: 0; }
 .current-avatar-row > div strong, .current-avatar-row > div small { display: block; }
 .current-avatar-row > div small { margin-top: 4px; color: var(--muted); line-height: 1.45; }
-.avatar-upload-button { min-height: 40px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(225, 188, 104, .38); border-radius: 11px; padding: 0 12px; color: var(--gold); background: rgba(225, 188, 104, .08); font-weight: 850; }
+.avatar-upload-button { min-height: 42px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-strong); border-radius: var(--radius-control); padding: 0 12px; color: var(--gold); background: var(--surface-inset); font-weight: 850; }
 .avatar-file-input { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .avatar-preset-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
-.avatar-preset-grid button { position: relative; min-width: 0; display: grid; justify-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 13px; padding: 9px 5px 8px; color: var(--muted); background: var(--surface-inset); font-size: 11px; }
+.avatar-preset-grid button { position: relative; min-width: 0; display: grid; justify-items: center; gap: 7px; border: 1px solid var(--line); border-radius: var(--radius-control); padding: 9px 5px 8px; color: var(--muted); background: var(--surface-inset); font-size: 11px; }
 .avatar-preset-grid button.selected { border-color: var(--gold); color: var(--text); background: color-mix(in srgb, var(--gold) 9%, transparent); box-shadow: inset 0 0 0 1px rgba(225, 188, 104, .08); }
 .avatar-preset-grid button > svg { position: absolute; top: 6px; right: 6px; border-radius: 50%; padding: 2px; color: #1d2a22; background: var(--gold); }
 .preset-avatar { width: 58px; height: 58px; border: 2px solid rgba(255, 255, 255, .09); border-radius: 50%; box-shadow: 0 7px 18px rgba(0, 0, 0, .25); }
 .avatar-upload-hint { margin: 11px 0 0; display: flex; align-items: flex-start; gap: 6px; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .avatar-upload-hint svg { flex: 0 0 auto; margin-top: 1px; color: var(--gold); }
 @media (max-width: 520px) {
+  :global(.modal-card.settings-modal) { width: 100%; }
   .current-avatar-row { grid-template-columns: auto minmax(0, 1fr); }
   .avatar-upload-button { grid-column: 1 / -1; justify-content: center; width: 100%; }
   .avatar-preset-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
