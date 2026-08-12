@@ -54,6 +54,8 @@ AVALON_ROLE_SKIN_ULTIMATE_WINS = 5
 AVALON_ROLE_SKIN_FREE_WEEK_START = datetime(2026, 8, 2, 16, 0, 0)
 AVALON_ROLE_SKIN_FREE_WEEK_END = datetime(2026, 8, 9, 16, 0, 0)
 TIME_TRIAL_GAMES = {"reaction", "schulte", "minesweeper"}
+HIGH_SCORE_GAMES = {"tetris"}
+SCORED_SOLO_GAMES = TIME_TRIAL_GAMES | HIGH_SCORE_GAMES
 AVALON_STATS_VARIANTS = {"classic", "shadow_merlin"}
 AVATAR_PRESET_IDS = (
     "moon-fox",
@@ -636,7 +638,9 @@ class AccountStore:
                                 won=bool(player["won"]),
                             ),
                             "is_host": player["isHost"],
-                            "score_ms": player.get("scoreMs"),
+                            "score_value": player.get(
+                                "scoreValue", player.get("scoreMs")
+                            ),
                         }
                         for player in players
                     ],
@@ -673,7 +677,7 @@ class AccountStore:
                 match_players.c.alignment,
                 match_players.c.won,
                 match_players.c.outcome,
-                match_players.c.score_ms,
+                match_players.c.score_value,
                 matches.c.details_json,
             )
             .select_from(
@@ -707,8 +711,8 @@ class AccountStore:
             statement = (
                 select(
                     func.count().label("games"),
-                    func.min(match_players.c.score_ms).label("best_ms"),
-                    func.avg(match_players.c.score_ms).label("average_ms"),
+                    func.min(match_players.c.score_value).label("best_ms"),
+                    func.avg(match_players.c.score_value).label("average_ms"),
                 )
                 .select_from(
                     match_players.join(
@@ -718,7 +722,7 @@ class AccountStore:
                 .where(
                     match_players.c.account_id == account_id,
                     matches.c.game_key == game_key,
-                    match_players.c.score_ms.is_not(None),
+                    match_players.c.score_value.is_not(None),
                 )
             )
             if game_mode is not None:
@@ -744,6 +748,49 @@ class AccountStore:
                 "averageMs": (
                     round(float(row["average_ms"]))
                     if row["average_ms"] is not None
+                    else None
+                ),
+            }
+        if game_key in HIGH_SCORE_GAMES:
+            statement = (
+                select(
+                    func.count().label("games"),
+                    func.max(match_players.c.score_value).label("best_score"),
+                    func.avg(match_players.c.score_value).label("average_score"),
+                )
+                .select_from(
+                    match_players.join(
+                        matches, matches.c.id == match_players.c.match_id
+                    )
+                )
+                .where(
+                    match_players.c.account_id == account_id,
+                    matches.c.game_key == game_key,
+                    match_players.c.score_value.is_not(None),
+                )
+            )
+            with self.engine.connect() as connection:
+                row = connection.execute(statement).mappings().one()
+            return {
+                "games": int(row["games"]),
+                "wins": 0,
+                "draws": 0,
+                "losses": 0,
+                "winRate": 0,
+                "goodGames": 0,
+                "goodWins": 0,
+                "evilGames": 0,
+                "evilWins": 0,
+                "bestMs": None,
+                "averageMs": None,
+                "bestScore": (
+                    int(row["best_score"])
+                    if row["best_score"] is not None
+                    else None
+                ),
+                "averageScore": (
+                    round(float(row["average_score"]))
+                    if row["average_score"] is not None
                     else None
                 ),
             }
@@ -858,7 +905,7 @@ class AccountStore:
         if game_key is not None:
             statement = statement.where(matches.c.game_key == game_key)
         else:
-            statement = statement.where(matches.c.game_key.not_in(TIME_TRIAL_GAMES))
+            statement = statement.where(matches.c.game_key.not_in(SCORED_SOLO_GAMES))
         if game_mode is not None:
             statement = statement.where(matches.c.mode == game_mode)
         statement = self._filter_game_variant(statement, game_variant)
@@ -898,8 +945,8 @@ class AccountStore:
         self.initialize()
         if game_key in TIME_TRIAL_GAMES:
             attempt_count = func.count().label("games")
-            best_ms = func.min(match_players.c.score_ms).label("best_ms")
-            average_ms = func.avg(match_players.c.score_ms).label("average_ms")
+            best_ms = func.min(match_players.c.score_value).label("best_ms")
+            average_ms = func.avg(match_players.c.score_value).label("average_ms")
             statement = (
                 select(
                     users.c.id,
@@ -918,7 +965,7 @@ class AccountStore:
                 .where(
                     matches.c.game_key == game_key,
                     matches.c.ranked.is_(True),
-                    match_players.c.score_ms.is_not(None),
+                    match_players.c.score_value.is_not(None),
                 )
                 .group_by(
                     users.c.id,
@@ -952,6 +999,62 @@ class AccountStore:
                     "winRate": 0,
                     "bestMs": int(row["best_ms"]),
                     "averageMs": round(float(row["average_ms"])),
+                }
+                for index, row in enumerate(rows, start=1)
+            ]
+        if game_key in HIGH_SCORE_GAMES:
+            attempt_count = func.count().label("games")
+            best_score = func.max(match_players.c.score_value).label("best_score")
+            average_score = func.avg(match_players.c.score_value).label("average_score")
+            statement = (
+                select(
+                    users.c.id,
+                    users.c.player_name,
+                    users.c.avatar_preset,
+                    users.c.avatar_token,
+                    attempt_count,
+                    best_score,
+                    average_score,
+                )
+                .select_from(
+                    match_players.join(
+                        matches, matches.c.id == match_players.c.match_id
+                    ).join(users, users.c.id == match_players.c.account_id)
+                )
+                .where(
+                    matches.c.game_key == game_key,
+                    matches.c.ranked.is_(True),
+                    match_players.c.score_value.is_not(None),
+                )
+                .group_by(
+                    users.c.id,
+                    users.c.player_name,
+                    users.c.avatar_preset,
+                    users.c.avatar_token,
+                    users.c.created_at,
+                )
+                .order_by(
+                    best_score.desc(),
+                    average_score.desc(),
+                    attempt_count.desc(),
+                    users.c.created_at.asc(),
+                )
+                .limit(min(max(limit, 1), 100))
+            )
+            with self.engine.connect() as connection:
+                rows = connection.execute(statement).mappings().all()
+            return [
+                {
+                    "rank": index,
+                    "accountId": row["id"],
+                    "playerName": row["player_name"],
+                    "avatarUrl": self._avatar_url_from_row(row),
+                    "games": int(row["games"]),
+                    "wins": 0,
+                    "draws": 0,
+                    "winRate": 0,
+                    "bestScore": int(row["best_score"]),
+                    "averageScore": round(float(row["average_score"])),
                 }
                 for index, row in enumerate(rows, start=1)
             ]
@@ -1232,8 +1335,15 @@ class AccountStore:
             "won": bool(row["won"]),
             "outcome": row["outcome"],
             "scoreMs": (
-                int(row["score_ms"])
-                if row["score_ms"] is not None
+                int(row["score_value"])
+                if row["score_value"] is not None
+                and row["game_key"] in TIME_TRIAL_GAMES
+                else None
+            ),
+            "scoreValue": (
+                int(row["score_value"])
+                if row["score_value"] is not None
+                and row["game_key"] in HIGH_SCORE_GAMES
                 else None
             ),
             "gameMode": row["mode"],
@@ -1241,7 +1351,7 @@ class AccountStore:
 
     @staticmethod
     def _game_outcome(*, game_key: str, winner: str, won: bool) -> str:
-        if game_key in TIME_TRIAL_GAMES and won:
+        if game_key in SCORED_SOLO_GAMES and won:
             return "completed"
         if winner == "draw":
             return "draw"

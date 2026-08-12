@@ -15,6 +15,7 @@ const artworkSlugs: Record<BuiltinArcadeGameKey, string> = {
   schulte: 'schulte',
   minesweeper: 'minesweeper',
   hanoi: 'hanoi',
+  tetris: 'tetris',
   monopoly: 'monopoly',
 }
 

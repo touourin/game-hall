@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Sparkles,
   Zap,
+  Blocks,
 } from '@lucide/vue'
 import type { ArcadeGameKey } from '../types/arcade'
 import { gameCatalogItem } from '../gameCatalog'
@@ -146,6 +147,25 @@ const challenge = computed<SoloChallengeConfig>(() => {
     }
   }
 
+  if (props.gameKey === 'tetris') {
+    return {
+      icon: Blocks,
+      protocol: 'BLOCK STACK',
+      kicker: '空间规划与即时决策',
+      title: '排列方块，持续消行',
+      description: '预判接下来的方块，用旋转、暂存和快速落底保持棋盘整洁，冲击更高分数。',
+      button: '进入落块挑战',
+      features: ['7-bag 公平随机', '键盘与拇指控制', '高分排行榜'],
+      metrics: [
+        { label: '标准棋盘', value: '10 × 20' },
+        { label: '方块种类', value: '7 种' },
+        { label: '排名依据', value: '最高得分' },
+      ],
+      stages: ['规划落点', '排列消行', '挑战高分'],
+      recordNote: '方块堆到顶部后，本轮得分、消行数与等级会保存到个人战绩。',
+    }
+  }
+
   return {
     icon: Zap,
     protocol: 'REFLEX SIGNAL',
@@ -270,6 +290,7 @@ const challenge = computed<SoloChallengeConfig>(() => {
 .solo-launcher-schulte { --solo-accent: #a9a0f7; }
 .solo-launcher-minesweeper { --solo-accent: #71d3ad; }
 .solo-launcher-hanoi { --solo-accent: #dfbc73; }
+.solo-launcher-tetris { --solo-accent: #62d8f0; }
 
 .solo-story {
   position: relative;

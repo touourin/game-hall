@@ -160,7 +160,7 @@ match_players = Table(
     Column("won", Boolean(), nullable=False),
     Column("outcome", String(16), nullable=False),
     Column("is_host", Boolean(), nullable=False),
-    Column("score_ms", Integer(), nullable=True),
+    Column("score_value", Integer(), nullable=True),
 )
 Index("ix_match_players_account_match", match_players.c.account_id, match_players.c.match_id)
 

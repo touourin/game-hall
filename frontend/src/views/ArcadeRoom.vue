@@ -76,6 +76,7 @@ import ReactionTest from '../games/reaction/ReactionTest.vue'
 import SchulteGrid from '../games/schulte/SchulteGrid.vue'
 import MinesweeperBoard from '../games/minesweeper/MinesweeperBoard.vue'
 import HanoiGame from '../games/hanoi/HanoiGame.vue'
+import TetrisGame from '../games/tetris/TetrisGame.vue'
 import MonopolyBoard from '../games/monopoly/MonopolyBoard.vue'
 import PokerTable from '../games/poker/PokerTable.vue'
 import AvalonTable from '../games/avalon/AvalonTable.vue'
@@ -250,6 +251,8 @@ const roomHeaderEyebrow = computed(() => {
           ? ` · ${props.snapshot.game.difficultyLabel}`
           : props.snapshot.gameKey === 'hanoi'
             ? ' · 单人益智'
+            : props.snapshot.gameKey === 'tetris'
+              ? ' · 单人高分挑战'
             : isSolo.value
               ? ' · 单人挑战'
               : ''
@@ -261,6 +264,7 @@ const roomHeaderTitle = computed(() => {
     schulte: '舒尔特挑战',
     minesweeper: '扫雷挑战',
     hanoi: '汉诺塔挑战',
+    tetris: '落块挑战',
   }
   if (isSolo.value) return soloTitles[props.snapshot.gameKey] ?? props.snapshot.gameName
   return props.snapshot.roomName || `房间 ${props.snapshot.roomCode}`
@@ -733,6 +737,7 @@ function openSharedChat() {
       <SchulteGrid v-else-if="snapshot.gameKey === 'schulte'" :snapshot="snapshot" />
       <MinesweeperBoard v-else-if="snapshot.gameKey === 'minesweeper'" :snapshot="snapshot" />
       <HanoiGame v-else-if="snapshot.gameKey === 'hanoi'" :snapshot="snapshot" />
+      <TetrisGame v-else-if="snapshot.gameKey === 'tetris'" :snapshot="snapshot" />
       <MonopolyBoard v-else-if="snapshot.gameKey === 'monopoly'" :snapshot="snapshot" />
       <component v-else-if="pluginGameComponent" :is="pluginGameComponent" :snapshot="snapshot" />
       <AvalonTable

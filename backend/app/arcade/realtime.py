@@ -1289,7 +1289,7 @@ class ArcadeRealtime:
                     "won": won,
                     "isHost": player.id == room.host_id,
                     "isBot": player.is_bot,
-                    "scoreMs": (
+                    "scoreValue": (
                         score_reader(room, player)
                         if score_reader is not None
                         else None

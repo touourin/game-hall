@@ -14,6 +14,7 @@ from backend.app.games.monopoly import MonopolyEngine
 from backend.app.games.poker import PokerEngine
 from backend.app.games.reaction import ReactionEngine
 from backend.app.games.schulte import SchulteEngine
+from backend.app.games.tetris import TetrisEngine
 from backend.app.games.xiangqi import XiangqiEngine
 from backend.app.games.plugins import discover_game_plugins, plugin_catalog
 
@@ -32,6 +33,7 @@ def build_engine_registry() -> dict[str, GameEngine]:
         SchulteEngine(),
         MinesweeperEngine(),
         HanoiEngine(),
+        TetrisEngine(),
         MonopolyEngine(),
     ]
     registry = {engine.key: engine for engine in engines}

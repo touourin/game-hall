@@ -13,6 +13,8 @@ export interface StatsSummary {
   evilWins: number
   bestMs: number | null
   averageMs: number | null
+  bestScore?: number | null
+  averageScore?: number | null
   missionRouteGames?: number
   recruitmentAttempts?: number
   recruitmentHits?: number
@@ -41,6 +43,7 @@ export interface MatchHistoryItem {
   won: boolean
   outcome: MatchOutcome
   scoreMs: number | null
+  scoreValue?: number | null
   gameMode?: string | null
 }
 
@@ -134,6 +137,10 @@ export interface MatchDetail {
       revealed_count?: number
       flagged_count?: number
       result?: string
+      score?: number
+      lines?: number
+      level?: number
+      pieces?: number
     }
   }
 }
@@ -149,6 +156,8 @@ export interface LeaderboardEntry {
   winRate: number
   bestMs?: number
   averageMs?: number
+  bestScore?: number
+  averageScore?: number
 }
 
 async function statsRequest<T>(path: string): Promise<T> {

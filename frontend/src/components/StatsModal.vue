@@ -54,6 +54,7 @@ const roleLabels: Record<string, string> = {
   challenger: '挑战者',
   sweeper: '排雷员',
   solver: '解谜者',
+  stacker: '落块挑战者',
 }
 
 function roleLabel(role: string): string {
@@ -65,6 +66,7 @@ function winnerLabel(match: MatchDetail): string {
   if (match.gameKey === 'schulte') return '舒尔特挑战完成'
   if (match.gameKey === 'minesweeper') return match.winner === 'completed' ? '扫雷挑战完成' : '踩中地雷'
   if (match.gameKey === 'hanoi') return '汉诺塔挑战完成'
+  if (match.gameKey === 'tetris') return '落块挑战完成'
   if (match.gameKey === 'poker') return '筹码结算完成'
   if (match.winner === 'draw') return '双方和棋'
   if (match.gameKey === 'avalon') return match.winner === 'good' ? '好人获胜' : '坏人获胜'
@@ -73,6 +75,7 @@ function winnerLabel(match: MatchDetail): string {
 
 function outcomeLabel(match: MatchHistoryItem): string {
   if (match.gameKey === 'hanoi') return '成'
+  if (match.gameKey === 'tetris') return '分'
   if (match.gameKey === 'schulte') return '格'
   if (match.gameKey === 'minesweeper') return match.outcome === 'completed' ? '通' : '雷'
   if (match.outcome === 'draw') return '和'
@@ -460,7 +463,23 @@ watch([activeGameMode, activeAvalonVariant], loadStats)
           </div>
         </div>
 
-        <div v-if="!['avalon', 'reaction', 'schulte', 'minesweeper', 'hanoi'].includes(selectedMatch.gameKey)" class="match-detail-section">
+        <div v-if="selectedMatch.gameKey === 'tetris'" class="match-detail-section">
+          <span>落块挑战成绩</span>
+          <div class="match-mission-list">
+            <div class="success">
+              <strong>最终得分</strong>
+              <span>{{ Number(selectedMatch.details.state?.score ?? 0).toLocaleString() }} 分</span>
+              <small>到达等级 {{ selectedMatch.details.state?.level ?? 1 }}</small>
+            </div>
+            <div class="success">
+              <strong>棋盘表现</strong>
+              <span>消除 {{ selectedMatch.details.state?.lines ?? 0 }} 行</span>
+              <small>使用 {{ selectedMatch.details.state?.pieces ?? 0 }} 个方块 · {{ formatDuration(selectedMatch.details.state?.elapsed_ms) }}</small>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="!['avalon', 'reaction', 'schulte', 'minesweeper', 'hanoi', 'tetris'].includes(selectedMatch.gameKey)" class="match-detail-section">
           <span>参赛玩家</span>
           <div class="match-player-list">
             <div v-for="player in selectedMatch.details.players" :key="player.id">
@@ -482,6 +501,8 @@ watch([activeGameMode, activeAvalonVariant], loadStats)
               ? selectedMatch.winner === 'completed' && selectedMatch.ranked ? `本次成绩计入${difficultyLabel(selectedMatch.details.state?.difficulty)}扫雷排行榜` : '未通关，不计入排行榜'
             : selectedMatch.gameKey === 'hanoi'
               ? selectedMatch.ranked ? '本次通关计入汉诺塔累计通关榜' : '本次通关不计排行榜'
+            : selectedMatch.gameKey === 'tetris'
+              ? selectedMatch.ranked ? '本轮最终得分计入落块挑战排行榜' : '本轮得分不计排行榜'
             : selectedMatch.ranked ? '本局计入排行榜' : '本局含 AI，不计排行榜' }}
         </p>
       </template>
@@ -489,7 +510,7 @@ watch([activeGameMode, activeAvalonVariant], loadStats)
       <template v-else>
         <span class="modal-icon"><History :size="24" /></span>
         <h2>{{ props.gameName ? `${props.gameName}${props.gameKey === 'avalon' ? ` · ${avalonModeLabel(activeGameMode, activeAvalonVariant)}` : difficultyLabel(activeGameMode)}战绩` : '我的全部战绩' }}</h2>
-        <p>{{ props.gameKey === 'reaction' ? '记录每次三轮测试的平均值与单轮明细。' : props.gameKey === 'schulte' ? '记录每次 5×5 标准挑战的完成用时与点击准确率。' : props.gameKey === 'minesweeper' ? '不同难度分别统计通关时间，失败记录也会保留在战绩中。' : props.gameKey === 'hanoi' ? '记录每次通关的层数、步数与完成用时。' : '每款游戏独立记录胜负，对局详情绑定当前账号。' }}</p>
+        <p>{{ props.gameKey === 'reaction' ? '记录每次三轮测试的平均值与单轮明细。' : props.gameKey === 'schulte' ? '记录每次 5×5 标准挑战的完成用时与点击准确率。' : props.gameKey === 'minesweeper' ? '不同难度分别统计通关时间，失败记录也会保留在战绩中。' : props.gameKey === 'tetris' ? '记录每轮最终得分、消行数、等级和使用方块数。' : props.gameKey === 'hanoi' ? '记录每次通关的层数、步数与完成用时。' : '每款游戏独立记录胜负，对局详情绑定当前账号。' }}</p>
 
         <div
           v-if="props.gameKey === 'avalon' && !props.gameMode"
@@ -552,6 +573,11 @@ watch([activeGameMode, activeAvalonVariant], loadStats)
               <div><strong>{{ summary.games }}</strong><span>挑战次数</span></div>
               <div><strong>{{ summary.wins }}</strong><span>完成次数</span></div>
               <div><strong>{{ summary.winRate }}%</strong><span>完成率</span></div>
+            </template>
+            <template v-else-if="props.gameKey === 'tetris'">
+              <div><strong>{{ summary.games }}</strong><span>挑战次数</span></div>
+              <div><strong>{{ summary.bestScore?.toLocaleString() ?? '—' }}</strong><span>历史最高分</span></div>
+              <div><strong>{{ summary.averageScore?.toLocaleString() ?? '—' }}</strong><span>平均得分</span></div>
             </template>
             <template v-else>
               <div><strong>{{ summary.games }}</strong><span>总场次</span></div>
@@ -616,11 +642,13 @@ watch([activeGameMode, activeAvalonVariant], loadStats)
                 <strong v-else-if="match.gameKey === 'schulte'">5×5 方格 · {{ formatDuration(match.scoreMs) }}</strong>
                 <strong v-else-if="match.gameKey === 'minesweeper'">{{ difficultyLabel(match.gameMode) }}扫雷 · {{ match.scoreMs === null ? '踩中地雷' : formatDuration(match.scoreMs) }}</strong>
                 <strong v-else-if="match.gameKey === 'hanoi'">{{ match.reason }}</strong>
+                <strong v-else-if="match.gameKey === 'tetris'">最终得分 · {{ match.scoreValue?.toLocaleString() }} 分</strong>
                 <strong v-else>{{ match.gameName }} · {{ roleLabel(match.role) }}</strong>
                 <small v-if="match.gameKey === 'reaction'">{{ formatDate(match.endedAt) }} · 三轮测试</small>
                 <small v-else-if="match.gameKey === 'schulte'">{{ formatDate(match.endedAt) }} · 标准挑战</small>
                 <small v-else-if="match.gameKey === 'minesweeper'">{{ formatDate(match.endedAt) }} · {{ match.reason }}</small>
                 <small v-else-if="match.gameKey === 'hanoi'">{{ formatDate(match.endedAt) }} · 单人益智挑战</small>
+                <small v-else-if="match.gameKey === 'tetris'">{{ formatDate(match.endedAt) }} · {{ match.reason }}</small>
                 <small v-else-if="match.gameKey === 'avalon'">
                   {{ formatDate(match.endedAt) }} · {{ avalonModeLabel(match.gameMode) }} ·
                   {{ match.playerCount }} 人 · 房间 {{ match.roomCode }}

@@ -75,6 +75,12 @@ BUILTIN_GAME_CATALOG: tuple[dict[str, str], ...] = (
         "description": "3–8 层经典益智挑战，争取最少步数",
     },
     {
+        "key": "tetris",
+        "name": "落块挑战",
+        "players": "1 人",
+        "description": "排列七种方块，连续消行挑战高分",
+    },
+    {
         "key": "monopoly",
         "name": "大富翁",
         "players": "2–4 人",

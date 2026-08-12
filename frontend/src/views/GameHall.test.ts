@@ -5,7 +5,7 @@ import { useArcadeStore } from '../stores/arcade'
 import GameHall from './GameHall.vue'
 
 describe('GameHall', () => {
-  it('shows thirteen games and selects the requested game', async () => {
+  it('shows fourteen games and selects the requested game', async () => {
     const wrapper = mount(GameHall, {
       props: {
         account: {
@@ -20,8 +20,8 @@ describe('GameHall', () => {
     })
 
     const gameCards = wrapper.findAll('.game-card')
-    expect(gameCards).toHaveLength(13)
-    expect(wrapper.findAll('.nexus-game-module .game-card-art')).toHaveLength(13)
+    expect(gameCards).toHaveLength(14)
+    expect(wrapper.findAll('.nexus-game-module .game-card-art')).toHaveLength(14)
     expect(wrapper.find('.art-avalon img').attributes('src')).toContain('avalon')
     expect(wrapper.find('.nexus-feature').exists()).toBe(true)
     expect(wrapper.find('.nexus-feature .art-avalon').exists()).toBe(true)

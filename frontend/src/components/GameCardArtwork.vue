@@ -13,6 +13,7 @@ import monopolyArtwork from '../assets/game-hall/icons/monopoly.webp'
 import pokerArtwork from '../assets/game-hall/icons/poker.webp'
 import reactionArtwork from '../assets/game-hall/icons/reaction.webp'
 import schulteArtwork from '../assets/game-hall/icons/schulte.webp'
+import tetrisArtwork from '../assets/game-hall/icons/tetris.webp'
 import xiangqiArtwork from '../assets/game-hall/icons/xiangqi.webp'
 
 const props = defineProps<{ gameKey: GameCatalogItem['key'] }>()
@@ -30,6 +31,7 @@ const artworkByGame = {
   schulte: schulteArtwork,
   minesweeper: minesweeperArtwork,
   hanoi: hanoiArtwork,
+  tetris: tetrisArtwork,
   monopoly: monopolyArtwork,
 } satisfies Record<BuiltinArcadeGameKey, string>
 

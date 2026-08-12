@@ -11,6 +11,7 @@ export type BuiltinArcadeGameKey =
   | 'schulte'
   | 'minesweeper'
   | 'hanoi'
+  | 'tetris'
   | 'monopoly'
 
 export type PluginArcadeGameKey = `plugin-${string}`

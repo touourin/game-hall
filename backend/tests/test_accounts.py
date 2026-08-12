@@ -773,6 +773,56 @@ def test_minesweeper_scores_are_ranked_separately_by_difficulty(tmp_path):
     assert leaderboard[0]["accountId"] == first.id
 
 
+def test_tetris_scores_use_highest_first_leaderboard(tmp_path):
+    store = AccountStore(tmp_path / "tetris.sqlite3")
+    first = account_for_player(store, 1, "blocks")
+    second = account_for_player(store, 2, "blocks")
+
+    def record(match_id: str, account, score: int) -> None:
+        assert store.record_game_match(
+            game_key="tetris",
+            match_id=match_id,
+            room_code="DROP",
+            winner="completed",
+            reason=f"最终得分 {score}",
+            started_at="2026-08-12T00:00:00+00:00",
+            ended_at="2026-08-12T00:03:00+00:00",
+            details={
+                "players": [],
+                "state": {"score": score, "lines": 12, "level": 2},
+            },
+            players=[
+                {
+                    "accountId": account.id,
+                    "playerName": account.player_name,
+                    "seat": 0,
+                    "role": "stacker",
+                    "alignment": "solo",
+                    "won": True,
+                    "isHost": True,
+                    "scoreValue": score,
+                }
+            ],
+        )
+
+    record("tetris-1", first, 8_000)
+    record("tetris-2", first, 12_000)
+    record("tetris-3", second, 10_000)
+
+    summary = store.summary_for_account(first.id, game_key="tetris")
+    history = store.history_for_account(first.id, game_key="tetris")
+    leaderboard = store.leaderboard(game_key="tetris")
+
+    assert summary["games"] == 2
+    assert summary["bestScore"] == 12_000
+    assert summary["averageScore"] == 10_000
+    assert history[0]["scoreValue"] == 12_000
+    assert history[0]["scoreMs"] is None
+    assert history[0]["outcome"] == "completed"
+    assert leaderboard[0]["accountId"] == first.id
+    assert leaderboard[0]["bestScore"] == 12_000
+
+
 def test_gomoku_draw_is_not_recorded_as_two_losses(tmp_path):
     store = AccountStore(tmp_path / "gomoku-draw.sqlite3")
     first = account_for_player(store, 1, "draw")
