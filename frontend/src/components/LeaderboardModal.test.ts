@@ -46,4 +46,21 @@ describe('LeaderboardModal', () => {
     )
     expect(wrapper.get('h2').text()).toContain('暗影梅林')
   })
+
+  it('loads the selected Tetris duration leaderboard', async () => {
+    vi.mocked(loadLeaderboard).mockResolvedValue([])
+
+    const wrapper = mount(LeaderboardModal, {
+      props: {
+        accountId: 'account-1',
+        gameKey: 'tetris',
+        gameName: '落块挑战',
+        gameMode: 'timed_180',
+      },
+    })
+    await flushPromises()
+
+    expect(loadLeaderboard).toHaveBeenCalledWith('tetris', 'timed_180', undefined)
+    expect(wrapper.get('h2').text()).toContain('3 分钟限时')
+  })
 })

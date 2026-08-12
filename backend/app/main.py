@@ -533,6 +533,7 @@ def personal_stats(
         raise HTTPException(status_code=404, detail="没有找到这个游戏")
     valid_modes = {
         "minesweeper": {"beginner", "intermediate", "expert"},
+        "tetris": {"standard", "timed_60", "timed_180", "timed_300"},
         "avalon": {"standard", "court_undercurrent"},
     }
     if mode is not None and mode not in valid_modes.get(game or "", set()):
@@ -585,6 +586,7 @@ def leaderboard(
         raise HTTPException(status_code=404, detail="没有找到这个游戏")
     valid_modes = {
         "minesweeper": {"beginner", "intermediate", "expert"},
+        "tetris": {"standard", "timed_60", "timed_180", "timed_300"},
         "avalon": {"standard", "court_undercurrent"},
     }
     if mode is not None and mode not in valid_modes.get(game, set()):

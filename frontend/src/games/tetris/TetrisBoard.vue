@@ -13,6 +13,7 @@ defineProps<{
   paused: boolean
   autoPaused: boolean
   runEnded: boolean
+  endReason: 'topped_out' | 'timeout'
   submitting: boolean
   submissionError?: string | null
 }>()
@@ -37,8 +38,8 @@ defineEmits<{ resume: []; retry: [] }>()
     <div v-if="paused || runEnded" class="tetris-overlay" role="status" aria-live="polite">
       <Trophy v-if="runEnded" :size="38" />
       <CirclePause v-else :size="38" />
-      <strong>{{ submitting ? '正在保存成绩' : runEnded ? '成绩尚未保存' : autoPaused ? '已自动暂停' : '游戏暂停' }}</strong>
-      <small>{{ submissionError || (submitting ? '请稍候…' : runEnded ? '游戏已结束，可以重新提交本轮成绩' : '点击继续恢复挑战') }}</small>
+      <strong>{{ submitting ? '正在保存成绩' : runEnded ? endReason === 'timeout' ? '时间到' : '成绩尚未保存' : autoPaused ? '已自动暂停' : '游戏暂停' }}</strong>
+      <small>{{ submissionError || (submitting ? '请稍候…' : runEnded ? endReason === 'timeout' ? '限时挑战结束，正在结算本轮得分' : '游戏已结束，可以重新提交本轮成绩' : '点击继续恢复挑战') }}</small>
       <button v-if="paused && !runEnded" type="button" @click="$emit('resume')">
         <CirclePlay :size="18" />继续游戏
       </button>

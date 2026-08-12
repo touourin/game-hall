@@ -1,5 +1,6 @@
 import { createPinia } from 'pinia'
 import { mount } from '@vue/test-utils'
+import { flushPromises } from '@vue/test-utils'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
 import TetrisGame from './TetrisGame.vue'
@@ -135,6 +136,7 @@ describe('TetrisGame', () => {
       level: 2,
       pieces: 40,
       elapsedMs: 60_000,
+      endReason: 'topped_out',
     })
     expect(wrapper.get('.tetris-overlay').text()).toContain('网络暂时不可用')
     expect(sessionStorage.getItem('game-hall:tetris:DROP')).toContain('"ended":true')
@@ -144,6 +146,55 @@ describe('TetrisGame', () => {
     expect(sessionStorage.getItem('game-hall:tetris:DROP')).toBeNull()
     wrapper.unmount()
     expect(sessionStorage.getItem('game-hall:tetris:DROP')).toBeNull()
+  })
+
+  it('automatically submits a timed challenge when the countdown reaches zero', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const action = vi.spyOn(arcade, 'actionWithResult').mockResolvedValue(true)
+    vi.spyOn(performance, 'now').mockReturnValue(1_000)
+    let tick: FrameRequestCallback | undefined
+    vi.mocked(window.requestAnimationFrame).mockImplementation((callback) => {
+      tick = callback
+      return 1
+    })
+    sessionStorage.setItem('game-hall:tetris:DROP', JSON.stringify({
+      board: Array.from({ length: 20 }, () => Array(10).fill(null)),
+      active: { type: 'T', rotation: 0, x: 3, y: 0 },
+      queue: ['I', 'J', 'L', 'O', 'S', 'T', 'Z'],
+      held: null,
+      holdUsed: false,
+      score: 750,
+      lines: 2,
+      pieces: 18,
+      elapsedMs: 59_900,
+      ended: false,
+    }))
+    const timedSnapshot = snapshot()
+    timedSnapshot.options = {
+      allowSpectators: false,
+      challengeMode: 'timed',
+      durationSeconds: 60,
+    }
+    const wrapper = mount(TetrisGame, {
+      props: { snapshot: timedSnapshot },
+      global: { plugins: [pinia] },
+    })
+
+    expect(wrapper.get('[aria-label="落块挑战状态"]').text()).toContain('剩余时间')
+    tick?.(1_200)
+    await flushPromises()
+
+    expect(action).toHaveBeenCalledWith('finish', {
+      score: 750,
+      lines: 2,
+      level: 1,
+      pieces: 18,
+      elapsedMs: 60_000,
+      endReason: 'timeout',
+    })
+    expect(wrapper.get('[aria-label="向左移动"]').attributes()).toHaveProperty('disabled')
+    wrapper.unmount()
   })
 
   it('shows the shared result card with the server-recorded score', () => {

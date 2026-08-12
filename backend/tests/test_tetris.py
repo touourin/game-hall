@@ -22,6 +22,7 @@ def make_room() -> tuple[TetrisEngine, ArcadeRoom, ArcadePlayer]:
         host_id=player.id,
         players=[player],
         state=engine.initial_state(),
+        options={"challengeMode": "endless", "durationSeconds": 180},
     )
     engine.start(room)
     return engine, room, player
@@ -47,6 +48,8 @@ def test_tetris_accepts_a_plausible_finished_run() -> None:
     assert room.winner == "completed"
     assert engine.player_score(room, player) == 12_480
     assert engine.view(room, player) == {
+        "challengeMode": "endless",
+        "durationSeconds": 180,
         "score": 12_480,
         "lines": 24,
         "level": 3,
@@ -80,3 +83,66 @@ def test_tetris_is_a_private_single_player_room() -> None:
     assert engine.min_players == 1
     assert engine.max_players == 1
     assert engine.public_rooms is False
+
+
+def test_tetris_timed_mode_finishes_at_the_selected_duration() -> None:
+    engine, room, player = make_room()
+    room.options = engine.room_options(
+        {"challengeMode": "timed", "durationSeconds": 60}
+    )
+    engine.start(room)
+
+    engine.act(
+        room,
+        player,
+        "finish",
+        {
+            "score": 4_200,
+            "lines": 8,
+            "level": 1,
+            "pieces": 40,
+            "elapsedMs": 60_000,
+            "endReason": "timeout",
+        },
+    )
+
+    assert room.phase == "finished"
+    assert room.win_reason == "1 分钟限时结束 · 最终得分 4,200 · 消除 8 行"
+    assert engine.record_state(room)["challenge_mode"] == "timed"
+
+
+@pytest.mark.parametrize(
+    "options",
+    [
+        {"challengeMode": "sprint", "durationSeconds": 180},
+        {"challengeMode": "timed", "durationSeconds": 90},
+    ],
+)
+def test_tetris_rejects_unknown_modes_and_durations(options) -> None:
+    engine = TetrisEngine()
+
+    with pytest.raises(GameRuleError):
+        engine.room_options(options)
+
+
+def test_tetris_rejects_an_invalid_timed_finish() -> None:
+    engine, room, player = make_room()
+    room.options = engine.room_options(
+        {"challengeMode": "timed", "durationSeconds": 60}
+    )
+    engine.start(room)
+
+    with pytest.raises(GameRuleError, match="用时"):
+        engine.act(
+            room,
+            player,
+            "finish",
+            {
+                "score": 4_200,
+                "lines": 8,
+                "level": 1,
+                "pieces": 40,
+                "elapsedMs": 59_000,
+                "endReason": "timeout",
+            },
+        )

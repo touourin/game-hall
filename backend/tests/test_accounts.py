@@ -778,7 +778,12 @@ def test_tetris_scores_use_highest_first_leaderboard(tmp_path):
     first = account_for_player(store, 1, "blocks")
     second = account_for_player(store, 2, "blocks")
 
-    def record(match_id: str, account, score: int) -> None:
+    def record(
+        match_id: str,
+        account,
+        score: int,
+        options: dict | None = None,
+    ) -> None:
         assert store.record_game_match(
             game_key="tetris",
             match_id=match_id,
@@ -788,6 +793,7 @@ def test_tetris_scores_use_highest_first_leaderboard(tmp_path):
             started_at="2026-08-12T00:00:00+00:00",
             ended_at="2026-08-12T00:03:00+00:00",
             details={
+                "options": options or {"challengeMode": "endless"},
                 "players": [],
                 "state": {"score": score, "lines": 12, "level": 2},
             },
@@ -808,19 +814,38 @@ def test_tetris_scores_use_highest_first_leaderboard(tmp_path):
     record("tetris-1", first, 8_000)
     record("tetris-2", first, 12_000)
     record("tetris-3", second, 10_000)
+    record(
+        "tetris-4",
+        first,
+        20_000,
+        {"challengeMode": "timed", "durationSeconds": 180},
+    )
 
-    summary = store.summary_for_account(first.id, game_key="tetris")
-    history = store.history_for_account(first.id, game_key="tetris")
-    leaderboard = store.leaderboard(game_key="tetris")
+    summary = store.summary_for_account(
+        first.id, game_key="tetris", game_mode="standard"
+    )
+    timed_summary = store.summary_for_account(
+        first.id, game_key="tetris", game_mode="timed_180"
+    )
+    history = store.history_for_account(
+        first.id, game_key="tetris", game_mode="standard"
+    )
+    leaderboard = store.leaderboard(game_key="tetris", game_mode="standard")
+    timed_leaderboard = store.leaderboard(
+        game_key="tetris", game_mode="timed_180"
+    )
 
     assert summary["games"] == 2
     assert summary["bestScore"] == 12_000
     assert summary["averageScore"] == 10_000
+    assert timed_summary["games"] == 1
+    assert timed_summary["bestScore"] == 20_000
     assert history[0]["scoreValue"] == 12_000
     assert history[0]["scoreMs"] is None
     assert history[0]["outcome"] == "completed"
     assert leaderboard[0]["accountId"] == first.id
     assert leaderboard[0]["bestScore"] == 12_000
+    assert timed_leaderboard[0]["bestScore"] == 20_000
 
 
 def test_gomoku_draw_is_not_recorded_as_two_losses(tmp_path):

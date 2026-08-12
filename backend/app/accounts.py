@@ -769,6 +769,8 @@ class AccountStore:
                     match_players.c.score_value.is_not(None),
                 )
             )
+            if game_mode is not None:
+                statement = statement.where(matches.c.mode == game_mode)
             with self.engine.connect() as connection:
                 row = connection.execute(statement).mappings().one()
             return {
@@ -1041,6 +1043,8 @@ class AccountStore:
                 )
                 .limit(min(max(limit, 1), 100))
             )
+            if game_mode is not None:
+                statement = statement.where(matches.c.mode == game_mode)
             with self.engine.connect() as connection:
                 rows = connection.execute(statement).mappings().all()
             return [
@@ -1474,6 +1478,12 @@ class AccountStore:
                 difficulty = state.get("difficulty")
                 if isinstance(difficulty, str) and difficulty:
                     return difficulty
+        if game_key == "tetris":
+            options = details.get("options")
+            if isinstance(options, dict) and options.get("challengeMode") == "timed":
+                duration = options.get("durationSeconds")
+                if duration in {60, 180, 300}:
+                    return f"timed_{duration}"
         return "standard"
 
     @classmethod

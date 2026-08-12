@@ -36,6 +36,7 @@ function hasHandicap(): boolean {
     withDefaultGameRules(props.gameKey, props.modelValue),
   )
 }
+
 </script>
 
 <template>
@@ -167,6 +168,31 @@ function hasHandicap(): boolean {
       </div>
     </section>
 
+    <section v-if="gameKey === 'tetris'" class="rule-setting-group">
+      <header><strong>挑战模式</strong><small>限时模式到点自动结算；无限模式保留原来的堆顶结束玩法</small></header>
+      <div class="rule-option-grid">
+        <button type="button" :class="{ active: option('challengeMode') === 'timed' }" @click="setOption('challengeMode', 'timed')">
+          <strong>限时挑战</strong><small>在固定时间内尽可能获得高分</small>
+        </button>
+        <button type="button" :class="{ active: option('challengeMode') === 'endless' }" @click="setOption('challengeMode', 'endless')">
+          <strong>无限挑战</strong><small>持续游玩，直到方块堆到顶部</small>
+        </button>
+      </div>
+    </section>
+
+    <section v-if="gameKey === 'tetris' && option('challengeMode') === 'timed'" class="rule-setting-group">
+      <header><strong>挑战时长</strong><small>不同时间档位分别记录排行榜</small></header>
+      <div class="rule-segmented three">
+        <button
+          v-for="seconds in [60, 180, 300]"
+          :key="seconds"
+          type="button"
+          :class="{ active: option('durationSeconds') === seconds }"
+          @click="setOption('durationSeconds', seconds)"
+        >{{ seconds / 60 }} 分钟</button>
+      </div>
+    </section>
+
     <section v-if="gameKey === 'junqi'" class="rule-setting-group">
       <header><strong>军旗玩法</strong><small>选择完整暗棋或轻量翻棋</small></header>
       <div class="rule-option-grid">
@@ -294,7 +320,7 @@ function hasHandicap(): boolean {
       </div>
     </section>
 
-    <section v-if="!['avalon', 'one_night_werewolf', 'reaction', 'schulte', 'minesweeper', 'hanoi', 'poker'].includes(gameKey) && !hasHandicap()" class="rule-setting-group">
+    <section v-if="!['avalon', 'one_night_werewolf', 'reaction', 'schulte', 'minesweeper', 'hanoi', 'tetris', 'poker'].includes(gameKey) && !hasHandicap()" class="rule-setting-group">
       <header><strong>{{ gameKey === 'doudizhu' ? '首叫玩家' : gameKey === 'gomoku' && option('openingRule') === 'swap2' ? '首局摆子者' : '首局先手' }}</strong><small>再来一局时仍会自动轮换</small></header>
       <div class="rule-option-grid">
         <button type="button" :class="{ active: option('firstPlayer') === 'random' }" @click="setOption('firstPlayer', 'random')">
@@ -335,7 +361,7 @@ function hasHandicap(): boolean {
       </div>
     </section>
 
-    <section v-if="!['reaction', 'schulte', 'minesweeper', 'hanoi'].includes(gameKey)" class="rule-setting-group guest-access-rules">
+    <section v-if="!['reaction', 'schulte', 'minesweeper', 'hanoi', 'tetris'].includes(gameKey)" class="rule-setting-group guest-access-rules">
       <header><strong>游客准入</strong><small>包含游客的整局不会写入任何玩家的个人战绩或排行榜</small></header>
       <div class="rule-option-grid">
         <button type="button" :class="{ active: option('allowGuests') }" @click="setOption('allowGuests', true)">
@@ -347,7 +373,7 @@ function hasHandicap(): boolean {
       </div>
     </section>
 
-    <section v-if="gameKey !== 'one_night_werewolf'" class="rule-setting-group spectator-access-rules">
+    <section v-if="!['one_night_werewolf', 'tetris'].includes(gameKey)" class="rule-setting-group spectator-access-rules">
       <header><strong>第一人称观战</strong><small>观众固定观看一名玩家，只能看到该玩家当时可见的内容</small></header>
       <div class="rule-option-grid">
         <button type="button" :class="{ active: option('allowSpectators') }" @click="setOption('allowSpectators', true)">

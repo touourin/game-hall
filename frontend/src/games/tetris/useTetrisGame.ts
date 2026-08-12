@@ -21,6 +21,8 @@ import {
 } from './tetrisEngine'
 
 interface TetrisView {
+  challengeMode: 'endless' | 'timed'
+  durationSeconds: number
   score: number
   lines: number
   level: number
@@ -45,6 +47,7 @@ interface SavedRun {
   pieces: number
   elapsedMs: number
   ended?: boolean
+  endReason?: 'topped_out' | 'timeout'
 }
 
 export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
@@ -63,15 +66,22 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
   const submitting = ref(false)
   const submitted = ref(false)
   const runEnded = ref(false)
+  const endReason = ref<'topped_out' | 'timeout'>('topped_out')
   const submissionError = ref<string | null>(null)
   const lastClear = ref(0)
   let frame: number | null = null
   let lastFrameAt = performance.now()
   let dropAccumulator = 0
   let elapsedAccumulator = 0
+  let saveAccumulator = 0
 
   const storageKey = computed(() => `game-hall:tetris:${snapshot.value.roomCode}`)
   const serverGame = computed(() => snapshot.value.game as unknown as TetrisView)
+  const isTimed = computed(() => snapshot.value.options.challengeMode !== 'endless')
+  const durationMs = computed(() => {
+    const seconds = Number(snapshot.value.options.durationSeconds ?? 180)
+    return [60, 180, 300].includes(seconds) ? seconds * 1_000 : 180_000
+  })
   const level = computed(() => Math.floor(lines.value / 10) + 1)
   const gravityMs = computed(() => Math.max(90, 850 * 0.84 ** (level.value - 1)))
   const nextPieces = computed(() => queue.value.slice(0, 3))
@@ -80,7 +90,12 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
   ))
   const canControl = computed(() => isPlaying.value && !paused.value)
   const formattedTime = computed(() => {
-    const totalSeconds = Math.floor(elapsedMs.value / 1_000)
+    const milliseconds = isTimed.value
+      ? Math.max(0, durationMs.value - elapsedMs.value)
+      : elapsedMs.value
+    const totalSeconds = isTimed.value
+      ? Math.ceil(milliseconds / 1_000)
+      : Math.floor(milliseconds / 1_000)
     const minutes = Math.floor(totalSeconds / 60)
     const seconds = totalSeconds % 60
     return minutes ? `${minutes}:${String(seconds).padStart(2, '0')}` : `${seconds} 秒`
@@ -124,6 +139,7 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
     submitting.value = false
     submitted.value = false
     runEnded.value = false
+    endReason.value = 'topped_out'
     submissionError.value = null
     paused.value = false
     autoPaused.value = false
@@ -131,6 +147,7 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
     active.value = spawnPiece(takePiece())
     dropAccumulator = 0
     elapsedAccumulator = 0
+    saveAccumulator = 0
     lastFrameAt = performance.now()
     saveRun()
   }
@@ -176,7 +193,7 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
     held.value = outgoing
     holdUsed.value = true
     if (!isValidPosition(board.value, active.value)) {
-      void endRun()
+      void endRun('topped_out')
       return
     }
     saveRun()
@@ -195,17 +212,20 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
     holdUsed.value = false
     active.value = spawnPiece(takePiece())
     if (locked.toppedOut || !isValidPosition(board.value, active.value)) {
-      void endRun()
+      void endRun('topped_out')
       return
     }
     saveRun()
   }
 
-  async function endRun() {
+  async function endRun(reason: 'topped_out' | 'timeout') {
     if (runEnded.value || snapshot.value.phase !== 'playing') return
     runEnded.value = true
+    endReason.value = reason
     paused.value = false
-    elapsedMs.value = Math.max(1_000, Math.round(elapsedMs.value))
+    elapsedMs.value = reason === 'timeout'
+      ? durationMs.value
+      : Math.max(1_000, Math.round(elapsedMs.value))
     saveRun()
     await submitFinalScore()
   }
@@ -220,6 +240,7 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
       level: level.value,
       pieces: Math.max(1, pieces.value),
       elapsedMs: elapsedMs.value,
+      endReason: endReason.value,
     })
     if (succeeded) {
       submitted.value = true
@@ -241,14 +262,28 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
   }
 
   function tick(timestamp: number) {
-    const delta = Math.min(50, Math.max(0, timestamp - lastFrameAt))
+    const elapsedDelta = Math.max(0, timestamp - lastFrameAt)
+    const gravityDelta = Math.min(50, elapsedDelta)
     lastFrameAt = timestamp
     if (canControl.value) {
-      dropAccumulator += delta
-      elapsedAccumulator += delta
+      dropAccumulator += gravityDelta
+      elapsedAccumulator += elapsedDelta
+      saveAccumulator += elapsedDelta
       if (elapsedAccumulator >= 100) {
         elapsedMs.value += elapsedAccumulator
         elapsedAccumulator = 0
+        if (isTimed.value && elapsedMs.value >= durationMs.value) {
+          elapsedMs.value = durationMs.value
+          void endRun('timeout')
+        }
+      }
+      if (saveAccumulator >= 1_000) {
+        saveAccumulator = 0
+        saveRun()
+      }
+      if (!canControl.value) {
+        frame = window.requestAnimationFrame(tick)
+        return
       }
       if (dropAccumulator >= gravityMs.value) {
         const candidate = moved(active.value, 0, 1)
@@ -302,6 +337,7 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
       pieces: pieces.value,
       elapsedMs: Math.round(elapsedMs.value),
       ended: runEnded.value,
+      endReason: endReason.value,
     }
     sessionStorage.setItem(storageKey.value, JSON.stringify(saved))
   }
@@ -322,6 +358,7 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
       pieces.value = Number(saved.pieces) || 0
       elapsedMs.value = Number(saved.elapsedMs) || 0
       runEnded.value = Boolean(saved.ended)
+      endReason.value = saved.endReason === 'timeout' ? 'timeout' : 'topped_out'
       ensureQueue()
       return runEnded.value || isValidPosition(board.value, active.value)
     } catch {
@@ -358,7 +395,12 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
   )
 
   onMounted(() => {
-    if (snapshot.value.phase === 'playing' && !restoreRun()) freshRun()
+    if (snapshot.value.phase === 'playing') {
+      if (!restoreRun()) freshRun()
+      else if (isTimed.value && !runEnded.value && elapsedMs.value >= durationMs.value) {
+        void endRun('timeout')
+      }
+    }
     window.addEventListener('keydown', onKeydown, { passive: false })
     document.addEventListener('visibilitychange', onVisibilityChange)
     frame = window.requestAnimationFrame(tick)
@@ -376,6 +418,7 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
     autoPaused,
     canControl,
     displayCells,
+    endReason,
     elapsedMs,
     formattedTime,
     hardDrop,
@@ -383,6 +426,7 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
     holdPiece,
     holdUsed,
     isPlaying,
+    isTimed,
     lastClear,
     level,
     lines,

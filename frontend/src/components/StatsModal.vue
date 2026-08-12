@@ -130,6 +130,11 @@ function difficultyLabel(value: string | null | undefined): string {
   return ''
 }
 
+function tetrisModeLabel(value: string | null | undefined): string {
+  if (value?.startsWith('timed_')) return `${Number(value.slice(6)) / 60} 分钟限时`
+  return '无限挑战'
+}
+
 function avalonModeLabel(
   value: string | null | undefined,
   variant?: AvalonStatsVariant,
@@ -232,6 +237,9 @@ watch([activeGameMode, activeAvalonVariant], loadStats)
         </p>
         <p v-if="selectedMatch.gameKey === 'junqi'" class="match-mode-label">
           {{ selectedMatch.details.options?.mode === 'flip' ? '翻棋军旗' : '暗军旗' }}
+        </p>
+        <p v-if="selectedMatch.gameKey === 'tetris'" class="match-mode-label">
+          {{ tetrisModeLabel(selectedMatch.gameMode) }}
         </p>
 
         <div class="match-detail-result" :class="selectedMatch.winner">
@@ -530,7 +538,7 @@ watch([activeGameMode, activeAvalonVariant], loadStats)
 
       <template v-else>
         <span class="modal-icon"><History :size="24" /></span>
-        <h2>{{ props.gameName ? `${props.gameName}${props.gameKey === 'avalon' ? ` · ${avalonModeLabel(activeGameMode, activeAvalonVariant)}` : difficultyLabel(activeGameMode)}战绩` : '我的全部战绩' }}</h2>
+        <h2>{{ props.gameName ? `${props.gameName}${props.gameKey === 'avalon' ? ` · ${avalonModeLabel(activeGameMode, activeAvalonVariant)}` : props.gameKey === 'tetris' ? ` · ${tetrisModeLabel(activeGameMode)}` : difficultyLabel(activeGameMode)}战绩` : '我的全部战绩' }}</h2>
         <p>{{ props.gameKey === 'reaction' ? '记录每次三轮测试的平均值与单轮明细。' : props.gameKey === 'schulte' ? '记录每次 5×5 标准挑战的完成用时与点击准确率。' : props.gameKey === 'minesweeper' ? '不同难度分别统计通关时间，失败记录也会保留在战绩中。' : props.gameKey === 'tetris' ? '记录每轮最终得分、消行数、等级和使用方块数。' : props.gameKey === 'hanoi' ? '记录每次通关的层数、步数与完成用时。' : '每款游戏独立记录胜负，对局详情绑定当前账号。' }}</p>
 
         <div

@@ -22,12 +22,14 @@ const {
   autoPaused,
   canControl,
   displayCells,
+  endReason,
   formattedTime,
   hardDrop,
   held,
   holdPiece,
   holdUsed,
   isPlaying,
+  isTimed,
   lastClear,
   level,
   lines,
@@ -65,7 +67,7 @@ onMounted(() => {
         { label: '当前得分', value: score.toLocaleString(), tone: 'success' },
         { label: '消除行数', value: lines },
         { label: '当前等级', value: level },
-        { label: '挑战用时', value: formattedTime },
+        { label: isTimed ? '剩余时间' : '挑战用时', value: formattedTime, tone: isTimed ? 'warning' : 'default' },
       ]"
     />
 
@@ -83,6 +85,7 @@ onMounted(() => {
         :paused="paused"
         :auto-paused="autoPaused"
         :run-ended="runEnded"
+        :end-reason="endReason"
         :submitting="submitting"
         :submission-error="submissionError"
         @resume="togglePause"

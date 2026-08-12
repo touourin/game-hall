@@ -96,7 +96,14 @@ export function defaultGameRules(
       allowSpectators: false,
     }
   }
-  if (gameKey === 'reaction' || gameKey === 'schulte' || gameKey === 'tetris') return { allowSpectators: false }
+  if (gameKey === 'reaction' || gameKey === 'schulte') return { allowSpectators: false }
+  if (gameKey === 'tetris') {
+    return {
+      challengeMode: 'timed',
+      durationSeconds: 180,
+      allowSpectators: false,
+    }
+  }
   if (gameKey === 'minesweeper') return { difficulty: 'beginner', allowSpectators: true }
   if (gameKey === 'hanoi') return { discCount: 5, allowSpectators: true }
   const options: Record<string, unknown> = {
@@ -203,7 +210,15 @@ export function gameRuleLabels(
     const discCount = Number(options.discCount)
     return [`${discCount} 层圆盘`, `理论最少 ${2 ** discCount - 1} 步`]
   }
-  if (gameKey === 'tetris') return ['10×20 标准棋盘', '7-bag 随机序列']
+  if (gameKey === 'tetris') {
+    return [
+      options.challengeMode === 'timed'
+        ? `${Number(options.durationSeconds) / 60} 分钟限时`
+        : '无限挑战',
+      '10×20 标准棋盘',
+      '7-bag 随机序列',
+    ]
+  }
   if (gameKey === 'poker') {
     const smallBlind = Number(options.smallBlind)
     return [

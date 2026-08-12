@@ -359,4 +359,31 @@ describe('GameRuleSettings', () => {
     ])
     expect(wrapper.text()).not.toContain('首局先手')
   })
+
+  it('offers timed and endless Tetris challenges', async () => {
+    const rules = defaultGameRules('tetris')
+    const wrapper = mount(GameRuleSettings, {
+      props: { gameKey: 'tetris', modelValue: rules },
+    })
+
+    expect(rules).toEqual({
+      challengeMode: 'timed',
+      durationSeconds: 180,
+      allowSpectators: false,
+    })
+    expect(wrapper.text()).toContain('1 分钟')
+    expect(wrapper.text()).toContain('3 分钟')
+    expect(wrapper.text()).toContain('5 分钟')
+    expect(gameRuleLabels('tetris', rules)[0]).toBe('3 分钟限时')
+
+    const endless = wrapper.findAll('button')
+      .find((button) => button.text().includes('直到方块堆到顶部'))
+    await endless?.trigger('click')
+    const updated = wrapper.emitted('update:modelValue')?.at(-1)?.[0] as Record<string, unknown>
+
+    expect(updated).toMatchObject({ challengeMode: 'endless' })
+    expect(gameRuleLabels('tetris', updated)[0]).toBe('无限挑战')
+    expect(wrapper.text()).not.toContain('首局先手')
+    expect(wrapper.text()).not.toContain('第一人称观战')
+  })
 })

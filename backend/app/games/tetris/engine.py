@@ -11,10 +11,16 @@ MAX_SCORE = 100_000_000
 MAX_LINES = 10_000
 MAX_PIECES = 100_000
 MAX_ELAPSED_MS = 24 * 60 * 60 * 1_000
+CHALLENGE_MODES = {"endless", "timed"}
+TIMED_DURATIONS = {60, 180, 300}
+DEFAULT_CHALLENGE_MODE = "timed"
+DEFAULT_DURATION_SECONDS = 180
 
 
 @dataclass
 class TetrisState:
+    challenge_mode: str = DEFAULT_CHALLENGE_MODE
+    duration_seconds: int = DEFAULT_DURATION_SECONDS
     score: int = 0
     lines: int = 0
     level: int = 1
@@ -32,8 +38,31 @@ class TetrisEngine:
     def initial_state(self) -> TetrisState:
         return TetrisState()
 
+    def room_options(self, options: dict[str, Any]) -> dict[str, Any]:
+        challenge_mode = options.get("challengeMode", DEFAULT_CHALLENGE_MODE)
+        if challenge_mode not in CHALLENGE_MODES:
+            raise GameRuleError("落块挑战模式不正确")
+        duration_seconds = options.get("durationSeconds", DEFAULT_DURATION_SECONDS)
+        if (
+            not isinstance(duration_seconds, int)
+            or isinstance(duration_seconds, bool)
+            or duration_seconds not in TIMED_DURATIONS
+        ):
+            raise GameRuleError("限时挑战时长不正确")
+        return {
+            "challengeMode": challenge_mode,
+            "durationSeconds": duration_seconds,
+        }
+
     def start(self, room: ArcadeRoom) -> None:
-        room.state = self.initial_state()
+        room.state = TetrisState(
+            challenge_mode=room.options.get(
+                "challengeMode", DEFAULT_CHALLENGE_MODE
+            ),
+            duration_seconds=room.options.get(
+                "durationSeconds", DEFAULT_DURATION_SECONDS
+            ),
+        )
         room.phase = "playing"
 
     def act(
@@ -54,6 +83,19 @@ class TetrisEngine:
         elapsed_ms = self._bounded_int(
             payload.get("elapsedMs"), "挑战用时", 1_000, MAX_ELAPSED_MS
         )
+        end_reason = payload.get("endReason", "topped_out")
+        if end_reason not in {"topped_out", "timeout"}:
+            raise GameRuleError("结束原因不正确")
+        state: TetrisState = room.state
+        if state.challenge_mode == "timed":
+            duration_ms = state.duration_seconds * 1_000
+            if elapsed_ms > duration_ms:
+                raise GameRuleError("限时挑战用时超过所选时长")
+            if end_reason == "timeout" and elapsed_ms != duration_ms:
+                raise GameRuleError("限时挑战用时不正确")
+        elif end_reason == "timeout":
+            if state.challenge_mode != "timed":
+                raise GameRuleError("无限挑战不能以倒计时结束")
         expected_level = lines // 10 + 1
         level = self._bounded_int(payload.get("level"), "等级", 1, 1_001)
         if level != expected_level:
@@ -66,21 +108,27 @@ class TetrisEngine:
         if score > pieces * (1_000 * level + 100):
             raise GameRuleError("得分超过本局可达到的范围")
 
-        state: TetrisState = room.state
         state.score = score
         state.lines = lines
         state.level = level
         state.pieces = pieces
         state.elapsed_ms = elapsed_ms
+        result_prefix = (
+            f"{state.duration_seconds // 60} 分钟限时结束"
+            if end_reason == "timeout"
+            else "方块堆至顶部"
+        )
         room.finish(
             "completed",
             [player.id],
-            f"最终得分 {score:,} · 消除 {lines} 行",
+            f"{result_prefix} · 最终得分 {score:,} · 消除 {lines} 行",
         )
 
     def view(self, room: ArcadeRoom, viewer: ArcadePlayer) -> dict[str, Any]:
         state: TetrisState = room.state
         return {
+            "challengeMode": state.challenge_mode,
+            "durationSeconds": state.duration_seconds,
             "score": state.score,
             "lines": state.lines,
             "level": state.level,
@@ -97,9 +145,11 @@ class TetrisEngine:
         state: TetrisState = room.state
         return state.score if room.phase == "finished" else None
 
-    def record_state(self, room: ArcadeRoom) -> dict[str, int]:
+    def record_state(self, room: ArcadeRoom) -> dict[str, int | str]:
         state: TetrisState = room.state
         return {
+            "challenge_mode": state.challenge_mode,
+            "duration_seconds": state.duration_seconds,
             "score": state.score,
             "lines": state.lines,
             "level": state.level,

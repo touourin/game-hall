@@ -209,4 +209,37 @@ describe('StatsModal', () => {
     expect(wrapper.get('.match-court-timeline').text()).toContain('命中梅林')
     expect(wrapper.get('.match-player-list').text()).toContain('已转化')
   })
+
+  it('loads Tetris history for the selected timed mode', async () => {
+    vi.mocked(loadPersonalStats).mockResolvedValue({
+      summary: {
+        games: 0,
+        wins: 0,
+        draws: 0,
+        losses: 0,
+        winRate: 0,
+        goodGames: 0,
+        goodWins: 0,
+        evilGames: 0,
+        evilWins: 0,
+        bestMs: null,
+        averageMs: null,
+        bestScore: null,
+        averageScore: null,
+      },
+      history: [],
+    })
+
+    const wrapper = mount(StatsModal, {
+      props: {
+        gameKey: 'tetris',
+        gameName: '落块挑战',
+        gameMode: 'timed_300',
+      },
+    })
+    await flushPromises()
+
+    expect(loadPersonalStats).toHaveBeenCalledWith('tetris', 'timed_300', undefined)
+    expect(wrapper.get('h2').text()).toContain('5 分钟限时')
+  })
 })

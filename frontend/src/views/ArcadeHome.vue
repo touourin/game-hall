@@ -35,6 +35,13 @@ const showLeaderboard = ref(false)
 const gameKey = computed(() => props.game.key as ArcadeGameKey)
 const rules = ref<Record<string, unknown>>(defaultGameRules(gameKey.value))
 const isSolo = computed(() => isSoloGameKey(props.game.key))
+const statsMode = computed(() => {
+  if (gameKey.value === 'minesweeper') return String(rules.value.difficulty)
+  if (gameKey.value !== 'tetris') return undefined
+  return rules.value.challengeMode === 'endless'
+    ? 'standard'
+    : `timed_${Number(rules.value.durationSeconds ?? 180)}`
+})
 const gameRooms = computed(() =>
   arcade.availableRooms.filter((room) => room.gameKey === props.game.key),
 )
@@ -148,7 +155,7 @@ async function submit() {
     />
 
     <SpectatorBrowser
-      v-if="gameKey !== 'one_night_werewolf'"
+      v-if="!['one_night_werewolf', 'tetris'].includes(gameKey)"
       :game-key="gameKey"
       :game-name="game.name"
       :rooms="watchRooms"
@@ -162,7 +169,7 @@ async function submit() {
       v-if="showStats && !account.isGuest"
       :game-key="game.key"
       :game-name="game.name"
-      :game-mode="game.key === 'minesweeper' ? String(rules.difficulty) : undefined"
+      :game-mode="statsMode"
       @close="showStats = false"
     />
     <LeaderboardModal
@@ -170,7 +177,7 @@ async function submit() {
       :account-id="account.id"
       :game-key="game.key"
       :game-name="game.name"
-      :game-mode="game.key === 'minesweeper' ? String(rules.difficulty) : undefined"
+      :game-mode="statsMode"
       @close="showLeaderboard = false"
     />
   </main>
