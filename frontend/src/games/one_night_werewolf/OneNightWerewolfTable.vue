@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   Check,
-  Clock3,
   Eye,
   Moon,
   Shuffle,
@@ -20,7 +19,6 @@ const roleSeen = ref(false)
 const selectedPlayerIds = ref<string[]>([])
 const selectedCenterIndices = ref<number[]>([])
 const voteTargetId = ref('')
-const nowMs = ref(Date.now())
 
 const game = computed(() => props.snapshot.game as unknown as OneNightWerewolfView)
 const selfRole = computed(() => game.value.self.initialRole)
@@ -33,15 +31,6 @@ const voteTargets = computed(() => props.snapshot.players.filter(
 ))
 const requiredPlayerTargets = computed(() => nightRole.value === 'troublemaker' ? 2 : 1)
 const centerSelectionCount = computed(() => game.value.legal.centerSelectionCount ?? 0)
-const remainingSeconds = computed(() => {
-  if (!game.value.discussionEndsAt) return 0
-  return Math.max(0, Math.ceil((new Date(game.value.discussionEndsAt).getTime() - nowMs.value) / 1000))
-})
-const remainingLabel = computed(() => {
-  const minutes = Math.floor(remainingSeconds.value / 60)
-  const seconds = remainingSeconds.value % 60
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-})
 const nightActionReady = computed(() => {
   if (!nightRole.value) return false
   if (['minion', 'mason', 'insomniac'].includes(nightRole.value)) return true
@@ -53,9 +42,6 @@ const nightActionReady = computed(() => {
   if (centerSelectionCount.value > 0) return selectedCenterIndices.value.length === centerSelectionCount.value
   return selectedPlayerIds.value.length === requiredPlayerTargets.value
 })
-
-let intervalId = window.setInterval(() => { nowMs.value = Date.now() }, 1000)
-onBeforeUnmount(() => window.clearInterval(intervalId))
 
 watch(
   () => [props.snapshot.phase, props.snapshot.revision],
@@ -209,7 +195,7 @@ function submitVote() {
         <div><small>DAYBREAK DISCUSSION</small><h2>天亮了，找出谁变成了狼人</h2><p>结合开局身份、夜间结果和大家的发言推理。最终身份可能已经改变。</p></div>
       </header>
 
-      <div class="surface discussion-clock"><Clock3 :size="25" /><span><small>剩余讨论时间</small><strong>{{ remainingLabel }}</strong></span></div>
+      <div class="surface discussion-status"><Sunrise :size="25" /><span><strong>自由讨论，不限时间</strong><small>确认大家都已完成发言后，由房主开始秘密投票。</small></span></div>
       <PressRevealCard v-if="selfRole" title="我的私密信息" subtitle="按住回顾开局身份与夜间结果" hint="讨论时按住查看">
         <p class="one-night-secret"><strong>开局：{{ selfRole.label }}</strong><br>{{ selfRole.description }}</p>
         <div v-if="game.self.nightResults.length" class="one-night-results">
@@ -217,7 +203,8 @@ function submitVote() {
         </div>
         <p v-else class="one-night-secret">本局没有额外夜间信息。</p>
       </PressRevealCard>
-      <button v-if="game.legal.canStartVote" type="button" class="primary-button wide-button" @click="arcade.action('start_vote')"><Vote :size="18" />房主提前开始投票</button>
+      <button v-if="game.legal.canStartVote" type="button" class="primary-button wide-button" @click="arcade.action('start_vote')"><Vote :size="18" />开始投票</button>
+      <p v-else class="one-night-progress">等待房主开始投票</p>
     </section>
 
     <section v-else-if="snapshot.phase === 'voting'" class="one-night-phase">
@@ -268,7 +255,7 @@ function submitVote() {
 .one-night-secret { max-width: 320px; margin: 0; color: var(--text-soft); font-size: 12px; line-height: 1.65; text-align: center; }.one-night-wait,.moon-waiting { display: flex; align-items: center; justify-content: center; gap: 9px; color: var(--muted); }.one-night-wait > span { width: 8px; aspect-ratio:1; border-radius:50%; background:#9dafea; box-shadow:0 0 14px #9dafea; }.one-night-progress { margin:0; color:var(--muted); text-align:center; }
 .one-night-role-deck { padding:13px; display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:7px; }.one-night-role-deck strong { margin-right:4px; font-size:12px; }.one-night-role-deck span { border:1px solid rgba(157,175,234,.18); border-radius:999px; padding:5px 8px; color:#b9c7ff; background:rgba(119,139,215,.09); font-size:10px; font-weight:800; }
 .night-phase { min-height: 430px; }.night-action-card { padding: clamp(16px,4vw,24px); display:grid; gap:16px; }.one-night-targets,.one-night-centers { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:9px; }.one-night-targets button,.one-night-centers button { min-height:76px; display:grid; place-items:center; gap:5px; border:1px solid var(--line); border-radius:13px; color:var(--text); background:var(--surface-inset); cursor:pointer; }.one-night-targets b { width:28px; aspect-ratio:1; display:grid; place-items:center; border-radius:50%; color:#b9c7ff; background:rgba(119,139,215,.15); }.one-night-targets button.selected,.one-night-centers button.selected { border-color:#9dafea; background:rgba(119,139,215,.13); box-shadow:inset 0 0 0 1px rgba(157,175,234,.18); }.night-actions { display:flex; justify-content:flex-end; gap:9px; }.moon-waiting { min-height:230px; padding:30px; flex-direction:column; text-align:center; }.moon-waiting svg { color:#9dafea; }.moon-waiting strong { font-family:"Songti SC",serif; font-size:24px; }.moon-waiting span { max-width:380px; color:var(--muted); line-height:1.55; }
-.discussion-clock { display:flex; align-items:center; justify-content:center; gap:12px; padding:16px; color:#b9c7ff; }.discussion-clock span { display:grid; }.discussion-clock small { color:var(--muted); }.discussion-clock strong { font-size:28px; font-variant-numeric:tabular-nums; letter-spacing:.08em; }.one-night-results { display:grid; gap:6px; max-width:320px; }.one-night-results span { border:1px solid rgba(157,175,234,.2); border-radius:10px; padding:8px; background:rgba(11,16,39,.55); font-size:11px; line-height:1.5; }
+.discussion-status { display:flex; align-items:center; justify-content:center; gap:12px; padding:16px; color:#b9c7ff; }.discussion-status span { display:grid; gap:3px; }.discussion-status small { color:var(--muted); line-height:1.5; }.discussion-status strong { font-size:16px; }.one-night-results { display:grid; gap:6px; max-width:320px; }.one-night-results span { border:1px solid rgba(157,175,234,.2); border-radius:10px; padding:8px; background:rgba(11,16,39,.55); font-size:11px; line-height:1.5; }
 .final-vote-card { padding:22px; display:grid; gap:12px; }.final-vote-card label { font-weight:850; }.final-vote-card select { min-height:48px; border:1px solid var(--line); border-radius:11px; padding:0 12px; color:var(--text); background:var(--surface-inset); }
 .resolution-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:10px; }.resolution-player { padding:15px; display:grid; gap:12px; }.resolution-player.eliminated { border-color:color-mix(in srgb,var(--red) 45%,var(--line)); }.resolution-player.winner { box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--green) 35%,transparent); }.resolution-player header { display:flex; align-items:center; justify-content:space-between; gap:8px; }.resolution-player header span { border-radius:999px; padding:4px 7px; color:var(--green); background:color-mix(in srgb,var(--green) 10%,transparent); font-size:10px; }.resolution-player dl { margin:0; display:grid; grid-template-columns:1fr 1fr; gap:8px; }.resolution-player dl div { border-radius:9px; padding:8px; background:var(--surface-inset); }.resolution-player dt { color:var(--muted); font-size:10px; }.resolution-player dd { margin:3px 0 0; font-weight:850; }.resolution-player p { margin:0; color:var(--muted); font-size:11px; }.revealed-centers { padding:15px; display:flex; align-items:center; flex-wrap:wrap; gap:8px; }.revealed-centers strong { margin-right:auto; }.revealed-centers span { border-radius:999px; padding:6px 9px; color:#b9c7ff; background:rgba(119,139,215,.12); }
 @media(max-width:560px){.night-actions{align-items:stretch;flex-direction:column}.one-night-targets{grid-template-columns:repeat(2,minmax(0,1fr))}.resolution-grid{grid-template-columns:1fr}.revealed-centers{align-items:stretch;flex-direction:column}.revealed-centers strong{margin:0}.revealed-centers span{text-align:center}}

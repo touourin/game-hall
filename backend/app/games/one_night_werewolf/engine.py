@@ -3,7 +3,6 @@ from __future__ import annotations
 import random
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.app.arcade.models import ArcadePlayer, ArcadeRoom
@@ -25,17 +24,17 @@ ROLE_LABELS = {
 }
 
 ROLE_DESCRIPTIONS = {
-    "werewolf": "寻找其他狼人并隐藏身份；若你是唯一醒来的狼人，可以偷看一张中央牌。",
-    "minion": "你会看到开局的狼人。只要狼人阵营达成目标，你通常也会一同获胜。",
-    "mason": "你会看到另一名守夜人；若没有同伴，他就在中央牌中。",
-    "seer": "查看另一名玩家的牌，或查看两张中央牌。",
-    "robber": "可以与另一名玩家交换身份，并查看自己刚拿到的牌。",
-    "troublemaker": "可以交换另外两名玩家的身份，但不能查看牌面。",
-    "drunk": "必须与一张中央牌交换，但不能查看自己拿到的牌。",
-    "insomniac": "夜晚最后查看自己当前的身份。",
-    "villager": "没有夜间能力，请根据大家的发言找出狼人。",
-    "tanner": "你希望自己被投票处决；只有成功被处决才会获胜。",
-    "hunter": "如果你被处决，你投票选择的玩家也会一同死亡。",
+    "werewolf": "查看开局的其他狼人；若你是唯一醒来的狼人，可以查看一张中央牌。",
+    "minion": "查看开局的狼人。场上最终有狼人时跟随狼人胜负；没有狼人时，需要让一名爪牙以外的玩家被处决。",
+    "mason": "查看开局的另一名守夜人；没有同伴醒来时，另一张守夜人牌在中央。",
+    "seer": "选择查看一名其他玩家的牌，或者查看两张不同的中央牌。",
+    "robber": "可以不行动；也可以与一名其他玩家交换牌，并查看自己交换后拿到的牌。",
+    "troublemaker": "可以不行动；也可以交换两名其他玩家的牌，但不能查看任何被交换的牌。",
+    "drunk": "必须与一张中央牌交换，且不能查看自己交换后拿到的牌。",
+    "insomniac": "在夜间行动的最后查看自己的当前身份，确认是否被换牌。",
+    "villager": "没有夜间技能，只能结合发言、已知信息和其他玩家的行动推理。",
+    "tanner": "属于独立阵营；最终身份为皮匠、自己被处决且狼人阵营没有获胜时获胜。",
+    "hunter": "如果最终身份为猎人并被处决，猎人投票选择的玩家也会一同死亡。",
 }
 
 ROLE_ALIGNMENTS = {
@@ -79,9 +78,6 @@ PRESET_ROLE_ORDERS = {
     ),
 }
 
-DISCUSSION_SECONDS = {180, 300, 480}
-
-
 @dataclass
 class NightResult:
     kind: str
@@ -98,7 +94,6 @@ class OneNightWerewolfState:
     current_actor_ids: set[str] = field(default_factory=set)
     completed_actor_ids: set[str] = field(default_factory=set)
     night_results: dict[str, list[NightResult]] = field(default_factory=dict)
-    discussion_ends_at: datetime | None = None
     votes: dict[str, str] = field(default_factory=dict)
     eliminated_player_ids: list[str] = field(default_factory=list)
     vote_counts: dict[str, int] = field(default_factory=dict)
@@ -128,19 +123,11 @@ class OneNightWerewolfEngine:
         preset = options.get("rolePreset", "standard")
         if preset not in PRESET_ROLE_ORDERS:
             raise GameRuleError("请选择有效的角色组合")
-        discussion_seconds = options.get("discussionSeconds", 300)
-        if (
-            isinstance(discussion_seconds, bool)
-            or not isinstance(discussion_seconds, int)
-            or discussion_seconds not in DISCUSSION_SECONDS
-        ):
-            raise GameRuleError("讨论时间只能选择 3、5 或 8 分钟")
         listed = options.get("listed", True)
         if not isinstance(listed, bool):
             raise GameRuleError("公开房间设置格式不正确")
         return {
             "rolePreset": preset,
-            "discussionSeconds": discussion_seconds,
             "listed": listed,
             # First-person spectating would expose the target's private role.
             "allowSpectators": False,
@@ -177,35 +164,19 @@ class OneNightWerewolfEngine:
         else:
             raise GameRuleError("不支持这个一夜狼人操作")
 
-    def maintain(
-        self,
-        room: ArcadeRoom,
-        now: datetime,
-    ) -> bool:
-        state = self._state(room)
-        if (
-            room.phase == "discussion"
-            and state.discussion_ends_at is not None
-            and now >= state.discussion_ends_at
-        ):
-            room.phase = "voting"
-            state.discussion_ends_at = None
-            room.revision += 1
-            return True
-        return False
-
     def view(self, room: ArcadeRoom, viewer: ArcadePlayer) -> dict[str, Any]:
         state = self._state(room)
+        role_guide = [self._role_view(role) for role in ROLE_LABELS]
         if not state.initial_roles:
             return {
                 "roleDeck": [],
+                "roleGuide": role_guide,
                 "presetLabel": PRESET_LABELS.get(
                     str(room.options.get("rolePreset", "standard")),
                     "标准疑云",
                 ),
                 "self": {"initialRole": None, "nightResults": []},
                 "night": {"isMyTurn": False, "prompt": None},
-                "discussionEndsAt": None,
                 "votesSubmitted": 0,
                 "hasVoted": False,
                 "resolution": None,
@@ -229,6 +200,7 @@ class OneNightWerewolfEngine:
         )
         return {
             "roleDeck": [self._role_view(role) for role in state.role_deck],
+            "roleGuide": role_guide,
             "presetLabel": PRESET_LABELS[str(room.options["rolePreset"])],
             "self": {
                 "initialRole": self._role_view(initial_role),
@@ -247,11 +219,6 @@ class OneNightWerewolfEngine:
                 "isMyTurn": is_my_turn,
                 "prompt": self._night_prompt(active_role),
             },
-            "discussionEndsAt": (
-                state.discussion_ends_at.isoformat()
-                if state.discussion_ends_at is not None
-                else None
-            ),
             "votesSubmitted": len(state.votes),
             "hasVoted": viewer.id in state.votes,
             "resolution": (
@@ -333,7 +300,6 @@ class OneNightWerewolfEngine:
         state = self._state(room)
         return {
             "rolePreset": room.options.get("rolePreset"),
-            "discussionSeconds": room.options.get("discussionSeconds"),
             "initialRoles": list(state.initial_roles),
             "finalRoles": list(state.current_roles),
             "votes": dict(state.votes),
@@ -390,9 +356,6 @@ class OneNightWerewolfEngine:
                 state.current_actor_ids = actor_ids
                 return
         room.phase = "discussion"
-        state.discussion_ends_at = datetime.now(timezone.utc) + timedelta(
-            seconds=int(room.options["discussionSeconds"])
-        )
 
     def _night_action(
         self,
@@ -598,8 +561,7 @@ class OneNightWerewolfEngine:
         if room.phase != "discussion":
             raise GameRuleError("当前不是讨论阶段")
         if player.id != room.host_id:
-            raise GameRuleError("只有房主可以提前开始投票")
-        state.discussion_ends_at = None
+            raise GameRuleError("只有房主可以开始投票")
         room.phase = "voting"
 
     def _vote(
@@ -689,20 +651,16 @@ class OneNightWerewolfEngine:
                 if killed_tanners:
                     reason += "，皮匠也达成了自己的目标"
                 return "village", winners, reason
-            winners = [*werewolf_team_ids, *killed_tanners]
-            reason = "没有狼人被处决"
-            if killed_tanners:
-                reason += "，皮匠也达成了自己的目标"
-            return "werewolf", winners, reason
+            return "werewolf", werewolf_team_ids, "没有狼人被处决"
 
         if minion_ids:
             killed_others = eliminated - minion_ids
             if killed_others:
-                winners = [*minion_ids, *killed_tanners]
-                reason = "场上没有狼人，爪牙诱导村庄处决了其他人"
-                if killed_tanners:
-                    reason += "，皮匠也达成了自己的目标"
-                return "werewolf", winners, reason
+                return (
+                    "werewolf",
+                    list(minion_ids),
+                    "场上没有狼人，爪牙诱导村庄处决了其他人",
+                )
             if not eliminated:
                 return "village", village_ids, "场上没有狼人，村庄正确地没有处决任何人"
             return "none", [], "场上没有狼人，但只有爪牙被处决，本局无人达成胜利条件"

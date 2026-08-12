@@ -79,6 +79,8 @@ import HanoiGame from '../games/hanoi/HanoiGame.vue'
 import TetrisGame from '../games/tetris/TetrisGame.vue'
 import MonopolyBoard from '../games/monopoly/MonopolyBoard.vue'
 import OneNightWerewolfTable from '../games/one_night_werewolf/OneNightWerewolfTable.vue'
+import OneNightWerewolfRules from '../games/one_night_werewolf/OneNightWerewolfRules.vue'
+import type { OneNightWerewolfView } from '../games/one_night_werewolf/types'
 import PokerTable from '../games/poker/PokerTable.vue'
 import AvalonTable from '../games/avalon/AvalonTable.vue'
 import { thirdPartyGameComponent } from '../thirdPartyGameRegistry'
@@ -95,6 +97,7 @@ const showQr = ref(false)
 const showPlayerNumbers = ref(false)
 const showIdentity = ref(false)
 const showAvalonRules = ref(false)
+const showOneNightRules = ref(false)
 const sharedChat = ref<{ openChat: () => Promise<void> } | null>(null)
 const activeGameSkin = ref<GameSkinId>(storedGameSkin())
 const isSpectating = computed(() => props.snapshot.viewer?.mode === 'spectator')
@@ -102,6 +105,14 @@ const perspectivePlayer = computed(() => props.snapshot.players.find(
   (player) => player.id === props.snapshot.self.id,
 ) ?? null)
 const roomSpectators = computed(() => props.snapshot.spectators ?? [])
+const oneNightSnapshot = computed(() => (
+  props.snapshot.gameKey === 'one_night_werewolf'
+    ? props.snapshot.game as unknown as OneNightWerewolfView
+    : null
+))
+const oneNightActiveRoleCodes = computed(() => (
+  [...new Set(oneNightSnapshot.value?.roleDeck.map(role => role.code) ?? [])]
+))
 const viewerIsGuest = computed(() => (
   props.snapshot.viewer?.isGuest ?? props.snapshot.self.isGuest
 ))
@@ -563,6 +574,15 @@ function openSharedChat() {
         >
           <CircleHelp :size="21" />
         </button>
+        <button
+          v-if="oneNightSnapshot"
+          class="header-action"
+          type="button"
+          aria-label="查看一夜狼人规则与角色"
+          @click="showOneNightRules = true"
+        >
+          <CircleHelp :size="21" />
+        </button>
         <RoomDissolveButton
           v-if="snapshot.actions.canDissolve"
           :busy="arcade.busy"
@@ -661,6 +681,7 @@ function openSharedChat() {
         <span>掉线保护 10 分钟</span>
       </div>
       <div class="room-rule-actions">
+        <button v-if="oneNightSnapshot" type="button" @click="showOneNightRules = true">规则与角色</button>
         <button v-if="snapshot.actions.canEditRules" type="button" @click="openRuleEditor">{{ snapshot.phase === 'finished' ? '修改下局规则' : '修改规则' }}</button>
       </div>
     </section>
@@ -879,6 +900,21 @@ function openSharedChat() {
         </section>
       </section>
     </div>
+
+    <div v-if="showOneNightRules && oneNightSnapshot" class="modal-backdrop" @click.self="showOneNightRules = false">
+      <section class="modal-card one-night-rules-modal" role="dialog" aria-modal="true" aria-label="一夜狼人规则与角色说明">
+        <button class="modal-close" type="button" aria-label="关闭规则与角色说明" @click="showOneNightRules = false">
+          <X :size="20" />
+        </button>
+        <span class="modal-icon"><CircleHelp :size="25" /></span>
+        <h2>一夜狼人 · 规则与角色</h2>
+        <p>玩法流程、角色技能、行动限制与胜负条件统一整理在这里。</p>
+        <OneNightWerewolfRules
+          :roles="oneNightSnapshot.roleGuide"
+          :active-role-codes="oneNightActiveRoleCodes"
+        />
+      </section>
+    </div>
   </main>
 </template>
 
@@ -928,6 +964,7 @@ function openSharedChat() {
 .result-banner .rematch-progress { margin-bottom: 0; font-size: 11px; }
 .result-banner .primary-button { margin: 12px auto 0; }
 .rule-editor-modal { width: min(94vw, 620px); max-height: min(88vh, 820px); overflow-y: auto; }
+.one-night-rules-modal { width:min(94vw,780px); max-height:min(88vh,880px); overflow-y:auto; }
 .rule-editor-modal > p { margin: -4px 0 20px; color: var(--muted); }
 .rule-editor-modal > .wide-button { margin-top: 22px; }
 @media (max-width: 860px) {

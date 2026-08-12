@@ -833,4 +833,39 @@ describe('ArcadeRoom', () => {
     )
     expect(wrapper.find('.rule-editor-modal').exists()).toBe(false)
   })
+
+  it('opens the one night werewolf flow and role guide from one place', async () => {
+    const room = snapshot('one_night_werewolf')
+    room.gameName = '一夜狼人'
+    room.options = { rolePreset: 'standard', listed: true, allowSpectators: false }
+    room.game = {
+      roleDeck: [],
+      roleGuide: [
+        { code: 'werewolf', label: '狼人', alignment: 'werewolf', description: '查看其他狼人。' },
+        { code: 'seer', label: '预言家', alignment: 'village', description: '查看玩家牌或中央牌。' },
+        { code: 'tanner', label: '皮匠', alignment: 'tanner', description: '希望自己被处决。' },
+      ],
+      self: { initialRole: null, nightResults: [] },
+      night: { isMyTurn: false, prompt: null },
+      votesSubmitted: 0,
+      hasVoted: false,
+      resolution: null,
+      legal: {},
+    }
+    const wrapper = mount(ArcadeRoom, {
+      props: { snapshot: room },
+      global: { plugins: [createPinia()] },
+    })
+
+    const guideButton = wrapper
+      .findAll('.room-rule-actions button')
+      .find(button => button.text().includes('规则与角色'))
+    await guideButton?.trigger('click')
+
+    const guide = wrapper.get('.one-night-rules-modal')
+    expect(guide.text()).toContain('玩法流程、角色技能、行动限制与胜负条件')
+    expect(guide.text()).toContain('狼人')
+    expect(guide.text()).toContain('预言家')
+    expect(guide.text()).toContain('皮匠')
+  })
 })

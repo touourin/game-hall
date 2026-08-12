@@ -8,6 +8,21 @@ import {
 import GameRuleSettings from './GameRuleSettings.vue'
 
 describe('GameRuleSettings', () => {
+  it('keeps one night werewolf discussion untimed', () => {
+    const rules = defaultGameRules('one_night_werewolf')
+    const wrapper = mount(GameRuleSettings, {
+      props: {
+        gameKey: 'one_night_werewolf',
+        modelValue: rules,
+      },
+    })
+
+    expect(rules).not.toHaveProperty('discussionSeconds')
+    expect(gameRuleLabels('one_night_werewolf', rules)).toContain('不限时讨论')
+    expect(wrapper.text()).not.toContain('晨间讨论')
+    expect(wrapper.text()).not.toContain('3 分钟')
+  })
+
   it('keeps the court undercurrent story, role, and rules in one guide', async () => {
     const wrapper = mount(GameRuleSettings, {
       props: {

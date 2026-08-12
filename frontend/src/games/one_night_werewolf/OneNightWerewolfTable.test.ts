@@ -3,9 +3,15 @@ import { mount } from '@vue/test-utils'
 import { vi } from 'vitest'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadePhase, ArcadeSnapshot } from '../../types/arcade'
+import OneNightWerewolfRules from './OneNightWerewolfRules.vue'
 import OneNightWerewolfTable from './OneNightWerewolfTable.vue'
+import type { OneNightRole } from './types'
 
-const role = (code: string, label: string, alignment = 'village') => ({
+const role = (
+  code: string,
+  label: string,
+  alignment: OneNightRole['alignment'] = 'village',
+): OneNightRole => ({
   code,
   label,
   alignment,
@@ -26,7 +32,7 @@ function snapshot(phase: ArcadePhase = 'role_reveal'): ArcadeSnapshot {
     gameKey: 'one_night_werewolf',
     gameName: '一夜狼人',
     phase,
-    options: { rolePreset: 'standard', discussionSeconds: 300, allowSpectators: false },
+    options: { rolePreset: 'standard', allowSpectators: false },
     hostId: 'p1',
     self: { id: 'p1', name: '甲', seat: 0 },
     players,
@@ -52,6 +58,12 @@ function snapshot(phase: ArcadePhase = 'role_reveal'): ArcadeSnapshot {
     chat: { maxLength: 300, messages: [] },
     game: {
       roleDeck: [role('werewolf', '狼人', 'werewolf'), role('seer', '预言家')],
+      roleGuide: [
+        role('werewolf', '狼人', 'werewolf'),
+        role('seer', '预言家'),
+        role('robber', '强盗'),
+        role('villager', '村民'),
+      ],
       presetLabel: '标准疑云',
       self: {
         initialRole: role('seer', '预言家'),
@@ -60,7 +72,6 @@ function snapshot(phase: ArcadePhase = 'role_reveal'): ArcadeSnapshot {
       },
       roleConfirmedCount: 1,
       night: { isMyTurn: false, prompt: null },
-      discussionEndsAt: phase === 'discussion' ? new Date(Date.now() + 120_000).toISOString() : null,
       votesSubmitted: phase === 'voting' ? 1 : 0,
       hasVoted: false,
       resolution: phase === 'finished' ? {
@@ -85,6 +96,28 @@ function snapshot(phase: ArcadePhase = 'role_reveal'): ArcadeSnapshot {
 }
 
 describe('OneNightWerewolfTable', () => {
+  it('keeps the full flow, role skills, and victory rules in one guide', () => {
+    const wrapper = mount(OneNightWerewolfRules, {
+      props: {
+        roles: [
+          role('werewolf', '狼人', 'werewolf'),
+          role('seer', '预言家'),
+          role('tanner', '皮匠', 'tanner'),
+          role('hunter', '猎人'),
+        ],
+        activeRoleCodes: ['werewolf', 'seer'],
+      },
+    })
+
+    expect(wrapper.text()).toContain('一局怎么玩')
+    expect(wrapper.text()).toContain('夜间行动顺序')
+    expect(wrapper.text()).toContain('角色技能')
+    expect(wrapper.text()).toContain('胜负判定')
+    expect(wrapper.text()).toContain('开局身份决定夜间技能')
+    expect(wrapper.findAll('.one-night-role-guide article')).toHaveLength(4)
+    expect(wrapper.findAll('.one-night-role-guide article.active')).toHaveLength(2)
+  })
+
   it('reuses hold-to-reveal before allowing identity confirmation', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)
@@ -107,14 +140,20 @@ describe('OneNightWerewolfTable', () => {
 
   it('shows private night evidence only inside the reveal card during discussion', async () => {
     const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const action = vi.spyOn(arcade, 'action').mockResolvedValue()
     const wrapper = mount(OneNightWerewolfTable, {
       props: { snapshot: snapshot('discussion') },
       global: { plugins: [pinia] },
     })
 
+    expect(wrapper.text()).toContain('自由讨论，不限时间')
+    expect(wrapper.text()).not.toContain('剩余讨论时间')
     expect(wrapper.text()).not.toContain('乙的牌是狼人')
     await wrapper.get('.press-reveal-card').trigger('pointerdown')
     expect(wrapper.text()).toContain('乙的牌是狼人')
+    await wrapper.get('.wide-button').trigger('click')
+    expect(action).toHaveBeenCalledWith('start_vote')
   })
 
   it('submits one locked vote and renders final role changes', async () => {

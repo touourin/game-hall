@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import random
-from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from backend.app.arcade.models import ArcadePlayer, ArcadeRoom
-from backend.app.arcade.rooms import ArcadeRoomManager
 from backend.app.games.base import GameRuleError
 from backend.app.games.one_night_werewolf.engine import (
     OneNightWerewolfEngine,
@@ -38,7 +36,6 @@ def make_room(
         state=engine.initial_state(),
         options=engine.room_options({
             "rolePreset": preset,
-            "discussionSeconds": 300,
             "listed": True,
         }),
     )
@@ -105,7 +102,7 @@ def finish_simple_night(engine: OneNightWerewolfEngine, room: ArcadeRoom) -> Non
             engine.act(room, player, "night_action", payload)
 
 
-def test_room_options_force_private_spectating_and_validate_timer() -> None:
+def test_room_options_force_private_spectating() -> None:
     engine = OneNightWerewolfEngine()
     options = engine.room_options({
         "rolePreset": "chaos",
@@ -115,12 +112,9 @@ def test_room_options_force_private_spectating_and_validate_timer() -> None:
     })
     assert options == {
         "rolePreset": "chaos",
-        "discussionSeconds": 480,
         "listed": False,
         "allowSpectators": False,
     }
-    with pytest.raises(GameRuleError, match="3、5 或 8"):
-        engine.room_options({"discussionSeconds": 60})
 
 
 def test_player_view_keeps_other_roles_private_until_resolution() -> None:
@@ -189,40 +183,18 @@ def test_seer_can_view_two_center_cards_without_changing_them() -> None:
     assert "皮匠" in state.night_results["p1"][0].text
 
 
-def test_discussion_deadline_advances_to_secret_voting() -> None:
+def test_discussion_is_untimed_and_host_starts_secret_voting() -> None:
     engine, room = make_room()
-    state = force_roles(
+    force_roles(
         room,
         ["villager", "villager", "hunter", "werewolf", "minion", "tanner"],
     )
     confirm_everyone(engine, room)
     assert room.phase == "discussion"
-    assert state.discussion_ends_at is not None
-    changed = engine.maintain(
-        room,
-        state.discussion_ends_at + timedelta(milliseconds=1),
-    )
-    assert changed is True
-    assert room.phase == "voting"
-    assert state.discussion_ends_at is None
-
-
-def test_room_maintenance_broadcasts_the_automatic_vote_transition() -> None:
-    engine, room = make_room()
-    state = force_roles(
-        room,
-        ["villager", "villager", "hunter", "werewolf", "minion", "tanner"],
-    )
-    confirm_everyone(engine, room)
-    assert state.discussion_ends_at is not None
-    manager = ArcadeRoomManager({engine.key: engine})
-    manager.rooms[room.code] = room
-
-    changed = manager.maintain(
-        now=state.discussion_ends_at + timedelta(milliseconds=1),
-    )
-
-    assert changed == [room]
+    with pytest.raises(GameRuleError, match="只有房主"):
+        engine.act(room, room.players[1], "start_vote", {})
+    assert room.phase == "discussion"
+    engine.act(room, room.players[0], "start_vote", {})
     assert room.phase == "voting"
 
 
@@ -245,7 +217,7 @@ def test_vote_kills_tied_leaders_and_hunter_target_then_village_wins() -> None:
     assert set(room.winner_player_ids) == {"p1", "p3", "p4", "p5"}
 
 
-def test_tanner_wins_when_executed_without_a_wolf_death() -> None:
+def test_tanner_loses_when_executed_without_a_wolf_death() -> None:
     engine, room = make_room()
     force_roles(
         room,
@@ -256,10 +228,10 @@ def test_tanner_wins_when_executed_without_a_wolf_death() -> None:
     engine.act(room, room.players[1], "vote", {"targetPlayerId": "p1"})
     engine.act(room, room.players[2], "vote", {"targetPlayerId": "p1"})
     assert room.winner == "werewolf"
-    assert set(room.winner_player_ids) == {"p1", "p2"}
+    assert set(room.winner_player_ids) == {"p2"}
 
 
-def test_lone_minion_and_tanner_can_both_win_when_tanner_dies() -> None:
+def test_lone_minion_wins_but_tanner_does_not_when_tanner_dies() -> None:
     engine, room = make_room()
     force_roles(
         room,
@@ -270,7 +242,24 @@ def test_lone_minion_and_tanner_can_both_win_when_tanner_dies() -> None:
     engine.act(room, room.players[1], "vote", {"targetPlayerId": "p1"})
     engine.act(room, room.players[2], "vote", {"targetPlayerId": "p1"})
     assert room.winner == "werewolf"
-    assert set(room.winner_player_ids) == {"p1", "p2"}
+    assert set(room.winner_player_ids) == {"p2"}
+
+
+def test_tanner_and_village_win_together_when_tanner_and_wolf_die() -> None:
+    engine, room = make_room(4)
+    force_roles(
+        room,
+        [
+            "tanner", "werewolf", "villager", "villager",
+            "seer", "robber", "minion",
+        ],
+        phase="voting",
+    )
+    votes = {"p1": "p2", "p2": "p1", "p3": "p1", "p4": "p2"}
+    for player in room.players:
+        engine.act(room, player, "vote", {"targetPlayerId": votes[player.id]})
+    assert room.winner == "village"
+    assert set(room.winner_player_ids) == {"p1", "p3", "p4"}
 
 
 def test_only_killing_the_minion_in_a_no_wolf_game_has_no_winner() -> None:

@@ -80,13 +80,6 @@ function hasHandicap(): boolean {
     </section>
 
     <section v-if="gameKey === 'one_night_werewolf'" class="rule-setting-group">
-      <header><strong>晨间讨论</strong><small>倒计时结束后由服务端自动进入秘密投票</small></header>
-      <div class="rule-segmented three">
-        <button v-for="seconds in [180, 300, 480]" :key="seconds" type="button" :class="{ active: option('discussionSeconds') === seconds }" @click="setOption('discussionSeconds', seconds)">{{ seconds / 60 }} 分钟</button>
-      </div>
-    </section>
-
-    <section v-if="gameKey === 'one_night_werewolf'" class="rule-setting-group">
       <header><strong>房间发现</strong><small>进行中固定关闭观战，避免第一人称视角泄露私密身份</small></header>
       <div class="rule-option-grid">
         <button type="button" :class="{ active: option('listed') }" @click="setOption('listed', true)">

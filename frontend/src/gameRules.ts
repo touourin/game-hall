@@ -91,7 +91,6 @@ export function defaultGameRules(
   if (gameKey === 'one_night_werewolf') {
     return {
       rolePreset: 'standard',
-      discussionSeconds: 300,
       listed: true,
       allowGuests: true,
       allowSpectators: false,
@@ -187,7 +186,7 @@ export function gameRuleLabels(
     return [
       '3–10 人',
       preset,
-      `${Number(options.discussionSeconds) / 60} 分钟讨论`,
+      '不限时讨论',
       options.listed ? '公开房间' : '私密房间',
       options.allowGuests ? '允许游客' : '仅登录玩家',
     ]

@@ -17,6 +17,7 @@ export interface OneNightResolutionPlayer {
 
 export interface OneNightWerewolfView {
   roleDeck: OneNightRole[]
+  roleGuide: OneNightRole[]
   presetLabel: string
   self: {
     initialRole: OneNightRole | null
@@ -28,7 +29,6 @@ export interface OneNightWerewolfView {
     isMyTurn: boolean
     prompt: string | null
   }
-  discussionEndsAt: string | null
   votesSubmitted: number
   hasVoted: boolean
   resolution: {
