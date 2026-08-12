@@ -71,6 +71,13 @@ export interface EquipmentPlayOptionView {
   fields: EquipmentFieldView[]
 }
 
+export interface FlashbangIntegrityCardView {
+  index: number
+  kind: IntegrityKind
+  label: string
+  revealed: boolean
+}
+
 export interface SuspicionGameView {
   turnPlayerId: string | null
   turnNumber: number
@@ -96,11 +103,13 @@ export interface SuspicionGameView {
     source: string
     scannerPlayerId: string | null
     isMyDecision: boolean
+    scannerActivated: boolean
   }
   choice: null | {
     kind: string
     isMyDecision: boolean
     cards?: EquipmentView[]
+    integrityCards?: FlashbangIntegrityCardView[]
     shooterPlayerId?: string
     targetPlayerIds?: string[]
   }
@@ -120,7 +129,6 @@ export interface SuspicionGameView {
   legal: {
     canTakeNormalAction: boolean
     normalActionIds: Array<'investigate' | 'equip' | 'arm' | 'shoot'>
-    canPassNormalAction: boolean
     investigationTargetPlayerIds: string[]
     canTakeExtraInvestigation: boolean
     canEndTurn: boolean

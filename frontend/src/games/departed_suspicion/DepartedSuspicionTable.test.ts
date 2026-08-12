@@ -117,8 +117,7 @@ function snapshot(response = false, allOwnRevealed = false, restrictedToEquip = 
       } : null,
       legal: {
         canTakeNormalAction: !response,
-        normalActionIds: response || allOwnRevealed ? [] : restrictedToEquip ? ['equip'] : ['investigate', 'equip', 'arm'],
-        canPassNormalAction: !response && allOwnRevealed,
+        normalActionIds: response ? [] : restrictedToEquip ? ['equip'] : ['investigate', 'equip', 'arm'],
         investigationTargetPlayerIds: response ? [] : ['p2', 'p3', 'p4'],
         canTakeExtraInvestigation: false,
         canEndTurn: false,
@@ -140,6 +139,46 @@ function snapshot(response = false, allOwnRevealed = false, restrictedToEquip = 
       rulesNotice: '卧底牌能力尚未启用。',
     },
   }
+}
+
+function scannerSnapshot(activated: boolean): ArcadeSnapshot {
+  const current = snapshot()
+  const game = current.game as unknown as SuspicionGameView
+  const target = game.players[1]
+  if (!target) throw new Error('fixture is missing the scanner target')
+  if (activated) {
+    const kinds = ['honest', 'crooked', 'kingpin'] as const
+    const labels = ['正直', '腐败', '头目']
+    target.cards.forEach((card, index) => {
+      card.kind = kinds[index] ?? 'honest'
+      card.label = labels[index] ?? '正直'
+      card.knowledge = 'known'
+      card.knowledgeKey = `target-${index}`
+    })
+  }
+  game.pendingShot = {
+    targetPlayerId: 'p2',
+    source: 'gun',
+    scannerPlayerId: 'p1',
+    isMyDecision: true,
+    scannerActivated: activated,
+  }
+  game.waiting = { kind: 'thumbprint_scanner', playerId: 'p1' }
+  game.currentPrompt = {
+    kind: 'thumbprint_scanner',
+    title: '玩家2中枪，底细与伤害尚未结算',
+    detail: activated ? '玩家1已使用指纹扫描器。' : '等待玩家1决定是否使用指纹扫描器。',
+    decisionPlayerId: 'p1',
+    isMyDecision: true,
+    actorPlayerId: null,
+    targetPlayerId: 'p2',
+    targetCardIndex: null,
+    sourceCardId: 'thumbprint_scanner',
+  }
+  game.legal.canTakeNormalAction = false
+  game.legal.normalActionIds = []
+  game.legal.investigationTargetPlayerIds = []
+  return current
 }
 
 describe('DepartedSuspicionTable', () => {
@@ -261,6 +300,86 @@ describe('DepartedSuspicionTable', () => {
     })
   })
 
+  it('submits the fingerprint kit self-target and return-to-hand choice', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const actionWithResult = vi.spyOn(arcade, 'actionWithResult').mockResolvedValue(true)
+    const current = snapshot()
+    const game = current.game as unknown as SuspicionGameView
+    const fingerprintKit = {
+      ...catalogCard,
+      id: 'fingerprint_kit',
+      number: 19,
+      name: '指纹工具',
+      englishName: 'Fingerprint Kit',
+      description: '调查任意玩家一张暗置底细；公开自己一张暗牌可收回本牌。',
+    }
+    game.equipmentHand = [fingerprintKit]
+    game.equipmentCatalog = [fingerprintKit]
+    game.legal.playableEquipmentIds = ['fingerprint_kit']
+    game.legal.equipmentOptions = [{
+      cardId: 'fingerprint_kit',
+      fields: [
+        {
+          key: 'targetSeat',
+          label: '调查目标',
+          kind: 'player',
+          required: true,
+          options: [{ value: 0, label: '玩家1' }, { value: 1, label: '玩家2' }],
+        },
+        {
+          key: 'cardIndex',
+          label: '目标暗置底细',
+          kind: 'card',
+          required: true,
+          dependsOn: 'targetSeat',
+          optionsByValue: {
+            '0': [{ value: 0, label: '第1张' }],
+            '1': [{ value: 1, label: '第2张' }],
+          },
+        },
+        {
+          key: 'returnToHand',
+          label: '公开自己一张暗牌，让指纹工具回到手中',
+          kind: 'boolean',
+          required: false,
+          default: false,
+        },
+        {
+          key: 'ownCardIndex',
+          label: '公开自己的底细',
+          kind: 'card',
+          required: true,
+          options: [{ value: 1, label: '第2张 · 腐败' }],
+          visibleWhen: { field: 'returnToHand', equals: true },
+        },
+      ],
+    }]
+
+    const wrapper = mount(DepartedSuspicionTable, {
+      props: { snapshot: current },
+      global: { plugins: [pinia] },
+    })
+    await wrapper.get('.equipment-hand article button').trigger('click')
+    let selects = wrapper.findAll('.equipment-fields select')
+    expect(selects).toHaveLength(2)
+    await selects[0]?.setValue('0')
+    await selects[1]?.setValue('0')
+    await wrapper.get('.equipment-fields input[type="checkbox"]').setValue(true)
+    selects = wrapper.findAll('.equipment-fields select')
+    expect(selects).toHaveLength(3)
+    await selects[2]?.setValue('1')
+    await wrapper.get('.suspicion-modal .primary-button').trigger('click')
+
+    expect(actionWithResult).toHaveBeenCalledWith('play_equipment', {
+      cardId: 'fingerprint_kit',
+      targetSeat: 0,
+      cardIndex: 0,
+      returnToHand: true,
+      ownCardIndex: 1,
+    })
+  })
+
   it('renders dependent equipment fields from the server contract', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)
@@ -341,7 +460,146 @@ describe('DepartedSuspicionTable', () => {
     })
   })
 
-  it('offers a skip when an all-revealed player has no legal normal action', async () => {
+  it('lets the flashbang target privately choose all three new positions', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const action = vi.spyOn(arcade, 'action').mockResolvedValue()
+    const current = snapshot()
+    const game = current.game as unknown as SuspicionGameView
+    game.choice = {
+      kind: 'flashbang',
+      isMyDecision: true,
+      integrityCards: [
+        { index: 0, kind: 'honest', label: '正直', revealed: false },
+        { index: 1, kind: 'crooked', label: '腐败', revealed: true },
+        { index: 2, kind: 'agent', label: '探员', revealed: false },
+      ],
+    }
+    game.waiting = { kind: 'flashbang', playerId: 'p1' }
+    game.currentPrompt = {
+      kind: 'flashbang',
+      title: '玩家2对玩家1使用了闪光弹',
+      detail: '由玩家1决定自己三张底细的新顺序。',
+      decisionPlayerId: 'p1',
+      isMyDecision: true,
+      actorPlayerId: 'p2',
+      targetPlayerId: null,
+      targetCardIndex: null,
+      sourceCardId: 'flashbang',
+    }
+
+    const wrapper = mount(DepartedSuspicionTable, {
+      props: { snapshot: current },
+      global: { plugins: [pinia] },
+    })
+    const selects = wrapper.findAll('.decision-panel select')
+    expect(selects).toHaveLength(3)
+    expect(wrapper.get('.decision-panel .primary-button').attributes('disabled')).toBeDefined()
+    await selects[0]?.setValue('2')
+    await selects[1]?.setValue('0')
+    await selects[2]?.setValue('1')
+    await wrapper.get('.decision-panel .primary-button').trigger('click')
+
+    expect(action).toHaveBeenCalledWith('reorder_integrity', {
+      cardOrder: [2, 0, 1],
+    })
+  })
+
+  it('lets the truth serum target choose one of their own hidden cards', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const action = vi.spyOn(arcade, 'action').mockResolvedValue()
+    const current = snapshot()
+    const game = current.game as unknown as SuspicionGameView
+    const firstCard = game.players[0]?.cards[0]
+    if (!firstCard) throw new Error('fixture is missing the target card')
+    firstCard.revealed = true
+    game.choice = {
+      kind: 'truth_serum',
+      isMyDecision: true,
+    }
+    game.waiting = { kind: 'truth_serum', playerId: 'p1' }
+    game.currentPrompt = {
+      kind: 'truth_serum',
+      title: '玩家2对玩家1使用了吐真剂',
+      detail: '玩家1必须选择自己的一张暗置底细永久公开。',
+      decisionPlayerId: 'p1',
+      isMyDecision: true,
+      actorPlayerId: 'p2',
+      targetPlayerId: null,
+      targetCardIndex: null,
+      sourceCardId: 'truth_serum',
+    }
+
+    const wrapper = mount(DepartedSuspicionTable, {
+      props: { snapshot: current },
+      global: { plugins: [pinia] },
+    })
+    const choices = wrapper.findAll('.card-choice-list button')
+    expect(choices.map(button => button.text())).toEqual([
+      '公开第2张',
+      '公开第3张',
+    ])
+    await choices[0]?.trigger('click')
+
+    expect(action).toHaveBeenCalledWith('choose_reveal', { cardIndex: 1 })
+  })
+
+  it('does not expose the shot target before the scanner is activated', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const action = vi.spyOn(arcade, 'action').mockResolvedValue()
+    const wrapper = mount(DepartedSuspicionTable, {
+      props: { snapshot: scannerSnapshot(false) },
+      global: { plugins: [pinia] },
+    })
+
+    const panel = wrapper.get('.urgent-panel')
+    expect(panel.text()).toContain('底细尚未公开')
+    expect(panel.find('select').exists()).toBe(false)
+    const buttons = panel.findAll('button')
+    expect(buttons.map(button => button.text())).toEqual(['使用并私看', '不使用'])
+    await buttons[0]?.trigger('click')
+    await buttons[1]?.trigger('click')
+
+    expect(action).toHaveBeenNthCalledWith(1, 'use_scanner')
+    expect(action).toHaveBeenNthCalledWith(2, 'pass_scanner')
+  })
+
+  it('lets an activated scanner exchange or continue without exchanging', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const action = vi.spyOn(arcade, 'action').mockResolvedValue()
+    const wrapper = mount(DepartedSuspicionTable, {
+      props: { snapshot: scannerSnapshot(true) },
+      global: { plugins: [pinia] },
+    })
+
+    const panel = wrapper.get('.urgent-panel')
+    const selects = panel.findAll('select')
+    expect(selects).toHaveLength(2)
+    expect(selects[1]?.text()).toContain('正直')
+    expect(selects[1]?.text()).toContain('腐败')
+    expect(selects[1]?.text()).not.toContain('头目')
+    const buttons = panel.findAll('button')
+    expect(buttons.map(button => button.text())).toEqual([
+      '交换并继续结算',
+      '不交换，继续结算',
+    ])
+    expect(buttons[0]?.attributes('disabled')).toBeDefined()
+    await selects[0]?.setValue('0')
+    await selects[1]?.setValue('1')
+    await buttons[0]?.trigger('click')
+    await buttons[1]?.trigger('click')
+
+    expect(action).toHaveBeenNthCalledWith(1, 'resolve_scanner', {
+      ownCardIndex: 0,
+      targetCardIndex: 1,
+    })
+    expect(action).toHaveBeenNthCalledWith(2, 'resolve_scanner')
+  })
+
+  it('lets an all-revealed player equip without choosing an integrity card', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)
     const action = vi.spyOn(arcade, 'action').mockResolvedValue()
@@ -350,15 +608,36 @@ describe('DepartedSuspicionTable', () => {
       global: { plugins: [pinia] },
     })
 
-    expect(wrapper.findAll('.action-grid button')).toHaveLength(0)
-    const skip = wrapper.get('.extra-action')
-    expect(skip.text()).toContain('没有合法行动')
-    await skip.trigger('click')
+    const equip = wrapper.findAll('.action-grid button').find(button => button.text().includes('获取装备'))
+    expect(equip).toBeDefined()
+    await equip?.trigger('click')
+    expect(wrapper.find('.action-form select').exists()).toBe(false)
+    await wrapper.get('.action-form .primary-button').trigger('click')
 
-    expect(action).toHaveBeenCalledWith('pass_turn')
+    expect(action).toHaveBeenCalledWith('equip', {})
   })
 
-  it('lets a fully revealed Crutches-revived player skip instead of equipping for free', async () => {
+  it('lets an all-revealed player arm by choosing only a target', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const action = vi.spyOn(arcade, 'action').mockResolvedValue()
+    const wrapper = mount(DepartedSuspicionTable, {
+      props: { snapshot: snapshot(false, true) },
+      global: { plugins: [pinia] },
+    })
+
+    const arm = wrapper.findAll('.action-grid button').find(button => button.text().includes('武装'))
+    expect(arm).toBeDefined()
+    await arm?.trigger('click')
+    const selects = wrapper.findAll('.action-form select')
+    expect(selects).toHaveLength(1)
+    await selects[0]?.setValue('1')
+    await wrapper.get('.action-form .primary-button').trigger('click')
+
+    expect(action).toHaveBeenCalledWith('arm', { targetSeat: 1 })
+  })
+
+  it('lets a fully revealed Crutches-revived player perform its required equip action', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)
     const action = vi.spyOn(arcade, 'action').mockResolvedValue()
@@ -369,11 +648,14 @@ describe('DepartedSuspicionTable', () => {
 
     expect(wrapper.get('.turn-console').text()).toContain('拐杖复活限制：此后只能获取装备')
     const actionButtons = wrapper.findAll('.action-grid button')
-    expect(actionButtons).toHaveLength(0)
+    expect(actionButtons).toHaveLength(1)
+    expect(actionButtons[0]?.text()).toContain('获取装备')
 
-    await wrapper.get('.extra-action').trigger('click')
+    await actionButtons[0]?.trigger('click')
+    expect(wrapper.find('.action-form select').exists()).toBe(false)
+    await wrapper.get('.action-form .primary-button').trigger('click')
 
-    expect(action).toHaveBeenCalledWith('pass_turn')
+    expect(action).toHaveBeenCalledWith('equip', {})
   })
 
   it('places actionable controls before the player board', () => {

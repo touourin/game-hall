@@ -29,17 +29,20 @@ interface KnownIntegrityView {
   card: IntegrityView
 }
 
+type ActionKind = 'investigate' | 'equip' | 'arm' | 'shoot' | 'extra_investigate'
+
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
 const game = computed(() => props.snapshot.game as unknown as SuspicionGameView)
 const historyEntries = computed(() => [...game.value.history].reverse().map((entry) => entry.text))
-const actionKind = ref<'investigate' | 'equip' | 'arm' | 'shoot' | 'extra_investigate' | null>(null)
+const actionKind = ref<ActionKind | null>(null)
 const actionTargetSeat = ref<number | null>(null)
 const actionCardIndex = ref<number | null>(null)
 const endAimSeat = ref<number | null>(null)
 const equipmentCard = ref<EquipmentView | null>(null)
 const equipmentValues = ref<Record<string, boolean | number | null>>({})
 const choiceTargetSeat = ref<number | null>(null)
+const flashbangOrder = ref<Array<number | null>>([null, null, null])
 const scannerOwnCardIndex = ref<number | null>(null)
 const scannerTargetCardIndex = ref<number | null>(null)
 const showCatalog = ref(false)
@@ -64,6 +67,20 @@ const actionTargetBoards = computed(() => {
 })
 const pendingTargetBoard = computed(() => game.value.players.find(board => board.playerId === game.value.pendingShot?.targetPlayerId) ?? null)
 const canOperate = computed(() => !arcade.busy && !game.value.waiting)
+const actionReady = computed(() => {
+  if (actionKind.value === 'shoot') return true
+  if (actionKind.value === 'equip') {
+    return !selfHiddenCards.value.length || actionCardIndex.value !== null
+  }
+  if (actionKind.value === 'arm') {
+    return actionTargetSeat.value !== null
+      && (!selfHiddenCards.value.length || actionCardIndex.value !== null)
+  }
+  if (actionKind.value === 'investigate' || actionKind.value === 'extra_investigate') {
+    return actionTargetSeat.value !== null && actionCardIndex.value !== null
+  }
+  return false
+})
 const responseCards = computed(() => game.value.equipmentHand.filter(card => game.value.legal.responseEquipmentIds.includes(card.id)))
 const knownIntegrityCards = computed<KnownIntegrityView[]>(() => {
   const items: KnownIntegrityView[] = []
@@ -87,6 +104,10 @@ const equipmentOption = computed(() => (
 ))
 const choiceTargetPlayerIds = computed(() => new Set(game.value.choice?.targetPlayerIds ?? []))
 const postShotTargetPlayerIds = computed(() => new Set(game.value.postShot?.targetPlayerIds ?? []))
+const flashbangReady = computed(() => (
+  flashbangOrder.value.every(index => index !== null)
+  && new Set(flashbangOrder.value).size === 3
+))
 
 let previousKnowledgeKeys = new Set(knownIntegrityCards.value.map(item => item.key))
 
@@ -102,12 +123,19 @@ watch(
 )
 
 watch(
-  () => [game.value.turnNumber, game.value.pendingAction?.action, game.value.waiting?.kind],
+  () => [
+    game.value.turnNumber,
+    game.value.pendingAction?.action,
+    game.value.waiting?.kind,
+    game.value.pendingShot?.targetPlayerId,
+    game.value.pendingShot?.scannerActivated,
+  ],
   () => {
     actionKind.value = null
     actionTargetSeat.value = null
     actionCardIndex.value = null
     choiceTargetSeat.value = null
+    flashbangOrder.value = [null, null, null]
     if (selfBoard.value?.aimPlayerId) {
       endAimSeat.value = game.value.players.find(board => board.playerId === selfBoard.value?.aimPlayerId)?.seat ?? null
     }
@@ -123,7 +151,7 @@ function teamLabel(team: 'honest' | 'crooked' | null): string {
   return team === 'honest' ? '正直阵营' : team === 'crooked' ? '腐败阵营' : '身份未明'
 }
 
-function chooseAction(kind: typeof actionKind.value) {
+function chooseAction(kind: ActionKind) {
   actionKind.value = kind
   actionTargetSeat.value = null
   actionCardIndex.value = null
@@ -131,28 +159,32 @@ function chooseAction(kind: typeof actionKind.value) {
 
 async function submitAction() {
   const kind = actionKind.value
-  if (!kind) return
+  if (!kind || !actionReady.value) return
   if (kind === 'shoot') {
     await arcade.action('shoot')
     return
   }
   if (kind === 'equip') {
-    if (actionCardIndex.value === null) return
-    await arcade.action('equip', { cardIndex: actionCardIndex.value })
+    const cardIndex = actionCardIndex.value
+    await arcade.action('equip', cardIndex === null ? {} : { cardIndex })
     return
   }
   if (kind === 'arm') {
-    if (actionTargetSeat.value === null || actionCardIndex.value === null) return
-    await arcade.action('arm', {
-      cardIndex: actionCardIndex.value,
-      targetSeat: actionTargetSeat.value,
-    })
+    const targetSeat = actionTargetSeat.value
+    if (targetSeat === null) return
+    const cardIndex = actionCardIndex.value
+    await arcade.action(
+      'arm',
+      cardIndex === null ? { targetSeat } : { targetSeat, cardIndex },
+    )
     return
   }
-  if (actionTargetSeat.value === null || actionCardIndex.value === null) return
+  const targetSeat = actionTargetSeat.value
+  const cardIndex = actionCardIndex.value
+  if (targetSeat === null || cardIndex === null) return
   await arcade.action(kind, {
-    targetSeat: actionTargetSeat.value,
-    cardIndex: actionCardIndex.value,
+    targetSeat,
+    cardIndex,
   })
 }
 
@@ -240,6 +272,13 @@ async function chooseEquipment(cardId: string) {
   await arcade.action('choose_equipment', { cardId })
 }
 
+async function reorderIntegrity() {
+  if (!flashbangReady.value) return
+  await arcade.action('reorder_integrity', {
+    cardOrder: [...flashbangOrder.value],
+  })
+}
+
 async function chooseRedirect() {
   if (choiceTargetSeat.value === null) return
   await arcade.action('choose_redirect', { targetSeat: choiceTargetSeat.value })
@@ -256,8 +295,16 @@ async function useMobileDetonator() {
 }
 
 async function useScanner() {
+  await arcade.action('use_scanner')
+}
+
+async function resolveScanner(exchange: boolean) {
+  if (!exchange) {
+    await arcade.action('resolve_scanner')
+    return
+  }
   if (scannerOwnCardIndex.value === null || scannerTargetCardIndex.value === null) return
-  await arcade.action('use_scanner', {
+  await arcade.action('resolve_scanner', {
     ownCardIndex: scannerOwnCardIndex.value,
     targetCardIndex: scannerTargetCardIndex.value,
   })
@@ -327,20 +374,23 @@ async function useScanner() {
     </section>
 
     <section v-if="game.pendingShot?.isMyDecision" class="decision-panel surface urgent-panel">
-      <div><span class="panel-icon"><Eye :size="20" /></span><div><strong>指纹扫描器响应</strong><small>{{ playerName(game.pendingShot.targetPlayerId) }}已公开全部底细，伤害尚未结算</small></div></div>
-      <label>用自己的底细交换
-        <select v-model="scannerOwnCardIndex">
-          <option :value="null">选择底细</option>
-          <option v-for="card in selfBoard?.cards" :key="card.index" :value="card.index">第{{ card.index + 1 }}张</option>
-        </select>
-      </label>
-      <label>取得目标的普通底细
-        <select v-model="scannerTargetCardIndex">
-          <option :value="null">选择正直/腐败底细</option>
-          <option v-for="card in pendingTargetBoard?.cards.filter(item => item.kind === 'honest' || item.kind === 'crooked')" :key="card.index" :value="card.index">第{{ card.index + 1 }}张 · {{ card.label }}</option>
-        </select>
-      </label>
-      <div class="decision-actions"><button type="button" class="primary-button" @click="useScanner">交换并继续结算</button><button type="button" @click="arcade.action('pass_scanner')">不使用</button></div>
+      <div><span class="panel-icon"><Eye :size="20" /></span><div><strong>指纹扫描器响应</strong><small>{{ playerName(game.pendingShot.targetPlayerId) }}的全部底细尚未公开，伤害尚未结算</small></div></div>
+      <template v-if="game.pendingShot.scannerActivated">
+        <label>用自己的底细交换
+          <select v-model="scannerOwnCardIndex">
+            <option :value="null">选择底细</option>
+            <option v-for="card in selfBoard?.cards" :key="card.index" :value="card.index">第{{ card.index + 1 }}张</option>
+          </select>
+        </label>
+        <label>取得目标的普通底细
+          <select v-model="scannerTargetCardIndex">
+            <option :value="null">选择正直/腐败底细</option>
+            <option v-for="card in pendingTargetBoard?.cards.filter(item => item.kind === 'honest' || item.kind === 'crooked')" :key="card.index" :value="card.index">第{{ card.index + 1 }}张 · {{ card.label }}</option>
+          </select>
+        </label>
+        <div class="decision-actions"><button type="button" class="primary-button" :disabled="scannerOwnCardIndex === null || scannerTargetCardIndex === null" @click="resolveScanner(true)">交换并继续结算</button><button type="button" @click="resolveScanner(false)">不交换，继续结算</button></div>
+      </template>
+      <div v-else class="decision-actions"><button type="button" class="primary-button" @click="useScanner">使用并私看</button><button type="button" @click="arcade.action('pass_scanner')">不使用</button></div>
     </section>
 
     <section v-if="game.choice?.isMyDecision" class="decision-panel surface">
@@ -350,6 +400,15 @@ async function useScanner() {
       </div>
       <div v-else-if="game.choice.kind === 'report_audit' || game.choice.kind === 'truth_serum'" class="card-choice-list">
         <button v-for="card in selfBoard?.cards.filter(item => !item.revealed)" :key="card.index" type="button" @click="chooseReveal(card.index)">公开第{{ card.index + 1 }}张</button>
+      </div>
+      <div v-else-if="game.choice.kind === 'flashbang'" class="decision-actions">
+        <label v-for="position in 3" :key="position">新位置 {{ position }}
+          <select v-model="flashbangOrder[position - 1]">
+            <option :value="null">选择底细</option>
+            <option v-for="card in game.choice.integrityCards" :key="card.index" :value="card.index">原第{{ card.index + 1 }}张 · {{ card.label }}{{ card.revealed ? '（公开）' : '（暗置）' }}</option>
+          </select>
+        </label>
+        <button type="button" class="primary-button" :disabled="arcade.busy || !flashbangReady" @click="reorderIntegrity">确认新顺序</button>
       </div>
       <div v-else-if="game.choice.kind === 'inspection_gloves'" class="decision-actions">
         <button v-if="selfBoard?.equipmentCount" type="button" @click="arcade.action('inspection_choice', { choice: 'discard_equipment' })">弃掉装备</button>
@@ -369,18 +428,17 @@ async function useScanner() {
       <label>连锁目标
         <select v-model="choiceTargetSeat"><option :value="null">请选择</option><option v-for="board in livingBoards.filter(item => postShotTargetPlayerIds.has(item.playerId))" :key="board.seat" :value="board.seat">{{ playerName(board.playerId) }}</option></select>
       </label>
-      <div class="decision-actions"><button type="button" class="primary-button" @click="useMobileDetonator">引爆</button><button type="button" @click="arcade.action('pass_mobile_detonator')">保留不用</button></div>
+      <div class="decision-actions"><button type="button" class="primary-button" @click="useMobileDetonator">引爆</button><button type="button" @click="arcade.action('pass_mobile_detonator')">不引爆</button></div>
     </section>
 
     <section v-if="game.legal.canTakeNormalAction || game.legal.canTakeExtraInvestigation || game.legal.canEndTurn" class="turn-console surface">
       <header><div><strong>行动台</strong><small>{{ game.actionDone ? '可以结束回合' : selfBoard?.restrictedToEquip ? '拐杖复活限制：此后只能获取装备' : '行动声明后，系统按座位顺序询问装备响应' }}</small></div></header>
       <div v-if="game.legal.canTakeNormalAction" class="action-grid" :class="{ restricted: normalActionIds.length === 1 }">
         <button v-if="normalActionIds.includes('investigate')" type="button" :class="{ active: actionKind === 'investigate' }" @click="chooseAction('investigate')"><Search :size="18" /><span><strong>调查</strong><small>私看一张暗置底细</small></span></button>
-        <button v-if="normalActionIds.includes('equip')" type="button" :class="{ active: actionKind === 'equip' }" @click="chooseAction('equip')"><PackageOpen :size="18" /><span><strong>获取装备</strong><small>公开一张暗牌后抽装备</small></span></button>
-        <button v-if="normalActionIds.includes('arm')" type="button" :class="{ active: actionKind === 'arm' }" @click="chooseAction('arm')"><Crosshair :size="18" /><span><strong>武装</strong><small>公开一张暗牌，再拿枪瞄准</small></span></button>
+        <button v-if="normalActionIds.includes('equip')" type="button" :class="{ active: actionKind === 'equip' }" @click="chooseAction('equip')"><PackageOpen :size="18" /><span><strong>获取装备</strong><small>抽一张装备；若有暗牌则公开一张</small></span></button>
+        <button v-if="normalActionIds.includes('arm')" type="button" :class="{ active: actionKind === 'arm' }" @click="chooseAction('arm')"><Crosshair :size="18" /><span><strong>武装</strong><small>拿枪瞄准；若有暗牌则公开一张</small></span></button>
         <button v-if="normalActionIds.includes('shoot')" type="button" :class="{ active: actionKind === 'shoot' }" @click="chooseAction('shoot')"><Target :size="18" /><span><strong>射击</strong><small>只能射向当前瞄准目标</small></span></button>
       </div>
-      <button v-if="game.legal.canPassNormalAction" type="button" class="extra-action" @click="arcade.action('pass_turn')"><SkipForward :size="16" />没有合法行动 · 跳过</button>
       <button v-if="game.legal.canTakeExtraInvestigation" type="button" class="extra-action" :class="{ active: actionKind === 'extra_investigate' }" @click="chooseAction('extra_investigate')"><Search :size="16" />钥匙 · 额外调查</button>
 
       <div v-if="actionKind" class="action-form">
@@ -390,10 +448,10 @@ async function useScanner() {
         <label v-if="actionKind === 'investigate' || actionKind === 'extra_investigate'">目标底细
           <select v-model="actionCardIndex"><option :value="null">选择暗置底细</option><option v-for="card in targetBoard?.cards.filter(item => !item.revealed)" :key="card.index" :value="card.index">第{{ card.index + 1 }}张</option></select>
         </label>
-        <label v-if="actionKind === 'equip' || actionKind === 'arm'">公开自己的底细
+        <label v-if="(actionKind === 'equip' || actionKind === 'arm') && selfHiddenCards.length">公开自己的底细
           <select v-model="actionCardIndex"><option :value="null">选择暗置底细</option><option v-for="card in selfHiddenCards" :key="card.index" :value="card.index">第{{ card.index + 1 }}张</option></select>
         </label>
-        <button type="button" class="primary-button" :disabled="!canOperate" @click="submitAction">声明{{ actionKind === 'extra_investigate' ? '额外调查' : actionKind === 'investigate' ? '调查' : actionKind === 'equip' ? '获取装备' : actionKind === 'arm' ? '武装' : '射击' }}</button>
+        <button type="button" class="primary-button" :disabled="!canOperate || !actionReady" @click="submitAction">声明{{ actionKind === 'extra_investigate' ? '额外调查' : actionKind === 'investigate' ? '调查' : actionKind === 'equip' ? '获取装备' : actionKind === 'arm' ? '武装' : '射击' }}</button>
       </div>
 
       <div v-if="game.legal.canEndTurn" class="end-turn-row">
