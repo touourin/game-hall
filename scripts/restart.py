@@ -12,6 +12,7 @@ from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_HEALTH_TIMEOUT = 120
+DEPLOY_BRANCH = "main"
 
 
 def positive_integer(raw_value: str) -> int:
@@ -29,9 +30,9 @@ def parse_args() -> argparse.Namespace:
         description="Rebuild and restart the game hall with Docker Compose.",
     )
     parser.add_argument(
-        "--pull",
+        "--no-pull",
         action="store_true",
-        help="pull the current Git branch with --ff-only first",
+        help="skip Git updates and rebuild the currently checked-out code",
     )
     parser.add_argument(
         "--timeout",
@@ -92,36 +93,79 @@ def validate_environment() -> None:
         ) from error
 
 
-def pull_current_branch() -> None:
+def validate_source_checkout() -> None:
     require_command("git", "Git is not installed or is not in PATH")
-    if not (PROJECT_DIR / ".git").is_dir():
+    checkout = run(
+        ["git", "rev-parse", "--is-inside-work-tree"],
+        capture_output=True,
+        check=False,
+    )
+    if checkout.returncode != 0 or checkout.stdout.strip() != "true":
         fail(f"{PROJECT_DIR} is not a Git checkout")
 
     status = run(
-        ["git", "status", "--porcelain", "--untracked-files=no"],
+        [
+            "git",
+            "status",
+            "--porcelain",
+            "--untracked-files=no",
+            "--ignore-submodules=all",
+        ],
         capture_output=True,
     ).stdout
     if status.strip():
-        fail("Git working tree is not clean; commit or stash changes before --pull")
+        fail("Git working tree is not clean; commit or stash tracked changes first")
 
     branch = run(
         ["git", "rev-parse", "--abbrev-ref", "HEAD"],
         capture_output=True,
     ).stdout.strip()
-    if branch == "HEAD":
-        fail("cannot pull while Git is in detached HEAD state")
+    if branch != DEPLOY_BRANCH:
+        fail(
+            f"restart deployments must run from branch {DEPLOY_BRANCH!r}; "
+            f"current branch is {branch!r}"
+        )
 
-    log(f"Pulling Git branch {branch}")
-    run(["git", "pull", "--ff-only"])
 
-
-def sync_submodules() -> None:
+def reset_submodules_to_recorded_commits() -> None:
     if not (PROJECT_DIR / ".gitmodules").is_file():
         return
-    require_command("git", "Git is not installed or is not in PATH")
-    log("Synchronizing Git submodules")
+    log("Preparing Git submodules for the main-branch update")
     run(["git", "submodule", "sync", "--recursive"])
-    run(["git", "submodule", "update", "--init", "--recursive"])
+    run(["git", "submodule", "update", "--init", "--recursive", "--checkout"])
+
+
+def pull_main_branch() -> None:
+    log(f"Updating the main repository from origin/{DEPLOY_BRANCH}")
+    run(["git", "pull", "--ff-only", "origin", DEPLOY_BRANCH])
+
+
+def update_submodules_from_remotes() -> None:
+    if not (PROJECT_DIR / ".gitmodules").is_file():
+        return
+    log("Updating Git submodules from their configured remote branches")
+    run(["git", "submodule", "sync", "--recursive"])
+    run(
+        [
+            "git",
+            "submodule",
+            "update",
+            "--init",
+            "--remote",
+            "--recursive",
+            "--checkout",
+        ]
+    )
+
+
+def update_sources() -> None:
+    validate_source_checkout()
+    # A previous deployment may have advanced a submodule beyond the commit
+    # recorded by the parent repository. Put it back first so the parent can
+    # fast-forward cleanly, then advance it to its configured remote branch.
+    reset_submodules_to_recorded_commits()
+    pull_main_branch()
+    update_submodules_from_remotes()
 
 
 def container_status() -> str:
@@ -188,11 +232,10 @@ def wait_until_healthy(timeout: int) -> None:
 def main() -> int:
     args = parse_args()
     validate_environment()
-
-    if args.pull:
-        pull_current_branch()
-
-    sync_submodules()
+    if args.no_pull:
+        log("Skipping Git updates because --no-pull was specified")
+    else:
+        update_sources()
 
     run(["docker", "compose", "config", "--quiet"])
 
