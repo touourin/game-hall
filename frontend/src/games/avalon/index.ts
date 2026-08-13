@@ -2,7 +2,7 @@ import { defineAsyncComponent } from 'vue'
 import avalonArtwork from '../../assets/game-hall/icons/avalon.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
-import { avalonLeaderboard } from './records'
+import { avalonLeaderboard, avalonStats } from './records'
 import { avalonRules } from './rules'
 
 export const avalonGame = defineBuiltinGame({
@@ -31,7 +31,11 @@ export const avalonGame = defineBuiltinGame({
     skinKind: null,
   },
   rules: { ...avalonRules, settingsComponent: RuleSettings },
-  records: { leaderboard: avalonLeaderboard },
+  records: {
+    leaderboard: avalonLeaderboard,
+    stats: avalonStats,
+    matchDetailComponent: defineAsyncComponent(() => import('./MatchDetail.vue')),
+  },
 })
 
 export default avalonGame

@@ -1,5 +1,10 @@
 import type { Component } from 'vue'
-import type { LeaderboardEntry } from '../stats'
+import type {
+  LeaderboardEntry,
+  MatchDetail,
+  MatchHistoryItem,
+  StatsSummary,
+} from '../stats'
 import type { BuiltinArcadeGameKey } from '../types/arcade'
 
 export type BuiltinGameRoomLayout = 'standard' | 'wide' | 'immersive'
@@ -80,6 +85,28 @@ export interface BuiltinGameLeaderboardFilter {
   variant?: string
 }
 
+export interface BuiltinGameStatsSummaryItem {
+  value: string | number
+  label: string
+}
+
+export interface BuiltinGameStatsPresentation {
+  defaultMode?: string
+  defaultVariant?: (mode: string | undefined) => string | undefined
+  titleSuffix?: (mode: string | undefined, variant: string | undefined) => string
+  description: string
+  filters?: readonly BuiltinGameLeaderboardFilter[]
+  summaryItems: (summary: StatsSummary) => readonly BuiltinGameStatsSummaryItem[]
+  summaryComponent?: Component
+  showDrawSummary?: boolean
+  historyOutcome: (match: MatchHistoryItem) => string
+  historyTitle: (match: MatchHistoryItem) => string
+  historyMeta: (match: MatchHistoryItem, formattedDate: string) => string
+  detailModeLabel?: (match: MatchDetail) => string
+  detailWinnerLabel: (match: MatchDetail) => string
+  detailNote: (match: MatchDetail) => string
+}
+
 export interface BuiltinGameLeaderboardPresentation {
   defaultMode?: string
   defaultVariant?: (mode: string | undefined) => string | undefined
@@ -93,6 +120,8 @@ export interface BuiltinGameLeaderboardPresentation {
 
 export interface BuiltinGameRecords {
   leaderboard?: BuiltinGameLeaderboardPresentation
+  stats?: BuiltinGameStatsPresentation
+  matchDetailComponent?: Component
 }
 
 export interface BuiltinGameDefinition<

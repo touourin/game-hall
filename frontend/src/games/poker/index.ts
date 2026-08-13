@@ -2,6 +2,7 @@ import { defineAsyncComponent } from 'vue'
 import pokerArtwork from '../../assets/game-hall/icons/poker.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
+import { pokerStats } from './records'
 
 export const pokerGame = defineBuiltinGame({
   key: 'poker',
@@ -46,6 +47,7 @@ export const pokerGame = defineBuiltinGame({
       ]
     },
   },
+  records: { stats: pokerStats },
 })
 
 export default pokerGame

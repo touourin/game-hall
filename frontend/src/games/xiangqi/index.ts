@@ -2,6 +2,7 @@ import { defineAsyncComponent } from 'vue'
 import xiangqiArtwork from '../../assets/game-hall/icons/xiangqi.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
+import { xiangqiStats } from './records'
 import { xiangqiRules } from './rules'
 
 export const xiangqiGame = defineBuiltinGame({
@@ -30,6 +31,7 @@ export const xiangqiGame = defineBuiltinGame({
     skinKind: 'board',
   },
   rules: { ...xiangqiRules, settingsComponent: RuleSettings },
+  records: { stats: xiangqiStats },
 })
 
 export default xiangqiGame

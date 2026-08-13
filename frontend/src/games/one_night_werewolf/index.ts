@@ -2,6 +2,7 @@ import { defineAsyncComponent } from 'vue'
 import artwork from '../../assets/game-hall/icons/one-night-werewolf.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
+import { oneNightWerewolfStats } from './records'
 
 export const oneNightWerewolfGame = defineBuiltinGame({
   key: 'one_night_werewolf',
@@ -51,6 +52,7 @@ export const oneNightWerewolfGame = defineBuiltinGame({
       ]
     },
   },
+  records: { stats: oneNightWerewolfStats },
 })
 
 export default oneNightWerewolfGame

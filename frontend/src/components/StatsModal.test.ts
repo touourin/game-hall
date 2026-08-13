@@ -204,6 +204,10 @@ describe('StatsModal', () => {
     await wrapper.get('.match-history-list button').trigger('click')
     await flushPromises()
 
+    await vi.waitFor(() => {
+      expect(wrapper.find('.match-court-timeline').exists()).toBe(true)
+    })
+
     expect(wrapper.get('.match-mode-label').text()).toContain('王庭暗流')
     expect(wrapper.get('.match-court-timeline').text()).toContain('授刃成功')
     expect(wrapper.get('.match-court-timeline').text()).toContain('命中梅林')
@@ -241,5 +245,69 @@ describe('StatsModal', () => {
 
     expect(loadPersonalStats).toHaveBeenCalledWith('tetris', 'timed_300', undefined)
     expect(wrapper.get('h2').text()).toContain('5 分钟限时')
+  })
+
+  it('formats mixed all-game history with each record module', async () => {
+    vi.mocked(loadPersonalStats).mockResolvedValue({
+      summary: {
+        games: 2,
+        wins: 1,
+        draws: 0,
+        losses: 1,
+        winRate: 50,
+        goodGames: 0,
+        goodWins: 0,
+        evilGames: 0,
+        evilWins: 0,
+        bestMs: null,
+        averageMs: null,
+      },
+      history: [
+        {
+          id: 'reaction-1',
+          gameKey: 'reaction',
+          gameName: '反应挑战',
+          roomCode: 'FAST',
+          playerCount: 1,
+          winner: 'completed',
+          reason: '测试完成',
+          ranked: true,
+          assassinationHit: null,
+          endedAt: '2026-08-01T00:10:00+00:00',
+          playerName: '玩家',
+          role: 'tester',
+          alignment: 'solo',
+          won: true,
+          outcome: 'completed',
+          scoreMs: 284,
+        },
+        {
+          id: 'tetris-1',
+          gameKey: 'tetris',
+          gameName: '落块挑战',
+          roomCode: 'DROP',
+          playerCount: 1,
+          winner: 'completed',
+          reason: '无限模式结束',
+          ranked: true,
+          assassinationHit: null,
+          endedAt: '2026-08-01T00:20:00+00:00',
+          playerName: '玩家',
+          role: 'stacker',
+          alignment: 'solo',
+          won: true,
+          outcome: 'completed',
+          scoreMs: null,
+          scoreValue: 18_600,
+        },
+      ],
+    })
+
+    const wrapper = mount(StatsModal)
+    await flushPromises()
+
+    const entries = wrapper.findAll('.match-history-list button')
+    expect(entries[0]!.text()).toContain('三轮平均 · 284 ms')
+    expect(entries[1]!.text()).toContain('最终得分 · 18,600 分')
   })
 })

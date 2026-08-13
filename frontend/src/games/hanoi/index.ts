@@ -2,7 +2,7 @@ import { defineAsyncComponent } from 'vue'
 import hanoiArtwork from '../../assets/game-hall/icons/hanoi.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
-import { hanoiLeaderboard } from './records'
+import { hanoiLeaderboard, hanoiStats } from './records'
 
 export const hanoiGame = defineBuiltinGame({
   key: 'hanoi',
@@ -40,7 +40,11 @@ export const hanoiGame = defineBuiltinGame({
       return [`${discCount} 层圆盘`, `理论最少 ${2 ** discCount - 1} 步`]
     },
   },
-  records: { leaderboard: hanoiLeaderboard },
+  records: {
+    leaderboard: hanoiLeaderboard,
+    stats: hanoiStats,
+    matchDetailComponent: defineAsyncComponent(() => import('./MatchDetail.vue')),
+  },
 })
 
 export default hanoiGame

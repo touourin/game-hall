@@ -2,7 +2,7 @@ import { defineAsyncComponent } from 'vue'
 import tetrisArtwork from '../../assets/game-hall/icons/tetris.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
-import { tetrisLeaderboard } from './records'
+import { tetrisLeaderboard, tetrisStats } from './records'
 
 export const tetrisGame = defineBuiltinGame({
   key: 'tetris',
@@ -44,7 +44,11 @@ export const tetrisGame = defineBuiltinGame({
       '7-bag 随机序列',
     ],
   },
-  records: { leaderboard: tetrisLeaderboard },
+  records: {
+    leaderboard: tetrisLeaderboard,
+    stats: tetrisStats,
+    matchDetailComponent: defineAsyncComponent(() => import('./MatchDetail.vue')),
+  },
 })
 
 export default tetrisGame

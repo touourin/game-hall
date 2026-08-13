@@ -1,6 +1,7 @@
 import { defineAsyncComponent } from 'vue'
 import chessArtwork from '../../assets/game-hall/icons/chess.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
+import { chessStats } from './records'
 
 export const chessGame = defineBuiltinGame({
   key: 'chess',
@@ -42,6 +43,7 @@ export const chessGame = defineBuiltinGame({
       options.allowGuests ? '允许游客' : '仅登录玩家',
     ],
   },
+  records: { stats: chessStats },
 })
 
 export default chessGame

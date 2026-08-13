@@ -1,4 +1,5 @@
 import { leaderboardPresentation } from './records'
+import { statsPresentation } from './statsPresentation'
 
 const entry = {
   rank: 1,
@@ -38,5 +39,29 @@ describe('built-in game record presentations', () => {
     expect(presentation.filters).toHaveLength(3)
     expect(presentation.titleSuffix?.('court_undercurrent', 'shadow_merlin'))
       .toContain('暗影梅林')
+  })
+
+  it('uses module-owned personal stats copy and scoring', () => {
+    const reaction = statsPresentation('reaction')
+    const gomoku = statsPresentation('gomoku')
+    const summary = {
+      games: 3,
+      wins: 1,
+      draws: 1,
+      losses: 1,
+      winRate: 33,
+      goodGames: 0,
+      goodWins: 0,
+      evilGames: 0,
+      evilWins: 0,
+      bestMs: 284,
+      averageMs: 320,
+    }
+
+    expect(reaction.summaryItems(summary)[1]).toEqual({
+      value: '284 ms',
+      label: '历史最佳',
+    })
+    expect(gomoku.showDrawSummary).toBe(true)
   })
 })

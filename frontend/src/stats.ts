@@ -141,6 +141,9 @@ export interface MatchDetail {
       lines?: number
       level?: number
       pieces?: number
+      deepest_floor?: number
+      health?: number
+      input_count?: number
     }
   }
 }

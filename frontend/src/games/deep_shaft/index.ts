@@ -1,7 +1,7 @@
 import { defineAsyncComponent } from 'vue'
 import deepShaftArtwork from '../../assets/game-hall/icons/deep-shaft.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
-import { deepShaftLeaderboard } from './records'
+import { deepShaftLeaderboard, deepShaftStats } from './records'
 
 export const deepShaftGame = defineBuiltinGame({
   key: 'deep_shaft',
@@ -32,7 +32,11 @@ export const deepShaftGame = defineBuiltinGame({
     defaults: { allowSpectators: false },
     labels: () => ['100 层挑战', '左右移动', '服务端轨迹重放'],
   },
-  records: { leaderboard: deepShaftLeaderboard },
+  records: {
+    leaderboard: deepShaftLeaderboard,
+    stats: deepShaftStats,
+    matchDetailComponent: defineAsyncComponent(() => import('./MatchDetail.vue')),
+  },
 })
 
 export default deepShaftGame
