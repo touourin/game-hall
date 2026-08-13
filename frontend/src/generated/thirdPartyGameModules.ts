@@ -115,6 +115,7 @@ export const GENERATED_THIRD_PARTY_GAME_MODULES = [
         "两牌合计 13",
         "K 单独消除",
         "牌库只翻一轮",
+        "保证存在解法",
         "服务端计时"
       ]
     },
