@@ -164,6 +164,12 @@ function addAiPlayer() {
 
 :global(:root[data-theme="royal"] .room-ai-add-button:disabled) {
   opacity: 1;
+  border-color: rgba(77, 98, 94, .34);
+  color: var(--disabled-text);
+  background: linear-gradient(145deg, var(--disabled-bg-start), var(--disabled-bg-end));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .7),
+    0 4px 10px rgba(48, 67, 72, .1);
 }
 
 @container ai-seat (max-width: 470px) {
