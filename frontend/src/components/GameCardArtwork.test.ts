@@ -13,6 +13,7 @@ const artworkSlugs: Record<BuiltinArcadeGameKey, string> = {
   doudizhu: 'doudizhu',
   junqi: 'junqi',
   reaction: 'reaction',
+  deep_shaft: 'deep-shaft',
   schulte: 'schulte',
   survive_three_seconds: 'survive-three-seconds',
   minesweeper: 'minesweeper',

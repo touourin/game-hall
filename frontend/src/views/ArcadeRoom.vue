@@ -74,6 +74,7 @@ import GomokuBoard from '../games/gomoku/GomokuBoard.vue'
 import XiangqiBoard from '../games/xiangqi/XiangqiBoard.vue'
 import JunqiBoard from '../games/junqi/JunqiBoard.vue'
 import ReactionTest from '../games/reaction/ReactionTest.vue'
+import DeepShaftGame from '../games/deep_shaft/DeepShaftGame.vue'
 import SchulteGrid from '../games/schulte/SchulteGrid.vue'
 import SurviveThreeSecondsGame from '../games/survive_three_seconds/SurviveThreeSecondsGame.vue'
 import MinesweeperBoard from '../games/minesweeper/MinesweeperBoard.vue'
@@ -273,6 +274,8 @@ const roomHeaderEyebrow = computed(() => {
     ? ` · ${props.snapshot.options.mode === 'flip' ? '翻棋军旗' : '暗军旗'}`
     : props.snapshot.gameKey === 'reaction'
       ? ' · 单人测试'
+      : props.snapshot.gameKey === 'deep_shaft'
+        ? ' · 百层平台生存'
       : props.snapshot.gameKey === 'schulte'
         ? ' · 单人专注'
         : props.snapshot.gameKey === 'survive_three_seconds'
@@ -293,6 +296,7 @@ const roomHeaderEyebrow = computed(() => {
 const roomHeaderTitle = computed(() => {
   const soloTitles: Partial<Record<ArcadeSnapshot['gameKey'], string>> = {
     reaction: '反应挑战',
+    deep_shaft: '百层深井',
     schulte: '舒尔特挑战',
     survive_three_seconds: '坚持三秒',
     minesweeper: '扫雷挑战',
@@ -776,6 +780,7 @@ function openSharedChat() {
       <DoudizhuTable v-else-if="snapshot.gameKey === 'doudizhu'" :snapshot="snapshot" />
       <JunqiBoard v-else-if="snapshot.gameKey === 'junqi'" :snapshot="snapshot" />
       <ReactionTest v-else-if="snapshot.gameKey === 'reaction'" :snapshot="snapshot" />
+      <DeepShaftGame v-else-if="snapshot.gameKey === 'deep_shaft'" :snapshot="snapshot" />
       <SchulteGrid v-else-if="snapshot.gameKey === 'schulte'" :snapshot="snapshot" />
       <SurviveThreeSecondsGame v-else-if="snapshot.gameKey === 'survive_three_seconds'" :snapshot="snapshot" />
       <MinesweeperBoard v-else-if="snapshot.gameKey === 'minesweeper'" :snapshot="snapshot" />

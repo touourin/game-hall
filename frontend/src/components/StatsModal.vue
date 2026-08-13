@@ -78,6 +78,7 @@ function winnerLabel(match: MatchDetail): string {
   if (match.gameKey === 'reaction') return '三轮测试完成'
   if (match.gameKey === 'schulte') return '舒尔特挑战完成'
   if (match.gameKey === 'survive_three_seconds') return match.winner === 'survived' ? '坚持三秒成功' : '被弹幕击中'
+  if (match.gameKey === 'deep_shaft') return match.winner === 'completed' ? '百层深井通关' : '深井探索结束'
   if (match.gameKey === 'minesweeper') return match.winner === 'completed' ? '扫雷挑战完成' : '踩中地雷'
   if (match.gameKey === 'hanoi') return '汉诺塔挑战完成'
   if (match.gameKey === 'tetris') return '落块挑战完成'
@@ -96,6 +97,7 @@ function winnerLabel(match: MatchDetail): string {
 function outcomeLabel(match: MatchHistoryItem): string {
   if (match.gameKey === 'hanoi') return '成'
   if (match.gameKey === 'tetris') return '分'
+  if (match.gameKey === 'deep_shaft') return '层'
   if (match.gameKey === 'schulte') return '格'
   if (match.gameKey === 'survive_three_seconds') return match.outcome === 'win' ? '生' : '中'
   if (match.gameKey === 'minesweeper') return match.outcome === 'completed' ? '通' : '雷'
@@ -511,6 +513,22 @@ watch([activeGameMode, activeAvalonVariant], loadStats)
           </div>
         </div>
 
+        <div v-if="selectedMatch.gameKey === 'deep_shaft'" class="match-detail-section">
+          <span>百层深井挑战成绩</span>
+          <div class="match-mission-list">
+            <div :class="selectedMatch.winner === 'completed' ? 'success' : 'failed'">
+              <strong>{{ selectedMatch.winner === 'completed' ? '抵达第一百层' : `最深抵达第 ${selectedMatch.details.state?.deepest_floor ?? 0} 层` }}</strong>
+              <span>{{ formatDuration(selectedMatch.details.state?.elapsed_ms) }}</span>
+              <small>结束时剩余 {{ selectedMatch.details.state?.health ?? 0 }} 点生命</small>
+            </div>
+            <div class="success">
+              <strong>服务端轨迹校验</strong>
+              <span>{{ selectedMatch.details.state?.input_count ?? 0 }} 帧输入</span>
+              <small>固定 60 Hz 重建平台、移动与碰撞</small>
+            </div>
+          </div>
+        </div>
+
         <div v-if="selectedMatch.gameKey === 'survive_three_seconds'" class="match-detail-section">
           <span>三秒弹幕挑战</span>
           <div class="match-mission-list">
@@ -527,7 +545,7 @@ watch([activeGameMode, activeAvalonVariant], loadStats)
           </div>
         </div>
 
-        <div v-if="!['avalon', 'reaction', 'schulte', 'survive_three_seconds', 'minesweeper', 'hanoi', 'tetris'].includes(selectedMatch.gameKey)" class="match-detail-section">
+        <div v-if="!['avalon', 'reaction', 'deep_shaft', 'schulte', 'survive_three_seconds', 'minesweeper', 'hanoi', 'tetris'].includes(selectedMatch.gameKey)" class="match-detail-section">
           <span>参赛玩家</span>
           <div class="match-player-list">
             <div v-for="player in selectedMatch.details.players" :key="player.id">
@@ -553,6 +571,8 @@ watch([activeGameMode, activeAvalonVariant], loadStats)
               ? selectedMatch.ranked ? '本次通关计入汉诺塔累计通关榜' : '本次通关不计排行榜'
             : selectedMatch.gameKey === 'tetris'
               ? selectedMatch.ranked ? '本轮最终得分计入落块挑战排行榜' : '本轮得分不计排行榜'
+            : selectedMatch.gameKey === 'deep_shaft'
+              ? selectedMatch.ranked ? '本轮最深层数计入百层深井排行榜' : '本轮成绩不计排行榜'
             : selectedMatch.ranked ? '本局计入排行榜' : '本局含 AI，不计排行榜' }}
         </p>
       </template>
@@ -560,7 +580,7 @@ watch([activeGameMode, activeAvalonVariant], loadStats)
       <template v-else>
         <span class="modal-icon"><History :size="24" /></span>
         <h2>{{ props.gameName ? `${props.gameName}${props.gameKey === 'avalon' ? ` · ${avalonModeLabel(activeGameMode, activeAvalonVariant)}` : props.gameKey === 'tetris' ? ` · ${tetrisModeLabel(activeGameMode)}` : difficultyLabel(activeGameMode)}战绩` : '我的全部战绩' }}</h2>
-        <p>{{ props.gameKey === 'reaction' ? '记录每次三轮测试的平均值与单轮明细。' : props.gameKey === 'schulte' ? '记录每次 5×5 标准挑战的完成用时与点击准确率。' : props.gameKey === 'survive_three_seconds' ? '记录每次三秒弹幕挑战的存活与碰撞结果。' : props.gameKey === 'minesweeper' ? '不同难度分别统计通关时间，失败记录也会保留在战绩中。' : props.gameKey === 'tetris' ? '记录每轮最终得分、消行数、等级和使用方块数。' : props.gameKey === 'hanoi' ? '记录每次通关的层数、步数与完成用时。' : '每款游戏独立记录胜负，对局详情绑定当前账号。' }}</p>
+        <p>{{ props.gameKey === 'reaction' ? '记录每次三轮测试的平均值与单轮明细。' : props.gameKey === 'deep_shaft' ? '记录每次深井探索的最深层数、剩余生命和挑战用时。' : props.gameKey === 'schulte' ? '记录每次 5×5 标准挑战的完成用时与点击准确率。' : props.gameKey === 'survive_three_seconds' ? '记录每次三秒弹幕挑战的存活与碰撞结果。' : props.gameKey === 'minesweeper' ? '不同难度分别统计通关时间，失败记录也会保留在战绩中。' : props.gameKey === 'tetris' ? '记录每轮最终得分、消行数、等级和使用方块数。' : props.gameKey === 'hanoi' ? '记录每次通关的层数、步数与完成用时。' : '每款游戏独立记录胜负，对局详情绑定当前账号。' }}</p>
 
         <div
           v-if="props.gameKey === 'avalon' && !props.gameMode"
@@ -634,6 +654,11 @@ watch([activeGameMode, activeAvalonVariant], loadStats)
               <div><strong>{{ summary.bestScore?.toLocaleString() ?? '—' }}</strong><span>历史最高分</span></div>
               <div><strong>{{ summary.averageScore?.toLocaleString() ?? '—' }}</strong><span>平均得分</span></div>
             </template>
+            <template v-else-if="props.gameKey === 'deep_shaft'">
+              <div><strong>{{ summary.games }}</strong><span>挑战次数</span></div>
+              <div><strong>{{ summary.bestScore?.toLocaleString() ?? '—' }}</strong><span>历史最深层数</span></div>
+              <div><strong>{{ summary.averageScore?.toLocaleString() ?? '—' }}</strong><span>平均抵达层数</span></div>
+            </template>
             <template v-else>
               <div><strong>{{ summary.games }}</strong><span>总场次</span></div>
               <div><strong>{{ summary.wins }}</strong><span>胜场</span></div>
@@ -699,6 +724,7 @@ watch([activeGameMode, activeAvalonVariant], loadStats)
                 <strong v-else-if="match.gameKey === 'minesweeper'">{{ difficultyLabel(match.gameMode) }}扫雷 · {{ match.scoreMs === null ? '踩中地雷' : formatDuration(match.scoreMs) }}</strong>
                 <strong v-else-if="match.gameKey === 'hanoi'">{{ match.reason }}</strong>
                 <strong v-else-if="match.gameKey === 'tetris'">最终得分 · {{ match.scoreValue?.toLocaleString() }} 分</strong>
+                <strong v-else-if="match.gameKey === 'deep_shaft'">最深抵达 · {{ match.scoreValue?.toLocaleString() }} 层</strong>
                 <strong v-else>{{ match.gameName }} · {{ roleLabel(match.role) }}</strong>
                 <small v-if="match.gameKey === 'reaction'">{{ formatDate(match.endedAt) }} · 三轮测试</small>
                 <small v-else-if="match.gameKey === 'schulte'">{{ formatDate(match.endedAt) }} · 标准挑战</small>
@@ -706,6 +732,7 @@ watch([activeGameMode, activeAvalonVariant], loadStats)
                 <small v-else-if="match.gameKey === 'minesweeper'">{{ formatDate(match.endedAt) }} · {{ match.reason }}</small>
                 <small v-else-if="match.gameKey === 'hanoi'">{{ formatDate(match.endedAt) }} · 单人益智挑战</small>
                 <small v-else-if="match.gameKey === 'tetris'">{{ formatDate(match.endedAt) }} · {{ match.reason }}</small>
+                <small v-else-if="match.gameKey === 'deep_shaft'">{{ formatDate(match.endedAt) }} · {{ match.reason }}</small>
                 <small v-else-if="match.gameKey === 'avalon'">
                   {{ formatDate(match.endedAt) }} · {{ avalonModeLabel(match.gameMode) }} ·
                   {{ match.playerCount }} 人 · 房间 {{ match.roomCode }}

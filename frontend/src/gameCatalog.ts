@@ -17,6 +17,7 @@ const BUILTIN_GAME_CATALOG: readonly GameCatalogEntry[] = [
   { key: 'doudizhu', name: '斗地主', players: '3 人', description: '抢下地主，三人斗到底', tone: 'blue', category: '扑克对战' },
   { key: 'junqi', name: '军旗', players: '2 人', description: '秘密布阵，沿铁路突袭敌旗', tone: 'army', category: '棋类竞技' },
   { key: 'reaction', name: '反应挑战', players: '1 人', description: '盯住信号，挑战毫秒反应', tone: 'pulse', category: '个人挑战' },
+  { key: 'deep_shaft', name: '百层深井', players: '1 人', description: '控制左右落点，在危险平台间深入一百层', tone: 'shaft', category: '个人挑战' },
   { key: 'schulte', name: '舒尔特方格', players: '1 人', description: '从 1 找到 25，练速度与专注', tone: 'focus', category: '个人挑战' },
   { key: 'survive_three_seconds', name: '坚持三秒', players: '1 人', description: '看清三段弹幕缺口，远离边缘撑过三秒', tone: 'barrage', category: '个人挑战' },
   { key: 'minesweeper', name: '扫雷', players: '1 人', description: '排除危险，清空整片雷区', tone: 'mine', category: '个人挑战' },
@@ -51,7 +52,7 @@ export function isArcadeGameKey(key: unknown): key is ArcadeGameKey {
 
 export function isSoloGameKey(key: unknown): boolean {
   if (typeof key !== 'string') return false
-  if (['reaction', 'schulte', 'survive_three_seconds', 'minesweeper', 'hanoi', 'tetris'].includes(key)) return true
+  if (['reaction', 'deep_shaft', 'schulte', 'survive_three_seconds', 'minesweeper', 'hanoi', 'tetris'].includes(key)) return true
   const plugin = THIRD_PARTY_GAME_PLUGINS.find(({ manifest }) => manifest.id === key)
   return plugin?.manifest.players.max === 1
 }

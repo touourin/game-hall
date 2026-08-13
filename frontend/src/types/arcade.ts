@@ -9,6 +9,7 @@ export type BuiltinArcadeGameKey =
   | 'doudizhu'
   | 'junqi'
   | 'reaction'
+  | 'deep_shaft'
   | 'schulte'
   | 'survive_three_seconds'
   | 'minesweeper'

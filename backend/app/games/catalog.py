@@ -63,6 +63,12 @@ BUILTIN_GAME_CATALOG: tuple[dict[str, str], ...] = (
         "description": "三轮高精度反应测试",
     },
     {
+        "key": "deep_shaft",
+        "name": "百层深井",
+        "players": "1 人",
+        "description": "左右控制落点，在危险平台间深入一百层",
+    },
+    {
         "key": "schulte",
         "name": "舒尔特方格",
         "players": "1 人",

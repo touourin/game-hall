@@ -5,6 +5,7 @@ from backend.app.games.catalog import BUILTIN_GAME_CATALOG
 from backend.app.games.avalon.arcade import AvalonEngine
 from backend.app.games.departed_suspicion import DepartedSuspicionEngine
 from backend.app.games.doudizhu import DoudizhuEngine
+from backend.app.games.deep_shaft import DeepShaftEngine
 from backend.app.games.go import GoEngine
 from backend.app.games.gomoku import GomokuEngine
 from backend.app.games.hanoi import HanoiEngine
@@ -31,6 +32,7 @@ def build_engine_registry() -> dict[str, GameEngine]:
         GoEngine(),
         PokerEngine(),
         DoudizhuEngine(),
+        DeepShaftEngine(),
         JunqiEngine(),
         ReactionEngine(),
         SchulteEngine(),

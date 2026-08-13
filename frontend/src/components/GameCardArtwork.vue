@@ -4,6 +4,7 @@ import type { BuiltinArcadeGameKey, GameCatalogItem } from '../types/arcade'
 import avalonArtwork from '../assets/game-hall/icons/avalon.webp'
 import departedSuspicionArtwork from '../assets/game-hall/icons/departed-suspicion.webp'
 import doudizhuArtwork from '../assets/game-hall/icons/doudizhu.webp'
+import deepShaftArtwork from '../assets/game-hall/icons/deep-shaft.webp'
 import goArtwork from '../assets/game-hall/icons/go.webp'
 import gomokuArtwork from '../assets/game-hall/icons/gomoku.webp'
 import hanoiArtwork from '../assets/game-hall/icons/hanoi.webp'
@@ -29,6 +30,7 @@ const artworkByGame = {
   go: goArtwork,
   poker: pokerArtwork,
   doudizhu: doudizhuArtwork,
+  deep_shaft: deepShaftArtwork,
   junqi: junqiArtwork,
   reaction: reactionArtwork,
   schulte: schulteArtwork,

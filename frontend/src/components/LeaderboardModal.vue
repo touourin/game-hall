@@ -93,7 +93,7 @@ watch([activeGameMode, activeAvalonVariant], loadPlayers)
       <h2>
         {{ props.gameName }}{{ props.gameKey === 'avalon' ? ` · ${avalonModeLabel()}` : props.gameKey === 'tetris' ? ` · ${tetrisModeLabel(activeGameMode)}` : difficultyLabel(activeGameMode) }}排行榜
       </h2>
-      <p>{{ props.gameKey === 'reaction' ? '按个人历史最佳三轮平均时间排序，数值越低越快。' : props.gameKey === 'schulte' ? '按个人最快完成时间排序，数值越低越快。' : props.gameKey === 'survive_three_seconds' ? '按成功坚持三秒的次数排序，同次数时比较存活率。' : props.gameKey === 'minesweeper' ? '三种难度独立排名，按个人最快通关时间排序。' : props.gameKey === 'tetris' ? '按个人历史最高得分排序，分数越高排名越前。' : props.gameKey === 'hanoi' ? '按累计通关次数排序，同次数时优先更早完成挑战的玩家。' : '按胜场排序，同胜场时依次比较胜率和有效场次。' }}</p>
+      <p>{{ props.gameKey === 'reaction' ? '按个人历史最佳三轮平均时间排序，数值越低越快。' : props.gameKey === 'schulte' ? '按个人最快完成时间排序，数值越低越快。' : props.gameKey === 'deep_shaft' ? '按个人历史最深层数排序，抵达层数越深排名越前。' : props.gameKey === 'survive_three_seconds' ? '按成功坚持三秒的次数排序，同次数时比较存活率。' : props.gameKey === 'minesweeper' ? '三种难度独立排名，按个人最快通关时间排序。' : props.gameKey === 'tetris' ? '按个人历史最高得分排序，分数越高排名越前。' : props.gameKey === 'hanoi' ? '按累计通关次数排序，同次数时优先更早完成挑战的玩家。' : '按胜场排序，同胜场时依次比较胜率和有效场次。' }}</p>
 
       <div
         v-if="props.gameKey === 'avalon' && !props.gameMode"
@@ -154,16 +154,16 @@ watch([activeGameMode, activeAvalonVariant], loadPlayers)
             <small v-else-if="props.gameKey === 'survive_three_seconds'">{{ player.games }} 次挑战 · {{ player.wins }} 次生还</small>
             <small v-else-if="props.gameKey === 'minesweeper'">{{ player.games }} 次通关 · 平均 {{ formatDuration(player.averageMs) }}</small>
             <small v-else-if="props.gameKey === 'hanoi'">{{ player.games }} 次挑战 · {{ player.wins }} 次通关</small>
-            <small v-else-if="props.gameKey === 'tetris'">{{ player.games }} 次挑战 · 平均 {{ player.averageScore?.toLocaleString() }} 分</small>
+            <small v-else-if="['tetris', 'deep_shaft'].includes(props.gameKey)">{{ player.games }} 次挑战 · 平均 {{ player.averageScore?.toLocaleString() }} {{ props.gameKey === 'deep_shaft' ? '层' : '分' }}</small>
             <small v-else>
               {{ player.wins }} 胜<span v-if="player.draws"> · {{ player.draws }} 和</span> / {{ player.games }} 场
             </small>
           </span>
-          <em>{{ props.gameKey === 'reaction' ? `${player.bestMs} ms` : ['schulte', 'minesweeper'].includes(props.gameKey) ? formatDuration(player.bestMs) : props.gameKey === 'tetris' ? `${player.bestScore?.toLocaleString()} 分` : ['hanoi', 'survive_three_seconds'].includes(props.gameKey) ? `${player.wins} 次` : `${player.winRate}%` }}</em>
+          <em>{{ props.gameKey === 'reaction' ? `${player.bestMs} ms` : ['schulte', 'minesweeper'].includes(props.gameKey) ? formatDuration(player.bestMs) : props.gameKey === 'tetris' ? `${player.bestScore?.toLocaleString()} 分` : props.gameKey === 'deep_shaft' ? `${player.bestScore?.toLocaleString()} 层` : ['hanoi', 'survive_three_seconds'].includes(props.gameKey) ? `${player.wins} 次` : `${player.winRate}%` }}</em>
         </div>
       </div>
       <div v-else class="stats-empty">还没有符合条件的真人对局</div>
-      <p class="leaderboard-note">{{ props.gameKey === 'reaction' ? '排行榜采用完成三轮后的平均反应时间。' : props.gameKey === 'schulte' ? '排行榜采用服务端计时，并验证 1–25 的完整点击顺序。' : props.gameKey === 'survive_three_seconds' ? '每次挑战都由服务器重放 180 帧方向输入后判定结果。' : props.gameKey === 'minesweeper' ? '仅成功清除全部安全方格的服务端计时成绩会进入排行榜。' : props.gameKey === 'tetris' ? '每轮结束后保存最终得分；最高分优先，总平均分用于同分参考。' : props.gameKey === 'hanoi' ? '不同层数都会累计为一次有效通关，详细步数和时间保存在个人战绩中。' : '含 AI 的测试局不会计入排行榜。' }}</p>
+      <p class="leaderboard-note">{{ props.gameKey === 'reaction' ? '排行榜采用完成三轮后的平均反应时间。' : props.gameKey === 'schulte' ? '排行榜采用服务端计时，并验证 1–25 的完整点击顺序。' : props.gameKey === 'deep_shaft' ? '服务器会根据随机种子重放全部左右输入，再保存实际抵达的最深层数。' : props.gameKey === 'survive_three_seconds' ? '每次挑战都由服务器重放 180 帧方向输入后判定结果。' : props.gameKey === 'minesweeper' ? '仅成功清除全部安全方格的服务端计时成绩会进入排行榜。' : props.gameKey === 'tetris' ? '每轮结束后保存最终得分；最高分优先，总平均分用于同分参考。' : props.gameKey === 'hanoi' ? '不同层数都会累计为一次有效通关，详细步数和时间保存在个人战绩中。' : '含 AI 的测试局不会计入排行榜。' }}</p>
       <p v-if="error" class="account-error" role="alert">{{ error }}</p>
   </BaseModal>
 </template>

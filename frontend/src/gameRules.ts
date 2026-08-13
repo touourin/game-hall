@@ -96,7 +96,7 @@ export function defaultGameRules(
       allowSpectators: false,
     }
   }
-  if (gameKey === 'reaction' || gameKey === 'schulte' || gameKey === 'survive_three_seconds') return { allowSpectators: false }
+  if (['reaction', 'deep_shaft', 'schulte', 'survive_three_seconds'].includes(gameKey)) return { allowSpectators: false }
   if (gameKey === 'tetris') {
     return {
       challengeMode: 'timed',
@@ -199,6 +199,7 @@ export function gameRuleLabels(
     ]
   }
   if (gameKey === 'reaction') return ['三轮测试']
+  if (gameKey === 'deep_shaft') return ['100 层挑战', '左右移动', '服务端轨迹重放']
   if (gameKey === 'schulte') return ['5×5 标准挑战', '服务端计时']
   if (gameKey === 'survive_three_seconds') return ['3 秒极限挑战', '服务端轨迹重放']
   if (gameKey === 'minesweeper') {

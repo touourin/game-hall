@@ -221,6 +221,8 @@ frontend/src/games/doudizhu/
                             斗地主界面
 frontend/src/games/junqi/   军旗双模式界面
 frontend/src/games/reaction/  反应挑战三轮计时界面
+frontend/src/games/deep_shaft/
+                            百层深井固定步长物理、画布与触屏控制器
 frontend/src/games/minesweeper/
                             扫雷三难度自适应棋盘
 frontend/src/games/hanoi/     汉诺塔点击与拖动界面
