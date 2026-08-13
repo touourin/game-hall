@@ -17,6 +17,16 @@ export const gomokuRules = {
     }
     return next
   },
+  firstPlayerCopy: (options) => ({
+    title: options.openingRule === 'swap2' ? '首局摆子者' : '首局先手',
+    description: '再来一局时仍会自动轮换',
+    randomDescription: options.openingRule === 'swap2'
+      ? '随机指定首位摆子者'
+      : '开局随机分配座位',
+    hostDescription: options.openingRule === 'swap2'
+      ? '房主负责首先摆两黑一白'
+      : '房主在首局获得先手',
+  }),
   labels: (options) => [
     '15 路棋盘',
     options.firstPlayer === 'host'

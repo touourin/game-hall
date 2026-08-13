@@ -1,6 +1,7 @@
 import { defineAsyncComponent } from 'vue'
 import avalonArtwork from '../../assets/game-hall/icons/avalon.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
+import RuleSettings from './RuleSettings.vue'
 import { avalonRules } from './rules'
 
 export const avalonGame = defineBuiltinGame({
@@ -28,7 +29,7 @@ export const avalonGame = defineBuiltinGame({
     roomLayout: 'wide',
     skinKind: null,
   },
-  rules: avalonRules,
+  rules: { ...avalonRules, settingsComponent: RuleSettings },
 })
 
 export default avalonGame

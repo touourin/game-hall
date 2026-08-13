@@ -1,6 +1,7 @@
 import { defineAsyncComponent } from 'vue'
 import hanoiArtwork from '../../assets/game-hall/icons/hanoi.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
+import RuleSettings from './RuleSettings.vue'
 
 export const hanoiGame = defineBuiltinGame({
   key: 'hanoi',
@@ -28,6 +29,7 @@ export const hanoiGame = defineBuiltinGame({
     skinKind: null,
   },
   rules: {
+    settingsComponent: RuleSettings,
     defaults: {
       discCount: 5,
       allowSpectators: true,

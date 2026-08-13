@@ -1,6 +1,7 @@
 import { defineAsyncComponent } from 'vue'
 import tetrisArtwork from '../../assets/game-hall/icons/tetris.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
+import RuleSettings from './RuleSettings.vue'
 
 export const tetrisGame = defineBuiltinGame({
   key: 'tetris',
@@ -28,6 +29,7 @@ export const tetrisGame = defineBuiltinGame({
     skinKind: null,
   },
   rules: {
+    settingsComponent: RuleSettings,
     defaults: {
       challengeMode: 'timed',
       durationSeconds: 180,

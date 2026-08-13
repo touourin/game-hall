@@ -1,6 +1,7 @@
 import { defineAsyncComponent } from 'vue'
 import artwork from '../../assets/game-hall/icons/departed-suspicion.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
+import RuleSettings from './RuleSettings.vue'
 
 export const departedSuspicionGame = defineBuiltinGame({
   key: 'departed_suspicion',
@@ -28,6 +29,7 @@ export const departedSuspicionGame = defineBuiltinGame({
     skinKind: null,
   },
   rules: {
+    settingsComponent: RuleSettings,
     defaults: {
       equipmentSet: 'bombers',
       firstPlayer: 'random',

@@ -1,6 +1,7 @@
 import { defineAsyncComponent } from 'vue'
 import monopolyArtwork from '../../assets/game-hall/icons/monopoly.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
+import RuleSettings from './RuleSettings.vue'
 
 export const monopolyGame = defineBuiltinGame({
   key: 'monopoly',
@@ -28,6 +29,7 @@ export const monopolyGame = defineBuiltinGame({
     skinKind: null,
   },
   rules: {
+    settingsComponent: RuleSettings,
     defaults: {
       firstPlayer: 'random',
       allowGuests: true,

@@ -1,6 +1,7 @@
 import { defineAsyncComponent } from 'vue'
 import gomokuArtwork from '../../assets/game-hall/icons/gomoku.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
+import RuleSettings from './RuleSettings.vue'
 import { gomokuRules } from './rules'
 
 export const gomokuGame = defineBuiltinGame({
@@ -28,7 +29,7 @@ export const gomokuGame = defineBuiltinGame({
     roomLayout: 'standard',
     skinKind: 'board',
   },
-  rules: gomokuRules,
+  rules: { ...gomokuRules, settingsComponent: RuleSettings },
 })
 
 export default gomokuGame

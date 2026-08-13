@@ -1,6 +1,7 @@
 import { defineAsyncComponent } from 'vue'
 import junqiArtwork from '../../assets/game-hall/icons/junqi.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
+import RuleSettings from './RuleSettings.vue'
 import { junqiRules } from './rules'
 
 export const junqiGame = defineBuiltinGame({
@@ -28,7 +29,7 @@ export const junqiGame = defineBuiltinGame({
     roomLayout: 'wide',
     skinKind: 'board',
   },
-  rules: junqiRules,
+  rules: { ...junqiRules, settingsComponent: RuleSettings },
 })
 
 export default junqiGame

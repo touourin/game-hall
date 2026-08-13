@@ -1,6 +1,7 @@
 import { defineAsyncComponent } from 'vue'
 import minesweeperArtwork from '../../assets/game-hall/icons/minesweeper.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
+import RuleSettings from './RuleSettings.vue'
 
 export const minesweeperGame = defineBuiltinGame({
   key: 'minesweeper',
@@ -28,6 +29,7 @@ export const minesweeperGame = defineBuiltinGame({
     skinKind: null,
   },
   rules: {
+    settingsComponent: RuleSettings,
     defaults: {
       difficulty: 'beginner',
       allowSpectators: true,

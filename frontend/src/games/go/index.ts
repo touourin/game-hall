@@ -1,6 +1,7 @@
 import { defineAsyncComponent } from 'vue'
 import goArtwork from '../../assets/game-hall/icons/go.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
+import RuleSettings from './RuleSettings.vue'
 import { goRules } from './rules'
 
 export const goGame = defineBuiltinGame({
@@ -28,7 +29,7 @@ export const goGame = defineBuiltinGame({
     roomLayout: 'standard',
     skinKind: 'board',
   },
-  rules: goRules,
+  rules: { ...goRules, settingsComponent: RuleSettings },
 })
 
 export default goGame

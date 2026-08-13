@@ -1,6 +1,7 @@
 import { defineAsyncComponent } from 'vue'
 import doudizhuArtwork from '../../assets/game-hall/icons/doudizhu.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
+import RuleSettings from './RuleSettings.vue'
 
 export const doudizhuGame = defineBuiltinGame({
   key: 'doudizhu',
@@ -28,6 +29,7 @@ export const doudizhuGame = defineBuiltinGame({
     skinKind: 'cards',
   },
   rules: {
+    settingsComponent: RuleSettings,
     defaults: {
       firstPlayer: 'random',
       allowGuests: true,
@@ -44,6 +46,12 @@ export const doudizhuGame = defineBuiltinGame({
       '叫地主／抢地主',
       options.allowGuests ? '允许游客' : '仅登录玩家',
     ],
+    firstPlayerCopy: () => ({
+      title: '首叫玩家',
+      description: '再来一局时仍会自动轮换',
+      randomDescription: '随机指定首叫玩家',
+      hostDescription: '房主在首局首先叫地主',
+    }),
   },
 })
 

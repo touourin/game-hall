@@ -1,6 +1,7 @@
 import { defineAsyncComponent } from 'vue'
 import pokerArtwork from '../../assets/game-hall/icons/poker.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
+import RuleSettings from './RuleSettings.vue'
 
 export const pokerGame = defineBuiltinGame({
   key: 'poker',
@@ -28,6 +29,7 @@ export const pokerGame = defineBuiltinGame({
     skinKind: 'cards',
   },
   rules: {
+    settingsComponent: RuleSettings,
     defaults: {
       allowGuests: true,
       allowSpectators: true,

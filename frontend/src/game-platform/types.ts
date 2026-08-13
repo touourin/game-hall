@@ -43,9 +43,28 @@ export interface BuiltinGamePresentation {
   skinKind: BuiltinGameSkinKind | null
 }
 
+export interface BuiltinGameRuleSettingsProps {
+  modelValue: Readonly<Record<string, unknown>>
+}
+
+export interface BuiltinGameRuleSettingsEmits {
+  change: [key: string, value: unknown]
+}
+
+export interface BuiltinGameFirstPlayerCopy {
+  title: string
+  description: string
+  randomDescription: string
+  hostDescription: string
+}
+
 export interface BuiltinGameRules {
   defaults: Readonly<Record<string, unknown>>
   labels: (options: Readonly<Record<string, unknown>>) => string[]
+  settingsComponent?: Component
+  firstPlayerCopy?: (
+    options: Readonly<Record<string, unknown>>,
+  ) => BuiltinGameFirstPlayerCopy
   applyChange?: (
     options: Readonly<Record<string, unknown>>,
     key: string,
