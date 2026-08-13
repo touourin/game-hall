@@ -44,24 +44,6 @@ LEGACY_BUILTIN_GAME_CATALOG: tuple[dict[str, str], ...] = (
         "description": "一晚行动、晨间推理与一次终局投票",
     },
     {
-        "key": "gomoku",
-        "name": "五子棋",
-        "players": "2 人",
-        "description": "15 路棋盘，Swap2 与有禁手连珠",
-    },
-    {
-        "key": "xiangqi",
-        "name": "中国象棋",
-        "players": "2 人",
-        "description": "完整走子与重复局面限制",
-    },
-    {
-        "key": "go",
-        "name": "围棋",
-        "players": "2 人",
-        "description": "9/13/19 路中国规则，贴目可选",
-    },
-    {
         "key": "poker",
         "name": "德州扑克",
         "players": "2–8 人",
@@ -72,12 +54,6 @@ LEGACY_BUILTIN_GAME_CATALOG: tuple[dict[str, str], ...] = (
         "name": "斗地主",
         "players": "3 人",
         "description": "叫抢地主、三种玩法与倍数结算",
-    },
-    {
-        "key": "junqi",
-        "name": "军旗",
-        "players": "2 人",
-        "description": "暗军旗布阵与翻棋对战",
     },
     {
         "key": "reaction",

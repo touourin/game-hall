@@ -22,12 +22,6 @@ interface GameSkin {
 
 export const GAME_SKIN_STORAGE_KEY = 'game-hall:game-skin'
 
-const BOARD_GAME_KEYS = new Set<ArcadeGameKey>([
-  'gomoku',
-  'xiangqi',
-  'go',
-  'junqi',
-])
 const CARD_GAME_KEYS = new Set<ArcadeGameKey>(['poker', 'doudizhu'])
 
 export const GAME_SKINS: GameSkin[] = [
@@ -175,7 +169,6 @@ function isGameSkinId(value: string | null): value is GameSkinId {
 export function gameSkinKind(gameKey: ArcadeGameKey): GameSkinKind | null {
   const builtinSkinKind = builtinGameDefinition(gameKey)?.presentation.skinKind
   if (builtinSkinKind) return builtinSkinKind
-  if (BOARD_GAME_KEYS.has(gameKey)) return 'board'
   if (CARD_GAME_KEYS.has(gameKey)) return 'cards'
   return null
 }

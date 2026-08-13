@@ -1,10 +1,18 @@
 import type { Component } from 'vue'
 import chessGame from '../games/chess'
+import goGame from '../games/go'
+import gomokuGame from '../games/gomoku'
+import junqiGame from '../games/junqi'
+import xiangqiGame from '../games/xiangqi'
 import type { BuiltinArcadeGameKey } from '../types/arcade'
 import type { BuiltinGameDefinition } from './types'
 
 export const BUILTIN_GAME_DEFINITIONS = [
+  gomokuGame,
+  xiangqiGame,
   chessGame,
+  goGame,
+  junqiGame,
 ] as const satisfies readonly BuiltinGameDefinition[]
 
 const builtinGameDefinitionsByKey = new Map<BuiltinArcadeGameKey, BuiltinGameDefinition>()

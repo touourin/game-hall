@@ -46,6 +46,12 @@ export interface BuiltinGamePresentation {
 export interface BuiltinGameRules {
   defaults: Readonly<Record<string, unknown>>
   labels: (options: Readonly<Record<string, unknown>>) => string[]
+  applyChange?: (
+    options: Readonly<Record<string, unknown>>,
+    key: string,
+    value: unknown,
+  ) => Record<string, unknown>
+  hasHandicap?: (options: Readonly<Record<string, unknown>>) => boolean
 }
 
 export interface BuiltinGameDefinition<

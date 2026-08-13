@@ -3,11 +3,11 @@ import type { ArcadeGameKey } from '../types/arcade'
 import { builtinGameDefinition } from '../game-platform/registry'
 import {
   applyGameRuleChange,
-  GO_HANDICAP_OPTIONS,
   hasGameHandicap,
   withDefaultGameRules,
-  XIANGQI_HANDICAP_OPTIONS,
 } from '../gameRules'
+import { GO_HANDICAP_OPTIONS } from '../games/go/rules'
+import { XIANGQI_HANDICAP_OPTIONS } from '../games/xiangqi/rules'
 import ModeGuide from './ModeGuide.vue'
 import { AVALON_COURT_GUIDE } from '../gameModeGuides'
 
@@ -48,6 +48,43 @@ function supportsDraw(): boolean {
   const capabilities = builtinGameDefinition(props.gameKey)?.capabilities
   if (capabilities) return capabilities.draw
   return ['gomoku', 'xiangqi', 'go'].includes(props.gameKey)
+}
+
+function supportsFirstPlayer(): boolean {
+  const capabilities = builtinGameDefinition(props.gameKey)?.capabilities
+  if (capabilities) return capabilities.firstPlayer
+  return ![
+    'avalon',
+    'one_night_werewolf',
+    'reaction',
+    'deep_shaft',
+    'schulte',
+    'survive_three_seconds',
+    'minesweeper',
+    'hanoi',
+    'tetris',
+    'poker',
+  ].includes(props.gameKey)
+}
+
+function supportsGuests(): boolean {
+  const capabilities = builtinGameDefinition(props.gameKey)?.capabilities
+  if (capabilities) return capabilities.guests
+  return ![
+    'reaction',
+    'deep_shaft',
+    'schulte',
+    'survive_three_seconds',
+    'minesweeper',
+    'hanoi',
+    'tetris',
+  ].includes(props.gameKey)
+}
+
+function supportsSpectators(): boolean {
+  const capabilities = builtinGameDefinition(props.gameKey)?.capabilities
+  if (capabilities) return capabilities.spectators
+  return !['one_night_werewolf', 'tetris'].includes(props.gameKey)
 }
 
 </script>
@@ -333,7 +370,7 @@ function supportsDraw(): boolean {
       </div>
     </section>
 
-    <section v-if="!['avalon', 'one_night_werewolf', 'reaction', 'deep_shaft', 'schulte', 'survive_three_seconds', 'minesweeper', 'hanoi', 'tetris', 'poker'].includes(gameKey) && !hasHandicap()" class="rule-setting-group">
+    <section v-if="supportsFirstPlayer() && !hasHandicap()" class="rule-setting-group">
       <header><strong>{{ gameKey === 'doudizhu' ? '首叫玩家' : gameKey === 'gomoku' && option('openingRule') === 'swap2' ? '首局摆子者' : '首局先手' }}</strong><small>再来一局时仍会自动轮换</small></header>
       <div class="rule-option-grid">
         <button type="button" :class="{ active: option('firstPlayer') === 'random' }" @click="setOption('firstPlayer', 'random')">
@@ -374,7 +411,7 @@ function supportsDraw(): boolean {
       </div>
     </section>
 
-    <section v-if="!['reaction', 'deep_shaft', 'schulte', 'survive_three_seconds', 'minesweeper', 'hanoi', 'tetris'].includes(gameKey)" class="rule-setting-group guest-access-rules">
+    <section v-if="supportsGuests()" class="rule-setting-group guest-access-rules">
       <header><strong>游客准入</strong><small>包含游客的整局不会写入任何玩家的个人战绩或排行榜</small></header>
       <div class="rule-option-grid">
         <button type="button" :class="{ active: option('allowGuests') }" @click="setOption('allowGuests', true)">
@@ -386,7 +423,7 @@ function supportsDraw(): boolean {
       </div>
     </section>
 
-    <section v-if="!['one_night_werewolf', 'tetris'].includes(gameKey)" class="rule-setting-group spectator-access-rules">
+    <section v-if="supportsSpectators()" class="rule-setting-group spectator-access-rules">
       <header><strong>第一人称观战</strong><small>观众固定观看一名玩家，只能看到该玩家当时可见的内容</small></header>
       <div class="rule-option-grid">
         <button type="button" :class="{ active: option('allowSpectators') }" @click="setOption('allowSpectators', true)">

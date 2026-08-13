@@ -6,10 +6,7 @@ import avalonArtwork from '../assets/game-hall/icons/avalon.webp'
 import departedSuspicionArtwork from '../assets/game-hall/icons/departed-suspicion.webp'
 import doudizhuArtwork from '../assets/game-hall/icons/doudizhu.webp'
 import deepShaftArtwork from '../assets/game-hall/icons/deep-shaft.webp'
-import goArtwork from '../assets/game-hall/icons/go.webp'
-import gomokuArtwork from '../assets/game-hall/icons/gomoku.webp'
 import hanoiArtwork from '../assets/game-hall/icons/hanoi.webp'
-import junqiArtwork from '../assets/game-hall/icons/junqi.webp'
 import minesweeperArtwork from '../assets/game-hall/icons/minesweeper.webp'
 import monopolyArtwork from '../assets/game-hall/icons/monopoly.webp'
 import oneNightWerewolfArtwork from '../assets/game-hall/icons/one-night-werewolf.webp'
@@ -18,7 +15,6 @@ import reactionArtwork from '../assets/game-hall/icons/reaction.webp'
 import schulteArtwork from '../assets/game-hall/icons/schulte.webp'
 import surviveThreeSecondsArtwork from '../assets/game-hall/icons/survive-three-seconds.webp'
 import tetrisArtwork from '../assets/game-hall/icons/tetris.webp'
-import xiangqiArtwork from '../assets/game-hall/icons/xiangqi.webp'
 
 const props = defineProps<{ gameKey: GameCatalogItem['key'] }>()
 
@@ -26,13 +22,9 @@ const artworkByGame: Partial<Record<BuiltinArcadeGameKey, string>> = {
   avalon: avalonArtwork,
   departed_suspicion: departedSuspicionArtwork,
   one_night_werewolf: oneNightWerewolfArtwork,
-  gomoku: gomokuArtwork,
-  xiangqi: xiangqiArtwork,
-  go: goArtwork,
   poker: pokerArtwork,
   doudizhu: doudizhuArtwork,
   deep_shaft: deepShaftArtwork,
-  junqi: junqiArtwork,
   reaction: reactionArtwork,
   schulte: schulteArtwork,
   survive_three_seconds: surviveThreeSecondsArtwork,

@@ -77,6 +77,14 @@ class GameDefinition:
             raise ValueError(
                 f"官方游戏 {self.key} 的目录人数与引擎人数不一致"
             )
+        supports_ai = any(
+            callable(getattr(engine, attribute, None))
+            for attribute in ("choose_bot_action_async", "choose_bot_action")
+        )
+        if supports_ai != self.capabilities.ai:
+            raise ValueError(
+                f"官方游戏 {self.key} 的 AI 能力声明与引擎不一致"
+            )
         return engine
 
     @property

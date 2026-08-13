@@ -1,3 +1,4 @@
 from .engine import XiangqiEngine
+from .definition import XIANGQI_GAME
 
-__all__ = ["XiangqiEngine"]
+__all__ = ["XIANGQI_GAME", "XiangqiEngine"]

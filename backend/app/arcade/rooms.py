@@ -39,12 +39,6 @@ MAX_CHAT_LENGTH = 300
 MAX_CHAT_MESSAGES = 100
 MAX_ROOM_NAME_LENGTH = 20
 FIRST_PLAYER_MODES = {"random", "host"}
-LEGACY_UNDOABLE_ACTIONS = {
-    "gomoku": {"place", "pass"},
-    "xiangqi": {"move"},
-    "go": {"place", "pass"},
-}
-LEGACY_DRAW_GAMES = frozenset({"gomoku", "xiangqi", "go"})
 MAX_UNDO_HISTORY = 100
 ACTIVE_GAME_PHASES = {"setup", "playing", "bidding", "scoring"}
 
@@ -53,7 +47,7 @@ def game_undo_actions(game_key: str) -> frozenset[str]:
     definition = builtin_game_definition(game_key)
     if definition is not None:
         return definition.capabilities.undo_actions
-    return frozenset(LEGACY_UNDOABLE_ACTIONS.get(game_key, ()))
+    return frozenset()
 
 
 def game_supports_undo(game_key: str) -> bool:
@@ -62,9 +56,7 @@ def game_supports_undo(game_key: str) -> bool:
 
 def game_supports_draw(game_key: str) -> bool:
     definition = builtin_game_definition(game_key)
-    if definition is not None:
-        return definition.capabilities.draw_requests
-    return game_key in LEGACY_DRAW_GAMES
+    return bool(definition and definition.capabilities.draw_requests)
 
 
 def request_voter_ids(

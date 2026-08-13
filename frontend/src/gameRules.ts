@@ -6,30 +6,11 @@ import {
   thirdPartyGameRuleLabels,
 } from './thirdPartyGameRegistry'
 
-const NEGOTIATION_GAMES = new Set<ArcadeGameKey>([
-  'gomoku',
-  'xiangqi',
-  'go',
-])
-
-export const XIANGQI_HANDICAP_OPTIONS = [
-  { value: 'none', label: '不让子' },
-  { value: 'cannon', label: '让炮' },
-  { value: 'horse', label: '让马' },
-  { value: 'rook', label: '让车' },
-  { value: 'nine', label: '让九子' },
-] as const
-
-export const GO_HANDICAP_OPTIONS = [0, 2, 3, 6, 9] as const
-
 export function hasGameHandicap(
   gameKey: ArcadeGameKey,
   options: Record<string, unknown>,
 ): boolean {
-  if (gameKey === 'xiangqi') {
-    return typeof options.handicap === 'string' && options.handicap !== 'none'
-  }
-  return gameKey === 'go' && Number(options.handicap) > 0
+  return builtinGameDefinition(gameKey)?.rules.hasHandicap?.(options) ?? false
 }
 
 export function applyGameRuleChange(
@@ -38,23 +19,17 @@ export function applyGameRuleChange(
   key: string,
   value: unknown,
 ): Record<string, unknown> {
-  const next = { ...options, [key]: value }
-  if (gameKey === 'gomoku' && key === 'winRule' && value === 'renju') {
-    next.openingRule = 'standard'
+  const builtinRules = builtinGameDefinition(gameKey)?.rules
+  if (builtinRules?.applyChange) {
+    return builtinRules.applyChange(options, key, value)
   }
+  const next = { ...options, [key]: value }
   if (gameKey === 'avalon' && key === 'mode' && value === 'court_undercurrent') {
     next.ladyEnabled = false
     next.earlyAssassinationEnabled = false
   }
   if (gameKey === 'avalon' && key === 'mode' && value === 'standard') {
     next.shadowMerlinEnabled = false
-  }
-  if (gameKey === 'go' && key === 'boardSize' && value !== 19) {
-    next.handicap = 0
-  }
-  if (gameKey === 'go' && key === 'handicap' && value !== 0) {
-    next.boardSize = 19
-    next.komi = 0
   }
   return next
 }
@@ -122,27 +97,7 @@ export function defaultGameRules(
     options.startingCash = 8000
     options.maxRounds = 20
   }
-  if (NEGOTIATION_GAMES.has(gameKey)) {
-    options.allowUndo = true
-    options.allowDraw = true
-  }
-  if (gameKey === 'gomoku') {
-    options.winRule = 'exact_five'
-    options.openingRule = 'swap2'
-  }
-  if (gameKey === 'xiangqi') {
-    options.captureHintsEnabled = true
-    options.handicap = 'none'
-    options.handicapGiver = 'host'
-  }
   if (gameKey === 'doudizhu') options.variant = 'classic'
-  if (gameKey === 'go') {
-    options.boardSize = 19
-    options.komi = 7.5
-    options.handicap = 0
-    options.handicapGiver = 'host'
-  }
-  if (gameKey === 'junqi') options.mode = 'dark'
   return options
 }
 
@@ -244,49 +199,11 @@ export function gameRuleLabels(
       options.allowGuests ? '允许游客' : '仅登录玩家',
     ]
   }
-  const swap2 = gameKey === 'gomoku' && options.openingRule === 'swap2'
-  const handicap = hasGameHandicap(gameKey, options)
   const labels = [
-    handicap
-      ? options.handicapGiver === 'host' ? '房主让子' : '对手让子'
-      : options.firstPlayer === 'host'
-      ? swap2 ? '房主摆子' : gameKey === 'doudizhu' ? '房主首叫' : '房主先手'
-      : swap2 ? '随机摆子者' : gameKey === 'doudizhu' ? '随机首叫' : '随机先手',
+    options.firstPlayer === 'host'
+      ? gameKey === 'doudizhu' ? '房主首叫' : '房主先手'
+      : gameKey === 'doudizhu' ? '随机首叫' : '随机先手',
   ]
-  if (NEGOTIATION_GAMES.has(gameKey)) {
-    labels.push(options.allowUndo ? '允许悔棋' : '禁止悔棋')
-    labels.push(options.allowDraw ? '允许和棋' : '禁止和棋')
-  }
-  if (gameKey === 'gomoku') {
-    labels.unshift('15 路棋盘')
-    labels.push(options.openingRule === 'swap2' ? 'Swap2 开局' : '标准开局')
-    labels.push(
-      options.winRule === 'renju'
-        ? '有禁手连珠'
-        : options.winRule === 'exact_five'
-          ? '正好五子'
-          : '自由五子',
-    )
-  }
-  if (gameKey === 'go') {
-    labels.unshift(`${options.boardSize} 路棋盘`)
-    if (Number(options.handicap) > 0) labels.push(`让 ${options.handicap} 子`)
-    labels.push(`贴目 ${options.komi}`)
-  }
-  if (gameKey === 'xiangqi') {
-    const selectedHandicap = XIANGQI_HANDICAP_OPTIONS.find(
-      ({ value }) => value !== 'none' && value === options.handicap,
-    )
-    if (selectedHandicap) {
-      labels.push(selectedHandicap.label)
-    }
-    labels.push(
-      options.captureHintsEnabled ? '吃子提醒' : '关闭吃子提醒',
-    )
-  }
-  if (gameKey === 'junqi') {
-    labels.unshift(options.mode === 'flip' ? '翻棋军旗' : '暗军旗')
-  }
   if (gameKey === 'doudizhu') {
     labels.unshift(
       options.variant === 'laizi'
