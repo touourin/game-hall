@@ -52,8 +52,8 @@ const themes: Array<{
   {
     id: 'emerald',
     name: '极光雾舱',
-    description: '深空灰、雾面玻璃与低饱和极光',
-    colors: ['#080f17', '#152731', '#78bcb5'],
+    description: '深海军蓝、冷银玻璃与克制冰蓝仪表光',
+    colors: ['#020810', '#0d1d2e', '#64c6ea'],
   },
   {
     id: 'midnight',
@@ -329,13 +329,14 @@ function confirmAvatarCrop(file: File) {
 
 <style scoped>
 :global(.modal-card.settings-modal) { width: min(680px, calc(100vw - 28px)); max-height: calc(100dvh - 36px); overflow-y: auto; }
-.settings-section { margin-top: 20px; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface-glass); box-shadow: inset 0 1px 0 var(--metal-edge); }
+.settings-section { position: relative; margin-top: 20px; padding: 18px; border: 1px solid color-mix(in srgb, var(--line-strong) 54%, var(--line)); border-radius: var(--radius-card); background: var(--panel-sheen), linear-gradient(155deg, var(--surface-glass), var(--surface-primary)); box-shadow: var(--shadow-contact), inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 48%, transparent), inset 0 -16px 30px color-mix(in srgb, var(--panel-shadow) 22%, transparent); }
+.settings-section::after { position: absolute; inset: 4px; border: 1px solid color-mix(in srgb, var(--line-bright) 11%, transparent); border-radius: calc(var(--radius-card) - 4px); content: ''; pointer-events: none; }
 .settings-section > header { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; color: var(--gold); }
 .settings-section form { display: grid; gap: 11px; }
 .settings-hint { color: var(--muted); line-height: 1.6; }
 .settings-success { margin: 0; color: #8fe0bd; font-size: 12px; font-weight: 700; line-height: 1.55; }
 .settings-theme-list { display: grid; gap: 9px; }
-.settings-theme-list button { min-height: 76px; padding: 12px 14px; display: grid; grid-template-columns: auto 1fr auto; gap: 13px; align-items: center; border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--text); background: var(--surface-inset); box-shadow: inset 0 1px 0 var(--metal-edge); text-align: left; cursor: pointer; }
+.settings-theme-list button { min-height: 76px; padding: 12px 14px; display: grid; grid-template-columns: auto 1fr auto; gap: 13px; align-items: center; border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--text); background: var(--control-surface), var(--surface-inset); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 46%, transparent); text-align: left; cursor: pointer; }
 .settings-theme-list button.selected { border-color: var(--line-strong); background: color-mix(in srgb, var(--gold) 8%, var(--surface-glass)); box-shadow: var(--shadow-contact), inset 0 1px 0 var(--metal-edge); }
 .theme-copy { display: grid; gap: 4px; }.theme-copy strong { font-size: 13px; }.theme-copy small { color: var(--muted); font-size: 11px; line-height: 1.35; }
 .theme-swatches { display: flex; }

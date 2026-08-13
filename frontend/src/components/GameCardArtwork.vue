@@ -72,19 +72,53 @@ const artwork = computed(() => artworkByGame[props.gameKey as BuiltinArcadeGameK
   isolation: isolate;
 }
 
+.game-card-art::before,
+.game-card-art::after {
+  position: absolute;
+  content: '';
+  pointer-events: none;
+}
+
+.game-card-art::before {
+  z-index: 0;
+  right: 12%;
+  bottom: 5%;
+  left: 12%;
+  height: 27%;
+  border: 1px solid color-mix(in srgb, var(--line-bright) 32%, transparent);
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 50% 22%, color-mix(in srgb, var(--card-tone) 12%, transparent), transparent 48%),
+    linear-gradient(180deg, color-mix(in srgb, var(--metal-edge) 36%, transparent), transparent 17%),
+    var(--surface-inset);
+  box-shadow:
+    0 9px 19px rgba(0, 3, 9, .5),
+    inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 54%, transparent),
+    inset 0 -7px 13px color-mix(in srgb, var(--panel-shadow) 54%, transparent);
+}
+
+.game-card-art::after {
+  z-index: 4;
+  inset: 4px;
+  border: 1px solid color-mix(in srgb, var(--line-bright) 16%, transparent);
+  border-radius: calc(13px - 3px);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 28%, transparent);
+}
+
 .game-card-art img {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  z-index: 2;
   transform: scale(1.015);
   transition: filter .35s ease, transform .55s cubic-bezier(.2, .8, .2, 1);
 }
 
 .game-card-art-vignette {
   position: absolute;
-  z-index: 1;
+  z-index: 3;
   inset: 0;
   background:
     linear-gradient(180deg, rgba(3, 8, 13, .02) 42%, rgba(3, 8, 13, .34) 100%),
@@ -116,6 +150,30 @@ const artwork = computed(() => artworkByGame[props.gameKey as BuiltinArcadeGameK
 
 :global(:root[data-theme="midnight"] .game-card-art) {
   box-shadow: inset 0 0 30px rgba(4, 2, 16, .5), 0 0 18px color-mix(in srgb, var(--card-tone) 7%, transparent);
+}
+
+:global(:root[data-theme="emerald"] .game-card-art) {
+  border-color: color-mix(in srgb, var(--card-tone) 18%, var(--line-strong));
+  background:
+    radial-gradient(ellipse at 50% 74%, color-mix(in srgb, var(--card-tone) 10%, transparent), transparent 36%),
+    linear-gradient(var(--instrument-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--instrument-line) 1px, transparent 1px),
+    linear-gradient(155deg, rgba(22, 48, 71, .72), rgba(2, 8, 16, .96));
+  background-size: auto, 18px 18px, 18px 18px, auto;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 58%, transparent),
+    inset 0 -22px 38px rgba(0, 3, 9, .56),
+    0 12px 26px rgba(0, 3, 10, .48);
+}
+
+:global(:root[data-theme="emerald"] .game-card-art img) {
+  inset: 3%;
+  width: 94%;
+  height: 94%;
+  object-fit: contain;
+  filter: saturate(.82) contrast(1.08) brightness(1.04) drop-shadow(0 12px 13px rgba(0, 2, 7, .5));
+  -webkit-mask-image: radial-gradient(ellipse 72% 72% at 50% 49%, #000 52%, rgba(0, 0, 0, .92) 68%, transparent 92%);
+  mask-image: radial-gradient(ellipse 72% 72% at 50% 49%, #000 52%, rgba(0, 0, 0, .92) 68%, transparent 92%);
 }
 
 :global(:root[data-theme="royal"] .game-card-art) {

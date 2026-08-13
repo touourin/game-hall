@@ -6,7 +6,7 @@ defineProps<{
 </script>
 
 <template>
-  <header class="room-page-header">
+  <header class="room-page-header surface">
     <div class="room-page-navigation">
       <slot name="navigation" />
     </div>
@@ -32,22 +32,29 @@ defineProps<{
   gap: 18px;
   min-height: 76px;
   margin: 14px 0 18px;
-  border: 1px solid var(--line);
   border-radius: var(--radius-card);
   padding: 11px 14px;
-  background: var(--surface-glass);
-  box-shadow: var(--shadow-contact), inset 0 1px 0 var(--metal-edge);
-  backdrop-filter: blur(22px) saturate(112%);
 }
 
 .room-page-header::after {
   position: absolute;
-  top: 12px;
-  bottom: 12px;
-  left: 0;
+  inset: 4px;
+  border: 1px solid color-mix(in srgb, var(--line-bright) 14%, transparent);
+  border-radius: calc(var(--radius-card) - 4px);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 26%, transparent);
+  content: '';
+  pointer-events: none;
+}
+
+.room-page-header::before {
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: -1px;
   width: 3px;
   border-radius: 0 3px 3px 0;
-  background: var(--gold);
+  background: linear-gradient(180deg, transparent, var(--gold) 28% 72%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--gold) 34%, transparent);
   content: '';
 }
 

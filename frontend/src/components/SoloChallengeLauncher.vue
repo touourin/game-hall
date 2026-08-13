@@ -290,6 +290,17 @@ const challenge = computed<SoloChallengeConfig>(() => {
   pointer-events: none;
 }
 
+.solo-launcher::after {
+  position: absolute;
+  z-index: 4;
+  inset: 5px;
+  border: 1px solid color-mix(in srgb, var(--line-bright) 12%, transparent);
+  border-radius: calc(var(--radius-panel) - 5px);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 21%, transparent);
+  content: '';
+  pointer-events: none;
+}
+
 .solo-launcher-reaction { --solo-accent: #7299a8; }
 .solo-launcher-schulte { --solo-accent: #8584a6; }
 .solo-launcher-minesweeper { --solo-accent: #6e9d89; }

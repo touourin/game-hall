@@ -131,7 +131,7 @@ function scrollTo(section: HTMLElement | null) {
 
 <template>
   <main class="game-hall page-container adaptive-layout-root">
-    <aside class="hall-sidebar" aria-label="大厅导航">
+    <aside class="hall-sidebar surface" aria-label="大厅导航">
       <span class="hall-sidebar-mark" aria-hidden="true">竞</span>
       <button type="button" aria-label="查看全部游戏" @click="scrollTo(gamesSection)">
         <Grid3X3 :size="19" /><span>全部游戏</span>
@@ -269,7 +269,7 @@ function scrollTo(section: HTMLElement | null) {
       </footer>
     </div>
 
-    <nav class="hall-mobile-dock" aria-label="手机端大厅导航">
+    <nav class="hall-mobile-dock surface" aria-label="手机端大厅导航">
       <button type="button" aria-label="手机端：全部游戏" @click="scrollTo(gamesSection)"><Grid3X3 :size="21" /><span>全部游戏</span></button>
       <button type="button" aria-label="手机端：实时房间" @click="scrollTo(roomsSection)"><Radio :size="21" /><span>房间</span></button>
       <button v-if="!account.isGuest" type="button" aria-label="手机端：查看战绩" @click="showStats = true"><BarChart3 :size="21" /><span>战绩</span></button>
@@ -291,8 +291,9 @@ function scrollTo(section: HTMLElement | null) {
   position: relative;
   display: grid;
   grid-template-columns: 64px minmax(0, 1fr);
-  gap: 18px;
+  gap: 14px;
   width: min(100%, 1380px);
+  padding-top: max(14px, env(safe-area-inset-top));
   padding-bottom: 72px;
 }
 
@@ -307,15 +308,20 @@ function scrollTo(section: HTMLElement | null) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 13px;
+  gap: 10px;
   height: calc(100dvh - 36px - env(safe-area-inset-top));
   min-height: 520px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
   padding: 0 10px 14px;
-  background: var(--surface-glass);
-  box-shadow: var(--shadow-card), inset 0 1px 0 var(--metal-edge);
-  backdrop-filter: blur(24px) saturate(110%);
+  border-radius: var(--radius-card);
+}
+
+.hall-sidebar::after {
+  position: absolute;
+  inset: 4px;
+  border: 1px solid color-mix(in srgb, var(--line-bright) 14%, transparent);
+  border-radius: calc(var(--radius-card) - 4px);
+  content: '';
+  pointer-events: none;
 }
 
 .hall-sidebar-mark {
@@ -338,6 +344,7 @@ function scrollTo(section: HTMLElement | null) {
   border: 0;
   border-radius: var(--radius-control);
   color: var(--muted);
+  border: 1px solid transparent;
   background: transparent;
   cursor: pointer;
 }
@@ -371,9 +378,20 @@ function scrollTo(section: HTMLElement | null) {
   grid-template-columns: minmax(150px, 0.8fr) auto minmax(310px, 1.15fr);
   align-items: center;
   gap: 22px;
-  min-height: 78px;
-  margin-bottom: 26px;
+  min-height: 82px;
+  margin-bottom: 30px;
   padding: 10px 14px 10px 22px;
+  border-color: var(--line-strong);
+  border-radius: var(--radius-card);
+}
+
+.hall-topbar::after {
+  position: absolute;
+  inset: 4px;
+  border: 1px solid color-mix(in srgb, var(--line-bright) 16%, transparent);
+  border-radius: calc(var(--radius-card) - 4px);
+  content: '';
+  pointer-events: none;
 }
 
 .hall-title-block small {
@@ -409,7 +427,10 @@ function scrollTo(section: HTMLElement | null) {
   border-radius: 999px;
   padding: 10px 14px;
   color: var(--muted);
-  background: var(--surface-inset);
+  background: var(--control-surface), var(--surface-inset);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 48%, transparent),
+    inset 0 -8px 18px color-mix(in srgb, var(--panel-shadow) 22%, transparent);
   font-size: 10px;
 }
 
@@ -473,8 +494,12 @@ function scrollTo(section: HTMLElement | null) {
   justify-content: center;
   border-radius: 50%;
   padding: 0;
-  background: var(--surface-glass);
-  box-shadow: var(--shadow-contact), inset 0 1px 0 var(--metal-edge);
+  border-color: color-mix(in srgb, var(--line-strong) 76%, transparent);
+  background: var(--control-surface), var(--surface-inset);
+  box-shadow:
+    var(--shadow-contact),
+    inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 68%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--line-bright) 12%, transparent);
 }
 
 .hall-account-bar .account-bar-actions button span {
@@ -486,7 +511,7 @@ function scrollTo(section: HTMLElement | null) {
   align-items: flex-end;
   justify-content: space-between;
   gap: 18px;
-  padding: 0 4px 14px;
+  padding: 0 4px 16px;
 }
 
 .hall-section-heading > span {
@@ -496,7 +521,7 @@ function scrollTo(section: HTMLElement | null) {
 
 .hall-section-heading small {
   color: var(--gold);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 780;
   letter-spacing: .08em;
 }
@@ -504,6 +529,16 @@ function scrollTo(section: HTMLElement | null) {
 .hall-section-heading strong {
   font-size: clamp(23px, 2.5vw, 31px);
   letter-spacing: -.035em;
+}
+
+.hall-section-heading strong::after {
+  display: inline-block;
+  width: 52px;
+  height: 1px;
+  margin-left: 12px;
+  background: linear-gradient(90deg, var(--instrument-bright), transparent);
+  vertical-align: middle;
+  content: '';
 }
 
 .hall-section-heading em {
@@ -523,16 +558,17 @@ function scrollTo(section: HTMLElement | null) {
 .hall-command-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(320px, .78fr);
-  gap: 14px;
+  gap: 12px;
 }
 
 .hall-hub {
   display: grid;
   grid-template-columns: minmax(0, .9fr) minmax(300px, 1.1fr);
   align-items: center;
-  gap: 16px;
+  gap: 20px;
   min-height: 420px;
   overflow: hidden;
+  border-color: color-mix(in srgb, var(--line-strong) 82%, var(--line));
   padding: clamp(24px, 3.2vw, 42px);
 }
 
@@ -540,8 +576,19 @@ function scrollTo(section: HTMLElement | null) {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse at 76% 42%, color-mix(in srgb, var(--gold) 10%, transparent), transparent 42%),
-    linear-gradient(118deg, transparent 44%, color-mix(in srgb, var(--metal-edge) 32%, transparent));
+    repeating-radial-gradient(circle at 76% 46%, transparent 0 46px, var(--instrument-line) 47px 48px),
+    radial-gradient(ellipse at 76% 42%, color-mix(in srgb, var(--gold) 9%, transparent), transparent 42%),
+    linear-gradient(118deg, transparent 44%, color-mix(in srgb, var(--metal-edge) 28%, transparent));
+  content: '';
+  pointer-events: none;
+}
+
+.hall-hub::after {
+  position: absolute;
+  inset: 5px;
+  border: 1px solid color-mix(in srgb, var(--line-bright) 17%, transparent);
+  border-radius: calc(var(--radius-panel) - 5px);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 22%, transparent);
   content: '';
   pointer-events: none;
 }
@@ -595,12 +642,15 @@ function scrollTo(section: HTMLElement | null) {
 }
 
 .hall-hub-art :deep(.game-card-art) {
-  width: 72%;
+  width: 78%;
   aspect-ratio: 1;
   min-height: 0;
-  border-radius: 26%;
-  box-shadow: var(--shadow-raised);
-  transform: rotate(-2deg);
+  border-radius: 22%;
+  box-shadow:
+    var(--shadow-raised),
+    0 0 0 7px color-mix(in srgb, var(--surface-inset) 72%, transparent),
+    0 0 0 8px color-mix(in srgb, var(--line-bright) 22%, transparent);
+  transform: rotate(-1deg);
 }
 
 .hall-hub-art > small {
@@ -620,7 +670,7 @@ function scrollTo(section: HTMLElement | null) {
 .hall-hub-orbit {
   position: absolute;
   inset: 8%;
-  border: 1px solid color-mix(in srgb, var(--gold) 24%, transparent);
+  border: 1px solid var(--instrument-bright);
   border-radius: 50%;
 }
 
@@ -660,7 +710,8 @@ function scrollTo(section: HTMLElement | null) {
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 16px;
-  min-height: 92px;
+  min-height: 94px;
+  border-radius: var(--radius-card);
   padding: 18px;
   color: var(--text);
   text-align: left;
@@ -709,7 +760,7 @@ function scrollTo(section: HTMLElement | null) {
 }
 
 .hall-all-heading {
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--instrument-line);
   margin-bottom: 14px;
   padding-bottom: 16px;
 }
@@ -717,7 +768,7 @@ function scrollTo(section: HTMLElement | null) {
 .game-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .third-party-entry {
@@ -726,7 +777,7 @@ function scrollTo(section: HTMLElement | null) {
   align-items: center;
   gap: 13px;
   width: 100%;
-  min-height: 74px;
+  min-height: 78px;
   margin-top: 22px;
   padding: 12px 16px;
   color: var(--text);
@@ -782,6 +833,23 @@ function scrollTo(section: HTMLElement | null) {
 
 .hall-mobile-dock {
   display: none;
+}
+
+:global(:root[data-theme="emerald"]) .hall-sidebar,
+:global(:root[data-theme="emerald"]) .hall-topbar,
+:global(:root[data-theme="emerald"]) .hall-hub,
+:global(:root[data-theme="emerald"]) .hall-personal-card,
+:global(:root[data-theme="emerald"]) .third-party-entry {
+  background:
+    var(--panel-sheen),
+    linear-gradient(160deg, rgba(17, 38, 58, .8), rgba(3, 11, 20, .94));
+}
+
+:global(:root[data-theme="emerald"]) .hall-sidebar button:hover {
+  border-color: color-mix(in srgb, var(--line-strong) 70%, transparent);
+  color: var(--gold);
+  background: var(--control-surface), var(--surface-inset);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 44%, transparent);
 }
 
 @media (hover: hover) {
@@ -889,11 +957,16 @@ function scrollTo(section: HTMLElement | null) {
     grid-auto-columns: 1fr;
     gap: 4px;
     min-height: 68px;
-    border: 1px solid var(--line);
+    border-color: var(--line-strong);
     border-radius: var(--radius-card);
     padding: 5px;
-    background: color-mix(in srgb, var(--surface-elevated) 88%, transparent);
-    box-shadow: var(--shadow-raised), inset 0 1px 0 var(--metal-edge);
+    background:
+      var(--panel-sheen),
+      color-mix(in srgb, var(--surface-elevated) 92%, transparent);
+    box-shadow:
+      var(--shadow-raised),
+      inset 0 1px 0 var(--metal-edge),
+      inset 0 0 0 1px color-mix(in srgb, var(--line-bright) 11%, transparent);
     backdrop-filter: blur(28px) saturate(120%);
   }
 
@@ -904,10 +977,18 @@ function scrollTo(section: HTMLElement | null) {
     gap: 4px;
     min-width: 0;
     border: 0;
-    border-radius: 15px;
+    border: 1px solid transparent;
+    border-radius: calc(var(--radius-card) - 5px);
     color: var(--muted);
     background: transparent;
     font-size: 9px;
+  }
+
+  .hall-mobile-dock button:first-child {
+    border-color: color-mix(in srgb, var(--line-strong) 76%, transparent);
+    color: var(--text);
+    background: var(--control-surface), var(--surface-inset);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 62%, transparent);
   }
 }
 
@@ -915,6 +996,11 @@ function scrollTo(section: HTMLElement | null) {
   .hall-section-heading > div,
   .hall-section-heading em {
     display: none;
+  }
+
+  .hall-section-heading strong::after {
+    width: 28px;
+    margin-left: 8px;
   }
 
   .hall-command-heading {

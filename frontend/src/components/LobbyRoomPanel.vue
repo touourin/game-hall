@@ -60,7 +60,17 @@ defineEmits<{
   grid-template-rows: auto minmax(0, 1fr) auto;
   min-width: 0;
   overflow: hidden;
+  border-color: color-mix(in srgb, var(--line-strong) 66%, var(--line));
   padding: 16px;
+}
+
+.lobby-room-panel::after {
+  position: absolute;
+  inset: 4px;
+  border: 1px solid color-mix(in srgb, var(--line-bright) 12%, transparent);
+  border-radius: calc(var(--radius-panel) - 4px);
+  content: '';
+  pointer-events: none;
 }
 
 .lobby-room-heading {
@@ -134,6 +144,18 @@ defineEmits<{
   background: transparent;
   text-align: left;
   cursor: pointer;
+}
+
+.lobby-room-row::before {
+  width: 2px;
+  height: 16px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, transparent, var(--instrument-bright), transparent);
+  content: '';
+}
+
+.lobby-room-row {
+  grid-template-columns: 2px 36px minmax(0, 1fr) auto auto;
 }
 
 .lobby-room-avatar {
@@ -247,7 +269,7 @@ defineEmits<{
   }
 
   .lobby-room-row {
-    grid-template-columns: 34px minmax(0, 1fr) auto;
+    grid-template-columns: 2px 34px minmax(0, 1fr) auto;
   }
 
   .lobby-room-count {

@@ -42,7 +42,18 @@ defineEmits<{
   min-height: 164px;
   margin: 20px 0 18px;
   overflow: hidden;
+  border-color: color-mix(in srgb, var(--line-strong) 74%, var(--line));
   padding: 22px;
+}
+
+.game-home-header::before {
+  position: absolute;
+  inset: 5px;
+  border: 1px solid color-mix(in srgb, var(--line-bright) 15%, transparent);
+  border-radius: calc(var(--radius-panel) - 5px);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 22%, transparent);
+  content: '';
+  pointer-events: none;
 }
 
 .game-home-header::after {
@@ -51,7 +62,7 @@ defineEmits<{
   right: 20%;
   width: 280px;
   height: 190px;
-  border: 1px solid color-mix(in srgb, var(--gold) 14%, transparent);
+  border: 1px solid var(--instrument-line);
   border-radius: 50%;
   content: '';
   pointer-events: none;
@@ -73,8 +84,11 @@ defineEmits<{
   width: 100%;
   height: 100%;
   min-height: 0;
-  border-radius: 26%;
-  box-shadow: var(--shadow-contact);
+  border-radius: 22%;
+  box-shadow:
+    var(--shadow-contact),
+    0 0 0 4px color-mix(in srgb, var(--surface-inset) 66%, transparent),
+    0 0 0 5px color-mix(in srgb, var(--line-bright) 18%, transparent);
 }
 
 .game-home-copy {
@@ -117,8 +131,10 @@ defineEmits<{
   border-radius: var(--radius-control);
   padding: 10px 13px;
   color: var(--text-soft);
-  background: var(--surface-glass);
-  box-shadow: var(--shadow-contact), inset 0 1px 0 var(--metal-edge);
+  background: var(--control-surface), var(--surface-inset);
+  box-shadow:
+    var(--shadow-contact),
+    inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 56%, transparent);
   font-size: 11px;
   font-weight: 800;
   cursor: pointer;

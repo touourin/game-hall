@@ -42,7 +42,7 @@ const statusLabel = computed(() => {
 
 <template>
   <article
-    class="room-player-seat"
+    class="room-player-seat surface"
     :class="{
       'room-player-seat--self': self,
       'room-player-seat--perspective': perspective,
@@ -92,18 +92,22 @@ const statusLabel = computed(() => {
   gap: 10px;
   min-width: 0;
   min-height: 76px;
-  border: 1px solid var(--line);
   border-radius: var(--radius-card);
   padding: 10px 11px;
-  background: var(--surface-glass, var(--surface-elevated));
-  box-shadow: var(--shadow-contact, 0 5px 18px rgba(0, 0, 0, .16));
+  background:
+    var(--panel-sheen),
+    linear-gradient(155deg, var(--surface-glass), var(--surface-primary));
+  box-shadow:
+    var(--shadow-contact),
+    inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 44%, transparent),
+    inset 0 -12px 24px color-mix(in srgb, var(--panel-shadow) 24%, transparent);
 }
 
 .room-player-seat::after {
-  position: absolute;
-  inset: 1px;
-  border: 1px solid color-mix(in srgb, white 32%, transparent);
-  border-radius: calc(var(--radius-card) - 2px);
+  inset: 4px;
+  border: 1px solid color-mix(in srgb, var(--line-bright) 13%, transparent);
+  border-radius: calc(var(--radius-card) - 4px);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 24%, transparent);
   content: '';
   pointer-events: none;
 }
@@ -113,7 +117,8 @@ const statusLabel = computed(() => {
   border-color: color-mix(in srgb, var(--gold) 56%, var(--line));
   box-shadow:
     inset 3px 0 0 var(--gold),
-    var(--shadow-contact, 0 5px 18px rgba(0, 0, 0, .16));
+    0 0 0 1px color-mix(in srgb, var(--gold) 18%, transparent),
+    var(--shadow-contact);
 }
 
 .room-player-seat--offline {
