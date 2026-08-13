@@ -1,8 +1,15 @@
 import type { Component } from 'vue'
 import chessGame from '../games/chess'
+import deepShaftGame from '../games/deep_shaft'
 import goGame from '../games/go'
 import gomokuGame from '../games/gomoku'
+import hanoiGame from '../games/hanoi'
 import junqiGame from '../games/junqi'
+import minesweeperGame from '../games/minesweeper'
+import reactionGame from '../games/reaction'
+import schulteGame from '../games/schulte'
+import surviveThreeSecondsGame from '../games/survive_three_seconds'
+import tetrisGame from '../games/tetris'
 import xiangqiGame from '../games/xiangqi'
 import type { BuiltinArcadeGameKey } from '../types/arcade'
 import type { BuiltinGameDefinition } from './types'
@@ -13,6 +20,13 @@ export const BUILTIN_GAME_DEFINITIONS = [
   chessGame,
   goGame,
   junqiGame,
+  reactionGame,
+  deepShaftGame,
+  schulteGame,
+  surviveThreeSecondsGame,
+  minesweeperGame,
+  hanoiGame,
+  tetrisGame,
 ] as const satisfies readonly BuiltinGameDefinition[]
 
 const builtinGameDefinitionsByKey = new Map<BuiltinArcadeGameKey, BuiltinGameDefinition>()

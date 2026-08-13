@@ -5,16 +5,9 @@ import { builtinGameDefinition } from '../game-platform/registry'
 import avalonArtwork from '../assets/game-hall/icons/avalon.webp'
 import departedSuspicionArtwork from '../assets/game-hall/icons/departed-suspicion.webp'
 import doudizhuArtwork from '../assets/game-hall/icons/doudizhu.webp'
-import deepShaftArtwork from '../assets/game-hall/icons/deep-shaft.webp'
-import hanoiArtwork from '../assets/game-hall/icons/hanoi.webp'
-import minesweeperArtwork from '../assets/game-hall/icons/minesweeper.webp'
 import monopolyArtwork from '../assets/game-hall/icons/monopoly.webp'
 import oneNightWerewolfArtwork from '../assets/game-hall/icons/one-night-werewolf.webp'
 import pokerArtwork from '../assets/game-hall/icons/poker.webp'
-import reactionArtwork from '../assets/game-hall/icons/reaction.webp'
-import schulteArtwork from '../assets/game-hall/icons/schulte.webp'
-import surviveThreeSecondsArtwork from '../assets/game-hall/icons/survive-three-seconds.webp'
-import tetrisArtwork from '../assets/game-hall/icons/tetris.webp'
 
 const props = defineProps<{ gameKey: GameCatalogItem['key'] }>()
 
@@ -24,13 +17,6 @@ const artworkByGame: Partial<Record<BuiltinArcadeGameKey, string>> = {
   one_night_werewolf: oneNightWerewolfArtwork,
   poker: pokerArtwork,
   doudizhu: doudizhuArtwork,
-  deep_shaft: deepShaftArtwork,
-  reaction: reactionArtwork,
-  schulte: schulteArtwork,
-  survive_three_seconds: surviveThreeSecondsArtwork,
-  minesweeper: minesweeperArtwork,
-  hanoi: hanoiArtwork,
-  tetris: tetrisArtwork,
   monopoly: monopolyArtwork,
 }
 

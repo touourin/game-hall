@@ -21,6 +21,7 @@ from backend.app.arcade.views import (
 )
 from backend.app.games.base import GameRuleError
 from backend.app.games.builtin import builtin_game_definition
+from backend.app.games.builtin import BUILTIN_GAME_DEFINITIONS
 from backend.app.games.catalog import BUILTIN_GAME_NAMES
 from backend.app.games.doudizhu.engine import (
     Card,
@@ -46,6 +47,14 @@ def test_builtin_game_catalog_matches_engine_registry() -> None:
     }
 
     assert builtin_engine_keys == set(BUILTIN_GAME_NAMES)
+
+
+def test_all_registered_builtin_game_definitions_validate_their_engines() -> None:
+    for definition in BUILTIN_GAME_DEFINITIONS:
+        engine = definition.create_engine()
+
+        assert engine.key == definition.key
+        assert engine.name == definition.catalog.name
 
 
 @pytest.mark.parametrize(

@@ -6,16 +6,9 @@ from backend.app.games.catalog import BUILTIN_GAME_CATALOG
 from backend.app.games.avalon.arcade import AvalonEngine
 from backend.app.games.departed_suspicion import DepartedSuspicionEngine
 from backend.app.games.doudizhu import DoudizhuEngine
-from backend.app.games.deep_shaft import DeepShaftEngine
-from backend.app.games.hanoi import HanoiEngine
-from backend.app.games.minesweeper import MinesweeperEngine
 from backend.app.games.monopoly import MonopolyEngine
 from backend.app.games.one_night_werewolf import OneNightWerewolfEngine
 from backend.app.games.poker import PokerEngine
-from backend.app.games.reaction import ReactionEngine
-from backend.app.games.schulte import SchulteEngine
-from backend.app.games.survive_three_seconds import SurviveThreeSecondsEngine
-from backend.app.games.tetris import TetrisEngine
 from backend.app.games.plugins import discover_game_plugins, plugin_catalog
 
 
@@ -26,13 +19,6 @@ def build_engine_registry() -> dict[str, GameEngine]:
         OneNightWerewolfEngine(),
         PokerEngine(),
         DoudizhuEngine(),
-        DeepShaftEngine(),
-        ReactionEngine(),
-        SchulteEngine(),
-        SurviveThreeSecondsEngine(),
-        MinesweeperEngine(),
-        HanoiEngine(),
-        TetrisEngine(),
         MonopolyEngine(),
     ]
     engines.extend(

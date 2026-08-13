@@ -74,16 +74,6 @@ export function defaultGameRules(
       allowSpectators: false,
     }
   }
-  if (['reaction', 'deep_shaft', 'schulte', 'survive_three_seconds'].includes(gameKey)) return { allowSpectators: false }
-  if (gameKey === 'tetris') {
-    return {
-      challengeMode: 'timed',
-      durationSeconds: 180,
-      allowSpectators: false,
-    }
-  }
-  if (gameKey === 'minesweeper') return { difficulty: 'beginner', allowSpectators: true }
-  if (gameKey === 'hanoi') return { discCount: 5, allowSpectators: true }
   const options: Record<string, unknown> = {
     firstPlayer: 'random',
     allowGuests: true,
@@ -156,29 +146,6 @@ export function gameRuleLabels(
       '不限时讨论',
       options.listed ? '公开房间' : '私密房间',
       options.allowGuests ? '允许游客' : '仅登录玩家',
-    ]
-  }
-  if (gameKey === 'reaction') return ['三轮测试']
-  if (gameKey === 'deep_shaft') return ['100 层挑战', '左右移动', '服务端轨迹重放']
-  if (gameKey === 'schulte') return ['5×5 标准挑战', '服务端计时']
-  if (gameKey === 'survive_three_seconds') return ['3 秒极限挑战', '服务端轨迹重放']
-  if (gameKey === 'minesweeper') {
-    const difficulty = String(options.difficulty)
-    if (difficulty === 'expert') return ['高级', '16×30', '99 雷']
-    if (difficulty === 'intermediate') return ['中级', '16×16', '40 雷']
-    return ['初级', '9×9', '10 雷']
-  }
-  if (gameKey === 'hanoi') {
-    const discCount = Number(options.discCount)
-    return [`${discCount} 层圆盘`, `理论最少 ${2 ** discCount - 1} 步`]
-  }
-  if (gameKey === 'tetris') {
-    return [
-      options.challengeMode === 'timed'
-        ? `${Number(options.durationSeconds) / 60} 分钟限时`
-        : '无限挑战',
-      '10×20 标准棋盘',
-      '7-bag 随机序列',
     ]
   }
   if (gameKey === 'poker') {

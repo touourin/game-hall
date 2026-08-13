@@ -14,13 +14,6 @@ const LEGACY_BUILTIN_GAME_CATALOG: readonly GameCatalogEntry[] = [
   { key: 'one_night_werewolf', name: '一夜狼人', players: '3–10 人', description: '一晚换位，天亮后只投一次', tone: 'moon', category: '社交推理' },
   { key: 'poker', name: '德州扑克', players: '2–8 人', description: '读懂对手，把筹码推向终局', tone: 'poker', category: '扑克对战' },
   { key: 'doudizhu', name: '斗地主', players: '3 人', description: '抢下地主，三人斗到底', tone: 'blue', category: '扑克对战' },
-  { key: 'reaction', name: '反应挑战', players: '1 人', description: '盯住信号，挑战毫秒反应', tone: 'pulse', category: '个人挑战' },
-  { key: 'deep_shaft', name: '百层深井', players: '1 人', description: '控制左右落点，在危险平台间深入一百层', tone: 'shaft', category: '个人挑战' },
-  { key: 'schulte', name: '舒尔特方格', players: '1 人', description: '从 1 找到 25，练速度与专注', tone: 'focus', category: '个人挑战' },
-  { key: 'survive_three_seconds', name: '坚持三秒', players: '1 人', description: '看清三段弹幕缺口，远离边缘撑过三秒', tone: 'barrage', category: '个人挑战' },
-  { key: 'minesweeper', name: '扫雷', players: '1 人', description: '排除危险，清空整片雷区', tone: 'mine', category: '个人挑战' },
-  { key: 'hanoi', name: '汉诺塔', players: '1 人', description: '移动圆盘，用最少步数通关', tone: 'tower', category: '个人挑战' },
-  { key: 'tetris', name: '落块挑战', players: '1 人', description: '排列方块、连续消行，冲击更高分数', tone: 'blocks', category: '个人挑战' },
   { key: 'monopoly', name: '大富翁', players: '2–4 人', description: '买下整座城，让财富沿街生长', tone: 'fortune', category: '派对桌游' },
 ]
 
@@ -106,7 +99,6 @@ export function isSoloGameKey(key: unknown): boolean {
     (definition) => definition.key === key,
   )
   if (builtinGame) return builtinGame.catalog.players.max === 1
-  if (['reaction', 'deep_shaft', 'schulte', 'survive_three_seconds', 'minesweeper', 'hanoi', 'tetris'].includes(key)) return true
   const plugin = THIRD_PARTY_GAME_PLUGINS.find(({ manifest }) => manifest.id === key)
   return plugin?.manifest.players.max === 1
 }

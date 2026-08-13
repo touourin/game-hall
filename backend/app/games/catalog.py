@@ -56,48 +56,6 @@ LEGACY_BUILTIN_GAME_CATALOG: tuple[dict[str, str], ...] = (
         "description": "叫抢地主、三种玩法与倍数结算",
     },
     {
-        "key": "reaction",
-        "name": "反应挑战",
-        "players": "1 人",
-        "description": "三轮高精度反应测试",
-    },
-    {
-        "key": "deep_shaft",
-        "name": "百层深井",
-        "players": "1 人",
-        "description": "左右控制落点，在危险平台间深入一百层",
-    },
-    {
-        "key": "schulte",
-        "name": "舒尔特方格",
-        "players": "1 人",
-        "description": "按顺序寻找 1–25，训练专注与视觉搜索",
-    },
-    {
-        "key": "survive_three_seconds",
-        "name": "坚持三秒",
-        "players": "1 人",
-        "description": "在铺天盖地的弹幕中躲避三秒",
-    },
-    {
-        "key": "minesweeper",
-        "name": "扫雷",
-        "players": "1 人",
-        "description": "三种经典难度，首次点击安全",
-    },
-    {
-        "key": "hanoi",
-        "name": "汉诺塔",
-        "players": "1 人",
-        "description": "3–8 层经典益智挑战，争取最少步数",
-    },
-    {
-        "key": "tetris",
-        "name": "落块挑战",
-        "players": "1 人",
-        "description": "排列七种方块，连续消行挑战高分",
-    },
-    {
         "key": "monopoly",
         "name": "大富翁",
         "players": "2–4 人",

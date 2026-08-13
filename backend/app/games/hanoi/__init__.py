@@ -1,3 +1,4 @@
 from .engine import HanoiEngine
+from .definition import HANOI_GAME
 
-__all__ = ["HanoiEngine"]
+__all__ = ["HANOI_GAME", "HanoiEngine"]

@@ -69,13 +69,6 @@ import {
 } from '../gameSkins'
 import DoudizhuTable from '../games/doudizhu/DoudizhuTable.vue'
 import DepartedSuspicionTable from '../games/departed_suspicion/DepartedSuspicionTable.vue'
-import ReactionTest from '../games/reaction/ReactionTest.vue'
-import DeepShaftGame from '../games/deep_shaft/DeepShaftGame.vue'
-import SchulteGrid from '../games/schulte/SchulteGrid.vue'
-import SurviveThreeSecondsGame from '../games/survive_three_seconds/SurviveThreeSecondsGame.vue'
-import MinesweeperBoard from '../games/minesweeper/MinesweeperBoard.vue'
-import HanoiGame from '../games/hanoi/HanoiGame.vue'
-import TetrisGame from '../games/tetris/TetrisGame.vue'
 import MonopolyBoard from '../games/monopoly/MonopolyBoard.vue'
 import OneNightWerewolfTable from '../games/one_night_werewolf/OneNightWerewolfTable.vue'
 import OneNightWerewolfRules from '../games/one_night_werewolf/OneNightWerewolfRules.vue'
@@ -509,7 +502,7 @@ function openSharedChat() {
   <main
     class="arcade-room page-container adaptive-layout-root"
     :class="{
-      'arcade-room--wide': ['avalon', 'departed_suspicion', 'one_night_werewolf', 'poker', 'doudizhu', 'minesweeper', 'monopoly'].includes(snapshot.gameKey) || builtinRoomLayout === 'wide' || pluginRoomLayout === 'wide',
+      'arcade-room--wide': ['avalon', 'departed_suspicion', 'one_night_werewolf', 'poker', 'doudizhu', 'monopoly'].includes(snapshot.gameKey) || builtinRoomLayout === 'wide' || pluginRoomLayout === 'wide',
       'arcade-room--immersive': builtinRoomLayout === 'immersive' || pluginRoomLayout === 'immersive',
       'arcade-room--active': snapshot.phase !== 'lobby',
       'arcade-room--board-game': builtinGame?.presentation.skinKind === 'board',
@@ -776,13 +769,6 @@ function openSharedChat() {
       <component v-else-if="builtinGameView" :is="builtinGameView" :snapshot="snapshot" />
       <PokerTable v-else-if="snapshot.gameKey === 'poker'" :snapshot="snapshot" />
       <DoudizhuTable v-else-if="snapshot.gameKey === 'doudizhu'" :snapshot="snapshot" />
-      <ReactionTest v-else-if="snapshot.gameKey === 'reaction'" :snapshot="snapshot" />
-      <DeepShaftGame v-else-if="snapshot.gameKey === 'deep_shaft'" :snapshot="snapshot" />
-      <SchulteGrid v-else-if="snapshot.gameKey === 'schulte'" :snapshot="snapshot" />
-      <SurviveThreeSecondsGame v-else-if="snapshot.gameKey === 'survive_three_seconds'" :snapshot="snapshot" />
-      <MinesweeperBoard v-else-if="snapshot.gameKey === 'minesweeper'" :snapshot="snapshot" />
-      <HanoiGame v-else-if="snapshot.gameKey === 'hanoi'" :snapshot="snapshot" />
-      <TetrisGame v-else-if="snapshot.gameKey === 'tetris'" :snapshot="snapshot" />
       <MonopolyBoard v-else-if="snapshot.gameKey === 'monopoly'" :snapshot="snapshot" />
       <component v-else-if="pluginGameComponent" :is="pluginGameComponent" :snapshot="snapshot" />
       <AvalonTable
