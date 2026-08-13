@@ -279,7 +279,9 @@ const roomHeaderEyebrow = computed(() => {
           : props.snapshot.gameKey === 'hanoi'
             ? ' · 单人益智'
             : props.snapshot.gameKey === 'tetris'
-              ? ' · 单人高分挑战'
+              ? props.snapshot.options.challengeMode === 'endless'
+                ? ' · 无限高分挑战'
+                : ` · ${Number(props.snapshot.options.durationSeconds ?? 180) / 60} 分钟限时`
             : isSolo.value
               ? ' · 单人挑战'
               : ''
@@ -299,6 +301,10 @@ const roomHeaderTitle = computed(() => {
 const roomStatsMode = computed(() => (
   props.snapshot.gameKey === 'minesweeper'
     ? String(props.snapshot.options.difficulty ?? 'beginner')
+    : props.snapshot.gameKey === 'tetris'
+      ? props.snapshot.options.challengeMode === 'endless'
+        ? 'standard'
+        : `timed_${Number(props.snapshot.options.durationSeconds ?? 180)}`
     : undefined
 ))
 
