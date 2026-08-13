@@ -3432,11 +3432,7 @@ button:disabled {
 :root[data-theme="royal"] .spectator-room-list button:disabled,
 :root[data-theme="royal"] .spectator-targets button:disabled,
 :root[data-theme="royal"] .match-primary-action:disabled,
-:root[data-theme="royal"] .solo-start-button:disabled {
-  opacity: .72;
-  color: var(--disabled-text);
-}
-
+:root[data-theme="royal"] .solo-start-button:disabled,
 :root[data-theme="royal"] .add-ai-button:disabled,
 :root[data-theme="royal"] .cleanup-room-button:disabled,
 :root[data-theme="royal"] .arcade-chat-panel form button:disabled,
@@ -3446,7 +3442,9 @@ button:disabled {
 :root[data-theme="royal"] .bid-panel button:disabled,
 :root[data-theme="royal"] .play-actions button:disabled,
 :root[data-theme="royal"] .go-scoring-actions button:disabled {
-  opacity: .72;
+  opacity: 1;
+  color: var(--disabled-text);
+  border-color: rgba(50, 64, 72, .22);
 }
 
 :root[data-theme="royal"] .leaderboard-list b:is(.rank-1, .rank-2, .rank-3),
@@ -3456,6 +3454,10 @@ button:disabled {
 :root[data-theme="royal"] .raise-button,
 :root[data-theme="royal"] .avatar-preset-grid button > svg {
   color: #fff;
+}
+
+:root[data-theme="royal"] .junqi-actions button.primary {
+  color: #041f18;
 }
 
 :root[data-theme="royal"] .danger-button,
