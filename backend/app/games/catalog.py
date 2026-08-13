@@ -43,24 +43,6 @@ LEGACY_BUILTIN_GAME_CATALOG: tuple[dict[str, str], ...] = (
         "players": "3–10 人",
         "description": "一晚行动、晨间推理与一次终局投票",
     },
-    {
-        "key": "poker",
-        "name": "德州扑克",
-        "players": "2–8 人",
-        "description": "大小盲、四轮下注与全押边池",
-    },
-    {
-        "key": "doudizhu",
-        "name": "斗地主",
-        "players": "3 人",
-        "description": "叫抢地主、三种玩法与倍数结算",
-    },
-    {
-        "key": "monopoly",
-        "name": "大富翁",
-        "players": "2–4 人",
-        "description": "掷骰环游城市，买地升级并收取租金",
-    },
 )
 
 _LEGACY_CATALOG_ORDER = {

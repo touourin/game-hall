@@ -1034,16 +1034,25 @@ class ArcadeRoomManager:
         engine: GameEngine, options: dict[str, Any]
     ) -> dict[str, Any]:
         normalized: dict[str, Any] = {}
-        allow_spectators = options.get("allowSpectators", True)
-        if not isinstance(allow_spectators, bool):
-            raise ArcadeRoomError("观战设置格式不正确")
+        definition = builtin_game_definition(engine.key)
+        if definition is not None and not definition.capabilities.spectators:
+            allow_spectators = False
+        else:
+            allow_spectators = options.get("allowSpectators", True)
+            if not isinstance(allow_spectators, bool):
+                raise ArcadeRoomError("观战设置格式不正确")
         normalized["allowSpectators"] = allow_spectators
         if engine.max_players > 1:
             allow_guests = options.get("allowGuests", True)
             if not isinstance(allow_guests, bool):
                 raise ArcadeRoomError("游客准入设置格式不正确")
             normalized["allowGuests"] = allow_guests
-        if engine.max_players > 1 and getattr(engine, "uses_first_player", True):
+        supports_first_player = (
+            definition.capabilities.first_player
+            if definition is not None
+            else getattr(engine, "uses_first_player", True)
+        )
+        if engine.max_players > 1 and supports_first_player:
             first_player = options.get("firstPlayer", "random")
             if first_player not in FIRST_PLAYER_MODES:
                 raise ArcadeRoomError("请选择随机先手或房主先手")

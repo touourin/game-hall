@@ -4,10 +4,7 @@ import type { BuiltinArcadeGameKey, GameCatalogItem } from '../types/arcade'
 import { builtinGameDefinition } from '../game-platform/registry'
 import avalonArtwork from '../assets/game-hall/icons/avalon.webp'
 import departedSuspicionArtwork from '../assets/game-hall/icons/departed-suspicion.webp'
-import doudizhuArtwork from '../assets/game-hall/icons/doudizhu.webp'
-import monopolyArtwork from '../assets/game-hall/icons/monopoly.webp'
 import oneNightWerewolfArtwork from '../assets/game-hall/icons/one-night-werewolf.webp'
-import pokerArtwork from '../assets/game-hall/icons/poker.webp'
 
 const props = defineProps<{ gameKey: GameCatalogItem['key'] }>()
 
@@ -15,9 +12,6 @@ const artworkByGame: Partial<Record<BuiltinArcadeGameKey, string>> = {
   avalon: avalonArtwork,
   departed_suspicion: departedSuspicionArtwork,
   one_night_werewolf: oneNightWerewolfArtwork,
-  poker: pokerArtwork,
-  doudizhu: doudizhuArtwork,
-  monopoly: monopolyArtwork,
 }
 
 const artwork = computed(() => (

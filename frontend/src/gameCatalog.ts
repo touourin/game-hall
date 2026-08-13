@@ -12,9 +12,6 @@ const LEGACY_BUILTIN_GAME_CATALOG: readonly GameCatalogEntry[] = [
   { key: 'avalon', name: '阿瓦隆', players: '5–10 人', description: '谎言上桌，忠诚接受考验', tone: 'gold', category: '社交推理' },
   { key: 'departed_suspicion', name: '无间疑云', players: '4–8 人', description: '查底细、抢装备，在枪口转向前找出敌方领袖', tone: 'suspicion', category: '身份推理' },
   { key: 'one_night_werewolf', name: '一夜狼人', players: '3–10 人', description: '一晚换位，天亮后只投一次', tone: 'moon', category: '社交推理' },
-  { key: 'poker', name: '德州扑克', players: '2–8 人', description: '读懂对手，把筹码推向终局', tone: 'poker', category: '扑克对战' },
-  { key: 'doudizhu', name: '斗地主', players: '3 人', description: '抢下地主，三人斗到底', tone: 'blue', category: '扑克对战' },
-  { key: 'monopoly', name: '大富翁', players: '2–4 人', description: '买下整座城，让财富沿街生长', tone: 'fortune', category: '派对桌游' },
 ]
 
 const BUILTIN_GAME_ORDER: readonly ArcadeGameKey[] = [

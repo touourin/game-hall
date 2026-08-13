@@ -84,6 +84,34 @@ def test_board_games_use_builtin_game_definitions(
     assert definition.create_engine().key == game_key
 
 
+def test_builtin_capabilities_drive_shared_room_options() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+
+    poker_room, _, _ = manager.create_room(
+        "poker",
+        "牌手",
+        "poker-account",
+        {"firstPlayer": "host", "allowSpectators": True},
+    )
+    doudizhu_room, _, _ = manager.create_room(
+        "doudizhu",
+        "地主",
+        "doudizhu-account",
+        {"firstPlayer": "host"},
+    )
+    reaction_room, _, _ = manager.create_room(
+        "reaction",
+        "挑战者",
+        "reaction-account",
+        {"allowSpectators": True},
+    )
+
+    assert "firstPlayer" not in poker_room.options
+    assert poker_room.options["allowSpectators"] is True
+    assert doudizhu_room.options["firstPlayer"] == "host"
+    assert reaction_room.options["allowSpectators"] is False
+
+
 def test_every_enabled_game_can_render_an_exact_player_spectator_view() -> None:
     engines = build_engine_registry()
     manager = ArcadeRoomManager(engines)

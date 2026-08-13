@@ -1,3 +1,4 @@
 from .engine import MonopolyEngine
+from .definition import MONOPOLY_GAME
 
-__all__ = ["MonopolyEngine"]
+__all__ = ["MONOPOLY_GAME", "MonopolyEngine"]

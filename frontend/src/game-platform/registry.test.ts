@@ -5,7 +5,7 @@ describe('built-in game registry', () => {
   it('owns the complete board-game integration metadata', () => {
     const definition = builtinGameDefinition('chess')
 
-    expect(BUILTIN_GAME_DEFINITIONS).toHaveLength(12)
+    expect(BUILTIN_GAME_DEFINITIONS).toHaveLength(15)
     expect(definition?.catalog).toMatchObject({
       order: 50,
       name: '国际象棋',

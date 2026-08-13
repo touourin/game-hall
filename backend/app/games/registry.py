@@ -5,10 +5,7 @@ from backend.app.games.builtin import BUILTIN_GAME_DEFINITIONS
 from backend.app.games.catalog import BUILTIN_GAME_CATALOG
 from backend.app.games.avalon.arcade import AvalonEngine
 from backend.app.games.departed_suspicion import DepartedSuspicionEngine
-from backend.app.games.doudizhu import DoudizhuEngine
-from backend.app.games.monopoly import MonopolyEngine
 from backend.app.games.one_night_werewolf import OneNightWerewolfEngine
-from backend.app.games.poker import PokerEngine
 from backend.app.games.plugins import discover_game_plugins, plugin_catalog
 
 
@@ -17,9 +14,6 @@ def build_engine_registry() -> dict[str, GameEngine]:
         AvalonEngine(),
         DepartedSuspicionEngine(),
         OneNightWerewolfEngine(),
-        PokerEngine(),
-        DoudizhuEngine(),
-        MonopolyEngine(),
     ]
     engines.extend(
         definition.create_engine()

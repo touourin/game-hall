@@ -79,15 +79,6 @@ export function defaultGameRules(
     allowGuests: true,
     allowSpectators: true,
   }
-  if (gameKey === 'poker') {
-    options.startingChips = 1000
-    options.smallBlind = 10
-  }
-  if (gameKey === 'monopoly') {
-    options.startingCash = 8000
-    options.maxRounds = 20
-  }
-  if (gameKey === 'doudizhu') options.variant = 'classic'
   return options
 }
 
@@ -148,39 +139,9 @@ export function gameRuleLabels(
       options.allowGuests ? '允许游客' : '仅登录玩家',
     ]
   }
-  if (gameKey === 'poker') {
-    const smallBlind = Number(options.smallBlind)
-    return [
-      '2–8 人',
-      `起始 ${Number(options.startingChips)} 筹码`,
-      `盲注 ${smallBlind}/${smallBlind * 2}`,
-      options.allowGuests ? '允许游客' : '仅登录玩家',
-    ]
-  }
-  if (gameKey === 'monopoly') {
-    return [
-      '2–4 人',
-      `起始资金 ${Number(options.startingCash)}`,
-      `${Number(options.maxRounds)} 回合资产赛`,
-      '同色地块可升级',
-      options.allowGuests ? '允许游客' : '仅登录玩家',
-    ]
-  }
   const labels = [
-    options.firstPlayer === 'host'
-      ? gameKey === 'doudizhu' ? '房主首叫' : '房主先手'
-      : gameKey === 'doudizhu' ? '随机首叫' : '随机先手',
+    options.firstPlayer === 'host' ? '房主先手' : '随机先手',
   ]
-  if (gameKey === 'doudizhu') {
-    labels.unshift(
-      options.variant === 'laizi'
-        ? '癞子玩法'
-        : options.variant === 'no_shuffle'
-          ? '不洗牌玩法'
-          : '经典玩法',
-    )
-    labels.push('叫地主／抢地主')
-  }
   labels.push(options.allowGuests ? '允许游客' : '仅登录玩家')
   return labels
 }
