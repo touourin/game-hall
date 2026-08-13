@@ -215,23 +215,7 @@ const DEFAULT_ROLE_ARTWORK_FRAMING: RoleArtworkFraming = {
 
 const ROLE_ARTWORK_FRAMING: Partial<
   Record<RoleSkinId, Partial<Record<AvalonRoleCode, RoleArtworkFraming>>>
-> = {
-  'stained-glass': {
-    percival: {
-      scale: 1.09,
-      originXPercent: 50,
-      originYPercent: 50,
-      preserveFrame: true,
-    },
-  },
-  'grail-myth': {
-    assassin: { scale: 1.18, originXPercent: 50, originYPercent: 60 },
-    morgana: { scale: 1.1, originXPercent: 50, originYPercent: 29 },
-    mordred: { scale: 1.1, originXPercent: 50, originYPercent: 27 },
-    oberon: { scale: 1.08, originXPercent: 50, originYPercent: 28 },
-    minion: { scale: 1.1, originXPercent: 50, originYPercent: 27 },
-  },
-}
+> = {}
 
 export const ROLE_SKIN_ROLES: RoleSkinRoleDefinition[] = [
   { code: 'merlin', name: '梅林', alignment: 'good' },

@@ -23,9 +23,10 @@ describe('Avalon role skin artwork framing', () => {
       originXPercent: 50,
       originYPercent: 50,
     })
-    expect(roleArtworkFraming('percival', 'stained-glass')).toMatchObject({
-      scale: 1.09,
-      preserveFrame: true,
+    expect(roleArtworkFraming('percival', 'stained-glass')).toEqual({
+      scale: 1,
+      originXPercent: 50,
+      originYPercent: 50,
     })
     expect(roleArtworkFraming('merlin', 'royal-codex')).toMatchObject({
       scale: 1,
@@ -38,10 +39,13 @@ describe('Avalon role skin artwork framing', () => {
       originXPercent: 50,
       originYPercent: 50,
     })
-    expect(roleArtworkFraming('assassin', 'grail-myth')).toMatchObject({
-      scale: 1.18,
-      originYPercent: 60,
-    })
+    for (const role of ROLE_SKIN_ROLES) {
+      expect(roleArtworkFraming(role.code, 'grail-myth')).toEqual({
+        scale: 1,
+        originXPercent: 50,
+        originYPercent: 50,
+      })
+    }
     expect(roleArtworkFraming('shadow_merlin', 'classic-tabletop')).toEqual({
       scale: 1,
       originXPercent: 50,
