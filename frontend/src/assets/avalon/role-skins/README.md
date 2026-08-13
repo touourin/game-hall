@@ -53,7 +53,7 @@ lake ruins, engraved mithril, pearl inlay, gold or silver filigree, layered
 silk and velvet, jewel accents, realistic hair and skin, and magical particles.
 Good roles use radiant sacred-lake light; evil roles use distinct ruby,
 amethyst, storm, eclipse, and amber-dusk treatments while remaining readable.
-Avoid parchment, manuscript, stained-glass, and flat-vector treatments so the
+Avoid parchment, manuscript, decorative-glass, and flat-vector treatments so the
 skin stays visually separate from the other sets.
 
 Role subjects remain consistent across both prompt sets: Merlin with a crystal
