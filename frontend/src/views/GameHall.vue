@@ -835,17 +835,17 @@ function scrollTo(section: HTMLElement | null) {
   display: none;
 }
 
-:global(:root[data-theme="emerald"]) .hall-sidebar,
-:global(:root[data-theme="emerald"]) .hall-topbar,
-:global(:root[data-theme="emerald"]) .hall-hub,
-:global(:root[data-theme="emerald"]) .hall-personal-card,
-:global(:root[data-theme="emerald"]) .third-party-entry {
+:global(:root[data-theme="emerald"] .hall-sidebar),
+:global(:root[data-theme="emerald"] .hall-topbar),
+:global(:root[data-theme="emerald"] .hall-hub),
+:global(:root[data-theme="emerald"] .hall-personal-card),
+:global(:root[data-theme="emerald"] .third-party-entry) {
   background:
     var(--panel-sheen),
     linear-gradient(160deg, rgba(17, 38, 58, .8), rgba(3, 11, 20, .94));
 }
 
-:global(:root[data-theme="emerald"]) .hall-sidebar button:hover {
+:global(:root[data-theme="emerald"] .hall-sidebar button:hover) {
   border-color: color-mix(in srgb, var(--line-strong) 70%, transparent);
   color: var(--gold);
   background: var(--control-surface), var(--surface-inset);

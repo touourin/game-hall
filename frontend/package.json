@@ -6,7 +6,8 @@
   "scripts": {
     "plugins:sync": "node scripts/generate-plugin-registry.mjs",
     "dev": "npm run plugins:sync && vite",
-    "build": "npm run plugins:sync && vue-tsc -b && vite build",
+    "build": "npm run plugins:sync && vue-tsc -b && vite build && npm run verify:theme-selectors",
+    "verify:theme-selectors": "node scripts/verify-theme-selectors.mjs",
     "test": "npm run plugins:sync && vitest",
     "test:run": "npm run plugins:sync && vitest run",
     "smoke:arcade": "node scripts/arcade-smoke.mjs"

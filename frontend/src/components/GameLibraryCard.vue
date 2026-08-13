@@ -171,7 +171,7 @@ defineEmits<{
 .tone-suspicion { --module-tone: #9d7961; }
 .tone-moon { --module-tone: #7f89a5; }
 
-:global(:root[data-theme="emerald"]) .game-library-card {
+:global(:root[data-theme="emerald"] .game-library-card) {
   border-color: color-mix(in srgb, var(--module-tone) 21%, var(--line-strong));
   background:
     linear-gradient(155deg, rgba(207, 232, 250, .055), transparent 29%),
@@ -182,7 +182,7 @@ defineEmits<{
     inset 0 -20px 42px rgba(0, 3, 9, .34);
 }
 
-:global(:root[data-theme="emerald"]) .game-library-meta::after {
+:global(:root[data-theme="emerald"] .game-library-meta::after) {
   width: 18px;
   height: 1px;
   margin-left: auto;
@@ -191,11 +191,11 @@ defineEmits<{
   content: '';
 }
 
-:global(:root[data-theme="emerald"]) .game-library-meta em {
+:global(:root[data-theme="emerald"] .game-library-meta em) {
   order: 3;
 }
 
-:global(:root[data-theme="emerald"]) .game-library-copy > i {
+:global(:root[data-theme="emerald"] .game-library-copy > i) {
   background: var(--control-surface), var(--surface-inset);
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 48%, transparent);
 }
