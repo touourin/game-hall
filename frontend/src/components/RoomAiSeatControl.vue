@@ -143,7 +143,7 @@ function addAiPlayer() {
   border: 1px solid color-mix(in srgb, var(--gold) 58%, var(--line));
   border-radius: var(--radius-control);
   padding: 0 10px;
-  color: var(--surface-inset);
+  color: var(--accent-contrast);
   background: var(--gold);
   font-weight: 900;
 }
@@ -151,6 +151,19 @@ function addAiPlayer() {
 .room-ai-add-button:disabled {
   cursor: wait;
   opacity: .55;
+}
+
+:global(:root[data-theme="royal"] .room-ai-add-button:not(:disabled)) {
+  border-color: #32685c;
+  color: #fff;
+  background: linear-gradient(145deg, #4c8a7a, #32685c);
+  box-shadow:
+    0 8px 18px rgba(50, 104, 92, .18),
+    inset 0 1px 0 rgba(255, 255, 255, .28);
+}
+
+:global(:root[data-theme="royal"] .room-ai-add-button:disabled) {
+  opacity: 1;
 }
 
 @container ai-seat (max-width: 470px) {
