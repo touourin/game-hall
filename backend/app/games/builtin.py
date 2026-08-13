@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from backend.app.games.avalon.definition import AVALON_GAME
 from backend.app.games.chess.definition import CHESS_GAME
 from backend.app.games.deep_shaft.definition import DEEP_SHAFT_GAME
+from backend.app.games.departed_suspicion.definition import (
+    DEPARTED_SUSPICION_GAME,
+)
 from backend.app.games.definition import GameDefinition
 from backend.app.games.doudizhu.definition import DOUDIZHU_GAME
 from backend.app.games.go.definition import GO_GAME
@@ -10,6 +14,9 @@ from backend.app.games.hanoi.definition import HANOI_GAME
 from backend.app.games.junqi.definition import JUNQI_GAME
 from backend.app.games.minesweeper.definition import MINESWEEPER_GAME
 from backend.app.games.monopoly.definition import MONOPOLY_GAME
+from backend.app.games.one_night_werewolf.definition import (
+    ONE_NIGHT_WEREWOLF_GAME,
+)
 from backend.app.games.poker.definition import POKER_GAME
 from backend.app.games.reaction.definition import REACTION_GAME
 from backend.app.games.schulte.definition import SCHULTE_GAME
@@ -19,6 +26,9 @@ from backend.app.games.xiangqi.definition import XIANGQI_GAME
 
 
 BUILTIN_GAME_DEFINITIONS: tuple[GameDefinition, ...] = (
+    AVALON_GAME,
+    DEPARTED_SUSPICION_GAME,
+    ONE_NIGHT_WEREWOLF_GAME,
     GOMOKU_GAME,
     XIANGQI_GAME,
     CHESS_GAME,

@@ -10,8 +10,6 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.app.games.base import GameEngine, GameRuleError
-from backend.app.games.builtin import builtin_game_definition
-
 from .bots import ArcadeBotService, BotAction
 from .models import (
     ArcadeChatMessage,
@@ -41,6 +39,13 @@ MAX_ROOM_NAME_LENGTH = 20
 FIRST_PLAYER_MODES = {"random", "host"}
 MAX_UNDO_HISTORY = 100
 ACTIVE_GAME_PHASES = {"setup", "playing", "bidding", "scoring"}
+
+
+def builtin_game_definition(game_key: str):
+    """Resolve game metadata lazily to keep engines independent of rooms."""
+    from backend.app.games.builtin import builtin_game_definition as resolve
+
+    return resolve(game_key)
 
 
 def game_undo_actions(game_key: str) -> frozenset[str]:

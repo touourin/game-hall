@@ -8,42 +8,7 @@ export interface GameCatalogEntry extends GameCatalogItem {
   category: string
 }
 
-const LEGACY_BUILTIN_GAME_CATALOG: readonly GameCatalogEntry[] = [
-  { key: 'avalon', name: '阿瓦隆', players: '5–10 人', description: '谎言上桌，忠诚接受考验', tone: 'gold', category: '社交推理' },
-  { key: 'departed_suspicion', name: '无间疑云', players: '4–8 人', description: '查底细、抢装备，在枪口转向前找出敌方领袖', tone: 'suspicion', category: '身份推理' },
-  { key: 'one_night_werewolf', name: '一夜狼人', players: '3–10 人', description: '一晚换位，天亮后只投一次', tone: 'moon', category: '社交推理' },
-]
-
-const BUILTIN_GAME_ORDER: readonly ArcadeGameKey[] = [
-  'avalon',
-  'departed_suspicion',
-  'one_night_werewolf',
-  'gomoku',
-  'xiangqi',
-  'chess',
-  'go',
-  'poker',
-  'doudizhu',
-  'junqi',
-  'reaction',
-  'deep_shaft',
-  'schulte',
-  'survive_three_seconds',
-  'minesweeper',
-  'hanoi',
-  'tetris',
-  'monopoly',
-]
-
-const builtinGameOrder = new Map(
-  BUILTIN_GAME_ORDER.map((key, index) => [key, index * 10]),
-)
-
 const BUILTIN_GAME_CATALOG: readonly GameCatalogEntry[] = [
-  ...LEGACY_BUILTIN_GAME_CATALOG.map((game) => ({
-    order: builtinGameOrder.get(game.key) ?? Number.MAX_SAFE_INTEGER,
-    game,
-  })),
   ...BUILTIN_GAME_DEFINITIONS.map((definition) => ({
     order: definition.catalog.order,
     game: {
@@ -57,13 +22,11 @@ const BUILTIN_GAME_CATALOG: readonly GameCatalogEntry[] = [
   })),
 ].sort((left, right) => left.order - right.order).map(({ game }) => game)
 
-const builtinKeys = BUILTIN_GAME_CATALOG.map((game) => game.key)
-if (
-  builtinKeys.length !== BUILTIN_GAME_ORDER.length
-  || new Set(builtinKeys).size !== builtinKeys.length
-  || builtinKeys.some((key, index) => key !== BUILTIN_GAME_ORDER[index])
-) {
-  throw new Error('官方游戏目录与模块注册表不一致')
+const builtinOrders = BUILTIN_GAME_DEFINITIONS.map(
+  (definition) => definition.catalog.order,
+)
+if (new Set(builtinOrders).size !== builtinOrders.length) {
+  throw new Error('官方游戏目录存在重复排序')
 }
 
 export const GAME_CATALOG: readonly GameCatalogEntry[] = [

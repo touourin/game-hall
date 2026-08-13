@@ -2,16 +2,10 @@
 import { computed } from 'vue'
 import type { BuiltinArcadeGameKey, GameCatalogItem } from '../types/arcade'
 import { builtinGameDefinition } from '../game-platform/registry'
-import avalonArtwork from '../assets/game-hall/icons/avalon.webp'
-import departedSuspicionArtwork from '../assets/game-hall/icons/departed-suspicion.webp'
-import oneNightWerewolfArtwork from '../assets/game-hall/icons/one-night-werewolf.webp'
 
 const props = defineProps<{ gameKey: GameCatalogItem['key'] }>()
 
 const artworkByGame: Partial<Record<BuiltinArcadeGameKey, string>> = {
-  avalon: avalonArtwork,
-  departed_suspicion: departedSuspicionArtwork,
-  one_night_werewolf: oneNightWerewolfArtwork,
 }
 
 const artwork = computed(() => (

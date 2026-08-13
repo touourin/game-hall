@@ -67,12 +67,9 @@ import {
   storedGameSkin,
   type GameSkinId,
 } from '../gameSkins'
-import DepartedSuspicionTable from '../games/departed_suspicion/DepartedSuspicionTable.vue'
-import OneNightWerewolfTable from '../games/one_night_werewolf/OneNightWerewolfTable.vue'
 import OneNightWerewolfRules from '../games/one_night_werewolf/OneNightWerewolfRules.vue'
 import type { OneNightWerewolfView } from '../games/one_night_werewolf/types'
 import { builtinGameComponent, builtinGameDefinition } from '../game-platform/registry'
-import AvalonTable from '../games/avalon/AvalonTable.vue'
 import {
   thirdPartyGameComponent,
   thirdPartyGameRoomLayout,
@@ -499,7 +496,7 @@ function openSharedChat() {
   <main
     class="arcade-room page-container adaptive-layout-root"
     :class="{
-      'arcade-room--wide': ['avalon', 'departed_suspicion', 'one_night_werewolf'].includes(snapshot.gameKey) || builtinRoomLayout === 'wide' || pluginRoomLayout === 'wide',
+      'arcade-room--wide': builtinRoomLayout === 'wide' || pluginRoomLayout === 'wide',
       'arcade-room--immersive': builtinRoomLayout === 'immersive' || pluginRoomLayout === 'immersive',
       'arcade-room--active': snapshot.phase !== 'lobby',
       'arcade-room--board-game': builtinGame?.presentation.skinKind === 'board',
@@ -761,16 +758,15 @@ function openSharedChat() {
         </button>
       </div>
 
-      <DepartedSuspicionTable v-if="snapshot.gameKey === 'departed_suspicion'" :snapshot="snapshot" />
-      <OneNightWerewolfTable v-else-if="snapshot.gameKey === 'one_night_werewolf'" :snapshot="snapshot" />
-      <component v-else-if="builtinGameView" :is="builtinGameView" :snapshot="snapshot" />
-      <component v-else-if="pluginGameComponent" :is="pluginGameComponent" :snapshot="snapshot" />
-      <AvalonTable
-        v-else-if="avalonSnapshot"
+      <component
+        v-if="avalonSnapshot && builtinGameView"
+        :is="builtinGameView"
         :snapshot="avalonSnapshot"
         :role-skin="activeRoleSkin"
         @open-chat="openSharedChat"
       />
+      <component v-else-if="builtinGameView" :is="builtinGameView" :snapshot="snapshot" />
+      <component v-else-if="pluginGameComponent" :is="pluginGameComponent" :snapshot="snapshot" />
 
       <MatchRequestPanel
         v-if="!isSpectating && (snapshot.actions.canRequestUndo || snapshot.actions.canRequestDraw || snapshot.actions.canRequestEndTable || snapshot.request)"

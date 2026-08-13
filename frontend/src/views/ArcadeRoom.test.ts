@@ -11,7 +11,7 @@ import RoomPlayerSeat from '../components/RoomPlayerSeat.vue'
 import { useArcadeStore } from '../stores/arcade'
 import type { RoomSnapshot as AvalonRoomSnapshot } from '../types/avalon'
 import ArcadeRoom from './ArcadeRoom.vue'
-import AvalonTable from '../games/avalon/AvalonTable.vue'
+import AvalonRoomView from '../games/avalon/AvalonRoomView.vue'
 import ChessBoard from '../games/chess/ChessBoard.vue'
 import { rememberAccessToken } from '../access'
 import { rememberAccountToken } from '../account'
@@ -547,13 +547,13 @@ describe('ArcadeRoom', () => {
       role.code = 'dissenting_courtier'
       role.label = '心怀异念之臣'
     }
-    const wrapper = shallowMount(ArcadeRoom, {
+    const wrapper = mount(ArcadeRoom, {
       props: { snapshot: room },
       global: { plugins: [createPinia()] },
     })
     await flushPromises()
 
-    expect(wrapper.getComponent(AvalonTable).props('roleSkin')).toBe('dark-chronicle')
+    expect(wrapper.getComponent(AvalonRoomView).props('roleSkin')).toBe('dark-chronicle')
   })
 
   it('uses the independent shadow Merlin selection in play', async () => {
@@ -570,13 +570,13 @@ describe('ArcadeRoom', () => {
       role.code = 'shadow_merlin'
       role.label = '暗影梅林'
     }
-    const wrapper = shallowMount(ArcadeRoom, {
+    const wrapper = mount(ArcadeRoom, {
       props: { snapshot: room },
       global: { plugins: [createPinia()] },
     })
     await flushPromises()
 
-    expect(wrapper.getComponent(AvalonTable).props('roleSkin')).toBe('grail-myth')
+    expect(wrapper.getComponent(AvalonRoomView).props('roleSkin')).toBe('grail-myth')
   })
 
   it('balances a seven-player Avalon lobby instead of leaving one orphan card', () => {
@@ -625,6 +625,7 @@ describe('ArcadeRoom', () => {
     expect(wrapper.get('.rules-modal').text()).toContain('心怀异念之臣')
 
     await wrapper.setProps({ snapshot: avalonSnapshot('role_reveal') })
+    await flushPromises()
     expect(wrapper.find('[aria-label="查看我的战绩"]').exists()).toBe(true)
     expect(wrapper.find('[aria-label="查看排行榜"]').exists()).toBe(true)
     expect(wrapper.find('[aria-label="打开设置"]').exists()).toBe(true)

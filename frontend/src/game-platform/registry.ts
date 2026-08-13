@@ -1,6 +1,8 @@
 import type { Component } from 'vue'
+import avalonGame from '../games/avalon'
 import chessGame from '../games/chess'
 import deepShaftGame from '../games/deep_shaft'
+import departedSuspicionGame from '../games/departed_suspicion'
 import doudizhuGame from '../games/doudizhu'
 import goGame from '../games/go'
 import gomokuGame from '../games/gomoku'
@@ -8,6 +10,7 @@ import hanoiGame from '../games/hanoi'
 import junqiGame from '../games/junqi'
 import minesweeperGame from '../games/minesweeper'
 import monopolyGame from '../games/monopoly'
+import oneNightWerewolfGame from '../games/one_night_werewolf'
 import pokerGame from '../games/poker'
 import reactionGame from '../games/reaction'
 import schulteGame from '../games/schulte'
@@ -18,6 +21,9 @@ import type { BuiltinArcadeGameKey } from '../types/arcade'
 import type { BuiltinGameDefinition } from './types'
 
 export const BUILTIN_GAME_DEFINITIONS = [
+  avalonGame,
+  departedSuspicionGame,
+  oneNightWerewolfGame,
   gomokuGame,
   xiangqiGame,
   chessGame,
