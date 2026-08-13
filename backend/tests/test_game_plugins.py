@@ -7,22 +7,31 @@ from backend.app.accounts import AccountStore
 from backend.app.games.plugins import discover_game_plugins, third_party_games_root
 
 
-def write_plugin(root: Path, *, plugin_id: str, enabled: bool = True) -> Path:
+def write_plugin(
+    root: Path,
+    *,
+    plugin_id: str,
+    enabled: bool = True,
+    room_layout: str | None = None,
+) -> Path:
     directory = root / plugin_id
     backend = directory / "backend"
     backend.mkdir(parents=True)
+    manifest = {
+        "apiVersion": 1,
+        "enabled": enabled,
+        "id": plugin_id,
+        "name": "测试插件",
+        "description": "测试自动注册",
+        "category": "插件游戏",
+        "tone": "test",
+        "players": {"min": 1, "max": 1},
+    }
+    if room_layout is not None:
+        manifest["roomLayout"] = room_layout
     (directory / "manifest.json").write_text(
         json.dumps(
-            {
-                "apiVersion": 1,
-                "enabled": enabled,
-                "id": plugin_id,
-                "name": "测试插件",
-                "description": "测试自动注册",
-                "category": "插件游戏",
-                "tone": "test",
-                "players": {"min": 1, "max": 1},
-            },
+            manifest,
             ensure_ascii=False,
         ),
         encoding="utf-8",
@@ -49,12 +58,27 @@ def create_engine():
 
 
 def test_enabled_plugin_is_discovered_from_its_own_directory(tmp_path) -> None:
-    write_plugin(tmp_path, plugin_id="plugin-test-game")
+    write_plugin(
+        tmp_path,
+        plugin_id="plugin-test-game",
+        room_layout="immersive",
+    )
 
     plugins = discover_game_plugins(tmp_path)
 
     assert [plugin.engine.key for plugin in plugins] == ["plugin-test-game"]
     assert plugins[0].catalog_entry["players"] == "1 人"
+    assert plugins[0].manifest["roomLayout"] == "immersive"
+
+
+def test_plugin_with_invalid_room_layout_is_rejected(tmp_path) -> None:
+    write_plugin(
+        tmp_path,
+        plugin_id="plugin-test-game",
+        room_layout="fullscreen",
+    )
+
+    assert discover_game_plugins(tmp_path) == []
 
 
 def test_plugin_backend_can_keep_existing_logic_in_local_modules(tmp_path) -> None:

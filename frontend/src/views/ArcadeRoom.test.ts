@@ -331,6 +331,11 @@ describe('ArcadeRoom', () => {
     expect(wrapper.get('.arcade-room').classes()).not.toContain('arcade-room--wide')
     await wrapper.setProps({ snapshot: snapshot('minesweeper') })
     expect(wrapper.get('.arcade-room').classes()).toContain('arcade-room--wide')
+    await wrapper.setProps({ snapshot: snapshot('plugin-pyramid-solitaire') })
+    expect(wrapper.get('.arcade-room').classes()).toContain('arcade-room--immersive')
+    expect(wrapper.get('.arcade-room').classes()).not.toContain('arcade-room--wide')
+    await wrapper.setProps({ snapshot: snapshot('plugin-number-vault') })
+    expect(wrapper.get('.arcade-room').classes()).not.toContain('arcade-room--immersive')
   })
 
   it('marks active board rooms for the mobile board-first layout', () => {

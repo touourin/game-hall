@@ -100,6 +100,7 @@ export const GENERATED_THIRD_PARTY_GAME_MODULES = [
       "description": "配对凑成 13，清空七层 28 张牌的单人计时纸牌挑战",
       "category": "单人纸牌",
       "tone": "pyramid-solitaire",
+      "roomLayout": "immersive",
       "players": {
         "min": 1,
         "max": 1,

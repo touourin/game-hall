@@ -84,12 +84,16 @@ import OneNightWerewolfRules from '../games/one_night_werewolf/OneNightWerewolfR
 import type { OneNightWerewolfView } from '../games/one_night_werewolf/types'
 import PokerTable from '../games/poker/PokerTable.vue'
 import AvalonTable from '../games/avalon/AvalonTable.vue'
-import { thirdPartyGameComponent } from '../thirdPartyGameRegistry'
+import {
+  thirdPartyGameComponent,
+  thirdPartyGameRoomLayout,
+} from '../thirdPartyGameRegistry'
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const emit = defineEmits<{ settings: [] }>()
 const arcade = useArcadeStore()
 const pluginGameComponent = computed(() => thirdPartyGameComponent(props.snapshot.gameKey))
+const pluginRoomLayout = computed(() => thirdPartyGameRoomLayout(props.snapshot.gameKey))
 const avalonSnapshot = computed(
   () => isAvalonArcadeSnapshot(props.snapshot) ? props.snapshot.game : null,
 )
@@ -491,7 +495,8 @@ function openSharedChat() {
   <main
     class="arcade-room page-container adaptive-layout-root"
     :class="{
-      'arcade-room--wide': ['avalon', 'departed_suspicion', 'one_night_werewolf', 'poker', 'doudizhu', 'junqi', 'minesweeper', 'monopoly'].includes(snapshot.gameKey),
+      'arcade-room--wide': ['avalon', 'departed_suspicion', 'one_night_werewolf', 'poker', 'doudizhu', 'junqi', 'minesweeper', 'monopoly'].includes(snapshot.gameKey) || pluginRoomLayout === 'wide',
+      'arcade-room--immersive': pluginRoomLayout === 'immersive',
       'arcade-room--active': snapshot.phase !== 'lobby',
       'arcade-room--board-game': ['gomoku', 'xiangqi', 'go', 'junqi'].includes(snapshot.gameKey),
       'arcade-room--spectating': isSpectating,
@@ -1003,5 +1008,6 @@ function openSharedChat() {
 }
 @media (min-width: 860px) {
   .arcade-room.arcade-room--wide { width: min(100%, 1080px); }
+  .arcade-room.arcade-room--immersive { width: min(100%, 1680px); }
 }
 </style>

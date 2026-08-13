@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 PLUGIN_API_VERSION = 1
 PLUGIN_KEY_PATTERN = re.compile(r"^plugin-[a-z0-9][a-z0-9-]{0,24}$")
 PLUGIN_TONE_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,23}$")
+PLUGIN_ROOM_LAYOUTS = frozenset({"standard", "wide", "immersive"})
 
 
 @dataclass(frozen=True)
@@ -105,6 +106,9 @@ def _read_manifest(path: Path) -> dict[str, Any]:
         raise ValueError("插件 id 必须以 plugin- 开头、最长 32 位，并只包含小写字母、数字和连字符")
     if not PLUGIN_TONE_PATTERN.fullmatch(payload["tone"]):
         raise ValueError("tone 只能包含小写字母、数字和连字符")
+    room_layout = payload.get("roomLayout")
+    if room_layout is not None and room_layout not in PLUGIN_ROOM_LAYOUTS:
+        raise ValueError("roomLayout 只能是 standard、wide 或 immersive")
     if path.parent.name != payload["id"]:
         raise ValueError("插件目录名必须与 manifest id 完全一致")
     players = payload.get("players")

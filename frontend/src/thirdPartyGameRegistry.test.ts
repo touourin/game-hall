@@ -1,5 +1,6 @@
 import {
   THIRD_PARTY_GAME_PLUGINS,
+  thirdPartyGameRoomLayout,
   validateThirdPartyGameManifest,
 } from './thirdPartyGameRegistry'
 
@@ -23,10 +24,28 @@ describe('third-party game registry', () => {
       description: '用于验证插件协议',
       category: '插件游戏',
       tone: 'sample',
+      roomLayout: 'immersive',
       players: { min: 2, max: 4 },
     }, 'plugin-sample-game')
 
     expect(manifest?.id).toBe('plugin-sample-game')
+    expect(manifest?.roomLayout).toBe('immersive')
+  })
+
+  it('exposes a safe room layout and rejects unknown layout values', () => {
+    expect(thirdPartyGameRoomLayout('plugin-pyramid-solitaire')).toBe('immersive')
+    expect(thirdPartyGameRoomLayout('plugin-number-vault')).toBe('standard')
+    expect(validateThirdPartyGameManifest({
+      apiVersion: 1,
+      enabled: true,
+      id: 'plugin-invalid-layout',
+      name: '错误插件',
+      description: '错误宽度请求',
+      category: '插件',
+      tone: 'bad-layout',
+      roomLayout: 'fullscreen',
+      players: { min: 1, max: 1 },
+    }, 'plugin-invalid-layout')).toBeNull()
   })
 
   it('rejects unsafe keys, mismatched directories, and invalid player counts', () => {

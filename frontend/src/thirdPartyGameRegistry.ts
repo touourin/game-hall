@@ -9,6 +9,7 @@ export interface ThirdPartyGameManifest {
   description: string
   category: string
   tone: string
+  roomLayout?: 'standard' | 'wide' | 'immersive'
   players: {
     min: number
     max: number
@@ -55,6 +56,9 @@ export function validateThirdPartyGameManifest(
     || manifest.category.length > 16
     || typeof manifest.tone !== 'string'
     || !/^[a-z0-9][a-z0-9-]{0,23}$/.test(manifest.tone)
+    || (manifest.roomLayout !== undefined && (
+      !['standard', 'wide', 'immersive'].includes(String(manifest.roomLayout))
+    ))
     || !players
     || !Number.isInteger(players.min)
     || !Number.isInteger(players.max)
@@ -113,6 +117,12 @@ export function thirdPartyGameDefinition(key: unknown): ThirdPartyGameDefinition
 
 export function thirdPartyGameComponent(key: unknown): Component | null {
   return thirdPartyGameDefinition(key)?.component ?? null
+}
+
+export function thirdPartyGameRoomLayout(
+  key: unknown,
+): ThirdPartyGameManifest['roomLayout'] {
+  return thirdPartyGameDefinition(key)?.manifest.roomLayout ?? 'standard'
 }
 
 export function thirdPartyGameDefaultOptions(key: unknown): Record<string, unknown> {

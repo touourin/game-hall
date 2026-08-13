@@ -33,6 +33,9 @@ if (existsSync(pluginRoot)) {
         || manifest.category.length > 16
         || typeof manifest.tone !== 'string'
         || !/^[a-z0-9][a-z0-9-]{0,23}$/.test(manifest.tone)
+        || (manifest.roomLayout !== undefined && (
+          !['standard', 'wide', 'immersive'].includes(manifest.roomLayout)
+        ))
         || !Number.isInteger(players?.min)
         || !Number.isInteger(players?.max)
         || players.min < 1
