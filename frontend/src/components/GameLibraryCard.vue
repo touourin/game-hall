@@ -157,6 +157,7 @@ defineEmits<{
 }
 
 .tone-red { --module-tone: #b36f69; }
+.tone-chess { --module-tone: #9b8b72; }
 .tone-jade { --module-tone: #6f9b88; }
 .tone-blue { --module-tone: #748faa; }
 .tone-ink { --module-tone: #88969c; }

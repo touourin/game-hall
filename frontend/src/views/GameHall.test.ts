@@ -5,7 +5,7 @@ import { useArcadeStore } from '../stores/arcade'
 import GameHall from './GameHall.vue'
 
 describe('GameHall', () => {
-  it('shows seventeen games and selects the requested game', async () => {
+  it('shows eighteen games and selects the requested game', async () => {
     const wrapper = mount(GameHall, {
       props: {
         account: {
@@ -20,8 +20,8 @@ describe('GameHall', () => {
     })
 
     const gameCards = wrapper.findAll('.game-card')
-    expect(gameCards).toHaveLength(17)
-    expect(wrapper.findAll('.game-library-card .game-card-art')).toHaveLength(17)
+    expect(gameCards).toHaveLength(18)
+    expect(wrapper.findAll('.game-library-card .game-card-art')).toHaveLength(18)
     expect(wrapper.find('.art-avalon img').attributes('src')).toContain('avalon')
     expect(wrapper.find('.hall-hub').exists()).toBe(true)
     expect(wrapper.find('.hall-hub .art-go').exists()).toBe(true)
@@ -52,6 +52,8 @@ describe('GameHall', () => {
     expect(wrapper.text()).not.toContain('本周主桌')
     expect(wrapper.text()).not.toContain('快速启动')
     expect(wrapper.text()).toContain('军旗')
+    expect(wrapper.text()).toContain('国际象棋')
+    expect(wrapper.find('.art-chess img').attributes('src')).toContain('chess')
     expect(wrapper.text()).toContain('秘密布阵，沿铁路突袭敌旗')
     expect(wrapper.text()).not.toContain('Swap2')
     expect(wrapper.text()).toContain('反应挑战')

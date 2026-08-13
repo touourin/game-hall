@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { BuiltinArcadeGameKey, GameCatalogItem } from '../types/arcade'
 import avalonArtwork from '../assets/game-hall/icons/avalon.webp'
+import chessArtwork from '../assets/game-hall/icons/chess.webp'
 import departedSuspicionArtwork from '../assets/game-hall/icons/departed-suspicion.webp'
 import doudizhuArtwork from '../assets/game-hall/icons/doudizhu.webp'
 import deepShaftArtwork from '../assets/game-hall/icons/deep-shaft.webp'
@@ -23,6 +24,7 @@ const props = defineProps<{ gameKey: GameCatalogItem['key'] }>()
 
 const artworkByGame = {
   avalon: avalonArtwork,
+  chess: chessArtwork,
   departed_suspicion: departedSuspicionArtwork,
   one_night_werewolf: oneNightWerewolfArtwork,
   gomoku: gomokuArtwork,

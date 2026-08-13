@@ -4,6 +4,7 @@ import GameCardArtwork from './GameCardArtwork.vue'
 
 const artworkSlugs: Record<BuiltinArcadeGameKey, string> = {
   avalon: 'avalon',
+  chess: 'chess',
   departed_suspicion: 'departed-suspicion',
   one_night_werewolf: 'one-night-werewolf',
   gomoku: 'gomoku',

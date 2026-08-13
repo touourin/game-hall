@@ -12,6 +12,7 @@ const BUILTIN_GAME_CATALOG: readonly GameCatalogEntry[] = [
   { key: 'one_night_werewolf', name: '一夜狼人', players: '3–10 人', description: '一晚换位，天亮后只投一次', tone: 'moon', category: '社交推理' },
   { key: 'gomoku', name: '五子棋', players: '2 人', description: '一子定势，五子连珠', tone: 'ink', category: '棋类竞技' },
   { key: 'xiangqi', name: '中国象棋', players: '2 人', description: '隔河列阵，步步攻守', tone: 'red', category: '棋类竞技' },
+  { key: 'chess', name: '国际象棋', players: '2 人', description: '跨越黑白格，围猎对方王', tone: 'chess', category: '棋类竞技' },
   { key: 'go', name: '围棋', players: '2 人', description: '方寸之间，围地争先', tone: 'jade', category: '棋类竞技' },
   { key: 'poker', name: '德州扑克', players: '2–8 人', description: '读懂对手，把筹码推向终局', tone: 'poker', category: '扑克对战' },
   { key: 'doudizhu', name: '斗地主', players: '3 人', description: '抢下地主，三人斗到底', tone: 'blue', category: '扑克对战' },

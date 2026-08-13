@@ -4,6 +4,7 @@ export type BuiltinArcadeGameKey =
   | 'one_night_werewolf'
   | 'gomoku'
   | 'xiangqi'
+  | 'chess'
   | 'go'
   | 'poker'
   | 'doudizhu'

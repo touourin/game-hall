@@ -72,6 +72,7 @@ import DepartedSuspicionTable from '../games/departed_suspicion/DepartedSuspicio
 import GoBoard from '../games/go/GoBoard.vue'
 import GomokuBoard from '../games/gomoku/GomokuBoard.vue'
 import XiangqiBoard from '../games/xiangqi/XiangqiBoard.vue'
+import ChessBoard from '../games/chess/ChessBoard.vue'
 import JunqiBoard from '../games/junqi/JunqiBoard.vue'
 import ReactionTest from '../games/reaction/ReactionTest.vue'
 import DeepShaftGame from '../games/deep_shaft/DeepShaftGame.vue'
@@ -512,7 +513,7 @@ function openSharedChat() {
       'arcade-room--wide': ['avalon', 'departed_suspicion', 'one_night_werewolf', 'poker', 'doudizhu', 'junqi', 'minesweeper', 'monopoly'].includes(snapshot.gameKey) || pluginRoomLayout === 'wide',
       'arcade-room--immersive': pluginRoomLayout === 'immersive',
       'arcade-room--active': snapshot.phase !== 'lobby',
-      'arcade-room--board-game': ['gomoku', 'xiangqi', 'go', 'junqi'].includes(snapshot.gameKey),
+      'arcade-room--board-game': ['gomoku', 'xiangqi', 'chess', 'go', 'junqi'].includes(snapshot.gameKey),
       'arcade-room--spectating': isSpectating,
     }"
     :data-game-skin="activeGameSkinKind ? activeGameSkin : undefined"
@@ -775,6 +776,7 @@ function openSharedChat() {
       <DepartedSuspicionTable v-else-if="snapshot.gameKey === 'departed_suspicion'" :snapshot="snapshot" />
       <OneNightWerewolfTable v-else-if="snapshot.gameKey === 'one_night_werewolf'" :snapshot="snapshot" />
       <XiangqiBoard v-else-if="snapshot.gameKey === 'xiangqi'" :snapshot="snapshot" />
+      <ChessBoard v-else-if="snapshot.gameKey === 'chess'" :snapshot="snapshot" />
       <GoBoard v-else-if="snapshot.gameKey === 'go'" :snapshot="snapshot" />
       <PokerTable v-else-if="snapshot.gameKey === 'poker'" :snapshot="snapshot" />
       <DoudizhuTable v-else-if="snapshot.gameKey === 'doudizhu'" :snapshot="snapshot" />

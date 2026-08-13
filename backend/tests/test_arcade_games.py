@@ -1460,6 +1460,7 @@ def test_arcade_room_requires_manual_cleanup_after_ten_offline_minutes() -> None
     [
         ("gomoku", {}),
         ("xiangqi", {}),
+        ("chess", {}),
         ("go", {}),
         ("junqi", {"mode": "dark"}),
     ],
@@ -2009,7 +2010,7 @@ def test_solo_game_cannot_request_end_table() -> None:
 
 @pytest.mark.parametrize(
     "game_key",
-    ["avalon", "gomoku", "xiangqi", "go", "poker", "doudizhu", "junqi", "monopoly"],
+    ["avalon", "gomoku", "xiangqi", "chess", "go", "poker", "doudizhu", "junqi", "monopoly"],
 )
 def test_every_multiplayer_game_can_end_the_table_by_unanimous_request(
     game_key: str,
