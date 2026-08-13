@@ -155,7 +155,7 @@ async function submit() {
     />
 
     <SpectatorBrowser
-      v-if="!['one_night_werewolf', 'tetris'].includes(gameKey)"
+      v-if="!['one_night_werewolf', 'survive_three_seconds', 'tetris'].includes(gameKey)"
       :game-key="gameKey"
       :game-name="game.name"
       :rooms="watchRooms"

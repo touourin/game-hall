@@ -14,6 +14,7 @@ const artworkSlugs: Record<BuiltinArcadeGameKey, string> = {
   junqi: 'junqi',
   reaction: 'reaction',
   schulte: 'schulte',
+  survive_three_seconds: 'survive-three-seconds',
   minesweeper: 'minesweeper',
   hanoi: 'hanoi',
   tetris: 'tetris',

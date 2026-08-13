@@ -320,7 +320,7 @@ function hasHandicap(): boolean {
       </div>
     </section>
 
-    <section v-if="!['avalon', 'one_night_werewolf', 'reaction', 'schulte', 'minesweeper', 'hanoi', 'tetris', 'poker'].includes(gameKey) && !hasHandicap()" class="rule-setting-group">
+    <section v-if="!['avalon', 'one_night_werewolf', 'reaction', 'schulte', 'survive_three_seconds', 'minesweeper', 'hanoi', 'tetris', 'poker'].includes(gameKey) && !hasHandicap()" class="rule-setting-group">
       <header><strong>{{ gameKey === 'doudizhu' ? '首叫玩家' : gameKey === 'gomoku' && option('openingRule') === 'swap2' ? '首局摆子者' : '首局先手' }}</strong><small>再来一局时仍会自动轮换</small></header>
       <div class="rule-option-grid">
         <button type="button" :class="{ active: option('firstPlayer') === 'random' }" @click="setOption('firstPlayer', 'random')">
@@ -361,7 +361,7 @@ function hasHandicap(): boolean {
       </div>
     </section>
 
-    <section v-if="!['reaction', 'schulte', 'minesweeper', 'hanoi', 'tetris'].includes(gameKey)" class="rule-setting-group guest-access-rules">
+    <section v-if="!['reaction', 'schulte', 'survive_three_seconds', 'minesweeper', 'hanoi', 'tetris'].includes(gameKey)" class="rule-setting-group guest-access-rules">
       <header><strong>游客准入</strong><small>包含游客的整局不会写入任何玩家的个人战绩或排行榜</small></header>
       <div class="rule-option-grid">
         <button type="button" :class="{ active: option('allowGuests') }" @click="setOption('allowGuests', true)">

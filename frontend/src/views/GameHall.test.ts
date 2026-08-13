@@ -5,7 +5,7 @@ import { useArcadeStore } from '../stores/arcade'
 import GameHall from './GameHall.vue'
 
 describe('GameHall', () => {
-  it('shows fifteen games and selects the requested game', async () => {
+  it('shows sixteen games and selects the requested game', async () => {
     const wrapper = mount(GameHall, {
       props: {
         account: {
@@ -20,8 +20,8 @@ describe('GameHall', () => {
     })
 
     const gameCards = wrapper.findAll('.game-card')
-    expect(gameCards).toHaveLength(15)
-    expect(wrapper.findAll('.game-library-card .game-card-art')).toHaveLength(15)
+    expect(gameCards).toHaveLength(16)
+    expect(wrapper.findAll('.game-library-card .game-card-art')).toHaveLength(16)
     expect(wrapper.find('.art-avalon img').attributes('src')).toContain('avalon')
     expect(wrapper.find('.hall-hub').exists()).toBe(true)
     expect(wrapper.find('.hall-hub .art-go').exists()).toBe(true)
@@ -56,6 +56,7 @@ describe('GameHall', () => {
     expect(wrapper.text()).not.toContain('Swap2')
     expect(wrapper.text()).toContain('反应挑战')
     expect(wrapper.text()).toContain('舒尔特方格')
+    expect(wrapper.text()).toContain('坚持三秒')
     expect(wrapper.text()).toContain('扫雷')
     expect(wrapper.text()).toContain('汉诺塔')
     expect(wrapper.text()).toContain('大富翁')

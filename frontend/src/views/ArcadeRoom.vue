@@ -75,6 +75,7 @@ import XiangqiBoard from '../games/xiangqi/XiangqiBoard.vue'
 import JunqiBoard from '../games/junqi/JunqiBoard.vue'
 import ReactionTest from '../games/reaction/ReactionTest.vue'
 import SchulteGrid from '../games/schulte/SchulteGrid.vue'
+import SurviveThreeSecondsGame from '../games/survive_three_seconds/SurviveThreeSecondsGame.vue'
 import MinesweeperBoard from '../games/minesweeper/MinesweeperBoard.vue'
 import HanoiGame from '../games/hanoi/HanoiGame.vue'
 import TetrisGame from '../games/tetris/TetrisGame.vue'
@@ -274,6 +275,8 @@ const roomHeaderEyebrow = computed(() => {
       ? ' · 单人测试'
       : props.snapshot.gameKey === 'schulte'
         ? ' · 单人专注'
+        : props.snapshot.gameKey === 'survive_three_seconds'
+          ? ' · 三秒极限闪避'
         : props.snapshot.gameKey === 'minesweeper'
           ? ` · ${props.snapshot.game.difficultyLabel}`
           : props.snapshot.gameKey === 'hanoi'
@@ -291,6 +294,7 @@ const roomHeaderTitle = computed(() => {
   const soloTitles: Partial<Record<ArcadeSnapshot['gameKey'], string>> = {
     reaction: '反应挑战',
     schulte: '舒尔特挑战',
+    survive_three_seconds: '坚持三秒',
     minesweeper: '扫雷挑战',
     hanoi: '汉诺塔挑战',
     tetris: '落块挑战',
@@ -773,6 +777,7 @@ function openSharedChat() {
       <JunqiBoard v-else-if="snapshot.gameKey === 'junqi'" :snapshot="snapshot" />
       <ReactionTest v-else-if="snapshot.gameKey === 'reaction'" :snapshot="snapshot" />
       <SchulteGrid v-else-if="snapshot.gameKey === 'schulte'" :snapshot="snapshot" />
+      <SurviveThreeSecondsGame v-else-if="snapshot.gameKey === 'survive_three_seconds'" :snapshot="snapshot" />
       <MinesweeperBoard v-else-if="snapshot.gameKey === 'minesweeper'" :snapshot="snapshot" />
       <HanoiGame v-else-if="snapshot.gameKey === 'hanoi'" :snapshot="snapshot" />
       <TetrisGame v-else-if="snapshot.gameKey === 'tetris'" :snapshot="snapshot" />

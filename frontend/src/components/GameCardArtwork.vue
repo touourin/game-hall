@@ -14,6 +14,7 @@ import oneNightWerewolfArtwork from '../assets/game-hall/icons/one-night-werewol
 import pokerArtwork from '../assets/game-hall/icons/poker.webp'
 import reactionArtwork from '../assets/game-hall/icons/reaction.webp'
 import schulteArtwork from '../assets/game-hall/icons/schulte.webp'
+import surviveThreeSecondsArtwork from '../assets/game-hall/icons/survive-three-seconds.webp'
 import tetrisArtwork from '../assets/game-hall/icons/tetris.webp'
 import xiangqiArtwork from '../assets/game-hall/icons/xiangqi.webp'
 
@@ -31,6 +32,7 @@ const artworkByGame = {
   junqi: junqiArtwork,
   reaction: reactionArtwork,
   schulte: schulteArtwork,
+  survive_three_seconds: surviveThreeSecondsArtwork,
   minesweeper: minesweeperArtwork,
   hanoi: hanoiArtwork,
   tetris: tetrisArtwork,

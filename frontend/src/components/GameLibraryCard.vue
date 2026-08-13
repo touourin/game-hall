@@ -163,6 +163,7 @@ defineEmits<{
 .tone-army { --module-tone: #8f9872; }
 .tone-pulse { --module-tone: #66a499; }
 .tone-focus { --module-tone: #738fa3; }
+.tone-barrage { --module-tone: #c96678; }
 .tone-mine { --module-tone: #a77689; }
 .tone-tower { --module-tone: #8d7da3; }
 .tone-blocks { --module-tone: #7299a1; }

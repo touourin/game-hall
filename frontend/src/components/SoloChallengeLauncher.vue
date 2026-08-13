@@ -9,6 +9,7 @@ import {
   Play,
   ShieldCheck,
   Sparkles,
+  Timer,
   Zap,
   Blocks,
 } from '@lucide/vue'
@@ -91,6 +92,25 @@ const challenge = computed<SoloChallengeConfig>(() => {
       ],
       stages: ['稳定视线', '依次搜索', '完成计时'],
       recordNote: '完整点击 1–25 后，服务端将自动保存本次用时。',
+    }
+  }
+
+  if (props.gameKey === 'survive_three_seconds') {
+    return {
+      icon: Timer,
+      category: '极限闪避',
+      kicker: '方向控制与瞬时路线判断',
+      title: '只要坚持三秒',
+      description: '弹幕会从四面高速涌入。盯住青色判定点，用方向键或触屏方向盘穿过缝隙。',
+      button: '进入三秒挑战',
+      features: ['四面密集弹幕', '键盘与触屏适配', '服务端重放轨迹'],
+      metrics: [
+        { label: '生存目标', value: '3.00 秒' },
+        { label: '轨迹采样', value: '60 Hz' },
+        { label: '移动方式', value: '四方向' },
+      ],
+      stages: ['看准缝隙', '持续移动', '坚持三秒'],
+      recordNote: '完成后服务器会重放全部 180 帧输入，验证碰撞与存活结果。',
     }
   }
 
@@ -306,6 +326,7 @@ const challenge = computed<SoloChallengeConfig>(() => {
 .solo-launcher-minesweeper { --solo-accent: #6e9d89; }
 .solo-launcher-hanoi { --solo-accent: #a48a65; }
 .solo-launcher-tetris { --solo-accent: #719aa3; }
+.solo-launcher-survive_three_seconds { --solo-accent: #d46b7b; }
 
 .solo-story {
   position: relative;

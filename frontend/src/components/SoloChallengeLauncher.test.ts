@@ -3,7 +3,7 @@ import type { ArcadeGameKey } from '../types/arcade'
 import SoloChallengeLauncher from './SoloChallengeLauncher.vue'
 
 describe('SoloChallengeLauncher', () => {
-  it.each<ArcadeGameKey>(['reaction', 'schulte', 'minesweeper', 'hanoi', 'tetris'])(
+  it.each<ArcadeGameKey>(['reaction', 'schulte', 'survive_three_seconds', 'minesweeper', 'hanoi', 'tetris'])(
     'does not render a decorative sequence number for %s',
     (gameKey) => {
       const wrapper = mount(SoloChallengeLauncher, {

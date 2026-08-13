@@ -10,6 +10,7 @@ export type BuiltinArcadeGameKey =
   | 'junqi'
   | 'reaction'
   | 'schulte'
+  | 'survive_three_seconds'
   | 'minesweeper'
   | 'hanoi'
   | 'tetris'

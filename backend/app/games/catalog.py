@@ -69,6 +69,12 @@ BUILTIN_GAME_CATALOG: tuple[dict[str, str], ...] = (
         "description": "按顺序寻找 1–25，训练专注与视觉搜索",
     },
     {
+        "key": "survive_three_seconds",
+        "name": "坚持三秒",
+        "players": "1 人",
+        "description": "在铺天盖地的弹幕中躲避三秒",
+    },
+    {
         "key": "minesweeper",
         "name": "扫雷",
         "players": "1 人",

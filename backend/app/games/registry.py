@@ -15,6 +15,7 @@ from backend.app.games.one_night_werewolf import OneNightWerewolfEngine
 from backend.app.games.poker import PokerEngine
 from backend.app.games.reaction import ReactionEngine
 from backend.app.games.schulte import SchulteEngine
+from backend.app.games.survive_three_seconds import SurviveThreeSecondsEngine
 from backend.app.games.tetris import TetrisEngine
 from backend.app.games.xiangqi import XiangqiEngine
 from backend.app.games.plugins import discover_game_plugins, plugin_catalog
@@ -33,6 +34,7 @@ def build_engine_registry() -> dict[str, GameEngine]:
         JunqiEngine(),
         ReactionEngine(),
         SchulteEngine(),
+        SurviveThreeSecondsEngine(),
         MinesweeperEngine(),
         HanoiEngine(),
         TetrisEngine(),

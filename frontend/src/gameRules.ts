@@ -96,7 +96,7 @@ export function defaultGameRules(
       allowSpectators: false,
     }
   }
-  if (gameKey === 'reaction' || gameKey === 'schulte') return { allowSpectators: false }
+  if (gameKey === 'reaction' || gameKey === 'schulte' || gameKey === 'survive_three_seconds') return { allowSpectators: false }
   if (gameKey === 'tetris') {
     return {
       challengeMode: 'timed',
@@ -200,6 +200,7 @@ export function gameRuleLabels(
   }
   if (gameKey === 'reaction') return ['三轮测试']
   if (gameKey === 'schulte') return ['5×5 标准挑战', '服务端计时']
+  if (gameKey === 'survive_three_seconds') return ['3 秒极限挑战', '服务端轨迹重放']
   if (gameKey === 'minesweeper') {
     const difficulty = String(options.difficulty)
     if (difficulty === 'expert') return ['高级', '16×30', '99 雷']
