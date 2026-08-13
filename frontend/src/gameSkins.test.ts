@@ -29,6 +29,7 @@ describe('game skins', () => {
 
   it('only supports multiplayer board and card games', () => {
     expect(gameSkinKind('gomoku')).toBe('board')
+    expect(gameSkinKind('chess')).toBe('board')
     expect(gameSkinKind('poker')).toBe('cards')
     expect(gameSkinKind('hanoi')).toBeNull()
     expect(supportsGameSkin('doudizhu')).toBe(true)

@@ -1,4 +1,6 @@
 import type { ArcadeGameKey, GameCatalogItem } from './types/arcade'
+import { BUILTIN_GAME_DEFINITIONS } from './game-platform/registry'
+import { builtinGamePlayerLabel } from './game-platform/types'
 import { THIRD_PARTY_GAME_PLUGINS } from './thirdPartyGameRegistry'
 
 export interface GameCatalogEntry extends GameCatalogItem {
@@ -6,13 +8,12 @@ export interface GameCatalogEntry extends GameCatalogItem {
   category: string
 }
 
-const BUILTIN_GAME_CATALOG: readonly GameCatalogEntry[] = [
+const LEGACY_BUILTIN_GAME_CATALOG: readonly GameCatalogEntry[] = [
   { key: 'avalon', name: '阿瓦隆', players: '5–10 人', description: '谎言上桌，忠诚接受考验', tone: 'gold', category: '社交推理' },
   { key: 'departed_suspicion', name: '无间疑云', players: '4–8 人', description: '查底细、抢装备，在枪口转向前找出敌方领袖', tone: 'suspicion', category: '身份推理' },
   { key: 'one_night_werewolf', name: '一夜狼人', players: '3–10 人', description: '一晚换位，天亮后只投一次', tone: 'moon', category: '社交推理' },
   { key: 'gomoku', name: '五子棋', players: '2 人', description: '一子定势，五子连珠', tone: 'ink', category: '棋类竞技' },
   { key: 'xiangqi', name: '中国象棋', players: '2 人', description: '隔河列阵，步步攻守', tone: 'red', category: '棋类竞技' },
-  { key: 'chess', name: '国际象棋', players: '2 人', description: '跨越黑白格，围猎对方王', tone: 'chess', category: '棋类竞技' },
   { key: 'go', name: '围棋', players: '2 人', description: '方寸之间，围地争先', tone: 'jade', category: '棋类竞技' },
   { key: 'poker', name: '德州扑克', players: '2–8 人', description: '读懂对手，把筹码推向终局', tone: 'poker', category: '扑克对战' },
   { key: 'doudizhu', name: '斗地主', players: '3 人', description: '抢下地主，三人斗到底', tone: 'blue', category: '扑克对战' },
@@ -26,6 +27,58 @@ const BUILTIN_GAME_CATALOG: readonly GameCatalogEntry[] = [
   { key: 'tetris', name: '落块挑战', players: '1 人', description: '排列方块、连续消行，冲击更高分数', tone: 'blocks', category: '个人挑战' },
   { key: 'monopoly', name: '大富翁', players: '2–4 人', description: '买下整座城，让财富沿街生长', tone: 'fortune', category: '派对桌游' },
 ]
+
+const BUILTIN_GAME_ORDER: readonly ArcadeGameKey[] = [
+  'avalon',
+  'departed_suspicion',
+  'one_night_werewolf',
+  'gomoku',
+  'xiangqi',
+  'chess',
+  'go',
+  'poker',
+  'doudizhu',
+  'junqi',
+  'reaction',
+  'deep_shaft',
+  'schulte',
+  'survive_three_seconds',
+  'minesweeper',
+  'hanoi',
+  'tetris',
+  'monopoly',
+]
+
+const builtinGameOrder = new Map(
+  BUILTIN_GAME_ORDER.map((key, index) => [key, index * 10]),
+)
+
+const BUILTIN_GAME_CATALOG: readonly GameCatalogEntry[] = [
+  ...LEGACY_BUILTIN_GAME_CATALOG.map((game) => ({
+    order: builtinGameOrder.get(game.key) ?? Number.MAX_SAFE_INTEGER,
+    game,
+  })),
+  ...BUILTIN_GAME_DEFINITIONS.map((definition) => ({
+    order: definition.catalog.order,
+    game: {
+      key: definition.key,
+      name: definition.catalog.name,
+      players: builtinGamePlayerLabel(definition.catalog.players),
+      description: definition.catalog.description,
+      tone: definition.catalog.tone,
+      category: definition.catalog.category,
+    },
+  })),
+].sort((left, right) => left.order - right.order).map(({ game }) => game)
+
+const builtinKeys = BUILTIN_GAME_CATALOG.map((game) => game.key)
+if (
+  builtinKeys.length !== BUILTIN_GAME_ORDER.length
+  || new Set(builtinKeys).size !== builtinKeys.length
+  || builtinKeys.some((key, index) => key !== BUILTIN_GAME_ORDER[index])
+) {
+  throw new Error('官方游戏目录与模块注册表不一致')
+}
 
 export const GAME_CATALOG: readonly GameCatalogEntry[] = [
   ...BUILTIN_GAME_CATALOG,
@@ -53,6 +106,10 @@ export function isArcadeGameKey(key: unknown): key is ArcadeGameKey {
 
 export function isSoloGameKey(key: unknown): boolean {
   if (typeof key !== 'string') return false
+  const builtinGame = BUILTIN_GAME_DEFINITIONS.find(
+    (definition) => definition.key === key,
+  )
+  if (builtinGame) return builtinGame.catalog.players.max === 1
   if (['reaction', 'deep_shaft', 'schulte', 'survive_three_seconds', 'minesweeper', 'hanoi', 'tetris'].includes(key)) return true
   const plugin = THIRD_PARTY_GAME_PLUGINS.find(({ manifest }) => manifest.id === key)
   return plugin?.manifest.players.max === 1

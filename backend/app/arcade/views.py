@@ -9,11 +9,11 @@ from .models import ArcadePlayer, ArcadeRoom, ArcadeSpectator
 from .rooms import (
     ACTIVE_GAME_PHASES,
     DISCONNECT_FORFEIT_GRACE,
-    DRAW_GAMES,
     HOST_TRANSFER_GRACE,
     MAX_CHAT_LENGTH,
-    UNDO_GAMES,
     can_undo_for_player,
+    game_supports_draw,
+    game_supports_undo,
     request_voter_ids,
 )
 
@@ -246,14 +246,14 @@ def build_room_view(
             ),
             "canRequestUndo": (
                 room.phase == "playing"
-                and room.game_key in UNDO_GAMES
+                and game_supports_undo(room.game_key)
                 and room.options.get("allowUndo", True)
                 and can_undo_for_player(room, viewer.id)
                 and pending_request is None
             ),
             "canRequestDraw": (
                 room.phase == "playing"
-                and room.game_key in DRAW_GAMES
+                and game_supports_draw(room.game_key)
                 and room.options.get("allowDraw", True)
                 and pending_request is None
             ),

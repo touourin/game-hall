@@ -1,4 +1,5 @@
 import type { ArcadeGameKey } from './types/arcade'
+import { builtinGameDefinition } from './game-platform/registry'
 import {
   thirdPartyGameDefaultOptions,
   thirdPartyGameDefinition,
@@ -8,7 +9,6 @@ import {
 const NEGOTIATION_GAMES = new Set<ArcadeGameKey>([
   'gomoku',
   'xiangqi',
-  'chess',
   'go',
 ])
 
@@ -62,6 +62,8 @@ export function applyGameRuleChange(
 export function defaultGameRules(
   gameKey: ArcadeGameKey,
 ): Record<string, unknown> {
+  const builtinGame = builtinGameDefinition(gameKey)
+  if (builtinGame) return { ...builtinGame.rules.defaults }
   if (thirdPartyGameDefinition(gameKey)) {
     return {
       firstPlayer: 'random',
@@ -156,6 +158,8 @@ export function gameRuleLabels(
   rawOptions: Record<string, unknown>,
 ): string[] {
   const options = withDefaultGameRules(gameKey, rawOptions)
+  const builtinGame = builtinGameDefinition(gameKey)
+  if (builtinGame) return builtinGame.rules.labels(options)
   if (thirdPartyGameDefinition(gameKey)) {
     const labels = thirdPartyGameRuleLabels(gameKey)
     labels.push(options.allowGuests ? '允许游客' : '仅登录玩家')

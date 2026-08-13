@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { BuiltinArcadeGameKey, GameCatalogItem } from '../types/arcade'
+import { builtinGameDefinition } from '../game-platform/registry'
 import avalonArtwork from '../assets/game-hall/icons/avalon.webp'
-import chessArtwork from '../assets/game-hall/icons/chess.webp'
 import departedSuspicionArtwork from '../assets/game-hall/icons/departed-suspicion.webp'
 import doudizhuArtwork from '../assets/game-hall/icons/doudizhu.webp'
 import deepShaftArtwork from '../assets/game-hall/icons/deep-shaft.webp'
@@ -22,9 +22,8 @@ import xiangqiArtwork from '../assets/game-hall/icons/xiangqi.webp'
 
 const props = defineProps<{ gameKey: GameCatalogItem['key'] }>()
 
-const artworkByGame = {
+const artworkByGame: Partial<Record<BuiltinArcadeGameKey, string>> = {
   avalon: avalonArtwork,
-  chess: chessArtwork,
   departed_suspicion: departedSuspicionArtwork,
   one_night_werewolf: oneNightWerewolfArtwork,
   gomoku: gomokuArtwork,
@@ -41,9 +40,13 @@ const artworkByGame = {
   hanoi: hanoiArtwork,
   tetris: tetrisArtwork,
   monopoly: monopolyArtwork,
-} satisfies Record<BuiltinArcadeGameKey, string>
+}
 
-const artwork = computed(() => artworkByGame[props.gameKey as BuiltinArcadeGameKey] ?? null)
+const artwork = computed(() => (
+  builtinGameDefinition(props.gameKey)?.catalog.artwork
+  ?? artworkByGame[props.gameKey as BuiltinArcadeGameKey]
+  ?? null
+))
 </script>
 
 <template>

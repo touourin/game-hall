@@ -72,7 +72,6 @@ import DepartedSuspicionTable from '../games/departed_suspicion/DepartedSuspicio
 import GoBoard from '../games/go/GoBoard.vue'
 import GomokuBoard from '../games/gomoku/GomokuBoard.vue'
 import XiangqiBoard from '../games/xiangqi/XiangqiBoard.vue'
-import ChessBoard from '../games/chess/ChessBoard.vue'
 import JunqiBoard from '../games/junqi/JunqiBoard.vue'
 import ReactionTest from '../games/reaction/ReactionTest.vue'
 import DeepShaftGame from '../games/deep_shaft/DeepShaftGame.vue'
@@ -85,6 +84,7 @@ import MonopolyBoard from '../games/monopoly/MonopolyBoard.vue'
 import OneNightWerewolfTable from '../games/one_night_werewolf/OneNightWerewolfTable.vue'
 import OneNightWerewolfRules from '../games/one_night_werewolf/OneNightWerewolfRules.vue'
 import type { OneNightWerewolfView } from '../games/one_night_werewolf/types'
+import { builtinGameComponent, builtinGameDefinition } from '../game-platform/registry'
 import PokerTable from '../games/poker/PokerTable.vue'
 import AvalonTable from '../games/avalon/AvalonTable.vue'
 import {
@@ -95,6 +95,9 @@ import {
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const emit = defineEmits<{ settings: [] }>()
 const arcade = useArcadeStore()
+const builtinGame = computed(() => builtinGameDefinition(props.snapshot.gameKey))
+const builtinGameView = computed(() => builtinGameComponent(props.snapshot.gameKey))
+const builtinRoomLayout = computed(() => builtinGame.value?.presentation.roomLayout ?? null)
 const pluginGameComponent = computed(() => thirdPartyGameComponent(props.snapshot.gameKey))
 const pluginRoomLayout = computed(() => thirdPartyGameRoomLayout(props.snapshot.gameKey))
 const avalonSnapshot = computed(
@@ -510,10 +513,10 @@ function openSharedChat() {
   <main
     class="arcade-room page-container adaptive-layout-root"
     :class="{
-      'arcade-room--wide': ['avalon', 'departed_suspicion', 'one_night_werewolf', 'poker', 'doudizhu', 'junqi', 'minesweeper', 'monopoly'].includes(snapshot.gameKey) || pluginRoomLayout === 'wide',
-      'arcade-room--immersive': pluginRoomLayout === 'immersive',
+      'arcade-room--wide': ['avalon', 'departed_suspicion', 'one_night_werewolf', 'poker', 'doudizhu', 'junqi', 'minesweeper', 'monopoly'].includes(snapshot.gameKey) || builtinRoomLayout === 'wide' || pluginRoomLayout === 'wide',
+      'arcade-room--immersive': builtinRoomLayout === 'immersive' || pluginRoomLayout === 'immersive',
       'arcade-room--active': snapshot.phase !== 'lobby',
-      'arcade-room--board-game': ['gomoku', 'xiangqi', 'chess', 'go', 'junqi'].includes(snapshot.gameKey),
+      'arcade-room--board-game': builtinGame?.presentation.skinKind === 'board' || ['gomoku', 'xiangqi', 'go', 'junqi'].includes(snapshot.gameKey),
       'arcade-room--spectating': isSpectating,
     }"
     :data-game-skin="activeGameSkinKind ? activeGameSkin : undefined"
@@ -776,7 +779,7 @@ function openSharedChat() {
       <DepartedSuspicionTable v-else-if="snapshot.gameKey === 'departed_suspicion'" :snapshot="snapshot" />
       <OneNightWerewolfTable v-else-if="snapshot.gameKey === 'one_night_werewolf'" :snapshot="snapshot" />
       <XiangqiBoard v-else-if="snapshot.gameKey === 'xiangqi'" :snapshot="snapshot" />
-      <ChessBoard v-else-if="snapshot.gameKey === 'chess'" :snapshot="snapshot" />
+      <component v-else-if="builtinGameView" :is="builtinGameView" :snapshot="snapshot" />
       <GoBoard v-else-if="snapshot.gameKey === 'go'" :snapshot="snapshot" />
       <PokerTable v-else-if="snapshot.gameKey === 'poker'" :snapshot="snapshot" />
       <DoudizhuTable v-else-if="snapshot.gameKey === 'doudizhu'" :snapshot="snapshot" />

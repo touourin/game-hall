@@ -179,6 +179,45 @@ describe('GameRuleSettings', () => {
     ).toEqual(['9 路棋盘', '房主先手', '禁止悔棋', '允许和棋', '贴目 0', '允许游客'])
   })
 
+  it('renders international chess rules from its built-in module', async () => {
+    const rules = defaultGameRules('chess')
+    const wrapper = mount(GameRuleSettings, {
+      props: {
+        gameKey: 'chess',
+        modelValue: rules,
+      },
+    })
+
+    expect(rules).toEqual({
+      firstPlayer: 'random',
+      allowGuests: true,
+      allowSpectators: true,
+      allowUndo: true,
+      allowDraw: true,
+    })
+    expect(gameRuleLabels('chess', rules)).toEqual([
+      '随机先手',
+      '允许悔棋',
+      '允许和棋',
+      '允许游客',
+    ])
+    expect(wrapper.text()).toContain('首局先手')
+    expect(wrapper.text()).toContain('对局协商')
+    expect(wrapper.text()).toContain('允许悔棋')
+    expect(wrapper.text()).toContain('允许和棋')
+    expect(wrapper.text()).toContain('游客准入')
+    expect(wrapper.text()).toContain('第一人称观战')
+
+    const disableUndo = wrapper.findAll('button')
+      .find((button) => button.text().includes('真人撤回一步'))
+    await disableUndo?.trigger('click')
+
+    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toMatchObject({
+      allowUndo: false,
+      allowDraw: true,
+    })
+  })
+
   it('offers classic, laizi, and no-shuffle Doudizhu modes', async () => {
     const wrapper = mount(GameRuleSettings, {
       props: {

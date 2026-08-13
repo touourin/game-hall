@@ -12,6 +12,7 @@ import { useArcadeStore } from '../stores/arcade'
 import type { RoomSnapshot as AvalonRoomSnapshot } from '../types/avalon'
 import ArcadeRoom from './ArcadeRoom.vue'
 import AvalonTable from '../games/avalon/AvalonTable.vue'
+import ChessBoard from '../games/chess/ChessBoard.vue'
 import { rememberAccessToken } from '../access'
 import { rememberAccountToken } from '../account'
 import {
@@ -315,6 +316,49 @@ describe('ArcadeRoom', () => {
     await wrapper.setProps({ snapshot: snapshot('hanoi') })
     expect(wrapper.find('.game-skin-card').exists()).toBe(false)
     expect(wrapper.get('.arcade-room').attributes('data-game-skin')).toBeUndefined()
+  })
+
+  it('renders international chess through the built-in game registry', async () => {
+    const room = snapshot('chess')
+    room.gameName = '国际象棋'
+    room.phase = 'playing'
+    room.players = [
+      { id: 'p1', name: '白方', seat: 0, connected: true, isHost: true },
+      { id: 'p2', name: '黑方', seat: 1, connected: true, isHost: false },
+    ]
+    room.actions.canAct = true
+    room.game = {
+      board: [
+        ['bR', 'bN', 'bB', 'bQ', 'bK', 'bB', 'bN', 'bR'],
+        Array(8).fill('bP'),
+        ...Array.from({ length: 4 }, () => Array(8).fill(null)),
+        Array(8).fill('wP'),
+        ['wR', 'wN', 'wB', 'wQ', 'wK', 'wB', 'wN', 'wR'],
+      ],
+      turnPlayerId: 'p1',
+      colors: { p1: 'white', p2: 'black' },
+      viewerColor: 'white',
+      lastMove: null,
+      moveHistory: [],
+      capturedPieces: [],
+      legalMoves: [],
+      whiteInCheck: false,
+      blackInCheck: false,
+      checkedColor: null,
+      halfmoveClock: 0,
+      fullmoveNumber: 1,
+    }
+
+    const wrapper = mount(ArcadeRoom, {
+      props: { snapshot: room },
+      global: { plugins: [createPinia()] },
+    })
+    await flushPromises()
+
+    expect(wrapper.findComponent(ChessBoard).exists()).toBe(true)
+    expect(wrapper.findAll('.chess-cell')).toHaveLength(64)
+    expect(wrapper.get('.arcade-room').classes()).toContain('arcade-room--board-game')
+    expect(wrapper.get('.arcade-room').attributes('data-game-skin')).toBe('classic-wood')
   })
 
   it('uses the wide desktop layout only for wide table games', async () => {

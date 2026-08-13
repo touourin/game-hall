@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.app.games.base import GameEngine, GameRuleError
+from backend.app.games.builtin import builtin_game_definition
 
 from .bots import ArcadeBotService, BotAction
 from .models import (
@@ -37,17 +38,33 @@ HOST_TRANSFER_GRACE = timedelta(seconds=20)
 MAX_CHAT_LENGTH = 300
 MAX_CHAT_MESSAGES = 100
 MAX_ROOM_NAME_LENGTH = 20
-UNDO_GAMES = {"gomoku", "xiangqi", "chess", "go"}
-DRAW_GAMES = {"gomoku", "xiangqi", "chess", "go"}
 FIRST_PLAYER_MODES = {"random", "host"}
-UNDOABLE_ACTIONS = {
+LEGACY_UNDOABLE_ACTIONS = {
     "gomoku": {"place", "pass"},
     "xiangqi": {"move"},
-    "chess": {"move"},
     "go": {"place", "pass"},
 }
+LEGACY_DRAW_GAMES = frozenset({"gomoku", "xiangqi", "go"})
 MAX_UNDO_HISTORY = 100
 ACTIVE_GAME_PHASES = {"setup", "playing", "bidding", "scoring"}
+
+
+def game_undo_actions(game_key: str) -> frozenset[str]:
+    definition = builtin_game_definition(game_key)
+    if definition is not None:
+        return definition.capabilities.undo_actions
+    return frozenset(LEGACY_UNDOABLE_ACTIONS.get(game_key, ()))
+
+
+def game_supports_undo(game_key: str) -> bool:
+    return bool(game_undo_actions(game_key))
+
+
+def game_supports_draw(game_key: str) -> bool:
+    definition = builtin_game_definition(game_key)
+    if definition is not None:
+        return definition.capabilities.draw_requests
+    return game_key in LEGACY_DRAW_GAMES
 
 
 def request_voter_ids(
@@ -476,8 +493,7 @@ class ArcadeRoomManager:
             raise ArcadeRoomError("请先处理当前申请")
         player = room.player(player_id)
         should_track_undo = (
-            room.game_key in UNDO_GAMES
-            and action in UNDOABLE_ACTIONS[room.game_key]
+            action in game_undo_actions(room.game_key)
             and room.phase == "playing"
         )
         undo_guard = getattr(engine, "should_track_undo", None)
@@ -555,7 +571,7 @@ class ArcadeRoomManager:
         if kind == "undo":
             if room.phase != "playing":
                 raise ArcadeRoomError("当前不能发起这个申请")
-            if room.game_key not in UNDO_GAMES:
+            if not game_supports_undo(room.game_key):
                 raise ArcadeRoomError("这个游戏不支持悔棋")
             if not room.options.get("allowUndo", True):
                 raise ArcadeRoomError("本房间没有开启悔棋")
@@ -564,7 +580,7 @@ class ArcadeRoomManager:
         elif kind == "draw":
             if room.phase != "playing":
                 raise ArcadeRoomError("当前不能发起这个申请")
-            if room.game_key not in DRAW_GAMES:
+            if not game_supports_draw(room.game_key):
                 raise ArcadeRoomError("这个游戏不支持和棋申请")
             if not room.options.get("allowDraw", True):
                 raise ArcadeRoomError("本房间没有开启和棋申请")
@@ -1040,14 +1056,15 @@ class ArcadeRoomManager:
             if first_player not in FIRST_PLAYER_MODES:
                 raise ArcadeRoomError("请选择随机先手或房主先手")
             normalized["firstPlayer"] = first_player
-        if engine.key in UNDO_GAMES:
+        if game_supports_undo(engine.key):
             allow_undo = options.get("allowUndo", True)
-            allow_draw = options.get("allowDraw", True)
-            if not isinstance(allow_undo, bool) or not isinstance(
-                allow_draw, bool
-            ):
-                raise ArcadeRoomError("协商规则格式不正确")
+            if not isinstance(allow_undo, bool):
+                raise ArcadeRoomError("悔棋设置格式不正确")
             normalized["allowUndo"] = allow_undo
+        if game_supports_draw(engine.key):
+            allow_draw = options.get("allowDraw", True)
+            if not isinstance(allow_draw, bool):
+                raise ArcadeRoomError("和棋设置格式不正确")
             normalized["allowDraw"] = allow_draw
         normalizer = getattr(engine, "room_options", None)
         if normalizer is not None:

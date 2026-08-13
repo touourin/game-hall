@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ArcadeGameKey } from '../types/arcade'
+import { builtinGameDefinition } from '../game-platform/registry'
 import {
   applyGameRuleChange,
   GO_HANDICAP_OPTIONS,
@@ -35,6 +36,18 @@ function hasHandicap(): boolean {
     props.gameKey,
     withDefaultGameRules(props.gameKey, props.modelValue),
   )
+}
+
+function supportsUndo(): boolean {
+  const capabilities = builtinGameDefinition(props.gameKey)?.capabilities
+  if (capabilities) return capabilities.undo
+  return ['gomoku', 'xiangqi', 'go'].includes(props.gameKey)
+}
+
+function supportsDraw(): boolean {
+  const capabilities = builtinGameDefinition(props.gameKey)?.capabilities
+  if (capabilities) return capabilities.draw
+  return ['gomoku', 'xiangqi', 'go'].includes(props.gameKey)
 }
 
 </script>
@@ -349,13 +362,13 @@ function hasHandicap(): boolean {
       </div>
     </section>
 
-    <section v-if="['gomoku', 'xiangqi', 'chess', 'go'].includes(gameKey)" class="rule-setting-group">
+    <section v-if="supportsUndo() || supportsDraw()" class="rule-setting-group">
       <header><strong>对局协商</strong><small>真人对局需对手确认；AI 会自动同意悔棋</small></header>
       <div class="rule-toggle-list">
-        <button type="button" :class="{ active: option('allowUndo') }" @click="setOption('allowUndo', !option('allowUndo'))">
+        <button v-if="supportsUndo()" type="button" :class="{ active: option('allowUndo') }" @click="setOption('allowUndo', !option('allowUndo'))">
           <span><strong>允许悔棋</strong><small>真人撤回一步；人机局撤回玩家上一步及 AI 回应</small></span><b>{{ option('allowUndo') ? '开' : '关' }}</b>
         </button>
-        <button type="button" :class="{ active: option('allowDraw') }" @click="setOption('allowDraw', !option('allowDraw'))">
+        <button v-if="supportsDraw()" type="button" :class="{ active: option('allowDraw') }" @click="setOption('allowDraw', !option('allowDraw'))">
           <span><strong>允许和棋</strong><small>可以向对手发起和棋申请</small></span><b>{{ option('allowDraw') ? '开' : '关' }}</b>
         </button>
       </div>

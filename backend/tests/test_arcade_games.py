@@ -20,6 +20,7 @@ from backend.app.arcade.views import (
     build_spectator_room_view,
 )
 from backend.app.games.base import GameRuleError
+from backend.app.games.builtin import builtin_game_definition
 from backend.app.games.catalog import BUILTIN_GAME_NAMES
 from backend.app.games.doudizhu.engine import (
     Card,
@@ -45,6 +46,19 @@ def test_builtin_game_catalog_matches_engine_registry() -> None:
     }
 
     assert builtin_engine_keys == set(BUILTIN_GAME_NAMES)
+
+
+def test_chess_uses_the_builtin_game_definition() -> None:
+    definition = builtin_game_definition("chess")
+
+    assert definition is not None
+    assert definition.catalog.name == "国际象棋"
+    assert definition.catalog.players == "2 人"
+    assert definition.capabilities.undo_actions == frozenset({"move"})
+    assert definition.capabilities.draw_requests is True
+    assert definition.capabilities.spectators is True
+    assert definition.capabilities.replay is True
+    assert definition.create_engine().key == "chess"
 
 
 def test_every_enabled_game_can_render_an_exact_player_spectator_view() -> None:

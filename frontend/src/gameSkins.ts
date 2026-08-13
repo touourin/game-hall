@@ -1,4 +1,5 @@
 import type { ArcadeGameKey } from './types/arcade'
+import { builtinGameDefinition } from './game-platform/registry'
 
 export type GameSkinId =
   | 'classic-wood'
@@ -24,7 +25,6 @@ export const GAME_SKIN_STORAGE_KEY = 'game-hall:game-skin'
 const BOARD_GAME_KEYS = new Set<ArcadeGameKey>([
   'gomoku',
   'xiangqi',
-  'chess',
   'go',
   'junqi',
 ])
@@ -173,6 +173,8 @@ function isGameSkinId(value: string | null): value is GameSkinId {
 }
 
 export function gameSkinKind(gameKey: ArcadeGameKey): GameSkinKind | null {
+  const builtinSkinKind = builtinGameDefinition(gameKey)?.presentation.skinKind
+  if (builtinSkinKind) return builtinSkinKind
   if (BOARD_GAME_KEYS.has(gameKey)) return 'board'
   if (CARD_GAME_KEYS.has(gameKey)) return 'cards'
   return null
