@@ -5,7 +5,9 @@ import pytest
 from backend.app.arcade.models import ArcadePlayer, ArcadeRoom
 from backend.app.games.base import GameRuleError
 from backend.app.games.survive_three_seconds.engine import (
+    COLLISION_GRACE_TICKS,
     DURATION_TICKS,
+    MIN_STATIC_REACTION_TICKS,
     SurviveThreeSecondsEngine,
     simulate_run,
 )
@@ -94,7 +96,17 @@ def test_every_started_round_has_a_verified_escape_lane() -> None:
 
     for _ in range(20):
         engine.start(room)
-        assert any(
+        assert sum(
             simulate_run(room.state.seed, [mask] * DURATION_TICKS).survived
             for mask in range(16)
-        )
+        ) >= 3
+
+
+def test_every_round_gives_a_visible_reaction_window() -> None:
+    engine, room, _, _ = make_room()
+
+    for _ in range(20):
+        engine.start(room)
+        result = simulate_run(room.state.seed, [0] * DURATION_TICKS)
+        assert result.collision_tick is None or result.collision_tick >= MIN_STATIC_REACTION_TICKS
+        assert MIN_STATIC_REACTION_TICKS > COLLISION_GRACE_TICKS

@@ -3,9 +3,12 @@ export const BOARD_HEIGHT = 6_500
 export const TICK_RATE = 60
 export const DURATION_TICKS = TICK_RATE * 3
 export const PLAYER_RADIUS = 105
-export const PLAYER_SPEED = 104
+export const PLAYER_HIT_RADIUS = 32
+export const PLAYER_SPEED = 160
 export const BULLET_RADIUS = 44
+export const BULLET_HIT_RADIUS = 12
 export const BULLETS_PER_TICK = 2
+export const COLLISION_GRACE_TICKS = 45
 
 export const INPUT_UP = 1
 export const INPUT_DOWN = 2
@@ -61,12 +64,12 @@ export function spawnBullets(seed: number, tick: number): DodgeBullet[] {
       y = rng.integer(350, BOARD_HEIGHT - 350)
     }
 
-    const targetX = BOARD_WIDTH / 2 + rng.integer(-2_250, 2_250)
-    const targetY = BOARD_HEIGHT / 2 + rng.integer(-1_550, 1_550)
+    const targetX = BOARD_WIDTH / 2 + rng.integer(-4_000, 4_000)
+    const targetY = BOARD_HEIGHT / 2 + rng.integer(-2_600, 2_600)
     const dx = targetX - x
     const dy = targetY - y
     const magnitude = Math.max(Math.abs(dx), Math.abs(dy), 1)
-    const speed = rng.integer(126, 178)
+    const speed = rng.integer(80, 105)
     bullets.push({
       x,
       y,
@@ -97,7 +100,7 @@ export function advanceDodgeState(
     - Number(Boolean(inputMask & INPUT_LEFT))
   const vertical = Number(Boolean(inputMask & INPUT_DOWN))
     - Number(Boolean(inputMask & INPUT_UP))
-  const step = horizontal && vertical ? 65 : PLAYER_SPEED
+  const step = horizontal && vertical ? 113 : PLAYER_SPEED
   const playerX = Math.min(
     BOARD_WIDTH - PLAYER_RADIUS,
     Math.max(PLAYER_RADIUS, current.playerX + horizontal * step),
@@ -119,8 +122,8 @@ export function advanceDodgeState(
       x: bullet.x + bullet.vx,
       y: bullet.y + bullet.vy,
     }))
-  const collided = bullets.some((bullet) => {
-    const radius = PLAYER_RADIUS + bullet.radius
+  const collided = current.tick >= COLLISION_GRACE_TICKS && bullets.some((bullet) => {
+    const radius = PLAYER_HIT_RADIUS + BULLET_HIT_RADIUS
     return (bullet.x - playerX) ** 2 + (bullet.y - playerY) ** 2 <= radius ** 2
   })
 

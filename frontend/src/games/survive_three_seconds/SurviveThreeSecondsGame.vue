@@ -21,6 +21,7 @@ import {
   INPUT_LEFT,
   INPUT_RIGHT,
   INPUT_UP,
+  PLAYER_HIT_RADIUS,
   PLAYER_RADIUS,
   TICK_RATE,
   advanceDodgeState,
@@ -32,6 +33,7 @@ interface ServerGame {
   seed: number
   durationMs: number
   tickRate: number
+  collisionGraceMs: number
   elapsedMs: number
   survived: boolean | null
   collisionTick: number | null
@@ -61,7 +63,7 @@ const game = computed(() => props.snapshot.game as unknown as ServerGame)
 const remainingMs = computed(() => Math.max(0, 3_000 - localElapsedMs.value))
 const remainingLabel = computed(() => (remainingMs.value / 1_000).toFixed(2))
 const dangerLevel = computed(() => (
-  localElapsedMs.value < 1_000 ? '警戒' : localElapsedMs.value < 2_000 ? '密集' : '极限'
+  localElapsedMs.value < game.value.collisionGraceMs ? '预警' : localElapsedMs.value < 2_000 ? '密集' : '极限'
 ))
 
 function clearLoop() {
@@ -244,21 +246,28 @@ function drawArena() {
   const playerX = state.value.playerX * scaleX
   const playerY = state.value.playerY * scaleY
   const playerRadius = Math.max(6.5, PLAYER_RADIUS * Math.min(scaleX, scaleY))
+  const playerHitRadius = Math.max(3, PLAYER_HIT_RADIUS * Math.min(scaleX, scaleY))
   context.beginPath()
   context.arc(playerX, playerY, playerRadius * 1.85, 0, Math.PI * 2)
   context.fillStyle = 'rgba(91, 230, 209, .12)'
   context.fill()
   context.beginPath()
   context.arc(playerX, playerY, playerRadius, 0, Math.PI * 2)
-  context.fillStyle = state.value.collisionTick === null ? '#6de7d2' : '#ffffff'
+  context.fillStyle = state.value.collisionTick === null ? 'rgba(109, 231, 210, .25)' : '#ffffff'
+  context.strokeStyle = state.value.collisionTick === null ? '#6de7d2' : '#ff7182'
+  context.lineWidth = Math.max(1.5, playerRadius * .16)
   context.shadowColor = state.value.collisionTick === null ? '#4bd8c0' : '#ff546e'
   context.shadowBlur = playerRadius * 2.5
   context.fill()
+  context.stroke()
   context.shadowBlur = 0
   context.beginPath()
-  context.arc(playerX, playerY, Math.max(2, playerRadius * .28), 0, Math.PI * 2)
-  context.fillStyle = '#061018'
+  context.arc(playerX, playerY, playerHitRadius, 0, Math.PI * 2)
+  context.fillStyle = '#e8fff9'
+  context.shadowColor = '#6de7d2'
+  context.shadowBlur = playerHitRadius * 2
   context.fill()
+  context.shadowBlur = 0
 }
 
 async function restartChallenge() {
@@ -377,7 +386,7 @@ onBeforeUnmount(() => {
       ><ArrowDown :size="25" /></button>
     </div>
 
-    <p class="survive-hint"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 或 <kbd>WASD</kbd> 移动 · 青色圆点的实体部分才是判定范围</p>
+    <p class="survive-hint"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 或 <kbd>WASD</kbd> 移动 · 前 0.75 秒仅预警，只有青色中心小点参与判定</p>
 
     <SoloResultCard
       v-if="snapshot.phase === 'finished'"

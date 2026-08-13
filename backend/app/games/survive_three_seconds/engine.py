@@ -15,20 +15,24 @@ TICKS_PER_SECOND = 60
 DURATION_SECONDS = 3
 DURATION_TICKS = TICKS_PER_SECOND * DURATION_SECONDS
 PLAYER_RADIUS = 105
-PLAYER_SPEED = 104
+PLAYER_HIT_RADIUS = 32
+PLAYER_SPEED = 160
 BULLET_RADIUS = 44
+BULLET_HIT_RADIUS = 12
 BULLETS_PER_TICK = 2
+COLLISION_GRACE_TICKS = 45
+MIN_STATIC_REACTION_TICKS = 96
 SOLVABLE_SEEDS = (
-    797_605_564,
-    1_848_070_633,
-    461_793_307,
-    1_534_017_789,
-    100_221_012,
-    253_343_592,
-    2_824_825_279,
-    2_872_178_668,
-    3_721_996_133,
-    384_786_075,
+    87_966_395,
+    291_219_901,
+    2_058_505_406,
+    303_201_956,
+    1_088_969_554,
+    1_226_030_622,
+    1_984_722_195,
+    616_775_800,
+    112_337_843,
+    298_175_658,
 )
 MIN_SUCCESS_SECONDS = 2.7
 
@@ -106,12 +110,12 @@ def spawn_bullets(seed: int, tick: int) -> list[Bullet]:
             x = BOARD_WIDTH + 120 if side == 1 else -120
             y = rng.integer(350, BOARD_HEIGHT - 350)
 
-        target_x = BOARD_WIDTH // 2 + rng.integer(-2_250, 2_250)
-        target_y = BOARD_HEIGHT // 2 + rng.integer(-1_550, 1_550)
+        target_x = BOARD_WIDTH // 2 + rng.integer(-4_000, 4_000)
+        target_y = BOARD_HEIGHT // 2 + rng.integer(-2_600, 2_600)
         dx = target_x - x
         dy = target_y - y
         magnitude = max(abs(dx), abs(dy), 1)
-        speed = rng.integer(126, 178)
+        speed = rng.integer(80, 105)
         vx = _trunc_div(dx * speed, magnitude)
         vy = _trunc_div(dy * speed, magnitude)
         bullets.append(Bullet(x=x, y=y, vx=vx, vy=vy))
@@ -127,7 +131,7 @@ def simulate_run(seed: int, inputs: list[int]) -> SimulationResult:
         horizontal = int(bool(input_mask & RIGHT)) - int(bool(input_mask & LEFT))
         vertical = int(bool(input_mask & DOWN)) - int(bool(input_mask & UP))
         if horizontal and vertical:
-            step = 65
+            step = 113
             player_x += horizontal * step
             player_y += vertical * step
         else:
@@ -151,8 +155,8 @@ def simulate_run(seed: int, inputs: list[int]) -> SimulationResult:
         ]
 
         for bullet in bullets:
-            radius = PLAYER_RADIUS + bullet.radius
-            if (
+            radius = PLAYER_HIT_RADIUS + BULLET_HIT_RADIUS
+            if tick >= COLLISION_GRACE_TICKS and (
                 (bullet.x - player_x) ** 2 + (bullet.y - player_y) ** 2
                 <= radius**2
             ):
@@ -252,6 +256,9 @@ class SurviveThreeSecondsEngine:
             "seed": state.seed,
             "durationMs": DURATION_SECONDS * 1_000,
             "tickRate": TICKS_PER_SECOND,
+            "collisionGraceMs": round(
+                COLLISION_GRACE_TICKS * 1_000 / TICKS_PER_SECOND
+            ),
             "elapsedMs": state.elapsed_ms,
             "survived": state.survived,
             "collisionTick": state.collision_tick,
@@ -273,11 +280,16 @@ class SurviveThreeSecondsEngine:
         }
 
     def _solvable_seed(self) -> int:
-        """Choose from patterns pre-verified to contain an escape lane."""
+        """Choose from patterns with reaction time and several escape lanes."""
 
         seed = SOLVABLE_SEEDS[self.rng.randrange(len(SOLVABLE_SEEDS))]
-        assert any(
+        static_result = simulate_run(seed, [0] * DURATION_TICKS)
+        assert (
+            static_result.collision_tick is None
+            or static_result.collision_tick >= MIN_STATIC_REACTION_TICKS
+        )
+        assert sum(
             simulate_run(seed, [mask] * DURATION_TICKS).survived
             for mask in SURVIVAL_PROBE_MASKS
-        )
+        ) >= 3
         return seed
