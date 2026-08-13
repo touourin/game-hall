@@ -18,7 +18,7 @@ const BUILTIN_GAME_CATALOG: readonly GameCatalogEntry[] = [
   { key: 'junqi', name: '军旗', players: '2 人', description: '秘密布阵，沿铁路突袭敌旗', tone: 'army', category: '棋类竞技' },
   { key: 'reaction', name: '反应挑战', players: '1 人', description: '盯住信号，挑战毫秒反应', tone: 'pulse', category: '个人挑战' },
   { key: 'schulte', name: '舒尔特方格', players: '1 人', description: '从 1 找到 25，练速度与专注', tone: 'focus', category: '个人挑战' },
-  { key: 'survive_three_seconds', name: '坚持三秒', players: '1 人', description: '弹幕从四面袭来，撑过三秒就是胜利', tone: 'barrage', category: '个人挑战' },
+  { key: 'survive_three_seconds', name: '坚持三秒', players: '1 人', description: '看清三段弹幕缺口，远离边缘撑过三秒', tone: 'barrage', category: '个人挑战' },
   { key: 'minesweeper', name: '扫雷', players: '1 人', description: '排除危险，清空整片雷区', tone: 'mine', category: '个人挑战' },
   { key: 'hanoi', name: '汉诺塔', players: '1 人', description: '移动圆盘，用最少步数通关', tone: 'tower', category: '个人挑战' },
   { key: 'tetris', name: '落块挑战', players: '1 人', description: '排列方块、连续消行，冲击更高分数', tone: 'blocks', category: '个人挑战' },

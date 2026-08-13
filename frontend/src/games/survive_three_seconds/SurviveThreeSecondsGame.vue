@@ -17,15 +17,28 @@ import {
   BOARD_HEIGHT,
   BOARD_WIDTH,
   DURATION_TICKS,
+  EDGE_PRESSURE_LIMIT,
+  EDGE_SIDES,
+  EDGE_WALL_DEPTH,
+  EDGE_ZONE_X,
+  EDGE_ZONE_Y,
   INPUT_DOWN,
   INPUT_LEFT,
   INPUT_RIGHT,
   INPUT_UP,
   PLAYER_HIT_RADIUS,
   PLAYER_RADIUS,
+  SAFE_GAP_RADIUS,
   TICK_RATE,
+  WAVE_TICKS,
+  WAVE_WARNING_TICKS,
   advanceDodgeState,
   createDodgeState,
+  edgeWallDepth,
+  waveFronts,
+  waveSafeGap,
+  waveSides,
+  type EdgeSide,
   type DodgeState,
 } from './dodgeEngine'
 
@@ -34,9 +47,12 @@ interface ServerGame {
   durationMs: number
   tickRate: number
   collisionGraceMs: number
+  waveWarningMs: number
+  edgePressureMs: number
   elapsedMs: number
   survived: boolean | null
   collisionTick: number | null
+  collisionKind: 'bullet' | 'edge_wall' | null
 }
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
@@ -62,8 +78,22 @@ let submitted = false
 const game = computed(() => props.snapshot.game as unknown as ServerGame)
 const remainingMs = computed(() => Math.max(0, 3_000 - localElapsedMs.value))
 const remainingLabel = computed(() => (remainingMs.value / 1_000).toFixed(2))
+const waveIndex = computed(() => Math.min(Math.floor(state.value.tick / WAVE_TICKS), 2))
+const waveTick = computed(() => state.value.tick % WAVE_TICKS)
+const isWaveWarning = computed(() => waveTick.value < WAVE_WARNING_TICKS)
+const waveName = computed(() => ['横向弹幕', '纵向弹幕', '交叉弹幕'][waveIndex.value])
+const peakEdgePressure = computed(() => Math.max(...Object.values(state.value.edgePressure)))
+const edgePressurePercent = computed(() => Math.min(
+  100,
+  Math.round(peakEdgePressure.value * 100 / EDGE_PRESSURE_LIMIT),
+))
 const dangerLevel = computed(() => (
-  localElapsedMs.value < game.value.collisionGraceMs ? '预警' : localElapsedMs.value < 2_000 ? '密集' : '极限'
+  peakEdgePressure.value > 0
+    ? `边缘 ${edgePressurePercent.value}%`
+    : isWaveWarning.value ? '波次预警' : waveName.value
+))
+const collisionLabel = computed(() => (
+  state.value.collisionKind === 'edge_wall' ? '清场墙命中' : '弹幕命中'
 ))
 
 function clearLoop() {
@@ -190,6 +220,121 @@ function resizeCanvas() {
   drawArena()
 }
 
+function warningGap(side: EdgeSide): number {
+  const verticalEdge = side === 'left' || side === 'right'
+  if (waveIndex.value === 2) {
+    return waveSafeGap(game.value.seed, verticalEdge ? 0 : 1, verticalEdge ? 'y' : 'x')
+  }
+  return waveSafeGap(game.value.seed, waveIndex.value, verticalEdge ? 'y' : 'x')
+}
+
+function drawWaveWarning(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  scaleX: number,
+  scaleY: number,
+) {
+  if (!isWaveWarning.value || phase.value !== 'playing') return
+  const pulse = .45 + .25 * Math.sin(state.value.tick * .7)
+  const edgeWidth = Math.max(8, Math.min(width, height) * .025)
+  const gapRadius = SAFE_GAP_RADIUS
+
+  for (const side of waveSides(waveIndex.value)) {
+    const verticalEdge = side === 'left' || side === 'right'
+    const scale = verticalEdge ? scaleY : scaleX
+    const start = Math.max(0, (warningGap(side) - gapRadius) * scale)
+    const end = Math.min(verticalEdge ? height : width, (warningGap(side) + gapRadius) * scale)
+    context.fillStyle = `rgba(255, 78, 99, ${pulse})`
+    if (side === 'left' || side === 'right') {
+      const x = side === 'left' ? 0 : width - edgeWidth
+      context.fillRect(x, 0, edgeWidth, start)
+      context.fillRect(x, end, edgeWidth, height - end)
+      context.fillStyle = 'rgba(94, 235, 209, .72)'
+      context.fillRect(x, start, edgeWidth, Math.max(0, end - start))
+    } else {
+      const y = side === 'top' ? 0 : height - edgeWidth
+      context.fillRect(0, y, start, edgeWidth)
+      context.fillRect(end, y, width - end, edgeWidth)
+      context.fillStyle = 'rgba(94, 235, 209, .72)'
+      context.fillRect(start, y, Math.max(0, end - start), edgeWidth)
+    }
+  }
+}
+
+function drawWaveFronts(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  scaleX: number,
+  scaleY: number,
+) {
+  context.lineCap = 'round'
+  context.shadowColor = '#ff4967'
+  context.shadowBlur = Math.max(7, Math.min(width, height) * .018)
+  for (const { side, position, gap } of waveFronts(game.value.seed, state.value.tick)) {
+    const verticalEdge = side === 'left' || side === 'right'
+    const front = position * (verticalEdge ? scaleX : scaleY)
+    const gapStart = (gap - SAFE_GAP_RADIUS) * (verticalEdge ? scaleY : scaleX)
+    const gapEnd = (gap + SAFE_GAP_RADIUS) * (verticalEdge ? scaleY : scaleX)
+    context.strokeStyle = 'rgba(255, 92, 111, .72)'
+    context.lineWidth = Math.max(3, Math.min(width, height) * .007)
+    context.beginPath()
+    if (verticalEdge) {
+      context.moveTo(front, 0); context.lineTo(front, gapStart)
+      context.moveTo(front, gapEnd); context.lineTo(front, height)
+    } else {
+      context.moveTo(0, front); context.lineTo(gapStart, front)
+      context.moveTo(gapEnd, front); context.lineTo(width, front)
+    }
+    context.stroke()
+
+    context.strokeStyle = 'rgba(102, 239, 214, .88)'
+    context.lineWidth *= 1.15
+    context.beginPath()
+    if (verticalEdge) {
+      context.moveTo(front, gapStart); context.lineTo(front, gapEnd)
+    } else {
+      context.moveTo(gapStart, front); context.lineTo(gapEnd, front)
+    }
+    context.stroke()
+  }
+  context.shadowBlur = 0
+  context.lineCap = 'butt'
+}
+
+function drawEdgePressure(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  scaleX: number,
+  scaleY: number,
+) {
+  for (const side of EDGE_SIDES) {
+    const pressure = state.value.edgePressure[side]
+    const pressureRatio = Math.min(1, pressure / EDGE_PRESSURE_LIMIT)
+    const zoneDepth = (side === 'top' || side === 'bottom' ? EDGE_ZONE_Y * scaleY : EDGE_ZONE_X * scaleX)
+    const wallDepth = edgeWallDepth(pressure)
+      * (side === 'top' || side === 'bottom' ? scaleY : scaleX)
+
+    context.fillStyle = `rgba(255, ${Math.round(190 - pressureRatio * 100)}, 67, ${.035 + pressureRatio * .16})`
+    if (side === 'top') context.fillRect(0, 0, width, zoneDepth)
+    if (side === 'right') context.fillRect(width - zoneDepth, 0, zoneDepth, height)
+    if (side === 'bottom') context.fillRect(0, height - zoneDepth, width, zoneDepth)
+    if (side === 'left') context.fillRect(0, 0, zoneDepth, height)
+
+    if (wallDepth <= 0) continue
+    context.fillStyle = 'rgba(255, 55, 81, .52)'
+    context.shadowColor = '#ff3751'
+    context.shadowBlur = Math.max(10, wallDepth * .8)
+    if (side === 'top') context.fillRect(0, 0, width, wallDepth)
+    if (side === 'right') context.fillRect(width - wallDepth, 0, wallDepth, height)
+    if (side === 'bottom') context.fillRect(0, height - wallDepth, width, wallDepth)
+    if (side === 'left') context.fillRect(0, 0, wallDepth, height)
+    context.shadowBlur = 0
+  }
+}
+
 function drawArena() {
   const element = canvas.value
   const context = element?.getContext('2d')
@@ -198,6 +343,7 @@ function drawArena() {
   const height = element.height
   const scaleX = width / BOARD_WIDTH
   const scaleY = height / BOARD_HEIGHT
+  const visibleWaveFronts = waveFronts(game.value.seed, state.value.tick)
   context.clearRect(0, 0, width, height)
 
   const background = context.createRadialGradient(
@@ -219,7 +365,11 @@ function drawArena() {
     context.beginPath(); context.moveTo(0, y); context.lineTo(width, y); context.stroke()
   }
 
-  for (const bullet of state.value.bullets) {
+  drawEdgePressure(context, width, height, scaleX, scaleY)
+  drawWaveWarning(context, width, height, scaleX, scaleY)
+  drawWaveFronts(context, width, height, scaleX, scaleY)
+
+  if (visibleWaveFronts.length === 0) for (const bullet of state.value.bullets) {
     const x = bullet.x * scaleX
     const y = bullet.y * scaleY
     const radius = Math.max(2.6, bullet.radius * Math.min(scaleX, scaleY))
@@ -331,7 +481,7 @@ onBeforeUnmount(() => {
       <div v-else-if="phase === 'submitting'" class="arena-overlay result-overlay">
         <Crosshair v-if="state.collisionTick !== null" :size="34" />
         <ShieldCheck v-else :size="34" />
-        <strong>{{ state.collisionTick !== null ? '命中' : '坚持住了' }}</strong>
+        <strong>{{ state.collisionTick !== null ? collisionLabel : '坚持住了' }}</strong>
         <span>{{ submitError || '正在校验 180 帧躲避轨迹…' }}</span>
         <button v-if="submitError" type="button" @click="retrySubmission">重新校验</button>
       </div>
@@ -343,6 +493,21 @@ onBeforeUnmount(() => {
       </div>
       <div v-if="phase === 'playing'" class="arena-timer" aria-live="polite">
         <small>HOLD ON</small><strong>{{ remainingLabel }}</strong>
+      </div>
+      <div v-if="phase === 'playing' && isWaveWarning" class="wave-warning" aria-live="polite">
+        <small>第 {{ waveIndex + 1 }} 波</small>
+        <strong>{{ waveName }}来袭</strong>
+        <span>青色边缘是安全缺口</span>
+      </div>
+      <div
+        v-if="phase === 'playing' && peakEdgePressure > 0"
+        class="edge-pressure"
+        :class="{ critical: edgePressurePercent >= 100 }"
+        aria-live="polite"
+      >
+        <small>{{ edgePressurePercent >= 100 ? '清场墙启动' : '离开边缘' }}</small>
+        <strong>{{ edgePressurePercent }}%</strong>
+        <i><span :style="{ width: `${edgePressurePercent}%` }" /></i>
       </div>
     </section>
 
@@ -386,7 +551,7 @@ onBeforeUnmount(() => {
       ><ArrowDown :size="25" /></button>
     </div>
 
-    <p class="survive-hint"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 或 <kbd>WASD</kbd> 移动 · 前 0.75 秒仅预警，只有青色中心小点参与判定</p>
+    <p class="survive-hint"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 或 <kbd>WASD</kbd> 移动 · 看青色缺口穿过慢速弹幕，边缘停留 0.6 秒会启动清场墙</p>
 
     <SoloResultCard
       v-if="snapshot.phase === 'finished'"
@@ -398,7 +563,7 @@ onBeforeUnmount(() => {
       :tone="game.survived ? 'success' : 'danger'"
       :metrics="[
         { label: '校验帧率', value: `${game.tickRate} Hz` },
-        { label: '轨迹结果', value: game.survived ? '完整存活' : '发生碰撞' },
+        { label: '轨迹结果', value: game.survived ? '完整存活' : game.collisionKind === 'edge_wall' ? '清场墙命中' : '弹幕命中' },
         { label: '目标时间', value: '3.00 秒' },
       ]"
       :can-restart="snapshot.actions.canRestart"
@@ -426,6 +591,11 @@ onBeforeUnmount(() => {
 .finished-overlay.survived svg { color: #70e2d0; }
 .arena-timer { position: absolute; z-index: 2; top: 14px; left: 50%; display: grid; justify-items: center; padding: 6px 14px; border: 1px solid rgba(255,255,255,.12); border-radius: 999px; color: white; background: rgba(3,8,14,.5); transform: translateX(-50%); backdrop-filter: blur(8px); }
 .arena-timer small { color: #ff91a1; font-size: 7px; font-weight: 950; letter-spacing: .18em; }.arena-timer strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+.wave-warning { position: absolute; z-index: 2; top: 15px; left: 15px; display: grid; gap: 2px; border: 1px solid rgba(109,231,210,.34); border-radius: 10px; padding: 7px 10px; color: white; background: rgba(4,15,23,.7); backdrop-filter: blur(8px); }
+.wave-warning small { color: #76e6d3; font-size: 7px; font-weight: 950; letter-spacing: .12em; }.wave-warning strong { font-size: 11px; }.wave-warning span { color: #a9cbc5; font-size: 8px; }
+.edge-pressure { position: absolute; z-index: 2; right: 15px; bottom: 15px; width: 126px; display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; border: 1px solid rgba(255,190,67,.38); border-radius: 10px; padding: 8px 10px; color: #ffe2a0; background: rgba(31,18,5,.76); backdrop-filter: blur(8px); }
+.edge-pressure small { align-self: end; font-size: 8px; font-weight: 900; }.edge-pressure strong { font-size: 15px; font-variant-numeric: tabular-nums; }.edge-pressure i { grid-column: 1 / -1; height: 3px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.12); }.edge-pressure i span { display: block; height: 100%; border-radius: inherit; background: #ffbe43; transition: width 80ms linear; }
+.edge-pressure.critical { border-color: rgba(255,71,91,.72); color: #ff9ba7; background: rgba(45,5,11,.84); }.edge-pressure.critical i span { background: #ff475b; }
 .survive-controls { width: min(100%, 330px); margin: 0 auto; display: grid; grid-template: repeat(3, 56px) / repeat(3, 56px); justify-content: center; gap: 6px; user-select: none; touch-action: none; }
 .survive-controls button { display: grid; place-items: center; border: 1px solid color-mix(in srgb, #70e2d0 28%, var(--line)); border-radius: 15px; color: #9ce9dc; background: var(--surface-inset); box-shadow: inset 0 1px 0 #ffffff14; touch-action: none; cursor: pointer; }
 .survive-controls button:active { border-color: #70e2d0; color: #071616; background: #70e2d0; transform: scale(.95); }

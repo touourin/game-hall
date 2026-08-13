@@ -5,11 +5,18 @@ import pytest
 from backend.app.arcade.models import ArcadePlayer, ArcadeRoom
 from backend.app.games.base import GameRuleError
 from backend.app.games.survive_three_seconds.engine import (
-    COLLISION_GRACE_TICKS,
     DURATION_TICKS,
-    MIN_STATIC_REACTION_TICKS,
+    EDGE_PRESSURE_LIMIT,
+    LEFT,
+    SOLVABLE_SEEDS,
     SurviveThreeSecondsEngine,
+    UP,
+    WAVE_BULLET_SPEED,
+    WAVE_WARNING_TICKS,
+    build_safe_route,
     simulate_run,
+    spawn_bullets,
+    wave_safe_gap,
 )
 
 
@@ -38,13 +45,7 @@ def make_room(clock_value: float = 10.0):
 
 
 def find_surviving_inputs(seed: int) -> list[int]:
-    # A deterministic breadth-first search over short input segments keeps the
-    # test independent from one hand-authored lucky trajectory.
-    candidates = [[mask] * DURATION_TICKS for mask in range(16)]
-    for inputs in candidates:
-        if simulate_run(seed, inputs).survived:
-            return inputs
-    pytest.skip("这个固定种子需要分段轨迹才能完成")
+    return build_safe_route(seed)
 
 
 def test_engine_accepts_a_server_verified_survival() -> None:
@@ -62,10 +63,9 @@ def test_engine_accepts_a_server_verified_survival() -> None:
 
 def test_engine_replays_a_collision_and_records_a_loss() -> None:
     engine, room, player, _ = make_room()
-    inputs = [0] * DURATION_TICKS
+    inputs = [UP | LEFT] * DURATION_TICKS
     result = simulate_run(room.state.seed, inputs)
-    if result.collision_tick is None:
-        pytest.skip("固定种子静止轨迹恰好存活")
+    assert result.collision_tick is not None
 
     engine.act(room, player, "finish", {"inputs": inputs[: result.ticks]})
 
@@ -96,17 +96,42 @@ def test_every_started_round_has_a_verified_escape_lane() -> None:
 
     for _ in range(20):
         engine.start(room)
-        assert sum(
-            simulate_run(room.state.seed, [mask] * DURATION_TICKS).survived
-            for mask in range(16)
-        ) >= 3
+        assert simulate_run(room.state.seed, build_safe_route(room.state.seed)).survived
 
 
-def test_every_round_gives_a_visible_reaction_window() -> None:
-    engine, room, _, _ = make_room()
+def test_each_wave_warns_before_spawning_a_slow_curtain() -> None:
+    seed = SOLVABLE_SEEDS[0]
+    assert spawn_bullets(seed, WAVE_WARNING_TICKS - 1) == []
 
-    for _ in range(20):
-        engine.start(room)
-        result = simulate_run(room.state.seed, [0] * DURATION_TICKS)
-        assert result.collision_tick is None or result.collision_tick >= MIN_STATIC_REACTION_TICKS
-        assert MIN_STATIC_REACTION_TICKS > COLLISION_GRACE_TICKS
+    bullets = spawn_bullets(seed, WAVE_WARNING_TICKS)
+    gap = wave_safe_gap(seed, 0, "y")
+    assert len(bullets) > 20
+    assert all(abs(bullet.vx) == WAVE_BULLET_SPEED for bullet in bullets)
+    assert all(bullet.vy == 0 for bullet in bullets)
+    assert all(abs(bullet.y - gap) > 850 for bullet in bullets)
+
+
+def test_every_seed_has_a_server_verified_readable_route() -> None:
+    for seed in SOLVABLE_SEEDS:
+        result = simulate_run(seed, build_safe_route(seed))
+        assert result.survived
+        assert result.collision_kind is None
+
+
+def test_corner_camping_triggers_the_warned_edge_wall() -> None:
+    result = simulate_run(
+        SOLVABLE_SEEDS[0],
+        [UP] * DURATION_TICKS,
+    )
+    assert not result.survived
+    assert result.collision_kind == "edge_wall"
+    assert result.collision_tick is not None
+    assert result.collision_tick >= EDGE_PRESSURE_LIMIT
+
+
+def test_static_center_is_hit_by_a_wave_without_edge_pressure() -> None:
+    for seed in SOLVABLE_SEEDS:
+        result = simulate_run(seed, [0] * DURATION_TICKS)
+        assert not result.survived
+        assert result.collision_kind == "bullet"
+        assert result.max_edge_pressure == 0
