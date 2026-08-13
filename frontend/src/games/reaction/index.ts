@@ -1,6 +1,7 @@
 import { defineAsyncComponent } from 'vue'
 import reactionArtwork from '../../assets/game-hall/icons/reaction.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
+import { reactionLeaderboard } from './records'
 
 export const reactionGame = defineBuiltinGame({
   key: 'reaction',
@@ -31,6 +32,7 @@ export const reactionGame = defineBuiltinGame({
     defaults: { allowSpectators: false },
     labels: () => ['三轮测试'],
   },
+  records: { leaderboard: reactionLeaderboard },
 })
 
 export default reactionGame

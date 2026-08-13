@@ -194,7 +194,7 @@ async function statsRequest<T>(path: string): Promise<T> {
 export async function loadPersonalStats(
   gameKey?: string,
   gameMode?: string,
-  gameVariant?: AvalonStatsVariant,
+  gameVariant?: string,
 ): Promise<{
   summary: StatsSummary
   history: MatchHistoryItem[]
@@ -221,7 +221,7 @@ export async function loadMatchDetail(matchId: string): Promise<MatchDetail> {
 export async function loadLeaderboard(
   gameKey: string,
   gameMode?: string,
-  gameVariant?: AvalonStatsVariant,
+  gameVariant?: string,
 ): Promise<LeaderboardEntry[]> {
   const response = await statsRequest<{
     ok: boolean

@@ -1,6 +1,7 @@
 import { defineAsyncComponent } from 'vue'
 import surviveArtwork from '../../assets/game-hall/icons/survive-three-seconds.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
+import { surviveThreeSecondsLeaderboard } from './records'
 
 export const surviveThreeSecondsGame = defineBuiltinGame({
   key: 'survive_three_seconds',
@@ -31,6 +32,7 @@ export const surviveThreeSecondsGame = defineBuiltinGame({
     defaults: { allowSpectators: false },
     labels: () => ['3 秒极限挑战', '服务端轨迹重放'],
   },
+  records: { leaderboard: surviveThreeSecondsLeaderboard },
 })
 
 export default surviveThreeSecondsGame

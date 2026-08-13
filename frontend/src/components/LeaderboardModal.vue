@@ -1,11 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { LoaderCircle, Trophy } from '@lucide/vue'
-import {
-  loadLeaderboard,
-  type AvalonStatsVariant,
-  type LeaderboardEntry,
-} from '../stats'
+import { leaderboardPresentation } from '../game-platform/records'
+import { loadLeaderboard, type LeaderboardEntry } from '../stats'
 import AvatarImage from './AvatarImage.vue'
 import BaseModal from './ui/BaseModal.vue'
 
@@ -15,47 +12,15 @@ defineEmits<{ close: [] }>()
 const players = ref<LeaderboardEntry[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
-const activeGameMode = ref<string | undefined>(
-  props.gameMode ?? (props.gameKey === 'avalon' ? 'standard' : undefined),
-)
-const activeAvalonVariant = ref<AvalonStatsVariant | undefined>(
-  props.gameKey === 'avalon' && props.gameMode === 'court_undercurrent'
-    ? 'classic'
-    : undefined,
+const presentation = leaderboardPresentation(props.gameKey)
+const activeGameMode = ref<string | undefined>(props.gameMode ?? presentation.defaultMode)
+const activeGameVariant = ref<string | undefined>(
+  presentation.defaultVariant?.(activeGameMode.value),
 )
 
-function formatDuration(milliseconds: number | undefined): string {
-  if (milliseconds === undefined) return '—'
-  const seconds = Math.floor(milliseconds / 1000)
-  const tenths = Math.floor(milliseconds % 1000 / 100)
-  return `${seconds}.${tenths} 秒`
-}
-
-function difficultyLabel(value: string | undefined): string {
-  if (value === 'expert') return '高级'
-  if (value === 'intermediate') return '中级'
-  if (value === 'beginner') return '初级'
-  return ''
-}
-
-function tetrisModeLabel(value: string | undefined): string {
-  if (value?.startsWith('timed_')) return `${Number(value.slice(6)) / 60} 分钟限时`
-  return '无限挑战'
-}
-
-function avalonModeLabel(): string {
-  if (activeGameMode.value !== 'court_undercurrent') return '标准模式'
-  return activeAvalonVariant.value === 'shadow_merlin'
-    ? '王庭暗流 · 暗影梅林'
-    : '王庭暗流 · 无暗影梅林'
-}
-
-function selectAvalonStats(
-  mode: 'standard' | 'court_undercurrent',
-  variant?: AvalonStatsVariant,
-) {
+function selectFilter(mode: string, variant?: string) {
   activeGameMode.value = mode
-  activeAvalonVariant.value = variant
+  activeGameVariant.value = variant
 }
 
 async function loadPlayers() {
@@ -65,9 +30,7 @@ async function loadPlayers() {
     players.value = await loadLeaderboard(
       props.gameKey,
       activeGameMode.value,
-      activeGameMode.value === 'court_undercurrent'
-        ? activeAvalonVariant.value
-        : undefined,
+      activeGameVariant.value,
     )
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : '读取排行榜失败'
@@ -77,7 +40,7 @@ async function loadPlayers() {
 }
 
 onMounted(loadPlayers)
-watch([activeGameMode, activeAvalonVariant], loadPlayers)
+watch([activeGameMode, activeGameVariant], loadPlayers)
 </script>
 
 <template>
@@ -91,44 +54,28 @@ watch([activeGameMode, activeAvalonVariant], loadPlayers)
   >
       <span class="modal-icon"><Trophy :size="25" /></span>
       <h2>
-        {{ props.gameName }}{{ props.gameKey === 'avalon' ? ` · ${avalonModeLabel()}` : props.gameKey === 'tetris' ? ` · ${tetrisModeLabel(activeGameMode)}` : difficultyLabel(activeGameMode) }}排行榜
+        {{ props.gameName }}{{ presentation.titleSuffix?.(activeGameMode, activeGameVariant) ?? '' }}排行榜
       </h2>
-      <p>{{ props.gameKey === 'reaction' ? '按个人历史最佳三轮平均时间排序，数值越低越快。' : props.gameKey === 'schulte' ? '按个人最快完成时间排序，数值越低越快。' : props.gameKey === 'deep_shaft' ? '按个人历史最深层数排序，抵达层数越深排名越前。' : props.gameKey === 'survive_three_seconds' ? '按成功坚持三秒的次数排序，同次数时比较存活率。' : props.gameKey === 'minesweeper' ? '三种难度独立排名，按个人最快通关时间排序。' : props.gameKey === 'tetris' ? '按个人历史最高得分排序，分数越高排名越前。' : props.gameKey === 'hanoi' ? '按累计通关次数排序，同次数时优先更早完成挑战的玩家。' : '按胜场排序，同胜场时依次比较胜率和有效场次。' }}</p>
+      <p>{{ presentation.description }}</p>
 
       <div
-        v-if="props.gameKey === 'avalon' && !props.gameMode"
+        v-if="presentation.filters?.length && !props.gameMode"
         class="stats-mode-tabs"
         role="group"
-        aria-label="筛选阿瓦隆模式排行榜"
+        :aria-label="`筛选${props.gameName}模式排行榜`"
       >
         <button
-          type="button"
-          :class="{ active: activeGameMode === 'standard' }"
-          @click="selectAvalonStats('standard')"
-        >
-          标准模式
-        </button>
-        <button
+          v-for="filter in presentation.filters"
+          :key="`${filter.mode}-${filter.variant ?? 'default'}`"
           type="button"
           :class="{
             active:
-              activeGameMode === 'court_undercurrent' &&
-              activeAvalonVariant === 'classic',
+              activeGameMode === filter.mode &&
+              activeGameVariant === filter.variant,
           }"
-          @click="selectAvalonStats('court_undercurrent', 'classic')"
+          @click="selectFilter(filter.mode, filter.variant)"
         >
-          暗流 · 无暗影
-        </button>
-        <button
-          type="button"
-          :class="{
-            active:
-              activeGameMode === 'court_undercurrent' &&
-              activeAvalonVariant === 'shadow_merlin',
-          }"
-          @click="selectAvalonStats('court_undercurrent', 'shadow_merlin')"
-        >
-          暗流 · 暗影梅林
+          {{ filter.label }}
         </button>
       </div>
 
@@ -149,21 +96,13 @@ watch([activeGameMode, activeAvalonVariant], loadPlayers)
           />
           <span>
             <strong>{{ player.playerName }}</strong>
-            <small v-if="props.gameKey === 'reaction'">{{ player.games }} 次测试 · 总平均 {{ player.averageMs }} ms</small>
-            <small v-else-if="props.gameKey === 'schulte'">{{ player.games }} 次挑战 · 平均 {{ formatDuration(player.averageMs) }}</small>
-            <small v-else-if="props.gameKey === 'survive_three_seconds'">{{ player.games }} 次挑战 · {{ player.wins }} 次生还</small>
-            <small v-else-if="props.gameKey === 'minesweeper'">{{ player.games }} 次通关 · 平均 {{ formatDuration(player.averageMs) }}</small>
-            <small v-else-if="props.gameKey === 'hanoi'">{{ player.games }} 次挑战 · {{ player.wins }} 次通关</small>
-            <small v-else-if="['tetris', 'deep_shaft'].includes(props.gameKey)">{{ player.games }} 次挑战 · 平均 {{ player.averageScore?.toLocaleString() }} {{ props.gameKey === 'deep_shaft' ? '层' : '分' }}</small>
-            <small v-else>
-              {{ player.wins }} 胜<span v-if="player.draws"> · {{ player.draws }} 和</span> / {{ player.games }} 场
-            </small>
+            <small>{{ presentation.entryDetail(player) }}</small>
           </span>
-          <em>{{ props.gameKey === 'reaction' ? `${player.bestMs} ms` : ['schulte', 'minesweeper'].includes(props.gameKey) ? formatDuration(player.bestMs) : props.gameKey === 'tetris' ? `${player.bestScore?.toLocaleString()} 分` : props.gameKey === 'deep_shaft' ? `${player.bestScore?.toLocaleString()} 层` : ['hanoi', 'survive_three_seconds'].includes(props.gameKey) ? `${player.wins} 次` : `${player.winRate}%` }}</em>
+          <em>{{ presentation.entryScore(player) }}</em>
         </div>
       </div>
       <div v-else class="stats-empty">还没有符合条件的真人对局</div>
-      <p class="leaderboard-note">{{ props.gameKey === 'reaction' ? '排行榜采用完成三轮后的平均反应时间。' : props.gameKey === 'schulte' ? '排行榜采用服务端计时，并验证 1–25 的完整点击顺序。' : props.gameKey === 'deep_shaft' ? '服务器会根据随机种子重放全部左右输入，再保存实际抵达的最深层数。' : props.gameKey === 'survive_three_seconds' ? '每次挑战都由服务器重放 180 帧方向输入后判定结果。' : props.gameKey === 'minesweeper' ? '仅成功清除全部安全方格的服务端计时成绩会进入排行榜。' : props.gameKey === 'tetris' ? '每轮结束后保存最终得分；最高分优先，总平均分用于同分参考。' : props.gameKey === 'hanoi' ? '不同层数都会累计为一次有效通关，详细步数和时间保存在个人战绩中。' : '含 AI 的测试局不会计入排行榜。' }}</p>
+      <p class="leaderboard-note">{{ presentation.note }}</p>
       <p v-if="error" class="account-error" role="alert">{{ error }}</p>
   </BaseModal>
 </template>

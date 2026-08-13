@@ -1,6 +1,7 @@
 import { defineAsyncComponent } from 'vue'
 import schulteArtwork from '../../assets/game-hall/icons/schulte.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
+import { schulteLeaderboard } from './records'
 
 export const schulteGame = defineBuiltinGame({
   key: 'schulte',
@@ -31,6 +32,7 @@ export const schulteGame = defineBuiltinGame({
     defaults: { allowSpectators: false },
     labels: () => ['5×5 标准挑战', '服务端计时'],
   },
+  records: { leaderboard: schulteLeaderboard },
 })
 
 export default schulteGame

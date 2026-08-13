@@ -15,5 +15,18 @@ export function defineBuiltinGame<Key extends BuiltinArcadeGameKey>(
       ...definition.rules,
       defaults: Object.freeze({ ...definition.rules.defaults }),
     }),
+    records: definition.records
+      ? Object.freeze({
+          ...definition.records,
+          leaderboard: definition.records.leaderboard
+            ? Object.freeze({
+                ...definition.records.leaderboard,
+                filters: definition.records.leaderboard.filters
+                  ? Object.freeze([...definition.records.leaderboard.filters])
+                  : undefined,
+              })
+            : undefined,
+        })
+      : undefined,
   })
 }

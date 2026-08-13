@@ -2,6 +2,7 @@ import { defineAsyncComponent } from 'vue'
 import minesweeperArtwork from '../../assets/game-hall/icons/minesweeper.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
+import { minesweeperLeaderboard } from './records'
 
 export const minesweeperGame = defineBuiltinGame({
   key: 'minesweeper',
@@ -40,6 +41,7 @@ export const minesweeperGame = defineBuiltinGame({
       return ['初级', '9×9', '10 雷']
     },
   },
+  records: { leaderboard: minesweeperLeaderboard },
 })
 
 export default minesweeperGame

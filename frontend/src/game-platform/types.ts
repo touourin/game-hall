@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import type { LeaderboardEntry } from '../stats'
 import type { BuiltinArcadeGameKey } from '../types/arcade'
 
 export type BuiltinGameRoomLayout = 'standard' | 'wide' | 'immersive'
@@ -73,6 +74,27 @@ export interface BuiltinGameRules {
   hasHandicap?: (options: Readonly<Record<string, unknown>>) => boolean
 }
 
+export interface BuiltinGameLeaderboardFilter {
+  label: string
+  mode: string
+  variant?: string
+}
+
+export interface BuiltinGameLeaderboardPresentation {
+  defaultMode?: string
+  defaultVariant?: (mode: string | undefined) => string | undefined
+  titleSuffix?: (mode: string | undefined, variant: string | undefined) => string
+  description: string
+  filters?: readonly BuiltinGameLeaderboardFilter[]
+  entryDetail: (entry: LeaderboardEntry) => string
+  entryScore: (entry: LeaderboardEntry) => string
+  note: string
+}
+
+export interface BuiltinGameRecords {
+  leaderboard?: BuiltinGameLeaderboardPresentation
+}
+
 export interface BuiltinGameDefinition<
   Key extends BuiltinArcadeGameKey = BuiltinArcadeGameKey,
 > {
@@ -81,4 +103,5 @@ export interface BuiltinGameDefinition<
   capabilities: BuiltinGameCapabilities
   presentation: BuiltinGamePresentation
   rules: BuiltinGameRules
+  records?: BuiltinGameRecords
 }
