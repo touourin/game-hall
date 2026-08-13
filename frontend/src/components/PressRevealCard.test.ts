@@ -19,12 +19,12 @@ describe('PressRevealCard', () => {
       props: {
         title: '隐藏身份',
         artwork: '/role.webp',
-        artworkLabel: '王庭秘卷',
-        artworkFraming: { scale: 1.16, originXPercent: 50, originYPercent: 29, preserveFrame: true, treatment: 'codex-ink-wash' },
+        artworkLabel: '圣杯神话',
+        artworkFraming: { scale: 1, originXPercent: 50, originYPercent: 50 },
       },
     })
 
-    expect(wrapper.get('.press-reveal-art-label').text()).toContain('王庭秘卷')
+    expect(wrapper.get('.press-reveal-art-label').text()).toContain('圣杯神话')
     await wrapper.get('.press-reveal-card').trigger('pointerdown')
     const artwork = wrapper.get('.press-reveal-art')
     expect(artwork.element.tagName).toBe('SPAN')

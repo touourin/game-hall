@@ -24,8 +24,6 @@ describe('Avalon role skin progression', () => {
 
     expect(isRoleSkinUnlocked(progress, 'merlin', 'classic-tabletop')).toBe(true)
     expect(isRoleSkinUnlocked(progress, 'merlin', 'dark-chronicle')).toBe(true)
-    expect(isRoleSkinUnlocked(progress, 'merlin', 'stained-glass')).toBe(true)
-    expect(isRoleSkinUnlocked(progress, 'merlin', 'royal-codex')).toBe(true)
     expect(isRoleSkinUnlocked(progress, 'merlin', 'grail-myth')).toBe(false)
   })
 

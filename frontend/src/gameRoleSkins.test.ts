@@ -10,6 +10,7 @@ import {
   roleArtwork,
   roleArtworkFraming,
   roleSkinRoleCode,
+  storedRoleSkin,
   storedRoleSkinLoadout,
   storedRoleSkinLoadoutLock,
 } from './gameRoleSkins'
@@ -17,24 +18,16 @@ import {
 describe('Avalon role skin artwork framing', () => {
   beforeEach(() => localStorage.clear())
 
+  it('exposes only the three active skin families', () => {
+    expect(ROLE_SKINS.map((skin) => skin.id)).toEqual([
+      'classic-tabletop',
+      'dark-chronicle',
+      'grail-myth',
+    ])
+  })
+
   it('keeps curated thumbnail framing for consistent character scale', () => {
     expect(roleArtworkFraming('merlin', 'classic-tabletop')).toEqual({
-      scale: 1,
-      originXPercent: 50,
-      originYPercent: 50,
-    })
-    expect(roleArtworkFraming('percival', 'stained-glass')).toEqual({
-      scale: 1,
-      originXPercent: 50,
-      originYPercent: 50,
-    })
-    expect(roleArtworkFraming('merlin', 'royal-codex')).toMatchObject({
-      scale: 1,
-      originXPercent: 50,
-      originYPercent: 50,
-      treatment: 'codex-ink-wash',
-    })
-    expect(roleArtworkFraming('dissenting_courtier', 'royal-codex')).toMatchObject({
       scale: 1,
       originXPercent: 50,
       originYPercent: 50,
@@ -85,8 +78,8 @@ describe('Avalon role skin artwork framing', () => {
   it('stores an independent ten-role loadout per account', () => {
     const loadout = defaultRoleSkinLoadout()
     loadout.merlin = 'dark-chronicle'
-    loadout.shadow_merlin = 'stained-glass'
-    loadout.dissenting_courtier = 'royal-codex'
+    loadout.shadow_merlin = 'dark-chronicle'
+    loadout.dissenting_courtier = 'grail-myth'
     loadout.assassin = 'grail-myth'
 
     rememberRoleSkinLoadout('account-a', loadout)
@@ -97,33 +90,56 @@ describe('Avalon role skin artwork framing', () => {
     )
   })
 
-  it('migrates the previous whole-set preference into all nine roles', () => {
-    localStorage.setItem(ROLE_SKIN_STORAGE_KEY, 'stained-glass')
+  it('migrates the previous whole-set preference into all ten roles', () => {
+    localStorage.setItem(ROLE_SKIN_STORAGE_KEY, 'dark-chronicle')
 
     expect(storedRoleSkinLoadout('legacy-account')).toEqual(
-      defaultRoleSkinLoadout('stained-glass'),
+      defaultRoleSkinLoadout('dark-chronicle'),
     )
   })
 
   it('adds shadow Merlin and the dissenting courtier to a legacy loadout', () => {
     const legacyLoadout = defaultRoleSkinLoadout('classic-tabletop')
-    legacyLoadout.merlin = 'royal-codex'
-    legacyLoadout.loyal_servant = 'stained-glass'
+    legacyLoadout.merlin = 'dark-chronicle'
+    legacyLoadout.loyal_servant = 'grail-myth'
     delete (legacyLoadout as Partial<typeof legacyLoadout>).shadow_merlin
     delete (legacyLoadout as Partial<typeof legacyLoadout>).dissenting_courtier
     rememberRoleSkinLoadout('legacy-account', legacyLoadout)
 
     expect(storedRoleSkinLoadout('legacy-account').shadow_merlin).toBe(
-      'royal-codex',
+      'dark-chronicle',
     )
     expect(storedRoleSkinLoadout('legacy-account').dissenting_courtier).toBe(
-      'stained-glass',
+      'grail-myth',
     )
+  })
+
+  it('falls back only removed or invalid selections to the classic skin', () => {
+    const stored = defaultRoleSkinLoadout('dark-chronicle') as Record<string, string>
+    stored.merlin = 'removed-skin'
+    localStorage.setItem(
+      'avalon:role-skin-loadout:legacy-account',
+      JSON.stringify(stored),
+    )
+
+    const migrated = storedRoleSkinLoadout('legacy-account')
+    expect(migrated.merlin).toBe('classic-tabletop')
+    expect(migrated.percival).toBe('dark-chronicle')
+    expect(JSON.parse(localStorage.getItem(
+      'avalon:role-skin-loadout:legacy-account',
+    ) ?? '{}')).toEqual(migrated)
+  })
+
+  it('rewrites an invalid legacy whole-set preference to the classic skin', () => {
+    localStorage.setItem(ROLE_SKIN_STORAGE_KEY, 'removed-skin')
+
+    expect(storedRoleSkin()).toBe('classic-tabletop')
+    expect(localStorage.getItem(ROLE_SKIN_STORAGE_KEY)).toBe('classic-tabletop')
   })
 
   it('locks and clears the full role loadout for one room', () => {
     const loadout = defaultRoleSkinLoadout()
-    loadout.loyal_servant = 'royal-codex'
+    loadout.loyal_servant = 'dark-chronicle'
 
     expect(lockRoleSkinLoadout(' test ', loadout)).toEqual(loadout)
     expect(storedRoleSkinLoadoutLock('TEST')).toEqual(loadout)

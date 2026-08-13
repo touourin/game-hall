@@ -11,8 +11,6 @@ export interface RevealArtworkFraming {
   scale: number
   originXPercent: number
   originYPercent: number
-  preserveFrame?: boolean
-  treatment?: 'codex-ink-wash'
 }
 
 export interface RoleSkinChoiceOption {

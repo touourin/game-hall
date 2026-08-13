@@ -490,7 +490,7 @@ describe('ArcadeRoom', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(roleSkinProgressResponse()))
     const loadout = defaultRoleSkinLoadout()
     loadout.loyal_servant = 'classic-tabletop'
-    loadout.dissenting_courtier = 'royal-codex'
+    loadout.dissenting_courtier = 'dark-chronicle'
     rememberRoleSkinLoadout('account-1', loadout)
     const room = avalonSnapshot('role_reveal')
     const role = room.game.self.role
@@ -504,7 +504,7 @@ describe('ArcadeRoom', () => {
     })
     await flushPromises()
 
-    expect(wrapper.getComponent(AvalonTable).props('roleSkin')).toBe('royal-codex')
+    expect(wrapper.getComponent(AvalonTable).props('roleSkin')).toBe('dark-chronicle')
   })
 
   it('uses the independent shadow Merlin selection in play', async () => {
