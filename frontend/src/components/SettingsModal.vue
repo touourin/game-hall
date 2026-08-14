@@ -340,8 +340,8 @@ function confirmAvatarCrop(file: File) {
 .settings-theme-list button { min-height: 76px; padding: 12px 14px; display: grid; grid-template-columns: auto 1fr auto; gap: 13px; align-items: center; border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--text); background: var(--control-surface), var(--surface-inset); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 46%, transparent); text-align: left; cursor: pointer; }
 .settings-theme-list button.selected { border-color: var(--line-strong); background: color-mix(in srgb, var(--gold) 8%, var(--surface-glass)); box-shadow: var(--shadow-contact), inset 0 1px 0 var(--metal-edge); }
 .theme-copy { display: grid; gap: 4px; }.theme-copy strong { font-size: 13px; }.theme-copy small { color: var(--muted); font-size: 11px; line-height: 1.35; }
-.theme-swatches { display: flex; }
-.theme-swatches i { width: 18px; height: 30px; display: block; border: 1px solid #ffffff20; }
+.theme-swatches { width: 57px; height: 38px; display: flex; overflow: hidden; border: 1px solid rgba(255, 255, 255, .12); border-radius: 11px; }
+.theme-swatches i { width: 18px; height: 30px; display: block; flex: 1; border: 1px solid #ffffff20; }
 .theme-swatches i:first-child { border-radius: 8px 0 0 8px; }
 .theme-swatches i:last-child { border-radius: 0 8px 8px 0; }
 .current-avatar-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }

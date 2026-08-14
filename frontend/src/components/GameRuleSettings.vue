@@ -107,7 +107,6 @@ function supportsSpectators(): boolean {
     <component
       :is="gameSettingsComponent"
       v-if="gameSettingsComponent"
-      class="game-specific-rule-settings"
       :model-value="resolvedOptions"
       @change="setOption"
     />
