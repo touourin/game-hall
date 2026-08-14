@@ -39,30 +39,33 @@
   - `frontend/src/games/survive_three_seconds/roomPresentation.ts`
   - `frontend/src/games/tetris/roomPresentation.ts`
 - [x] 第一批减法重构通过 373 项前端测试、生产构建和主题检查；本批净减少 48 行。
+- [x] 删除第二批 13 个无独立职责的前端文件：平台薄访问器、阿瓦隆纯转发组件、3 个房间展示薄文件和 6 个战绩工厂薄文件。
+- [x] 删除仅供房间页二次查询的 `builtinGameComponent()`；房间页复用已经解析的模块定义。
+- [x] 第二批运行时代码与测试新增 75 行、删除 161 行，净减少 86 行；372 项前端测试、生产构建、主题选择器和月白陶瓷对比度检查全部通过。
 
 ## 第一优先级：可以整文件删除
 
 ### 平台薄访问器
 
-- [ ] 删除 `frontend/src/game-platform/roomPresentation.ts`。
+- [x] 删除 `frontend/src/game-platform/roomPresentation.ts`。
   - 将房间展示查找并入 `game-platform/registry.ts`，或直接使用已解析的模块定义。
   - 验收：`ArcadeRoom.vue` 不再有第二套注册表访问路径。
-- [ ] 删除 `frontend/src/game-platform/statsPresentation.ts`。
+- [x] 删除 `frontend/src/game-platform/statsPresentation.ts`。
   - 将统计展示查找并入现有 `game-platform/records.ts`。
   - 验收：排行榜和统计只经过一个战绩展示入口。
 
 ### 纯转发组件
 
-- [ ] 删除 `frontend/src/games/avalon/AvalonRoomView.vue`。
+- [x] 删除 `frontend/src/games/avalon/AvalonRoomView.vue`。
   - 注册表直接加载 `AvalonTable.vue`；`ArcadeRoom.vue` 已经提供它需要的 `snapshot`、`roleSkin` 和 `openChat`。
-- [ ] 删除 `frontend/src/games/avalon/AvalonRoomView.test.ts`。
+- [x] 删除 `frontend/src/games/avalon/AvalonRoomView.test.ts`。
   - 将必要的皮肤和聊天事件验证放回 `ArcadeRoom.test.ts` 与 `AvalonTable.test.ts`。
 
 ### 仍然过小的房间展示文件
 
-- [ ] 删除 `frontend/src/games/departed_suspicion/roomPresentation.ts`，内容放回模块 `index.ts`。
-- [ ] 删除 `frontend/src/games/junqi/roomPresentation.ts`，内容放回模块 `index.ts`。
-- [ ] 删除 `frontend/src/games/poker/roomPresentation.ts`，内容放回模块 `index.ts`。
+- [x] 删除 `frontend/src/games/departed_suspicion/roomPresentation.ts`，内容放回模块 `index.ts`。
+- [x] 删除 `frontend/src/games/junqi/roomPresentation.ts`，内容放回模块 `index.ts`。
+- [x] 删除 `frontend/src/games/poker/roomPresentation.ts`，内容放回模块 `index.ts`。
 
 以下两个文件暂时保留，因为包含独立阶段映射，不属于单纯转发：
 
@@ -73,12 +76,12 @@
 
 以下文件没有独立算法，可将 `createCompetitiveStatsPresentation(...)` 直接放入对应模块清单：
 
-- [ ] 删除 `frontend/src/games/chess/records.ts`。
-- [ ] 删除 `frontend/src/games/doudizhu/records.ts`。
-- [ ] 删除 `frontend/src/games/go/records.ts`。
-- [ ] 删除 `frontend/src/games/gomoku/records.ts`。
-- [ ] 删除 `frontend/src/games/poker/records.ts`。
-- [ ] 删除 `frontend/src/games/xiangqi/records.ts`。
+- [x] 删除 `frontend/src/games/chess/records.ts`。
+- [x] 删除 `frontend/src/games/doudizhu/records.ts`。
+- [x] 删除 `frontend/src/games/go/records.ts`。
+- [x] 删除 `frontend/src/games/gomoku/records.ts`。
+- [x] 删除 `frontend/src/games/poker/records.ts`。
+- [x] 删除 `frontend/src/games/xiangqi/records.ts`。
 
 具有独立格式化、筛选或详情逻辑的其他 `records.ts` 保留。
 

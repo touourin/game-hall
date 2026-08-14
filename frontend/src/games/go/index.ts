@@ -1,8 +1,8 @@
 import { defineAsyncComponent } from 'vue'
 import goArtwork from '../../assets/game-hall/icons/go.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
+import { createCompetitiveStatsPresentation } from '../../game-platform/recordFormatting'
 import RuleSettings from './RuleSettings.vue'
-import { goStats } from './records'
 import { goRules } from './rules'
 
 export const goGame = defineBuiltinGame({
@@ -31,7 +31,12 @@ export const goGame = defineBuiltinGame({
     skinKind: 'board',
   },
   rules: { ...goRules, settingsComponent: RuleSettings },
-  records: { stats: goStats },
+  records: {
+    stats: createCompetitiveStatsPresentation({
+      roleLabels: { black: '黑方', white: '白方' },
+      showDrawSummary: true,
+    }),
+  },
 })
 
 export default goGame

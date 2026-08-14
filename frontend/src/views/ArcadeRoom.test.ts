@@ -11,7 +11,7 @@ import RoomPlayerRoster from '../components/RoomPlayerRoster.vue'
 import { useArcadeStore } from '../stores/arcade'
 import type { RoomSnapshot as AvalonRoomSnapshot } from '../types/avalon'
 import ArcadeRoom from './ArcadeRoom.vue'
-import AvalonRoomView from '../games/avalon/AvalonRoomView.vue'
+import AvalonTable from '../games/avalon/AvalonTable.vue'
 import ChessBoard from '../games/chess/ChessBoard.vue'
 import { rememberAccessToken } from '../access'
 import { rememberAccountToken } from '../account'
@@ -556,7 +556,7 @@ describe('ArcadeRoom', () => {
     })
     await flushPromises()
 
-    expect(wrapper.getComponent(AvalonRoomView).props('roleSkin')).toBe('dark-chronicle')
+    expect(wrapper.getComponent(AvalonTable).props('roleSkin')).toBe('dark-chronicle')
   })
 
   it('uses the independent shadow Merlin selection in play', async () => {
@@ -579,7 +579,7 @@ describe('ArcadeRoom', () => {
     })
     await flushPromises()
 
-    expect(wrapper.getComponent(AvalonRoomView).props('roleSkin')).toBe('grail-myth')
+    expect(wrapper.getComponent(AvalonTable).props('roleSkin')).toBe('grail-myth')
   })
 
   it('passes every seat in a seven-player Avalon lobby to the shared roster', () => {

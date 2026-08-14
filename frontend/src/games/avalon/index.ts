@@ -27,7 +27,7 @@ export const avalonGame = defineBuiltinGame({
     ai: true,
   },
   presentation: {
-    component: defineAsyncComponent(() => import('./AvalonRoomView.vue')),
+    component: defineAsyncComponent(() => import('./AvalonTable.vue')),
     roomLayout: 'wide',
     skinKind: null,
     roomShell: avalonRoomShell,

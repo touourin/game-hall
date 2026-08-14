@@ -1,8 +1,8 @@
 import { defineAsyncComponent } from 'vue'
 import doudizhuArtwork from '../../assets/game-hall/icons/doudizhu.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
+import { createCompetitiveStatsPresentation } from '../../game-platform/recordFormatting'
 import RuleSettings from './RuleSettings.vue'
-import { doudizhuStats } from './records'
 
 export const doudizhuGame = defineBuiltinGame({
   key: 'doudizhu',
@@ -54,7 +54,11 @@ export const doudizhuGame = defineBuiltinGame({
       hostDescription: '房主在首局首先叫地主',
     }),
   },
-  records: { stats: doudizhuStats },
+  records: {
+    stats: createCompetitiveStatsPresentation({
+      roleLabels: { landlord: '地主', farmer: '农民' },
+    }),
+  },
 })
 
 export default doudizhuGame

@@ -67,8 +67,7 @@ import {
 } from '../gameSkins'
 import OneNightWerewolfRules from '../games/one_night_werewolf/OneNightWerewolfRules.vue'
 import type { OneNightWerewolfView } from '../games/one_night_werewolf/types'
-import { builtinGameComponent, builtinGameDefinition } from '../game-platform/registry'
-import { roomShellPresentation } from '../game-platform/roomPresentation'
+import { builtinGameDefinition } from '../game-platform/registry'
 import {
   thirdPartyGameComponent,
   thirdPartyGameRoomLayout,
@@ -78,8 +77,8 @@ const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const emit = defineEmits<{ settings: [] }>()
 const arcade = useArcadeStore()
 const builtinGame = computed(() => builtinGameDefinition(props.snapshot.gameKey))
-const roomShell = computed(() => roomShellPresentation(props.snapshot.gameKey))
-const builtinGameView = computed(() => builtinGameComponent(props.snapshot.gameKey))
+const roomShell = computed(() => builtinGame.value?.presentation.roomShell ?? {})
+const builtinGameView = computed(() => builtinGame.value?.presentation.component ?? null)
 const builtinRoomLayout = computed(() => builtinGame.value?.presentation.roomLayout ?? null)
 const pluginGameComponent = computed(() => thirdPartyGameComponent(props.snapshot.gameKey))
 const pluginRoomLayout = computed(() => thirdPartyGameRoomLayout(props.snapshot.gameKey))

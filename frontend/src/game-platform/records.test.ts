@@ -1,5 +1,4 @@
-import { leaderboardPresentation } from './records'
-import { statsPresentation } from './statsPresentation'
+import { leaderboardPresentation, statsPresentation } from './records'
 
 const entry = {
   rank: 1,

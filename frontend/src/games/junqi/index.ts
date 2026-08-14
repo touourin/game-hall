@@ -3,7 +3,6 @@ import junqiArtwork from '../../assets/game-hall/icons/junqi.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
 import { junqiStats } from './records'
-import { junqiRoomShell } from './roomPresentation'
 import { junqiRules } from './rules'
 
 export const junqiGame = defineBuiltinGame({
@@ -30,7 +29,10 @@ export const junqiGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./JunqiBoard.vue')),
     roomLayout: 'wide',
     skinKind: 'board',
-    roomShell: junqiRoomShell,
+    roomShell: {
+      headerEyebrowSuffix: (snapshot) =>
+        ` · ${snapshot.options.mode === 'flip' ? '翻棋军旗' : '暗军旗'}`,
+    },
   },
   rules: { ...junqiRules, settingsComponent: RuleSettings },
   records: {

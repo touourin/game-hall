@@ -1,4 +1,3 @@
-import type { Component } from 'vue'
 import avalonGame from '../games/avalon'
 import chessGame from '../games/chess'
 import deepShaftGame from '../games/deep_shaft'
@@ -55,8 +54,4 @@ export function builtinGameDefinition(
 ): BuiltinGameDefinition | null {
   if (typeof key !== 'string') return null
   return builtinGameDefinitionsByKey.get(key as BuiltinArcadeGameKey) ?? null
-}
-
-export function builtinGameComponent(key: unknown): Component | null {
-  return builtinGameDefinition(key)?.presentation.component ?? null
 }

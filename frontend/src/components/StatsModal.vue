@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { History, LoaderCircle } from '@lucide/vue'
 import { builtinGameDefinition } from '../game-platform/registry'
-import { statsPresentation } from '../game-platform/statsPresentation'
+import { statsPresentation } from '../game-platform/records'
 import BackNavigationButton from './BackNavigationButton.vue'
 import DefaultMatchDetail from './DefaultMatchDetail.vue'
 import BaseModal from './ui/BaseModal.vue'

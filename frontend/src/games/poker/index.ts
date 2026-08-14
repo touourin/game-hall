@@ -1,9 +1,8 @@
 import { defineAsyncComponent } from 'vue'
 import pokerArtwork from '../../assets/game-hall/icons/poker.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
+import { createCompetitiveStatsPresentation } from '../../game-platform/recordFormatting'
 import RuleSettings from './RuleSettings.vue'
-import { pokerStats } from './records'
-import { pokerRoomShell } from './roomPresentation'
 
 export const pokerGame = defineBuiltinGame({
   key: 'poker',
@@ -29,7 +28,12 @@ export const pokerGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./PokerTable.vue')),
     roomLayout: 'wide',
     skinKind: 'cards',
-    roomShell: pokerRoomShell,
+    roomShell: {
+      activeExitDescription: '暂时返回会保留座位和筹码；退出并淘汰将放弃本桌，而且无法再返回。',
+      abandonLabel: '退出并淘汰',
+      finishedLabel: '本桌结束',
+      rematchLabel: '准备重新开桌',
+    },
   },
   rules: {
     settingsComponent: RuleSettings,
@@ -49,7 +53,11 @@ export const pokerGame = defineBuiltinGame({
       ]
     },
   },
-  records: { stats: pokerStats },
+  records: {
+    stats: createCompetitiveStatsPresentation({
+      winnerLabel: () => '筹码结算完成',
+    }),
+  },
 })
 
 export default pokerGame

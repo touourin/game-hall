@@ -1,8 +1,8 @@
 import { defineAsyncComponent } from 'vue'
 import gomokuArtwork from '../../assets/game-hall/icons/gomoku.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
+import { createCompetitiveStatsPresentation } from '../../game-platform/recordFormatting'
 import RuleSettings from './RuleSettings.vue'
-import { gomokuStats } from './records'
 import { gomokuRules } from './rules'
 
 export const gomokuGame = defineBuiltinGame({
@@ -31,7 +31,12 @@ export const gomokuGame = defineBuiltinGame({
     skinKind: 'board',
   },
   rules: { ...gomokuRules, settingsComponent: RuleSettings },
-  records: { stats: gomokuStats },
+  records: {
+    stats: createCompetitiveStatsPresentation({
+      roleLabels: { black: '黑方', white: '白方' },
+      showDrawSummary: true,
+    }),
+  },
 })
 
 export default gomokuGame
