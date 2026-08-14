@@ -1,5 +1,6 @@
 import { defineAsyncComponent } from 'vue'
-import gomokuArtwork from '../../assets/game-hall/icons/gomoku.webp'
+import gomokuArtworkDark from '../../assets/game-hall/icons/gomoku-dark.webp'
+import gomokuArtworkLight from '../../assets/game-hall/icons/gomoku-light.webp'
 import { boardDuelCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { createCompetitiveStatsPresentation } from '../../game-platform/recordFormatting'
@@ -15,7 +16,7 @@ export const gomokuGame = defineBuiltinGame({
     description: '一子定势，五子连珠',
     tone: 'ink',
     category: '棋类竞技',
-    artwork: gomokuArtwork,
+    artwork: { dark: gomokuArtworkDark, light: gomokuArtworkLight },
   },
   capabilities: boardDuelCapabilities(),
   presentation: {

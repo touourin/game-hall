@@ -1,5 +1,6 @@
 import { defineAsyncComponent } from 'vue'
-import goArtwork from '../../assets/game-hall/icons/go.webp'
+import goArtworkDark from '../../assets/game-hall/icons/go-dark.webp'
+import goArtworkLight from '../../assets/game-hall/icons/go-light.webp'
 import { boardDuelCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { createCompetitiveStatsPresentation } from '../../game-platform/recordFormatting'
@@ -15,7 +16,7 @@ export const goGame = defineBuiltinGame({
     description: '方寸之间，围地争先',
     tone: 'jade',
     category: '棋类竞技',
-    artwork: goArtwork,
+    artwork: { dark: goArtworkDark, light: goArtworkLight },
   },
   capabilities: boardDuelCapabilities({ ai: true }),
   presentation: {

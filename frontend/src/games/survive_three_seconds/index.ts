@@ -1,5 +1,6 @@
 import { defineAsyncComponent } from 'vue'
-import surviveArtwork from '../../assets/game-hall/icons/survive-three-seconds.webp'
+import surviveArtworkDark from '../../assets/game-hall/icons/survive-three-seconds-dark.webp'
+import surviveArtworkLight from '../../assets/game-hall/icons/survive-three-seconds-light.webp'
 import { soloGameCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import {
@@ -17,7 +18,7 @@ export const surviveThreeSecondsGame = defineBuiltinGame({
     description: '看清三段弹幕缺口，远离边缘撑过三秒',
     tone: 'barrage',
     category: '个人挑战',
-    artwork: surviveArtwork,
+    artwork: { dark: surviveArtworkDark, light: surviveArtworkLight },
   },
   capabilities: soloGameCapabilities(),
   presentation: {

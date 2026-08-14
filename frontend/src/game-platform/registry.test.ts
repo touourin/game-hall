@@ -13,7 +13,10 @@ describe('built-in game registry', () => {
       tone: 'chess',
       category: '棋类竞技',
     })
-    expect(definition?.catalog.artwork).toContain('chess')
+    expect(definition?.catalog.artwork).toEqual({
+      dark: expect.stringContaining('chess-dark'),
+      light: expect.stringContaining('chess-light'),
+    })
     expect(definition?.presentation.roomLayout).toBe('standard')
     expect(definition?.presentation.skinKind).toBe('board')
     expect(definition?.capabilities).toMatchObject({
@@ -37,6 +40,14 @@ describe('built-in game registry', () => {
     expect(builtinGameDefinition('junqi')?.presentation.roomLayout).toBe('wide')
     expect(builtinGameDefinition('junqi')?.records?.matchDetailComponent).toBeUndefined()
     expect(builtinGameDefinition('plugin-number-vault')).toBeNull()
+  })
+
+  it('requires every official game to provide both material variants', () => {
+    for (const definition of BUILTIN_GAME_DEFINITIONS) {
+      expect(definition.catalog.artwork.dark).toContain('-dark')
+      expect(definition.catalog.artwork.light).toContain('-light')
+      expect(definition.catalog.artwork.dark).not.toBe(definition.catalog.artwork.light)
+    }
   })
 
   it('preserves every board-duel capability after sharing defaults', () => {

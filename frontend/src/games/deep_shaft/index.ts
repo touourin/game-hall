@@ -1,5 +1,6 @@
 import { defineAsyncComponent } from 'vue'
-import deepShaftArtwork from '../../assets/game-hall/icons/deep-shaft.webp'
+import deepShaftArtworkDark from '../../assets/game-hall/icons/deep-shaft-dark.webp'
+import deepShaftArtworkLight from '../../assets/game-hall/icons/deep-shaft-light.webp'
 import { soloGameCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { deepShaftLeaderboard, deepShaftStats } from './records'
@@ -14,7 +15,7 @@ export const deepShaftGame = defineBuiltinGame({
     description: '控制左右落点，在危险平台间深入一百层',
     tone: 'shaft',
     category: '个人挑战',
-    artwork: deepShaftArtwork,
+    artwork: { dark: deepShaftArtworkDark, light: deepShaftArtworkLight },
   },
   capabilities: soloGameCapabilities(),
   presentation: {

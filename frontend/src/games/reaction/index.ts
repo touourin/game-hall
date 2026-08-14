@@ -1,5 +1,6 @@
 import { defineAsyncComponent } from 'vue'
-import reactionArtwork from '../../assets/game-hall/icons/reaction.webp'
+import reactionArtworkDark from '../../assets/game-hall/icons/reaction-dark.webp'
+import reactionArtworkLight from '../../assets/game-hall/icons/reaction-light.webp'
 import { soloGameCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { reactionLeaderboard, reactionStats } from './records'
@@ -14,7 +15,7 @@ export const reactionGame = defineBuiltinGame({
     description: '盯住信号，挑战毫秒反应',
     tone: 'pulse',
     category: '个人挑战',
-    artwork: reactionArtwork,
+    artwork: { dark: reactionArtworkDark, light: reactionArtworkLight },
   },
   capabilities: soloGameCapabilities(),
   presentation: {

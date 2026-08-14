@@ -1,5 +1,6 @@
 import { defineAsyncComponent } from 'vue'
-import artwork from '../../assets/game-hall/icons/one-night-werewolf.webp'
+import artworkDark from '../../assets/game-hall/icons/one-night-werewolf-dark.webp'
+import artworkLight from '../../assets/game-hall/icons/one-night-werewolf-light.webp'
 import { socialTableCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { oneNightWerewolfStats } from './records'
@@ -14,7 +15,7 @@ export const oneNightWerewolfGame = defineBuiltinGame({
     description: '一晚换位，天亮后只投一次',
     tone: 'moon',
     category: '社交推理',
-    artwork,
+    artwork: { dark: artworkDark, light: artworkLight },
   },
   capabilities: socialTableCapabilities({
     spectators: false,

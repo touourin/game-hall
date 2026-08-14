@@ -1,5 +1,6 @@
 import { defineAsyncComponent } from 'vue'
-import tetrisArtwork from '../../assets/game-hall/icons/tetris.webp'
+import tetrisArtworkDark from '../../assets/game-hall/icons/tetris-dark.webp'
+import tetrisArtworkLight from '../../assets/game-hall/icons/tetris-light.webp'
 import { soloGameCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { tetrisLeaderboard, tetrisStats } from './records'
@@ -14,7 +15,7 @@ export const tetrisGame = defineBuiltinGame({
     description: '排列方块、连续消行，冲击更高分数',
     tone: 'blocks',
     category: '个人挑战',
-    artwork: tetrisArtwork,
+    artwork: { dark: tetrisArtworkDark, light: tetrisArtworkLight },
   },
   capabilities: soloGameCapabilities(),
   presentation: {

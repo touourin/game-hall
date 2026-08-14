@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { applyTheme, initializeTheme, storedTheme } from './theme'
+import { applyTheme, currentTheme, initializeTheme, storedTheme } from './theme'
 
 describe('theme preferences', () => {
   beforeEach(() => {
+    applyTheme('royal')
     localStorage.clear()
     delete document.documentElement.dataset.theme
   })
@@ -18,6 +19,7 @@ describe('theme preferences', () => {
     applyTheme('midnight')
 
     expect(document.documentElement.dataset.theme).toBe('midnight')
+    expect(currentTheme.value).toBe('midnight')
     expect(storedTheme()).toBe('midnight')
   })
 

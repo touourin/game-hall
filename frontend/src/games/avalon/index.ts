@@ -1,5 +1,6 @@
 import { defineAsyncComponent } from 'vue'
-import avalonArtwork from '../../assets/game-hall/icons/avalon.webp'
+import avalonArtworkDark from '../../assets/game-hall/icons/avalon-dark.webp'
+import avalonArtworkLight from '../../assets/game-hall/icons/avalon-light.webp'
 import { socialTableCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
@@ -16,7 +17,7 @@ export const avalonGame = defineBuiltinGame({
     description: '谎言上桌，忠诚接受考验',
     tone: 'gold',
     category: '社交推理',
-    artwork: avalonArtwork,
+    artwork: { dark: avalonArtworkDark, light: avalonArtworkLight },
   },
   capabilities: socialTableCapabilities({
     firstPlayer: false,

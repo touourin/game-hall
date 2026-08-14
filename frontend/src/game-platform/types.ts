@@ -10,6 +10,11 @@ import type { ArcadeSnapshot, BuiltinArcadeGameKey } from '../types/arcade'
 export type BuiltinGameRoomLayout = 'standard' | 'wide' | 'immersive'
 export type BuiltinGameSkinKind = 'board' | 'cards'
 
+export interface BuiltinGameArtwork {
+  dark: string
+  light: string
+}
+
 export interface BuiltinGameCatalogMetadata {
   order: number
   name: string
@@ -21,7 +26,7 @@ export interface BuiltinGameCatalogMetadata {
   description: string
   tone: string
   category: string
-  artwork: string
+  artwork: BuiltinGameArtwork
 }
 
 export function builtinGamePlayerLabel(

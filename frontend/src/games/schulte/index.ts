@@ -1,5 +1,6 @@
 import { defineAsyncComponent } from 'vue'
-import schulteArtwork from '../../assets/game-hall/icons/schulte.webp'
+import schulteArtworkDark from '../../assets/game-hall/icons/schulte-dark.webp'
+import schulteArtworkLight from '../../assets/game-hall/icons/schulte-light.webp'
 import { soloGameCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { schulteLeaderboard, schulteStats } from './records'
@@ -14,7 +15,7 @@ export const schulteGame = defineBuiltinGame({
     description: '从 1 找到 25，练速度与专注',
     tone: 'focus',
     category: '个人挑战',
-    artwork: schulteArtwork,
+    artwork: { dark: schulteArtworkDark, light: schulteArtworkLight },
   },
   capabilities: soloGameCapabilities(),
   presentation: {

@@ -1,18 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { BuiltinArcadeGameKey, GameCatalogItem } from '../types/arcade'
+import type { GameCatalogItem } from '../types/arcade'
 import { builtinGameDefinition } from '../game-platform/registry'
+import { currentTheme } from '../theme'
 
 const props = defineProps<{ gameKey: GameCatalogItem['key'] }>()
 
-const artworkByGame: Partial<Record<BuiltinArcadeGameKey, string>> = {
-}
+const artwork = computed(() => {
+  const variants = builtinGameDefinition(props.gameKey)?.catalog.artwork
+  if (!variants) return null
 
-const artwork = computed(() => (
-  builtinGameDefinition(props.gameKey)?.catalog.artwork
-  ?? artworkByGame[props.gameKey as BuiltinArcadeGameKey]
-  ?? null
-))
+  return currentTheme.value === 'royal' ? variants.light : variants.dark
+})
 </script>
 
 <template>
@@ -27,8 +26,6 @@ const artwork = computed(() => (
       decoding="async"
     >
     <span v-else class="game-card-art-fallback" />
-    <span class="game-card-art-vignette" />
-    <span class="game-card-art-scan" />
   </span>
 </template>
 
@@ -43,37 +40,15 @@ const artwork = computed(() => (
   border: 1px solid color-mix(in srgb, var(--card-tone) 28%, var(--line));
   border-radius: 13px;
   background: var(--surface-inset);
-  box-shadow: inset 0 0 28px rgba(0, 0, 0, .36);
+  box-shadow: inset 0 0 22px rgba(0, 0, 0, .28);
   isolation: isolate;
 }
 
-.game-card-art::before,
 .game-card-art::after {
   position: absolute;
   content: '';
   pointer-events: none;
-}
-
-.game-card-art::before {
-  z-index: 0;
-  right: 12%;
-  bottom: 5%;
-  left: 12%;
-  height: 27%;
-  border: 1px solid color-mix(in srgb, var(--line-bright) 32%, transparent);
-  border-radius: 50%;
-  background:
-    radial-gradient(ellipse at 50% 22%, color-mix(in srgb, var(--card-tone) 12%, transparent), transparent 48%),
-    linear-gradient(180deg, color-mix(in srgb, var(--metal-edge) 36%, transparent), transparent 17%),
-    var(--surface-inset);
-  box-shadow:
-    0 9px 19px rgba(0, 3, 9, .5),
-    inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 54%, transparent),
-    inset 0 -7px 13px color-mix(in srgb, var(--panel-shadow) 54%, transparent);
-}
-
-.game-card-art::after {
-  z-index: 4;
+  z-index: 3;
   inset: 4px;
   border: 1px solid color-mix(in srgb, var(--line-bright) 16%, transparent);
   border-radius: calc(13px - 3px);
@@ -86,33 +61,9 @@ const artwork = computed(() => (
   width: 100%;
   height: 100%;
   object-fit: cover;
-  z-index: 2;
-  transform: scale(1.015);
-  transition: filter .35s ease, transform .55s cubic-bezier(.2, .8, .2, 1);
-}
-
-.game-card-art-vignette {
-  position: absolute;
-  z-index: 3;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgba(3, 8, 13, .02) 42%, rgba(3, 8, 13, .34) 100%),
-    radial-gradient(circle at 50% 48%, transparent 51%, rgba(2, 6, 10, .22) 100%);
-  pointer-events: none;
-}
-
-.game-card-art-scan {
-  position: absolute;
-  z-index: 2;
-  top: -12%;
-  bottom: -12%;
-  left: -50%;
-  width: 26%;
-  opacity: 0;
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--card-tone) 17%, transparent), transparent);
-  filter: blur(1px);
-  transform: skewX(-12deg);
-  pointer-events: none;
+  z-index: 1;
+  transform: scale(1.002);
+  transition: transform .55s cubic-bezier(.2, .8, .2, 1);
 }
 
 .game-card-art-fallback {
@@ -129,59 +80,27 @@ const artwork = computed(() => (
 
 :global(:root[data-theme="emerald"] .game-card-art) {
   border-color: color-mix(in srgb, var(--card-tone) 18%, var(--line-strong));
-  background:
-    radial-gradient(ellipse at 50% 74%, color-mix(in srgb, var(--card-tone) 10%, transparent), transparent 36%),
-    linear-gradient(var(--instrument-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--instrument-line) 1px, transparent 1px),
-    linear-gradient(155deg, rgba(22, 48, 71, .72), rgba(2, 8, 16, .96));
-  background-size: auto, 18px 18px, 18px 18px, auto;
+  background: #060a0f;
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 58%, transparent),
-    inset 0 -22px 38px rgba(0, 3, 9, .56),
     0 12px 26px rgba(0, 3, 10, .48);
-}
-
-:global(:root[data-theme="emerald"] .game-card-art img) {
-  inset: 3%;
-  width: 94%;
-  height: 94%;
-  object-fit: contain;
-  filter: saturate(.82) contrast(1.08) brightness(1.04) drop-shadow(0 12px 13px rgba(0, 2, 7, .5));
-  -webkit-mask-image: radial-gradient(ellipse 72% 72% at 50% 49%, #000 52%, rgba(0, 0, 0, .92) 68%, transparent 92%);
-  mask-image: radial-gradient(ellipse 72% 72% at 50% 49%, #000 52%, rgba(0, 0, 0, .92) 68%, transparent 92%);
 }
 
 :global(:root[data-theme="royal"] .game-card-art) {
   border-color: color-mix(in srgb, var(--card-tone) 46%, var(--line));
-  background: #07101a;
-  box-shadow: inset 0 0 28px rgba(0, 0, 0, .4), 0 10px 24px rgba(37, 63, 78, .18);
-}
-
-:global(:root[data-theme="royal"] .game-card-art img) {
-  filter: saturate(.96) contrast(1.05) brightness(1.045);
+  background: #e8e6e2;
+  box-shadow: inset 0 0 24px rgba(74, 82, 86, .12), 0 10px 24px rgba(37, 63, 78, .14);
 }
 
 :global(.game-library-card:hover) .game-card-art img {
-  filter: saturate(1.08) contrast(1.04) brightness(1.04);
-  transform: scale(1.07);
-}
-
-:global(.game-library-card:hover) .game-card-art-scan {
-  opacity: 1;
-  animation: artwork-scan .8s ease-out;
-}
-
-@keyframes artwork-scan {
-  to { left: 125%; }
+  transform: scale(1.035);
 }
 
 @media (max-width: 680px) {
   .game-card-art { min-height: 92px; }
-  .game-card-art img { transform: scale(1.025); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .game-card-art img { transition: none; }
-  :global(.game-library-card:hover) .game-card-art-scan { animation: none; }
 }
 </style>

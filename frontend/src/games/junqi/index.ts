@@ -1,5 +1,6 @@
 import { defineAsyncComponent } from 'vue'
-import junqiArtwork from '../../assets/game-hall/icons/junqi.webp'
+import junqiArtworkDark from '../../assets/game-hall/icons/junqi-dark.webp'
+import junqiArtworkLight from '../../assets/game-hall/icons/junqi-light.webp'
 import { boardDuelCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { junqiStats } from './records'
@@ -14,7 +15,7 @@ export const junqiGame = defineBuiltinGame({
     description: '秘密布阵，沿铁路突袭敌旗',
     tone: 'army',
     category: '棋类竞技',
-    artwork: junqiArtwork,
+    artwork: { dark: junqiArtworkDark, light: junqiArtworkLight },
   },
   capabilities: boardDuelCapabilities({ undo: false, draw: false }),
   presentation: {

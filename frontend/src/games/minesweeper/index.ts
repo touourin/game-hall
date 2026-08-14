@@ -1,5 +1,6 @@
 import { defineAsyncComponent } from 'vue'
-import minesweeperArtwork from '../../assets/game-hall/icons/minesweeper.webp'
+import minesweeperArtworkDark from '../../assets/game-hall/icons/minesweeper-dark.webp'
+import minesweeperArtworkLight from '../../assets/game-hall/icons/minesweeper-light.webp'
 import { soloGameCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { minesweeperLeaderboard, minesweeperStats } from './records'
@@ -14,7 +15,7 @@ export const minesweeperGame = defineBuiltinGame({
     description: '排除危险，清空整片雷区',
     tone: 'mine',
     category: '个人挑战',
-    artwork: minesweeperArtwork,
+    artwork: { dark: minesweeperArtworkDark, light: minesweeperArtworkLight },
   },
   capabilities: soloGameCapabilities({ spectators: true }),
   presentation: {

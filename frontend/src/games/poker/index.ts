@@ -1,5 +1,6 @@
 import { defineAsyncComponent } from 'vue'
-import pokerArtwork from '../../assets/game-hall/icons/poker.webp'
+import pokerArtworkDark from '../../assets/game-hall/icons/poker-dark.webp'
+import pokerArtworkLight from '../../assets/game-hall/icons/poker-light.webp'
 import { socialTableCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { createCompetitiveStatsPresentation } from '../../game-platform/recordFormatting'
@@ -13,7 +14,7 @@ export const pokerGame = defineBuiltinGame({
     description: '读懂对手，把筹码推向终局',
     tone: 'poker',
     category: '扑克对战',
-    artwork: pokerArtwork,
+    artwork: { dark: pokerArtworkDark, light: pokerArtworkLight },
   },
   capabilities: socialTableCapabilities({ firstPlayer: false }),
   presentation: {

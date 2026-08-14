@@ -1,5 +1,6 @@
 import { defineAsyncComponent } from 'vue'
-import artwork from '../../assets/game-hall/icons/departed-suspicion.webp'
+import artworkDark from '../../assets/game-hall/icons/departed-suspicion-dark.webp'
+import artworkLight from '../../assets/game-hall/icons/departed-suspicion-light.webp'
 import { socialTableCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 
@@ -12,7 +13,7 @@ export const departedSuspicionGame = defineBuiltinGame({
     description: '查底细、抢装备，在枪口转向前找出敌方领袖',
     tone: 'suspicion',
     category: '身份推理',
-    artwork,
+    artwork: { dark: artworkDark, light: artworkLight },
   },
   capabilities: socialTableCapabilities(),
   presentation: {

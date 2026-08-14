@@ -1,5 +1,6 @@
 import { defineAsyncComponent } from 'vue'
-import xiangqiArtwork from '../../assets/game-hall/icons/xiangqi.webp'
+import xiangqiArtworkDark from '../../assets/game-hall/icons/xiangqi-dark.webp'
+import xiangqiArtworkLight from '../../assets/game-hall/icons/xiangqi-light.webp'
 import { boardDuelCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { createCompetitiveStatsPresentation } from '../../game-platform/recordFormatting'
@@ -15,7 +16,7 @@ export const xiangqiGame = defineBuiltinGame({
     description: '隔河列阵，步步攻守',
     tone: 'red',
     category: '棋类竞技',
-    artwork: xiangqiArtwork,
+    artwork: { dark: xiangqiArtworkDark, light: xiangqiArtworkLight },
   },
   capabilities: boardDuelCapabilities({ replay: true, ai: true }),
   presentation: {

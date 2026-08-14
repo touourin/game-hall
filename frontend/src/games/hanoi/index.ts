@@ -1,5 +1,6 @@
 import { defineAsyncComponent } from 'vue'
-import hanoiArtwork from '../../assets/game-hall/icons/hanoi.webp'
+import hanoiArtworkDark from '../../assets/game-hall/icons/hanoi-dark.webp'
+import hanoiArtworkLight from '../../assets/game-hall/icons/hanoi-light.webp'
 import { soloGameCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { hanoiLeaderboard, hanoiStats } from './records'
@@ -14,7 +15,7 @@ export const hanoiGame = defineBuiltinGame({
     description: '移动圆盘，用最少步数通关',
     tone: 'tower',
     category: '个人挑战',
-    artwork: hanoiArtwork,
+    artwork: { dark: hanoiArtworkDark, light: hanoiArtworkLight },
   },
   capabilities: soloGameCapabilities({ spectators: true }),
   presentation: {
