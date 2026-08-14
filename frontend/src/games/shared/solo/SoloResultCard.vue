@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { RotateCcw } from '@lucide/vue'
 import type { GameMetricItem } from '../../../components/uiTypes'
+import UiButton from '../../../components/ui/UiButton.vue'
 import SoloMetricGrid from './SoloMetricGrid.vue'
 
 withDefaults(defineProps<{
@@ -36,15 +37,15 @@ defineEmits<{ restart: [] }>()
     <p v-if="description">{{ description }}</p>
     <SoloMetricGrid v-if="metrics.length" class="solo-result-metrics" :items="metrics" value-first />
     <slot name="note" />
-    <button
+    <UiButton
       v-if="canRestart"
-      type="button"
-      class="primary-button solo-result-restart"
+      class="solo-result-restart"
+      variant="primary"
       :disabled="busy"
       @click="$emit('restart')"
     >
       <RotateCcw :size="18" />{{ restartLabel }}
-    </button>
+    </UiButton>
   </section>
 </template>
 

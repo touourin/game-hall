@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { Crown, Gamepad2, LogIn, ShieldCheck, Trophy, UserPlus, UserRound, UsersRound } from '@lucide/vue'
+import UiButton from '../components/ui/UiButton.vue'
 
 defineProps<{
   busy: boolean
@@ -183,8 +184,9 @@ function submit() {
           {{ localError || error }}
         </p>
 
-        <button
-          class="primary-button wide-button"
+        <UiButton
+          variant="primary"
+          block
           type="submit"
           :disabled="busy || !canSubmit"
         >
@@ -192,7 +194,7 @@ function submit() {
           <UserRound v-else-if="mode === 'guest'" :size="18" />
           <LogIn v-else :size="18" />
           {{ busy ? '请稍候…' : mode === 'login' ? '登录' : mode === 'register' ? '注册并进入' : '以游客身份进入' }}
-        </button>
+        </UiButton>
         <small v-if="mode === 'guest'" class="guest-account-note">
           游客身份保留 7 天，可断线重连；个人战绩、比赛历史和排行榜成绩不会记录。
         </small>

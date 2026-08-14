@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { ArrowLeft, DoorOpen, Flag } from '@lucide/vue'
 import BackNavigationButton from './BackNavigationButton.vue'
 import ConfirmModal from './ui/ConfirmModal.vue'
+import UiButton from './ui/UiButton.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -65,33 +66,28 @@ function confirm(action: 'leave' | 'detach' | 'abandon') {
     <template #icon><DoorOpen :size="25" /></template>
     <template #actions>
       <div class="exit-room-actions">
-        <button
+        <UiButton
           v-if="mode !== 'multiplayer-active'"
-          type="button"
-          class="secondary-button"
           @click="showConfirmation = false"
         >
           继续游戏
-        </button>
-        <button
+        </UiButton>
+        <UiButton
           v-if="mode === 'multiplayer-active'"
-          type="button"
-          class="secondary-button"
           :disabled="busy"
           @click="confirm('detach')"
         >
           <ArrowLeft :size="17" /> 暂时返回
-        </button>
-        <button
-          type="button"
-          class="danger-button"
+        </UiButton>
+        <UiButton
+          variant="danger"
           :disabled="busy"
           @click="confirm(mode === 'leave' || mode === 'spectator' ? 'leave' : 'abandon')"
         >
           <DoorOpen v-if="mode === 'leave' || mode === 'spectator'" :size="17" />
           <Flag v-else :size="17" />
           {{ dangerLabel }}
-        </button>
+        </UiButton>
       </div>
     </template>
   </ConfirmModal>

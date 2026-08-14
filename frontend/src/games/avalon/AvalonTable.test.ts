@@ -260,7 +260,7 @@ describe('AvalonTable role reveal', () => {
       global: { plugins: [createPinia()] },
     })
 
-    const confirmButton = wrapper.get('.primary-button')
+    const confirmButton = wrapper.get('.ui-button--primary')
     expect(confirmButton.attributes('disabled')).toBeDefined()
 
     await wrapper.get('.press-reveal-card').trigger('pointerdown')
@@ -439,11 +439,11 @@ describe('AvalonTable role reveal', () => {
     expect(modal.text()).toContain('刺错，好人立即获胜')
     expect(modal.text()).toContain('梅林候选人')
     expect(modal.text()).not.toContain('已知的莫甘娜')
-    expect(modal.get('.danger-button').attributes('disabled')).toBeDefined()
+    expect(modal.get('.ui-button--danger').attributes('disabled')).toBeDefined()
 
     await modal.get('.player-tile').trigger('click')
-    expect(modal.get('.danger-button').attributes('disabled')).toBeUndefined()
-    expect(modal.get('.danger-button').text()).toContain('2号 梅林候选人')
+    expect(modal.get('.ui-button--danger').attributes('disabled')).toBeUndefined()
+    expect(modal.get('.ui-button--danger').text()).toContain('2号 梅林候选人')
   })
 
   it('reveals known evil while keeping Oberon among assassination candidates', () => {
@@ -578,7 +578,7 @@ describe('AvalonTable role reveal', () => {
     expect(wrapper.get('.player-grid').text()).toContain('三号候选')
     expect(wrapper.get('.player-grid').text()).not.toContain('名单外玩家')
     await wrapper.findAll('.player-grid .player-tile')[0]!.trigger('click')
-    await wrapper.get('.danger-button').trigger('click')
+    await wrapper.get('.ui-button--danger').trigger('click')
 
     expect(action).toHaveBeenCalledWith('grant_dagger', {
       target_id: 'p2',
@@ -637,7 +637,7 @@ describe('AvalonTable role reveal', () => {
     expect(wrapper.text()).toContain('1号 测试玩家 已接过黑誓之刃')
     expect(wrapper.text()).toContain('你已必定转化为邪恶阵营')
     await wrapper.findAll('.player-grid .player-tile')[1]!.trigger('click')
-    await wrapper.get('.danger-button').trigger('click')
+    await wrapper.get('.ui-button--danger').trigger('click')
 
     expect(action).toHaveBeenCalledWith('dissenting_assassinate', {
       target_id: 'p3',
@@ -669,7 +669,7 @@ describe('AvalonTable role reveal', () => {
     expect(wrapper.text()).not.toContain('裁影')
     expect(wrapper.text()).toContain('系统不会提示你的票是否有效')
     await wrapper.get('.player-grid .player-tile').trigger('click')
-    await wrapper.get('.primary-button').trigger('click')
+    await wrapper.get('.ui-button--primary').trigger('click')
 
     expect(action).toHaveBeenCalledWith('exile_council_ballot', {
       open_council: true,
@@ -705,7 +705,7 @@ describe('AvalonTable role reveal', () => {
     expect(wrapper.text()).toContain('你并非刺客，只需确认放弃刺杀')
     expect(wrapper.find('.decision-button.approve').exists()).toBe(false)
     await wrapper.get('.decision-button.reject').trigger('click')
-    await wrapper.get('.danger-button').trigger('click')
+    await wrapper.get('.ui-button--danger').trigger('click')
 
     expect(action).toHaveBeenCalledWith(
       'council_assassination_decision',

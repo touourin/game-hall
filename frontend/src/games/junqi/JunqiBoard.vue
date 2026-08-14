@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { Check, Dices, Flag, Info } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
+import UiButton from '../../components/ui/UiButton.vue'
 
 type Side = 'red' | 'blue'
 interface PublicPiece {
@@ -274,7 +275,7 @@ function choose(row: number, column: number, event: MouseEvent) {
       <button type="button" class="primary" :disabled="isReady" @click="arcade.action('ready')"><Check :size="18" />确认布阵</button>
     </div>
     <div v-else-if="snapshot.phase === 'playing'" class="junqi-actions">
-      <button type="button" class="arcade-danger-button" @click="arcade.action('resign')"><Flag :size="17" />认输</button>
+      <UiButton variant="danger" compact @click="arcade.action('resign')"><Flag :size="17" />认输</UiButton>
     </div>
   </section>
 </template>
@@ -330,7 +331,7 @@ function choose(row: number, column: number, event: MouseEvent) {
 .legend-line { position: relative; display: block; width: 31px; height: 9px; }.legend-line::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; border-top: 1px solid var(--muted); }.legend-line.railway { border-block: 2px solid var(--gold); }.legend-line.railway::before { border-color: transparent; background: repeating-linear-gradient(90deg, var(--gold) 0 2px, transparent 2px 6px); height: 100%; top: 0; }
 .legend-node { justify-self: center; display: block; width: 18px; height: 18px; border: 2px double var(--gold); }.legend-node.camp { border-radius: 50%; }.legend-node.headquarters { width: 25px; height: 17px; border-style: solid; background: color-mix(in srgb, var(--gold) 12%, transparent); clip-path: polygon(12% 22%,50% 0,88% 22%,100% 22%,100% 100%,0 100%,0 22%); }
 .junqi-side-panel details { padding: 15px 18px 18px; }.junqi-side-panel summary { display: flex; align-items: center; gap: 6px; color: var(--gold); cursor: pointer; font-weight: 800; }.junqi-side-panel p { margin-bottom: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
-.junqi-actions { display: flex; justify-content: center; gap: 10px; }.junqi-actions button:not(.arcade-danger-button) { padding: 11px 18px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); background: var(--surface); }.junqi-actions button.primary { color: #08271f; background: var(--green); }.junqi-actions button:disabled { opacity: .4; }
+.junqi-actions { display: flex; justify-content: center; gap: 10px; }.junqi-actions button:not(.ui-button--danger) { padding: 11px 18px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); background: var(--surface); }.junqi-actions button.primary { color: #08271f; background: var(--green); }.junqi-actions button:disabled { opacity: .4; }
 @media (max-width: 720px) {
   .junqi-layout { grid-template-columns: 1fr; }
   .junqi-board { width: min(100%, 520px); margin: 0 auto; padding-inline: clamp(9px, 3vw, 16px); }

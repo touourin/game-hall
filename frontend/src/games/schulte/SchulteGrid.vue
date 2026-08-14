@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Clock3, Grid3X3, RotateCcw, ScanSearch, Target, TriangleAlert } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
+import UiButton from '../../components/ui/UiButton.vue'
 import SoloMetricGrid from '../shared/solo/SoloMetricGrid.vue'
 import SoloResultCard from '../shared/solo/SoloResultCard.vue'
 
@@ -182,9 +183,9 @@ onBeforeUnmount(() => {
       <div class="schulte-preview" aria-hidden="true">
         <i v-for="number in 25" :key="number">{{ number % 4 === 0 ? number : '·' }}</i>
       </div>
-      <button type="button" class="primary-button" :disabled="arcade.busy" @click="beginChallenge">
+      <UiButton variant="primary" :disabled="arcade.busy" @click="beginChallenge">
         <ScanSearch :size="19" />开始挑战
-      </button>
+      </UiButton>
     </section>
 
     <template v-else>
@@ -278,7 +279,7 @@ onBeforeUnmount(() => {
 .schulte-intro { min-height: 520px; padding: clamp(26px, 6vw, 50px); display: grid; justify-items: center; align-content: center; gap: 10px; overflow: hidden; text-align: center; background: radial-gradient(circle at 50% 55%, #62c69b18, transparent 44%), var(--surface); }
 .schulte-intro-icon { width: 66px; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--green) 38%, var(--line)); border-radius: 20px; color: #8fe0bd; background: #62c69b13; }.schulte-intro > small { color: var(--gold); font-weight: 850; letter-spacing: .08em; }.schulte-intro h2 { margin: 2px 0 0; font-family: "Songti SC", "STSong", serif; font-size: clamp(30px, 7vw, 46px); }.schulte-intro p { max-width: 460px; margin: 0; color: var(--muted); line-height: 1.7; }
 .schulte-preview { width: min(75vw, 270px); aspect-ratio: 1; margin: 16px 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; opacity: .58; transform: rotate(-3deg); }.schulte-preview i { display: grid; place-items: center; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); background: var(--surface-strong); font-style: normal; }
-.schulte-intro .primary-button, .schulte-result .primary-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 190px; }
+.schulte-intro .ui-button--primary, .schulte-result .ui-button--primary { min-width: 190px; }
 .schulte-board-card { padding: clamp(14px, 4vw, 24px); display: grid; gap: 14px; overflow: hidden; background: radial-gradient(circle at 50% 48%, #62c69b12, transparent 48%), var(--surface); }
 .schulte-board-card > header { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }.schulte-board-card > header > div { min-width: 82px; display: grid; justify-items: center; border: 1px solid color-mix(in srgb, var(--gold) 30%, var(--line)); border-radius: 13px; padding: 8px 12px; background: color-mix(in srgb, var(--gold) 7%, transparent); }.schulte-board-card > header small { color: var(--muted); font-size: 9px; }.schulte-board-card > header strong { color: var(--gold); font-size: 25px; line-height: 1.1; }.schulte-board-card > header p { min-width: 0; margin: 0; color: var(--muted); text-align: center; }
 .schulte-reset-button { min-height: 38px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 10px; padding: 0 11px; color: var(--muted); background: rgba(0,0,0,.1); font-weight: 800; }

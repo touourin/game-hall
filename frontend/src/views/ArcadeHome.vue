@@ -15,6 +15,7 @@ import { defaultGameRules } from '../gameRules'
 import { isSoloGameKey } from '../gameCatalog'
 import { builtinGameDefinition } from '../game-platform/registry'
 import AvatarImage from '../components/AvatarImage.vue'
+import UiButton from '../components/ui/UiButton.vue'
 
 const props = withDefaults(defineProps<{
   game: GameCatalogItem
@@ -114,7 +115,7 @@ async function submit() {
       class="surface resume-arcade-card"
     >
       <div><History :size="20" /><span><strong>你有一局尚未结束</strong><small>房间 {{ arcade.activeRoomCode }}</small></span></div>
-      <button type="button" class="primary-button" @click="emit('resumeRoom')">返回对局</button>
+      <UiButton variant="primary" @click="emit('resumeRoom')">返回对局</UiButton>
     </section>
 
     <MultiplayerMatchLauncher

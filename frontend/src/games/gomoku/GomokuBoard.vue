@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { Flag, Pause } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
+import UiButton from '../../components/ui/UiButton.vue'
 import IntersectionBoard from '../shared/IntersectionBoard.vue'
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
@@ -262,13 +263,13 @@ function pass() {
       >
         <Pause :size="17" />停一手
       </button>
-      <button
-        type="button"
-        class="arcade-danger-button"
+      <UiButton
+        variant="danger"
+        compact
         @click="arcade.action('resign')"
       >
         <Flag :size="17" />认输
-      </button>
+      </UiButton>
     </div>
   </section>
 </template>

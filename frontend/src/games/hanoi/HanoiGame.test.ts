@@ -98,7 +98,7 @@ describe('HanoiGame', () => {
       global: { plugins: [pinia] },
     })
 
-    await wrapper.get('.hanoi-result .primary-button').trigger('click')
+    await wrapper.get('.hanoi-result .ui-button--primary').trigger('click')
     await flushPromises()
 
     expect(restart).toHaveBeenCalledOnce()

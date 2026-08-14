@@ -13,7 +13,7 @@ describe('RoomKickButton', () => {
     expect(modal?.parentElement?.parentElement).toBe(document.body)
     expect(wrapper.emitted('confirm')).toBeUndefined()
 
-    document.body.querySelector<HTMLButtonElement>('.confirm-modal-actions .danger')?.click()
+    document.body.querySelector<HTMLButtonElement>('.confirm-modal-actions .ui-button--danger')?.click()
     await wrapper.vm.$nextTick()
     expect(wrapper.emitted('confirm')).toHaveLength(1)
     expect(document.body.querySelector('.kick-player-modal')).toBeNull()

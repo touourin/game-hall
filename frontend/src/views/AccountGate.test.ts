@@ -114,6 +114,6 @@ describe('AccountGate', () => {
     })
 
     expect(wrapper.get('[role="alert"]').text()).toContain('账号或密码不正确')
-    expect(wrapper.get('.primary-button').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.ui-button--primary').attributes('disabled')).toBeDefined()
   })
 })

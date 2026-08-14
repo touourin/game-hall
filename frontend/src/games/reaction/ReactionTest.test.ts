@@ -132,7 +132,7 @@ describe('ReactionTest', () => {
 
     expect(wrapper.text()).toContain('210 ms')
     expect(wrapper.text()).toContain('180 ms')
-    await wrapper.get('.reaction-result .primary-button').trigger('click')
+    await wrapper.get('.reaction-result .ui-button--primary').trigger('click')
     expect(restart).toHaveBeenCalledOnce()
     wrapper.unmount()
   })

@@ -15,7 +15,7 @@ describe('RoomExitButton', () => {
     })
 
     await wrapper.get('.exit-room-trigger').trigger('click')
-    const dangerButton = document.body.querySelector<HTMLButtonElement>('.danger-button')!
+    const dangerButton = document.body.querySelector<HTMLButtonElement>('.ui-button--danger')!
     expect(dangerButton.textContent).toContain('退出并淘汰')
     dangerButton.click()
     await wrapper.vm.$nextTick()

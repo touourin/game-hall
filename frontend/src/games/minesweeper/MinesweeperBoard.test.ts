@@ -109,6 +109,6 @@ describe('MinesweeperBoard', () => {
 
     expect(wrapper.get('.minesweeper-result').text()).toContain('初级通关')
     expect(wrapper.get('.minesweeper-result').text()).toContain('12.3')
-    expect(wrapper.find('.minesweeper-result .primary-button').exists()).toBe(true)
+    expect(wrapper.find('.minesweeper-result .ui-button--primary').exists()).toBe(true)
   })
 })

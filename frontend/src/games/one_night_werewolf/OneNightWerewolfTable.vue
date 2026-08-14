@@ -9,6 +9,7 @@ import {
   Vote,
 } from '@lucide/vue'
 import PressRevealCard from '../../components/PressRevealCard.vue'
+import UiButton from '../../components/ui/UiButton.vue'
 import type { ArcadeSnapshot } from '../../types/arcade'
 import { useArcadeStore } from '../../stores/arcade'
 import type { OneNightWerewolfView } from './types'
@@ -136,13 +137,13 @@ function submitVote() {
         <p class="one-night-secret">{{ selfRole.description }}</p>
       </PressRevealCard>
 
-      <button
+      <UiButton
         v-if="game.legal.canConfirmRole"
-        type="button"
-        class="primary-button wide-button"
+        variant="primary"
+        block
         :disabled="!roleSeen"
         @click="arcade.action('confirm_role')"
-      ><Check :size="19" />我已记住身份</button>
+      ><Check :size="19" />我已记住身份</UiButton>
       <div v-else class="one-night-wait"><span />已确认，等待其他玩家</div>
       <p class="one-night-progress">已确认 {{ game.roleConfirmedCount }} / {{ snapshot.players.length }}</p>
     </section>
@@ -173,17 +174,15 @@ function submitVote() {
           ><Moon :size="18" /><span>中央 {{ index + 1 }}</span></button>
         </div>
         <div class="night-actions">
-          <button
+          <UiButton
             v-if="['robber', 'troublemaker'].includes(nightRole ?? '')"
-            type="button"
-            class="secondary-button"
             @click="skipOptionalAction"
-          >不使用能力</button>
-          <button type="button" class="primary-button" :disabled="!nightActionReady" @click="submitNightAction">
+          >不使用能力</UiButton>
+          <UiButton variant="primary" :disabled="!nightActionReady" @click="submitNightAction">
             <Shuffle v-if="['robber', 'troublemaker', 'drunk'].includes(nightRole ?? '')" :size="18" />
             <Check v-else :size="18" />
             确认夜间行动
-          </button>
+          </UiButton>
         </div>
       </div>
       <div v-else class="surface moon-waiting"><Moon :size="44" /><strong>闭眼等待</strong><span>其他身份正在依次行动，你的私密信息不会公开。</span></div>
@@ -203,7 +202,7 @@ function submitVote() {
         </div>
         <p v-else class="one-night-secret">本局没有额外夜间信息。</p>
       </PressRevealCard>
-      <button v-if="game.legal.canStartVote" type="button" class="primary-button wide-button" @click="arcade.action('start_vote')"><Vote :size="18" />开始投票</button>
+      <UiButton v-if="game.legal.canStartVote" variant="primary" block @click="arcade.action('start_vote')"><Vote :size="18" />开始投票</UiButton>
       <p v-else class="one-night-progress">等待房主开始投票</p>
     </section>
 
@@ -218,7 +217,7 @@ function submitVote() {
           <option value="">请选择玩家</option>
           <option v-for="player in voteTargets" :key="player.id" :value="player.id">{{ player.seat + 1 }}号 {{ player.name }}</option>
         </select>
-        <button type="button" class="primary-button" :disabled="!voteTargetId" @click="submitVote">锁定投票</button>
+        <UiButton variant="primary" :disabled="!voteTargetId" @click="submitVote">锁定投票</UiButton>
       </div>
       <div v-else class="surface moon-waiting"><Check :size="38" /><strong>投票已锁定</strong><span>等待其他玩家提交，不会提前公开票型。</span></div>
       <p class="one-night-progress">已投票 {{ game.votesSubmitted }} / {{ snapshot.players.length }}</p>

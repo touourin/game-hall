@@ -20,6 +20,7 @@ import { applyTheme, storedTheme, type ThemeName } from '../theme'
 import AvatarCropModal from './AvatarCropModal.vue'
 import AvatarImage from './AvatarImage.vue'
 import BaseModal from './ui/BaseModal.vue'
+import UiButton from './ui/UiButton.vue'
 
 const props = defineProps<{
   account: AccountProfile
@@ -286,9 +287,9 @@ function confirmAvatarCrop(file: File) {
           </small>
           <p v-if="error" class="account-error" role="alert">{{ error }}</p>
           <p v-if="savedMessage" class="settings-success" role="status">{{ savedMessage }}</p>
-          <button class="primary-button wide-button" type="submit" :disabled="busy || !canRename">
+          <UiButton variant="primary" block type="submit" :disabled="busy || !canRename">
             <UserRoundPen :size="17" />{{ busy ? '正在保存…' : '修改游戏昵称' }}
-          </button>
+          </UiButton>
         </form>
       </section>
 

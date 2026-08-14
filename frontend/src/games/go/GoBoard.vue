@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { CheckCircle2, Flag, Play } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
+import UiButton from '../../components/ui/UiButton.vue'
 import IntersectionBoard from '../shared/IntersectionBoard.vue'
 
 interface GoScore {
@@ -206,9 +207,9 @@ function selectPoint(row: number, column: number, cell: number, event: MouseEven
       <button type="button" :disabled="!isMyTurn || arcade.busy" @click="arcade.action('pass')">
         停一手
       </button>
-      <button type="button" class="arcade-danger-button" :disabled="arcade.busy" @click="arcade.action('resign')">
+      <UiButton variant="danger" compact :disabled="arcade.busy" @click="arcade.action('resign')">
         <Flag :size="17" />认输
-      </button>
+      </UiButton>
       <small>本回合不落子；双方连续停一手后进入终局数子</small>
     </div>
 
@@ -293,7 +294,7 @@ function selectPoint(row: number, column: number, cell: number, event: MouseEven
 .go-stone.dead { opacity: .38; transform: scale(.88); }
 .go-stone.dead::after { content: '×'; position: absolute; inset: -20%; display: grid; place-items: center; border-radius: 50%; color: #8d1717; background: rgba(255, 230, 210, .55); font-size: clamp(14px, 2.4vw, 26px); font-weight: 950; }
 .inline-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-.inline-actions button:not(.arcade-danger-button) { border: 1px solid var(--line); border-radius: 12px; padding: 10px 18px; color: var(--text); background: var(--surface); }
+.inline-actions button:not(.ui-button--danger) { border: 1px solid var(--line); border-radius: 12px; padding: 10px 18px; color: var(--text); background: var(--surface); }
 .inline-actions small { flex-basis: 100%; color: var(--muted); text-align: center; }
 .go-scoring-actions { width: min(100%, 700px); display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
 .go-scoring-actions p { margin: 0; color: var(--muted); text-align: center; }

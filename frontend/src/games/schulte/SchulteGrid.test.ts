@@ -92,7 +92,7 @@ describe('SchulteGrid', () => {
 
     expect(wrapper.find('.schulte-grid').exists()).toBe(false)
     expect(wrapper.text()).toContain('按顺序找到 1–25')
-    await wrapper.get('.schulte-intro .primary-button').trigger('click')
+    await wrapper.get('.schulte-intro .ui-button--primary').trigger('click')
 
     expect(action).toHaveBeenCalledWith('begin')
   })
@@ -150,7 +150,7 @@ describe('SchulteGrid', () => {
 
     expect(wrapper.get('.schulte-result').text()).toContain('12.34')
     expect(wrapper.get('.schulte-result').text()).toContain('2错误点击')
-    await wrapper.get('.schulte-result .primary-button').trigger('click')
+    await wrapper.get('.schulte-result .ui-button--primary').trigger('click')
     expect(restartGame).toHaveBeenCalledOnce()
   })
 })

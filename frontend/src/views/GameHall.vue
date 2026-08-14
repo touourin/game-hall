@@ -24,6 +24,7 @@ import GameLibraryCard from '../components/GameLibraryCard.vue'
 import LobbyRoomPanel from '../components/LobbyRoomPanel.vue'
 import StatsModal from '../components/StatsModal.vue'
 import ThirdPartyGamesModal from '../components/ThirdPartyGamesModal.vue'
+import UiButton from '../components/ui/UiButton.vue'
 
 defineProps<{
   account: AccountProfile
@@ -198,9 +199,9 @@ function scrollTo(section: HTMLElement | null) {
               </span>
               <h2>{{ hubTitle }}</h2>
               <p>{{ hubDescription }}</p>
-              <button type="button" class="primary-button" @click="openHub">
+              <UiButton variant="primary" @click="openHub">
                 {{ hubActionLabel }}<ChevronRight :size="18" />
-              </button>
+              </UiButton>
             </div>
 
             <div class="hall-hub-art" :class="`tone-${hubGame.tone}`">
@@ -624,7 +625,7 @@ function scrollTo(section: HTMLElement | null) {
   line-height: 1.7;
 }
 
-.hall-hub .primary-button {
+.hall-hub .ui-button--primary {
   min-height: 48px;
   border-radius: var(--radius-control);
   font-size: 13px;

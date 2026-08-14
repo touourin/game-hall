@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { Crown, Flag } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
+import UiButton from '../../components/ui/UiButton.vue'
 import AvatarImage from '../../components/AvatarImage.vue'
 import PlayingCard from '../shared/cards/PlayingCard.vue'
 import GameHistoryPanel from '../shared/history/GameHistoryPanel.vue'
@@ -330,9 +331,9 @@ function historyText(entry: HistoryEntry): string {
           </button>
         </div>
         <p v-if="game.bids.length">{{ game.bids.map((entry) => historyText(entry)).join(' · ') }}</p>
-        <button type="button" class="arcade-danger-button" :disabled="arcade.busy" @click="arcade.action('resign')">
+        <UiButton variant="danger" compact :disabled="arcade.busy" @click="arcade.action('resign')">
           <Flag :size="16" />退出本局
-        </button>
+        </UiButton>
       </div>
     </section>
 
@@ -381,7 +382,7 @@ function historyText(entry: HistoryEntry): string {
         <button type="button" class="primary" :disabled="!isMyTurn || !selectedIds.length || arcade.busy" @click="play">
           出牌 <small v-if="selectedIds.length">{{ selectedIds.length }}</small>
         </button>
-        <button type="button" class="arcade-danger-button" :disabled="arcade.busy" @click="arcade.action('resign')"><Flag :size="17" />认输</button>
+        <UiButton variant="danger" compact :disabled="arcade.busy" @click="arcade.action('resign')"><Flag :size="17" />认输</UiButton>
       </div>
     </section>
 
@@ -615,8 +616,8 @@ function historyText(entry: HistoryEntry): string {
 .bid-panel > strong { grid-column: 1 / 3; font-size: clamp(16px, 2.2vw, 22px); }
 .bid-panel > div { display: flex; gap: 8px; }
 .bid-panel > p { grid-column: 1 / 3; margin: 0; color: var(--muted); font-size: 10px; }
-.bid-panel button:not(.arcade-danger-button),
-.play-actions button:not(.arcade-danger-button) {
+.bid-panel button:not(.ui-button--danger),
+.play-actions button:not(.ui-button--danger) {
   min-height: 42px;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -730,7 +731,7 @@ function historyText(entry: HistoryEntry): string {
   .bid-panel { right: 9px; bottom: 9px; left: 9px; width: auto; min-height: 108px; grid-template-columns: 1fr auto; border-radius: 14px; padding: 10px; }
   .bid-panel > strong { font-size: 16px; }
   .bid-panel > p { max-height: 28px; overflow: auto; }
-  .bid-panel button:not(.arcade-danger-button) { min-height: 38px; padding: 0 12px; }
+  .bid-panel button:not(.ui-button--danger) { min-height: 38px; padding: 0 12px; }
   .hand-zone { border-radius: 16px; padding: 11px 8px 10px; }
   .self-hand-header { padding: 0 3px; }
   .selection-feedback { align-items: flex-start; flex-direction: column; gap: 2px; text-align: left; }
@@ -747,7 +748,7 @@ function historyText(entry: HistoryEntry): string {
     box-shadow: 0 8px 24px rgba(0,0,0,.38);
     backdrop-filter: blur(14px);
   }
-  .play-actions button:not(.arcade-danger-button) { min-height: 40px; padding: 0 15px; }
+  .play-actions button:not(.ui-button--danger) { min-height: 40px; padding: 0 15px; }
   .play-actions .primary { min-width: 112px; }
 }
 @media (prefers-reduced-motion: reduce) {

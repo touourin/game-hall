@@ -154,7 +154,7 @@ describe('PokerTable', () => {
     })
 
     expect(wrapper.get('.next-hand-panel').text()).toContain('第 1 手牌结束')
-    await wrapper.get('.next-hand-panel .primary-button').trigger('click')
+    await wrapper.get('.next-hand-panel .ui-button--primary').trigger('click')
     expect(action).toHaveBeenCalledWith('ready_next_hand', {})
   })
 })

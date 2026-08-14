@@ -18,6 +18,7 @@ import {
 import MissionProgressTrack from '../../components/MissionProgressTrack.vue'
 import PressRevealCard from '../../components/PressRevealCard.vue'
 import AvatarImage from '../../components/AvatarImage.vue'
+import UiButton from '../../components/ui/UiButton.vue'
 import {
   roleArtwork,
   roleArtworkFraming,
@@ -514,15 +515,15 @@ function selfRoleArtworkFraming() {
         <p v-else class="muted-secret">你没有额外可见信息</p>
       </PressRevealCard>
 
-      <button
+      <UiButton
         v-if="snapshot.actions.canConfirmRole"
-        class="primary-button wide-button"
-        type="button"
+        variant="primary"
+        block
         :disabled="!roleSeen"
         @click="room.action('confirm_role')"
       >
         <Check :size="19" /> 我已记住身份
-      </button>
+      </UiButton>
       <div v-else class="waiting-card">
         <span class="pulse-dot" />
         已确认，等待其他玩家
@@ -599,14 +600,14 @@ function selfRoleArtworkFraming() {
             <Check v-if="selectedTeamIds.includes(player.id)" :size="18" />
           </button>
         </div>
-        <button
-          class="primary-button wide-button"
-          type="button"
+        <UiButton
+          variant="primary"
+          block
           :disabled="selectedTeamIds.length !== snapshot.game.requiredTeamSize"
           @click="proposeTeam"
         >
           提交任务队伍 <ChevronRight :size="19" />
-        </button>
+        </UiButton>
       </template>
       <div v-else class="waiting-card tall">
         <span class="pulse-dot" />
@@ -773,14 +774,14 @@ function selfRoleArtworkFraming() {
         </div>
       </div>
 
-      <button
+      <UiButton
         v-if="snapshot.actions.canContinueRound"
-        class="primary-button wide-button"
-        type="button"
+        variant="primary"
+        block
         @click="room.action('continue_round')"
       >
         继续结算 <ArrowRight :size="19" />
-      </button>
+      </UiButton>
       <div v-else class="waiting-card">
         <span class="pulse-dot" />
         等待房主继续
@@ -841,14 +842,14 @@ function selfRoleArtworkFraming() {
             <X v-if="exileCouncilTargetId === player.id" :size="18" />
           </button>
         </div>
-        <button
-          class="primary-button wide-button"
-          type="button"
+        <UiButton
+          variant="primary"
+          block
           :disabled="!exileCouncilTargetId"
           @click="submitExileCouncilBallot"
         >
           匿名提交祓影票 <ChevronRight :size="19" />
-        </button>
+        </UiButton>
       </template>
       <div v-else class="waiting-card tall">
         <span class="pulse-dot" />
@@ -915,14 +916,14 @@ function selfRoleArtworkFraming() {
             <span>出刃，使祓影票作废并寻找梅林</span>
           </button>
         </div>
-        <button
-          class="danger-button wide-button"
-          type="button"
+        <UiButton
+          variant="danger"
+          block
           :disabled="councilAssassinateChoice === null"
           @click="submitCouncilAssassinationDecision"
         >
           锁定选择
-        </button>
+        </UiButton>
       </template>
       <div v-else class="waiting-card tall">
         <span class="pulse-dot danger-dot" />
@@ -979,14 +980,14 @@ function selfRoleArtworkFraming() {
             <Swords v-if="councilAssassinationTargetId === player.id" :size="18" />
           </button>
         </div>
-        <button
-          class="danger-button wide-button"
-          type="button"
+        <UiButton
+          variant="danger"
+          block
           :disabled="!councilAssassinationTargetId"
           @click="submitCouncilAssassinationTarget"
         >
           确认目标 {{ playerLabel(councilAssassinationTargetId) }}
-        </button>
+        </UiButton>
       </template>
       <div v-else class="waiting-card tall">
         <span class="pulse-dot danger-dot" />
@@ -1032,14 +1033,14 @@ function selfRoleArtworkFraming() {
             <Sparkles v-if="ladyTargetId === player.id" :size="18" />
           </button>
         </div>
-        <button
-          class="primary-button wide-button"
-          type="button"
+        <UiButton
+          variant="primary"
+          block
           :disabled="!ladyTargetId"
           @click="inspectWithLady"
         >
           秘密查验 <ChevronRight :size="19" />
-        </button>
+        </UiButton>
       </template>
       <div v-else class="waiting-card tall">
         <span class="pulse-dot" />
@@ -1072,14 +1073,14 @@ function selfRoleArtworkFraming() {
           @seen="ladySeen = true"
         />
         <p class="center-note">你可以向大家说出真相，也可以撒谎。</p>
-        <button
-          class="primary-button wide-button"
-          type="button"
+        <UiButton
+          variant="primary"
+          block
           :disabled="!ladySeen"
           @click="room.action('lady_acknowledge')"
         >
           我已记住结果 <Check :size="19" />
-        </button>
+        </UiButton>
       </template>
       <div v-else class="waiting-card tall">
         <span class="pulse-dot" />
@@ -1152,14 +1153,14 @@ function selfRoleArtworkFraming() {
             <Swords v-if="assassinTargetId === player.id" :size="18" />
           </button>
         </div>
-        <button
-          class="danger-button wide-button"
-          type="button"
+        <UiButton
+          variant="danger"
+          block
           :disabled="!assassinTargetId"
           @click="assassinate"
         >
           确认刺杀 {{ playerLabel(assassinTargetId) }}
-        </button>
+        </UiButton>
       </template>
       <div v-else class="waiting-card tall">
         <span class="pulse-dot danger-dot" />
@@ -1209,14 +1210,14 @@ function selfRoleArtworkFraming() {
             <Swords v-if="daggerTargetId === player.id" :size="18" />
           </button>
         </div>
-        <button
-          class="danger-button wide-button"
-          type="button"
+        <UiButton
+          variant="danger"
+          block
           :disabled="!daggerTargetId"
           @click="grantDagger"
         >
           向 {{ playerLabel(daggerTargetId) }} 授刃
-        </button>
+        </UiButton>
       </template>
       <div v-else class="waiting-card tall">
         <span class="pulse-dot danger-dot" />
@@ -1289,14 +1290,14 @@ function selfRoleArtworkFraming() {
             <Swords v-if="dissentingTargetId === player.id" :size="18" />
           </button>
         </div>
-        <button
-          class="danger-button wide-button"
-          type="button"
+        <UiButton
+          variant="danger"
+          block
           :disabled="!dissentingTargetId"
           @click="dissentingAssassinate"
         >
           确认刺杀 {{ playerLabel(dissentingTargetId) }}
-        </button>
+        </UiButton>
       </template>
       <div v-else class="waiting-card tall">
         <span class="pulse-dot danger-dot" />
@@ -1547,14 +1548,14 @@ function selfRoleArtworkFraming() {
         </div>
       </div>
 
-      <button
+      <UiButton
         v-if="snapshot.actions.canRestart"
-        class="primary-button wide-button"
-        type="button"
+        variant="primary"
+        block
         @click="room.restartGame"
       >
         <RotateCcw :size="18" /> 再来一局
-      </button>
+      </UiButton>
       <div v-else class="waiting-card">
         <span class="pulse-dot" />
         等待房主决定是否再来一局
@@ -1606,14 +1607,14 @@ function selfRoleArtworkFraming() {
           </button>
         </div>
 
-        <button
-          class="danger-button wide-button"
-          type="button"
+        <UiButton
+          variant="danger"
+          block
           :disabled="!earlyAssassinTargetId"
           @click="earlyAssassinate"
         >
           确认刺杀 {{ playerLabel(earlyAssassinTargetId) }}
-        </button>
+        </UiButton>
       </section>
     </div>
 

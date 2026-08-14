@@ -230,6 +230,6 @@ describe('ChessBoard', () => {
     expect(wrapper.findAll('.chess-cell').every(
       (cell) => cell.attributes('disabled') !== undefined,
     )).toBe(true)
-    expect(wrapper.find('.arcade-danger-button').exists()).toBe(false)
+    expect(wrapper.find('.ui-button--danger').exists()).toBe(false)
   })
 })

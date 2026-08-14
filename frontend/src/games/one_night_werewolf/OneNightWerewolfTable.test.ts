@@ -127,7 +127,7 @@ describe('OneNightWerewolfTable', () => {
       global: { plugins: [pinia] },
     })
 
-    const confirm = wrapper.get('.primary-button')
+    const confirm = wrapper.get('.ui-button--primary')
     expect(wrapper.get('.one-night-role-deck').text()).toContain('狼人')
     expect(confirm.attributes('disabled')).toBeDefined()
     expect(wrapper.text()).not.toContain('预言家的身份说明')
@@ -152,7 +152,7 @@ describe('OneNightWerewolfTable', () => {
     expect(wrapper.text()).not.toContain('乙的牌是狼人')
     await wrapper.get('.press-reveal-card').trigger('pointerdown')
     expect(wrapper.text()).toContain('乙的牌是狼人')
-    await wrapper.get('.wide-button').trigger('click')
+    await wrapper.get('.ui-button--block').trigger('click')
     expect(action).toHaveBeenCalledWith('start_vote')
   })
 
@@ -166,7 +166,7 @@ describe('OneNightWerewolfTable', () => {
     })
 
     await wrapper.get('select').setValue('p2')
-    await wrapper.get('.final-vote-card .primary-button').trigger('click')
+    await wrapper.get('.final-vote-card .ui-button--primary').trigger('click')
     expect(action).toHaveBeenCalledWith('vote', { targetPlayerId: 'p2' })
 
     await wrapper.setProps({ snapshot: snapshot('finished') })

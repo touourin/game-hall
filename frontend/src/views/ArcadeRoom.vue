@@ -21,6 +21,7 @@ import RoomInviteModal from '../components/RoomInviteModal.vue'
 import AvatarImage from '../components/AvatarImage.vue'
 import RoomPlayerRoster from '../components/RoomPlayerRoster.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
+import UiButton from '../components/ui/UiButton.vue'
 import { useArcadeStore } from '../stores/arcade'
 import type { ArcadeSnapshot } from '../types/arcade'
 import { gameRuleLabels, withDefaultGameRules } from '../gameRules'
@@ -324,14 +325,13 @@ function openSharedChat() {
         :share-title="`加入${snapshot.gameName}“${snapshot.roomName || `房间 ${snapshot.roomCode}`}”`"
         :share-text="`点击链接加入${snapshot.roomName || `我的${snapshot.gameName}房间`}，房间码 ${snapshot.roomCode}`"
       />
-      <button
+      <UiButton
         v-if="snapshot.actions.canStart"
-        type="button"
-        class="primary-button"
+        variant="primary"
         @click="arcade.startGame"
       >
         开始{{ snapshot.gameName }}
-      </button>
+      </UiButton>
     </section>
 
     <section v-else class="arcade-game-stage">
@@ -347,16 +347,15 @@ function openSharedChat() {
         <p class="rematch-progress">
           {{ snapshot.rematchReadyPlayerIds.length }} / {{ snapshot.players.length }} 人已准备
         </p>
-        <button
+        <UiButton
           v-if="snapshot.actions.canRestart || selfRematchReady"
-          type="button"
-          class="primary-button"
+          variant="primary"
           :disabled="selfRematchReady"
           @click="arcade.restartGame"
         >
           <RotateCcw :size="18" />
           {{ selfRematchReady ? '等待其他玩家' : roomShell.rematchLabel ?? '准备再来一局' }}
-        </button>
+        </UiButton>
       </div>
 
       <component
@@ -411,7 +410,7 @@ function openSharedChat() {
         <h2>房间规则</h2>
         <p>{{ snapshot.phase === 'finished' ? '保存后所有玩家会返回等待阶段，新规则从下一局生效。' : '保存后会同步给房间中的所有玩家，开局后不可修改。' }}</p>
         <GameRuleSettings v-model="ruleEditor" :game-key="snapshot.gameKey" :guest-mode="viewerIsGuest" />
-        <button type="button" class="primary-button wide-button" :disabled="arcade.busy" @click="saveRules">保存规则</button>
+        <UiButton variant="primary" block :disabled="arcade.busy" @click="saveRules">保存规则</UiButton>
     </BaseModal>
 
   </main>
@@ -449,10 +448,10 @@ function openSharedChat() {
 .result-banner h2 { margin: 5px 0; }
 .result-banner p { color: var(--muted); }
 .result-banner .rematch-progress { margin-bottom: 0; font-size: 11px; }
-.result-banner .primary-button { margin: 12px auto 0; }
+.result-banner .ui-button--primary { margin: 12px auto 0; }
 :global(.modal-card.rule-editor-modal) { width: min(94vw, 620px); max-height: min(88vh, 820px); overflow-y: auto; }
 :global(.modal-card.rule-editor-modal) > p { margin: -4px 0 20px; color: var(--muted); }
-:global(.modal-card.rule-editor-modal) > .wide-button { margin-top: 22px; }
+:global(.modal-card.rule-editor-modal) > .ui-button--block { margin-top: 22px; }
 @media (max-width: 620px), (orientation: landscape) and (max-height: 600px) and (max-width: 980px) {
   .arcade-room--active { display: flex; flex-direction: column; }
   .arcade-room--active :deep(.room-page-header) { order: 1; }

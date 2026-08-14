@@ -214,7 +214,7 @@ describe('DepartedSuspicionTable', () => {
     const selects = wrapper.findAll('.action-form select')
     await selects[0]?.setValue('1')
     await selects[1]?.setValue('0')
-    await wrapper.get('.action-form .primary-button').trigger('click')
+    await wrapper.get('.action-form .ui-button--primary').trigger('click')
 
     expect(action).toHaveBeenCalledWith('investigate', {
       targetSeat: 1,
@@ -289,10 +289,10 @@ describe('DepartedSuspicionTable', () => {
     await wrapper.get('.equipment-hand article button').trigger('click')
     const selects = wrapper.findAll('.equipment-fields select')
     expect(selects).toHaveLength(2)
-    expect(wrapper.get('.suspicion-modal .primary-button').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.suspicion-modal .ui-button--primary').attributes('disabled')).toBeDefined()
     await selects[0]?.setValue('1')
     await selects[1]?.setValue('2')
-    await wrapper.get('.suspicion-modal .primary-button').trigger('click')
+    await wrapper.get('.suspicion-modal .ui-button--primary').trigger('click')
 
     expect(actionWithResult).toHaveBeenCalledWith('play_equipment', {
       cardId: 'metal_detector',
@@ -369,7 +369,7 @@ describe('DepartedSuspicionTable', () => {
     selects = wrapper.findAll('.equipment-fields select')
     expect(selects).toHaveLength(3)
     await selects[2]?.setValue('1')
-    await wrapper.get('.suspicion-modal .primary-button').trigger('click')
+    await wrapper.get('.suspicion-modal .ui-button--primary').trigger('click')
 
     expect(actionWithResult).toHaveBeenCalledWith('play_equipment', {
       cardId: 'fingerprint_kit',
@@ -428,7 +428,7 @@ describe('DepartedSuspicionTable', () => {
     expect(selects[2]?.findAll('option').map(option => option.text())).not.toContain('玩家2')
     await selects[2]?.setValue('2')
     await selects[3]?.setValue('1')
-    await wrapper.get('.suspicion-modal .primary-button').trigger('click')
+    await wrapper.get('.suspicion-modal .ui-button--primary').trigger('click')
 
     expect(actionWithResult).toHaveBeenCalledWith('play_equipment', {
       cardId: 'blackmail',
@@ -452,7 +452,7 @@ describe('DepartedSuspicionTable', () => {
     expect(wrapper.get('.urgent-panel').text()).toContain('装备响应')
     await wrapper.findAll('.equipment-actions button')[0]?.trigger('click')
     await wrapper.get('.suspicion-modal select').setValue('0')
-    await wrapper.get('.suspicion-modal .primary-button').trigger('click')
+    await wrapper.get('.suspicion-modal .ui-button--primary').trigger('click')
 
     expect(actionWithResult).toHaveBeenCalledWith('play_equipment', {
       cardId: 'k9_unit',
@@ -494,11 +494,11 @@ describe('DepartedSuspicionTable', () => {
     })
     const selects = wrapper.findAll('.decision-panel select')
     expect(selects).toHaveLength(3)
-    expect(wrapper.get('.decision-panel .primary-button').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.decision-panel .ui-button--primary').attributes('disabled')).toBeDefined()
     await selects[0]?.setValue('2')
     await selects[1]?.setValue('0')
     await selects[2]?.setValue('1')
-    await wrapper.get('.decision-panel .primary-button').trigger('click')
+    await wrapper.get('.decision-panel .ui-button--primary').trigger('click')
 
     expect(action).toHaveBeenCalledWith('reorder_integrity', {
       cardOrder: [2, 0, 1],
@@ -612,7 +612,7 @@ describe('DepartedSuspicionTable', () => {
     expect(equip).toBeDefined()
     await equip?.trigger('click')
     expect(wrapper.find('.action-form select').exists()).toBe(false)
-    await wrapper.get('.action-form .primary-button').trigger('click')
+    await wrapper.get('.action-form .ui-button--primary').trigger('click')
 
     expect(action).toHaveBeenCalledWith('equip', {})
   })
@@ -632,7 +632,7 @@ describe('DepartedSuspicionTable', () => {
     const selects = wrapper.findAll('.action-form select')
     expect(selects).toHaveLength(1)
     await selects[0]?.setValue('1')
-    await wrapper.get('.action-form .primary-button').trigger('click')
+    await wrapper.get('.action-form .ui-button--primary').trigger('click')
 
     expect(action).toHaveBeenCalledWith('arm', { targetSeat: 1 })
   })
@@ -653,7 +653,7 @@ describe('DepartedSuspicionTable', () => {
 
     await actionButtons[0]?.trigger('click')
     expect(wrapper.find('.action-form select').exists()).toBe(false)
-    await wrapper.get('.action-form .primary-button').trigger('click')
+    await wrapper.get('.action-form .ui-button--primary').trigger('click')
 
     expect(action).toHaveBeenCalledWith('equip', {})
   })

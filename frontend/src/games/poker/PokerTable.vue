@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { CircleDollarSign, Coins } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
+import UiButton from '../../components/ui/UiButton.vue'
 import PlayingCard from '../shared/cards/PlayingCard.vue'
 
 interface PokerCard {
@@ -198,15 +199,14 @@ function act(action: string, payload: Record<string, unknown> = {}) {
         <strong>{{ game.lastHandReason }}</strong>
         <span>{{ game.nextHandReadyPlayerIds.length }} / {{ game.requiredNextHandReadyCount }} 人已准备下一手</span>
       </div>
-      <button
+      <UiButton
         v-if="game.canReadyNextHand"
-        type="button"
-        class="primary-button"
+        variant="primary"
         :disabled="arcade.busy"
         @click="act('ready_next_hand')"
       >
         准备下一手
-      </button>
+      </UiButton>
       <p v-else-if="self?.eliminated">你已淘汰，可以继续观战</p>
       <p v-else>等待其他玩家准备</p>
     </section>
@@ -225,7 +225,7 @@ function act(action: string, payload: Record<string, unknown> = {}) {
 .community-area { position: relative; z-index: 1; display: grid; justify-items: center; gap: 8px; }.community-cards { min-height: 70px; display: flex; justify-content: center; gap: clamp(4px, 1.3vw, 9px); }.side-pot-summary { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }.side-pot-summary span { border-radius: 999px; padding: 3px 7px; color: #ead295; background: #002c21aa; font-size: 11px; }
 .self-seat { position: relative; z-index: 1; min-height: 106px; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 14px; padding: 12px 16px; }.self-hand { display: flex; }.own-card + .own-card { margin-left: -9px; }.self-copy { min-width: 0; }.self-copy header strong { font-size: 18px; }.self-copy p { margin: 8px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 3px 5px; color: #dfeee7; }.self-copy p b { color: #e4c172; white-space: nowrap; }.self-copy > em { display: block; margin-top: 5px; color: #f0cd7b; font-style: normal; font-weight: 850; }
 .poker-controls { padding: 14px; display: grid; gap: 10px; }.poker-controls p { margin: 0; color: var(--muted); text-align: center; }.primary-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }.primary-actions button, .raise-button, .quick-raises button { min-height: 44px; border: 1px solid var(--line); border-radius: 10px; color: var(--text); background: rgba(255,255,255,.05); font-weight: 850; }.primary-actions .fold { color: #f08e8b; }.primary-actions .all-in { color: #f1ca73; border-color: #d4aa5355; background: #d4aa5314; }.raise-controls { display: grid; grid-template-columns: 1fr auto auto; align-items: end; gap: 8px; }.quick-raises { display: flex; gap: 5px; }.quick-raises button { min-height: 38px; padding: 0 9px; color: var(--muted); font-size: 12px; }.raise-controls label { display: grid; gap: 3px; color: var(--muted); font-size: 11px; }.raise-controls input { width: 100px; min-height: 38px; border: 1px solid var(--line); border-radius: 9px; padding: 0 9px; color: var(--text); background: #001f20; }.raise-button { padding: 0 13px; color: #192019; background: var(--gold); }
-.next-hand-panel { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px; }.next-hand-panel > div { display: grid; gap: 3px; }.next-hand-panel small { color: var(--gold); }.next-hand-panel span,.next-hand-panel p { margin: 0; color: var(--muted); }.next-hand-panel .primary-button { flex: 0 0 auto; }
+.next-hand-panel { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px; }.next-hand-panel > div { display: grid; gap: 3px; }.next-hand-panel small { color: var(--gold); }.next-hand-panel span,.next-hand-panel p { margin: 0; color: var(--muted); }.next-hand-panel .ui-button--primary { flex: 0 0 auto; }
 .poker-history { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }.poker-history span { border: 1px solid var(--line); border-radius: 999px; padding: 4px 8px; color: var(--muted); font-size: 11px; }.poker-history b { margin-right: 4px; color: var(--text); }.poker-history em { margin-left: 3px; color: var(--gold); font-style: normal; }
 @media (max-width: 600px) { .poker-status { align-items: start; }.poker-status strong { font-size: 19px; }.poker-felt { min-height: 560px; border-width: 5px; border-radius: 30px; padding: 23px 12px; gap: 16px; }.opponent-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }.opponent-seat { min-height: 102px; padding: 8px; }.self-seat { padding: 10px 12px; gap: 9px; }.self-copy p { font-size: 12px; }.primary-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }.raise-controls { grid-template-columns: 1fr auto; }.quick-raises { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); }.quick-raises button { padding: 0 5px; }.raise-controls input { width: 100%; }.raise-button { min-width: 98px; }.next-hand-panel { align-items: stretch; flex-direction: column; }.poker-history { justify-content: flex-start; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 3px; }.poker-history span { flex: 0 0 auto; } }
 </style>

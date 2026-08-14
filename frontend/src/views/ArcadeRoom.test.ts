@@ -726,7 +726,7 @@ describe('ArcadeRoom', () => {
     )
     expect(dissolveRoom).not.toHaveBeenCalled()
 
-    document.body.querySelector<HTMLButtonElement>('.confirm-modal-actions .danger')!.click()
+    document.body.querySelector<HTMLButtonElement>('.confirm-modal-actions .ui-button--danger')!.click()
     await flushPromises()
 
     expect(dissolveRoom).toHaveBeenCalledOnce()
@@ -769,7 +769,7 @@ describe('ArcadeRoom', () => {
 
     await wrapper.get('[aria-label="移除玩家二"]').trigger('click')
     expect(document.body.querySelector('.kick-player-modal')?.textContent).toContain('移除玩家二？')
-    document.body.querySelector<HTMLButtonElement>('.confirm-modal-actions .danger')?.click()
+    document.body.querySelector<HTMLButtonElement>('.confirm-modal-actions .ui-button--danger')?.click()
     await flushPromises()
 
     expect(kickPlayer).toHaveBeenCalledWith('p2')
@@ -792,7 +792,7 @@ describe('ArcadeRoom', () => {
     )
     expect(leaveRoom).not.toHaveBeenCalled()
 
-    document.body.querySelector<HTMLButtonElement>('.exit-room-modal .danger-button')!.click()
+    document.body.querySelector<HTMLButtonElement>('.exit-room-modal .ui-button--danger')!.click()
     await wrapper.vm.$nextTick()
 
     expect(leaveRoom).toHaveBeenCalledOnce()
@@ -814,12 +814,12 @@ describe('ArcadeRoom', () => {
     await wrapper.get('.exit-room-trigger').trigger('click')
     expect(document.body.querySelector('.exit-room-modal')?.textContent).toContain('暂时返回')
     expect(document.body.querySelector('.exit-room-modal')?.textContent).toContain('认输并退出')
-    document.body.querySelector<HTMLButtonElement>('.exit-room-modal .secondary-button')!.click()
+    document.body.querySelector<HTMLButtonElement>('.exit-room-modal .ui-button--secondary')!.click()
     await wrapper.vm.$nextTick()
     expect(detachRoom).toHaveBeenCalledOnce()
 
     await wrapper.get('.exit-room-trigger').trigger('click')
-    document.body.querySelector<HTMLButtonElement>('.exit-room-modal .danger-button')!.click()
+    document.body.querySelector<HTMLButtonElement>('.exit-room-modal .ui-button--danger')!.click()
     await wrapper.vm.$nextTick()
     expect(abandonRoom).toHaveBeenCalledOnce()
   })
@@ -838,7 +838,7 @@ describe('ArcadeRoom', () => {
 
     await wrapper.get('.exit-room-trigger').trigger('click')
     expect(document.body.querySelector('.exit-room-modal')?.textContent).toContain('放弃当前进度')
-    document.body.querySelector<HTMLButtonElement>('.exit-room-modal .danger-button')!.click()
+    document.body.querySelector<HTMLButtonElement>('.exit-room-modal .ui-button--danger')!.click()
     await wrapper.vm.$nextTick()
     expect(abandonRoom).toHaveBeenCalledOnce()
   })
@@ -890,7 +890,7 @@ describe('ArcadeRoom', () => {
       .findAll('.rule-editor-modal .game-rule-settings button')
       .find((button) => button.text().includes('正好五子'))
     await exactFive?.trigger('click')
-    await wrapper.get('.rule-editor-modal > .primary-button').trigger('click')
+    await wrapper.get('.rule-editor-modal > .ui-button--primary').trigger('click')
     await flushPromises()
 
     expect(updateRules).toHaveBeenCalledWith(
