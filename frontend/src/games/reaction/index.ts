@@ -34,7 +34,6 @@ export const reactionGame = defineBuiltinGame({
   records: {
     leaderboard: reactionLeaderboard,
     stats: reactionStats,
-    matchDetailComponent: defineAsyncComponent(() => import('./MatchDetail.vue')),
   },
 })
 

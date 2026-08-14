@@ -1,3 +1,4 @@
+import { formatMatchDuration } from '../../game-platform/recordFormatting'
 import type {
   BuiltinGameLeaderboardPresentation,
   BuiltinGameStatsPresentation,
@@ -20,6 +21,26 @@ export const hanoiStats: BuiltinGameStatsPresentation = {
   historyOutcome: () => '成',
   historyTitle: (match) => match.reason,
   historyMeta: (_match, date) => `${date} · 单人益智挑战`,
+  detailSection: (match) => {
+    const state = match.details.state
+    const discCount = Number(state?.disc_count ?? 0)
+    return {
+      title: '汉诺塔挑战成绩',
+      metrics: [
+        {
+          status: 'success',
+          label: `${discCount} 层圆盘`,
+          value: `${state?.moves ?? 0} 步完成`,
+          note: `理论最少 ${2 ** discCount - 1} 步`,
+        },
+        {
+          status: 'success',
+          label: '完成用时',
+          value: formatMatchDuration(state?.elapsed_ms),
+        },
+      ],
+    }
+  },
   detailWinnerLabel: () => '汉诺塔挑战完成',
   detailNote: (match) => match.ranked
     ? '本次通关计入汉诺塔累计通关榜'

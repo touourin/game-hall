@@ -45,7 +45,6 @@ export const minesweeperGame = defineBuiltinGame({
     modeFromRules: (options) => String(options.difficulty ?? 'beginner'),
     leaderboard: minesweeperLeaderboard,
     stats: minesweeperStats,
-    matchDetailComponent: defineAsyncComponent(() => import('./MatchDetail.vue')),
   },
 })
 

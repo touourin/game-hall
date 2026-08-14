@@ -34,7 +34,6 @@ export const deepShaftGame = defineBuiltinGame({
   records: {
     leaderboard: deepShaftLeaderboard,
     stats: deepShaftStats,
-    matchDetailComponent: defineAsyncComponent(() => import('./MatchDetail.vue')),
   },
 })
 

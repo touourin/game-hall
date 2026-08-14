@@ -5,6 +5,7 @@ import { builtinGameDefinition } from '../game-platform/registry'
 import { statsPresentation } from '../game-platform/records'
 import BackNavigationButton from './BackNavigationButton.vue'
 import DefaultMatchDetail from './DefaultMatchDetail.vue'
+import MatchMetricDetail from './MatchMetricDetail.vue'
 import BaseModal from './ui/BaseModal.vue'
 import {
   loadMatchDetail,
@@ -28,14 +29,19 @@ const activeGameMode = ref<string | undefined>(props.gameMode ?? presentation.de
 const activeGameVariant = ref<string | undefined>(
   presentation.defaultVariant?.(activeGameMode.value),
 )
+const selectedMatchPresentation = computed(() =>
+  statsPresentation(selectedMatch.value?.gameKey ?? props.gameKey),
+)
+const selectedMatchDetailSection = computed(() => {
+  const match = selectedMatch.value
+  if (!match) return null
+  return selectedMatchPresentation.value.detailSection?.(match) ?? null
+})
 const selectedMatchDetailComponent = computed(() => {
   if (!selectedMatch.value) return null
   return builtinGameDefinition(selectedMatch.value.gameKey)?.records?.matchDetailComponent
     ?? DefaultMatchDetail
 })
-const selectedMatchPresentation = computed(() =>
-  statsPresentation(selectedMatch.value?.gameKey ?? props.gameKey),
-)
 
 function historyPresentation(match: MatchHistoryItem) {
   return props.gameKey ? presentation : statsPresentation(match.gameKey)
@@ -117,7 +123,12 @@ watch([activeGameMode, activeGameVariant], loadStats)
           <span>{{ selectedMatch.reason }}</span>
         </div>
 
-        <Suspense v-if="selectedMatchDetailComponent">
+        <MatchMetricDetail
+          v-if="selectedMatchDetailSection"
+          :section="selectedMatchDetailSection"
+        />
+
+        <Suspense v-else-if="selectedMatchDetailComponent">
           <component
             :is="selectedMatchDetailComponent"
             :match="selectedMatch"

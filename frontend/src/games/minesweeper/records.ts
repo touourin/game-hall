@@ -31,6 +31,28 @@ export const minesweeperStats: BuiltinGameStatsPresentation = {
       match.scoreMs === null ? '踩中地雷' : formatMatchDuration(match.scoreMs)
     }`,
   historyMeta: (match, date) => `${date} · ${match.reason}`,
+  detailSection: (match) => {
+    const state = match.details.state
+    return {
+      title: '扫雷挑战成绩',
+      metrics: [
+        {
+          status: match.winner === 'completed' ? 'success' : 'failed',
+          label: `${difficultyRecordLabel(state?.difficulty)} · ${state?.rows ?? 0}×${state?.columns ?? 0}`,
+          value: match.winner === 'completed'
+            ? formatMatchDuration(state?.elapsed_ms)
+            : '踩中地雷',
+          note: `${state?.mine_count ?? 0} 雷 · 已翻开 ${state?.revealed_count ?? 0} 个安全格`,
+        },
+        {
+          status: 'success',
+          label: '本轮标记',
+          value: `${state?.flagged_count ?? 0} 面旗帜`,
+          note: '首次翻开区域由服务端保证安全',
+        },
+      ],
+    }
+  },
   detailWinnerLabel: (match) => match.winner === 'completed'
     ? '扫雷挑战完成'
     : '踩中地雷',

@@ -20,6 +20,14 @@ export const reactionStats: BuiltinGameStatsPresentation = {
   historyOutcome: () => '测',
   historyTitle: (match) => `三轮平均 · ${match.scoreMs} ms`,
   historyMeta: (_match, date) => `${date} · 三轮测试`,
+  detailSection: (match) => ({
+    title: '反应挑战成绩',
+    metrics: (match.details.state?.results_ms ?? []).map((result, index) => ({
+      status: 'success',
+      label: `第 ${index + 1} 轮`,
+      value: `${result} ms`,
+    })),
+  }),
   detailWinnerLabel: () => '三轮测试完成',
   detailNote: (match) => match.ranked
     ? '本次成绩计入反应时间排行榜'

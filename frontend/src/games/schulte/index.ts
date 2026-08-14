@@ -34,7 +34,6 @@ export const schulteGame = defineBuiltinGame({
   records: {
     leaderboard: schulteLeaderboard,
     stats: schulteStats,
-    matchDetailComponent: defineAsyncComponent(() => import('./MatchDetail.vue')),
   },
 })
 

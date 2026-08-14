@@ -37,7 +37,6 @@ export const surviveThreeSecondsGame = defineBuiltinGame({
   records: {
     leaderboard: surviveThreeSecondsLeaderboard,
     stats: surviveThreeSecondsStats,
-    matchDetailComponent: defineAsyncComponent(() => import('./MatchDetail.vue')),
   },
 })
 

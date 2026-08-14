@@ -1,3 +1,4 @@
+import { formatMatchDuration } from '../../game-platform/recordFormatting'
 import type {
   BuiltinGameLeaderboardPresentation,
   BuiltinGameStatsPresentation,
@@ -21,6 +22,28 @@ export const deepShaftStats: BuiltinGameStatsPresentation = {
   historyOutcome: () => '层',
   historyTitle: (match) => `最深抵达 · ${match.scoreValue?.toLocaleString()} 层`,
   historyMeta: (match, date) => `${date} · ${match.reason}`,
+  detailSection: (match) => {
+    const state = match.details.state
+    return {
+      title: '百层深井挑战成绩',
+      metrics: [
+        {
+          status: match.winner === 'completed' ? 'success' : 'failed',
+          label: match.winner === 'completed'
+            ? '抵达第一百层'
+            : `最深抵达第 ${state?.deepest_floor ?? 0} 层`,
+          value: formatMatchDuration(state?.elapsed_ms),
+          note: `结束时剩余 ${state?.health ?? 0} 点生命`,
+        },
+        {
+          status: 'success',
+          label: '服务端轨迹校验',
+          value: `${state?.input_count ?? 0} 帧输入`,
+          note: '固定 60 Hz 重建平台、移动与碰撞',
+        },
+      ],
+    }
+  },
   detailWinnerLabel: (match) => match.winner === 'completed'
     ? '百层深井通关'
     : '深井探索结束',

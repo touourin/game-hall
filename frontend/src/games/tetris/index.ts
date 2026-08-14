@@ -54,7 +54,6 @@ export const tetrisGame = defineBuiltinGame({
       : `timed_${Number(options.durationSeconds ?? 180)}`,
     leaderboard: tetrisLeaderboard,
     stats: tetrisStats,
-    matchDetailComponent: defineAsyncComponent(() => import('./MatchDetail.vue')),
   },
 })
 

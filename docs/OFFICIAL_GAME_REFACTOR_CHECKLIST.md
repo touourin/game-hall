@@ -43,6 +43,7 @@
 - [x] 删除仅供房间页二次查询的 `builtinGameComponent()`；房间页复用已经解析的模块定义。
 - [x] 第二批运行时代码与测试新增 75 行、删除 161 行，净减少 86 行；372 项前端测试、生产构建、主题选择器和月白陶瓷对比度检查全部通过。
 - [x] 将后端官方目录派生逻辑迁回唯一数据源 `builtin.py`，删除 `catalog.py`；新增 27 行、删除 28 行，后端 563 项测试全部通过。
+- [x] 将 7 个单人战绩详情迁为模块自有数据映射和单一共享渲染器，删除 7 个异步组件；源码与测试新增 192 行、删除 196 行，净减少 4 行、净减少 6 个文件；372 项前端测试、生产构建和主题检查通过。
 
 ## 第一优先级：可以整文件删除
 
@@ -99,15 +100,15 @@
 
 下列组件共用相同的“标题 + 指标卡片”结构，仅数据映射不同：
 
-- [~] `frontend/src/games/deep_shaft/MatchDetail.vue`
-- [~] `frontend/src/games/hanoi/MatchDetail.vue`
-- [~] `frontend/src/games/minesweeper/MatchDetail.vue`
-- [~] `frontend/src/games/reaction/MatchDetail.vue`
-- [~] `frontend/src/games/schulte/MatchDetail.vue`
-- [~] `frontend/src/games/survive_three_seconds/MatchDetail.vue`
-- [~] `frontend/src/games/tetris/MatchDetail.vue`
+- [x] `frontend/src/games/deep_shaft/MatchDetail.vue`
+- [x] `frontend/src/games/hanoi/MatchDetail.vue`
+- [x] `frontend/src/games/minesweeper/MatchDetail.vue`
+- [x] `frontend/src/games/reaction/MatchDetail.vue`
+- [x] `frontend/src/games/schulte/MatchDetail.vue`
+- [x] `frontend/src/games/survive_three_seconds/MatchDetail.vue`
+- [x] `frontend/src/games/tetris/MatchDetail.vue`
 
-迁移方案：在战绩模块中声明详情区块数据，由一个共享详情组件渲染。完成后删除以上 7 个文件和对应的重复异步组件注册。
+迁移结果：各游戏在战绩模块中声明详情区块数据，由 `MatchMetricDetail.vue` 统一渲染；以上 7 个文件和对应的异步组件注册已经删除。
 
 - [~] 评估将 `DefaultMatchDetail.vue` 和 `junqi/MatchDetail.vue` 合并为共享玩家详情渲染器。
 - [-] 保留 `avalon/MatchDetail.vue`；它包含完整任务、提案、仙女和刺杀回放，不应强行复用。

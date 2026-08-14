@@ -42,7 +42,6 @@ export const hanoiGame = defineBuiltinGame({
   records: {
     leaderboard: hanoiLeaderboard,
     stats: hanoiStats,
-    matchDetailComponent: defineAsyncComponent(() => import('./MatchDetail.vue')),
   },
 })
 

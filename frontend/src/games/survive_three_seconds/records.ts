@@ -1,3 +1,4 @@
+import { formatMatchDuration } from '../../game-platform/recordFormatting'
 import type {
   BuiltinGameLeaderboardPresentation,
   BuiltinGameStatsPresentation,
@@ -20,6 +21,26 @@ export const surviveThreeSecondsStats: BuiltinGameStatsPresentation = {
   historyOutcome: (match) => match.outcome === 'win' ? '生' : '中',
   historyTitle: (match) => match.outcome === 'win' ? '坚持 3.00 秒' : match.reason,
   historyMeta: (_match, date) => `${date} · 180 帧轨迹已校验`,
+  detailSection: (match) => {
+    const state = match.details.state
+    return {
+      title: '三秒弹幕挑战',
+      metrics: [
+        {
+          status: match.winner === 'survived' ? 'success' : 'failed',
+          label: match.winner === 'survived' ? '完整生还' : '弹幕命中',
+          value: formatMatchDuration(state?.elapsed_ms),
+          note: '目标 3.00 秒 · 60 Hz 轨迹重放',
+        },
+        {
+          status: 'success',
+          label: '服务端校验',
+          value: `${state?.input_count ?? 0} 帧输入`,
+          note: '使用相同种子重建弹幕与碰撞位置',
+        },
+      ],
+    }
+  },
   detailWinnerLabel: (match) => match.winner === 'survived'
     ? '坚持三秒成功'
     : '被弹幕击中',

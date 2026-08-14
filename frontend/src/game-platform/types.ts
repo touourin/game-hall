@@ -128,6 +128,18 @@ export interface BuiltinGameStatsSummaryItem {
   label: string
 }
 
+export interface BuiltinGameMatchDetailMetric {
+  status: 'success' | 'failed'
+  label: string
+  value: string
+  note?: string
+}
+
+export interface BuiltinGameMatchDetailSection {
+  title: string
+  metrics: readonly BuiltinGameMatchDetailMetric[]
+}
+
 export interface BuiltinGameStatsPresentation {
   defaultMode?: string
   defaultVariant?: (mode: string | undefined) => string | undefined
@@ -140,6 +152,7 @@ export interface BuiltinGameStatsPresentation {
   historyOutcome: (match: MatchHistoryItem) => string
   historyTitle: (match: MatchHistoryItem) => string
   historyMeta: (match: MatchHistoryItem, formattedDate: string) => string
+  detailSection?: (match: MatchDetail) => BuiltinGameMatchDetailSection
   detailModeLabel?: (match: MatchDetail) => string
   detailWinnerLabel: (match: MatchDetail) => string
   detailNote: (match: MatchDetail) => string

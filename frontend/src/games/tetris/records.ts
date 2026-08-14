@@ -1,4 +1,7 @@
-import { tetrisRecordModeLabel } from '../../game-platform/recordFormatting'
+import {
+  formatMatchDuration,
+  tetrisRecordModeLabel,
+} from '../../game-platform/recordFormatting'
 import type {
   BuiltinGameLeaderboardPresentation,
   BuiltinGameStatsPresentation,
@@ -24,6 +27,26 @@ export const tetrisStats: BuiltinGameStatsPresentation = {
   historyOutcome: () => '分',
   historyTitle: (match) => `最终得分 · ${match.scoreValue?.toLocaleString()} 分`,
   historyMeta: (match, date) => `${date} · ${match.reason}`,
+  detailSection: (match) => {
+    const state = match.details.state
+    return {
+      title: '落块挑战成绩',
+      metrics: [
+        {
+          status: 'success',
+          label: '最终得分',
+          value: `${Number(state?.score ?? 0).toLocaleString()} 分`,
+          note: `到达等级 ${state?.level ?? 1}`,
+        },
+        {
+          status: 'success',
+          label: '棋盘表现',
+          value: `消除 ${state?.lines ?? 0} 行`,
+          note: `使用 ${state?.pieces ?? 0} 个方块 · ${formatMatchDuration(state?.elapsed_ms)}`,
+        },
+      ],
+    }
+  },
   detailModeLabel: (match) => tetrisRecordModeLabel(match.gameMode ?? undefined),
   detailWinnerLabel: () => '落块挑战完成',
   detailNote: (match) => match.ranked

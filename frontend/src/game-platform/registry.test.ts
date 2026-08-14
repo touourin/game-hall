@@ -58,6 +58,8 @@ describe('built-in game registry', () => {
     for (const definition of soloDefinitions) {
       expect(definition.presentation.solo).toBeDefined()
       expect(definition.presentation.solo?.content({}).metrics).toHaveLength(3)
+      expect(definition.records?.stats?.detailSection).toBeTypeOf('function')
+      expect(definition.records?.matchDetailComponent).toBeUndefined()
       expect(definition.capabilities).toMatchObject({
         undo: false,
         draw: false,
