@@ -20,9 +20,11 @@ from backend.app.arcade.views import (
     build_spectator_room_view,
 )
 from backend.app.games.base import GameRuleError
-from backend.app.games.builtin import builtin_game_definition
-from backend.app.games.builtin import BUILTIN_GAME_DEFINITIONS
-from backend.app.games.catalog import BUILTIN_GAME_NAMES
+from backend.app.games.builtin import (
+    BUILTIN_GAME_DEFINITIONS,
+    BUILTIN_GAME_NAMES,
+    builtin_game_definition,
+)
 from backend.app.games.doudizhu.engine import (
     Card,
     DoudizhuEngine,

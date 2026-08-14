@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from backend.app.games.base import GameEngine
-from backend.app.games.builtin import BUILTIN_GAME_DEFINITIONS
-from backend.app.games.catalog import BUILTIN_GAME_CATALOG
+from backend.app.games.builtin import (
+    BUILTIN_GAME_CATALOG,
+    BUILTIN_GAME_DEFINITIONS,
+)
 from backend.app.games.plugins import discover_game_plugins, plugin_catalog
 
 

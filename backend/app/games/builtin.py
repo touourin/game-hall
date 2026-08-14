@@ -52,6 +52,23 @@ BUILTIN_GAME_DEFINITION_BY_KEY = {
 if len(BUILTIN_GAME_DEFINITION_BY_KEY) != len(BUILTIN_GAME_DEFINITIONS):
     raise ValueError("官方游戏模块存在重复 key")
 
+_catalog_orders = [
+    definition.catalog.order for definition in BUILTIN_GAME_DEFINITIONS
+]
+if len(set(_catalog_orders)) != len(_catalog_orders):
+    raise ValueError("官方游戏目录存在重复排序")
+
+BUILTIN_GAME_CATALOG: tuple[dict[str, str], ...] = tuple(
+    definition.catalog_entry
+    for definition in sorted(
+        BUILTIN_GAME_DEFINITIONS,
+        key=lambda item: item.catalog.order,
+    )
+)
+BUILTIN_GAME_NAMES = {
+    game["key"]: game["name"] for game in BUILTIN_GAME_CATALOG
+}
+
 
 def builtin_game_definition(game_key: str) -> GameDefinition | None:
     return BUILTIN_GAME_DEFINITION_BY_KEY.get(game_key)

@@ -42,6 +42,7 @@
 - [x] 删除第二批 13 个无独立职责的前端文件：平台薄访问器、阿瓦隆纯转发组件、3 个房间展示薄文件和 6 个战绩工厂薄文件。
 - [x] 删除仅供房间页二次查询的 `builtinGameComponent()`；房间页复用已经解析的模块定义。
 - [x] 第二批运行时代码与测试新增 75 行、删除 161 行，净减少 86 行；372 项前端测试、生产构建、主题选择器和月白陶瓷对比度检查全部通过。
+- [x] 将后端官方目录派生逻辑迁回唯一数据源 `builtin.py`，删除 `catalog.py`；新增 27 行、删除 28 行，后端 563 项测试全部通过。
 
 ## 第一优先级：可以整文件删除
 
@@ -87,7 +88,7 @@
 
 ### 后端派生目录文件
 
-- [ ] 删除 `backend/app/games/catalog.py`。
+- [x] 删除 `backend/app/games/catalog.py`。
   - 将排序校验、`BUILTIN_GAME_CATALOG` 和 `BUILTIN_GAME_NAMES` 并入 `games/builtin.py`。
   - 更新 `accounts.py`、`registry.py` 和测试的导入。
   - 验收：后端目录只从官方定义生成一次。

@@ -29,9 +29,9 @@ from .database import (
 from .games.avalon.models import ROLE_ALIGNMENT, Room, Role
 from .games.builtin import (
     BUILTIN_GAME_DEFINITIONS,
+    BUILTIN_GAME_NAMES,
     builtin_game_definition,
 )
-from .games.catalog import BUILTIN_GAME_NAMES
 
 
 logger = logging.getLogger(__name__)
