@@ -2,6 +2,8 @@
 import { computed, ref } from 'vue'
 import { CircleHelp } from '@lucide/vue'
 import BaseModal from '../../components/ui/BaseModal.vue'
+import UiButton from '../../components/ui/UiButton.vue'
+import UiIconButton from '../../components/ui/UiIconButton.vue'
 import type { ArcadeSnapshot } from '../../types/arcade'
 import OneNightWerewolfRules from './OneNightWerewolfRules.vue'
 import type { OneNightWerewolfView } from './types'
@@ -24,16 +26,22 @@ const activeRoleCodes = computed(() => (
 </script>
 
 <template>
-  <button
-    v-if="game"
-    :class="{ 'header-action': placement === 'header' }"
-    type="button"
+  <UiIconButton
+    v-if="game && placement === 'header'"
     aria-label="查看一夜狼人规则与角色"
     @click="showRules = true"
   >
     <CircleHelp :size="21" />
-    <span v-if="placement === 'rule'">规则与角色</span>
-  </button>
+  </UiIconButton>
+  <UiButton
+    v-else-if="game"
+    compact
+    aria-label="查看一夜狼人规则与角色"
+    @click="showRules = true"
+  >
+    <CircleHelp :size="21" />
+    <span>规则与角色</span>
+  </UiButton>
   <BaseModal
     v-if="showRules && game"
     aria-label="一夜狼人规则与角色说明"

@@ -14,6 +14,7 @@ import {
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
 import UiButton from '../../components/ui/UiButton.vue'
+import UiIconButton from '../../components/ui/UiIconButton.vue'
 import GameHistoryPanel from '../shared/history/GameHistoryPanel.vue'
 import IntegrityCardButton from './IntegrityCardButton.vue'
 import type {
@@ -519,7 +520,7 @@ async function resolveScanner(exchange: boolean) {
 
     <div v-if="equipmentCard" class="suspicion-modal" @click.self="closeEquipment">
       <section class="surface" role="dialog" aria-modal="true">
-        <button class="modal-close" type="button" aria-label="关闭装备使用弹窗" @click="closeEquipment"><X :size="18" /></button>
+        <UiIconButton compact class="suspicion-dialog-close" aria-label="关闭装备使用弹窗" @click="closeEquipment"><X :size="18" /></UiIconButton>
         <span class="equipment-number">{{ String(equipmentCard.number).padStart(2, '0') }}</span>
         <h2>{{ equipmentCard.name }}</h2>
         <p>{{ equipmentCard.englishName }} · {{ equipmentCard.description }}</p>
@@ -544,7 +545,7 @@ async function resolveScanner(exchange: boolean) {
 
     <div v-if="showCatalog" class="suspicion-modal" @click.self="showCatalog = false">
       <section class="surface catalog-modal" role="dialog" aria-modal="true">
-        <button class="modal-close" type="button" aria-label="关闭装备资料库" @click="showCatalog = false"><X :size="18" /></button>
+        <UiIconButton compact class="suspicion-dialog-close" aria-label="关闭装备资料库" @click="showCatalog = false"><X :size="18" /></UiIconButton>
         <h2>33张装备资料库</h2>
         <p>{{ game.rulesNotice }}</p>
         <div class="catalog-list">
@@ -575,7 +576,7 @@ async function resolveScanner(exchange: boolean) {
 .action-form,.end-turn-row { display: flex; align-items: end; flex-wrap: wrap; gap: 9px; border-top: 1px solid var(--line); padding-top: 12px; }.end-turn-row { justify-content: flex-end; }.action-form label,.end-turn-row label,.decision-panel label,.suspicion-modal label { min-width: 150px; display: grid; gap: 5px; color: var(--muted); font-size: 9px; font-weight: 800; }.action-form select,.end-turn-row select,.decision-panel select,.suspicion-modal select { min-height: 39px; border: 1px solid var(--line); border-radius: 8px; padding: 0 9px; color: var(--text); background: var(--surface-inset); }
 .equipment-hand { display: grid; gap: 10px; }.equipment-hand > header button { border: 0; color: var(--case-gold); background: none; cursor: pointer; }.equipment-hand > article { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--surface-inset); }.equipment-hand article > span,.equipment-number { color: var(--case-gold); font-family: Georgia, serif; font-size: 18px; }.equipment-hand article div { min-width: 0; display: grid; }.equipment-hand article small { line-height: 1.45; overflow-wrap: anywhere; }.equipment-hand article button { border: 1px solid color-mix(in srgb, var(--case-gold) 35%, var(--line)); border-radius: 8px; padding: 7px 10px; color: var(--case-gold); background: transparent; cursor: pointer; }.equipment-hand article button:disabled { opacity: .35; cursor: not-allowed; }.catalog-trigger { justify-self: center; color: var(--case-gold); }
 .history-panel { --game-history-accent: var(--case-gold); --game-history-max-height: 190px; }
-.suspicion-modal { position: fixed; z-index: 120; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(2,7,6,.76); backdrop-filter: blur(10px); }.suspicion-modal > section { position: relative; width: min(100%, 510px); max-height: min(88vh, 760px); display: grid; gap: 12px; padding: 22px; overflow: auto; }.suspicion-modal h2 { margin: 0; }.suspicion-modal p { margin: 0; color: var(--muted); line-height: 1.55; }.modal-close { position: absolute; top: 10px; right: 10px; width: 34px; aspect-ratio: 1; display: grid; place-items: center; border: 0; color: var(--muted); background: transparent; cursor: pointer; }.equipment-fields { display: grid; gap: 9px; }.check-row { display: flex !important; align-items: center; }.check-row input { accent-color: var(--case-gold); }.catalog-modal { width: min(100%, 760px) !important; }.catalog-list { display: grid; gap: 7px; }.catalog-list article { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 9px; border: 1px solid var(--line); border-radius: 9px; padding: 9px; background: var(--surface-inset); }.catalog-list article > span { color: var(--case-gold); font-family: Georgia, serif; }.catalog-list strong small { color: var(--muted); font-weight: 500; }.catalog-list p { margin-top: 3px; font-size: 9px; }.catalog-list em { color: var(--muted); font-size: 8px; font-style: normal; }.catalog-list .unavailable { opacity: .5; }
+.suspicion-modal { position: fixed; z-index: 120; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(2,7,6,.76); backdrop-filter: blur(10px); }.suspicion-modal > section { position: relative; width: min(100%, 510px); max-height: min(88vh, 760px); display: grid; gap: 12px; padding: 22px; overflow: auto; }.suspicion-modal h2 { margin: 0; }.suspicion-modal p { margin: 0; color: var(--muted); line-height: 1.55; }.suspicion-dialog-close { position: absolute; top: 10px; right: 10px; }.equipment-fields { display: grid; gap: 9px; }.check-row { display: flex !important; align-items: center; }.check-row input { accent-color: var(--case-gold); }.catalog-modal { width: min(100%, 760px) !important; }.catalog-list { display: grid; gap: 7px; }.catalog-list article { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 9px; border: 1px solid var(--line); border-radius: 9px; padding: 9px; background: var(--surface-inset); }.catalog-list article > span { color: var(--case-gold); font-family: Georgia, serif; }.catalog-list strong small { color: var(--muted); font-weight: 500; }.catalog-list p { margin-top: 3px; font-size: 9px; }.catalog-list em { color: var(--muted); font-size: 8px; font-style: normal; }.catalog-list .unavailable { opacity: .5; }
 @media (max-width: 760px) {
   .suspicion-status { align-items: flex-start; flex-direction: column; }.status-resources { justify-content: flex-start; }
   .investigation-board { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }.action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

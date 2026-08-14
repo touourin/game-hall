@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { X } from '@lucide/vue'
 import { nextTick, onBeforeUnmount, onMounted, ref, useId, useSlots } from 'vue'
+import UiIconButton from './UiIconButton.vue'
 
 const props = withDefaults(defineProps<{
   title?: string
@@ -104,9 +105,9 @@ onBeforeUnmount(() => {
         :aria-label="title || slots.title ? undefined : ariaLabel"
         tabindex="-1"
       >
-        <button class="modal-close" type="button" :aria-label="closeLabel" @click="close">
+        <UiIconButton compact class="dialog-close" :aria-label="closeLabel" @click="close">
           <X :size="20" />
-        </button>
+        </UiIconButton>
         <span v-if="slots.icon" class="modal-icon"><slot name="icon" /></span>
         <h2 v-if="title || slots.title" :id="titleId"><slot name="title">{{ title }}</slot></h2>
         <p v-if="description || slots.description"><slot name="description">{{ description }}</slot></p>

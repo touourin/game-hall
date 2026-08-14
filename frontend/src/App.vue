@@ -36,6 +36,7 @@ import type { ArcadeGameKey, GameCatalogItem } from './types/arcade'
 import AccountGate from './views/AccountGate.vue'
 import ArcadeHome from './views/ArcadeHome.vue'
 import SettingsModal from './components/SettingsModal.vue'
+import UiIconButton from './components/ui/UiIconButton.vue'
 
 const arcade = useArcadeStore()
 const route = useRoute()
@@ -392,9 +393,9 @@ onMounted(async () => {
 
     <div v-if="arcade.error" class="toast" role="alert">
       <span>{{ arcade.error }}</span>
-      <button class="icon-button" aria-label="关闭提示" @click="arcade.clearError()">
+      <UiIconButton compact class="toast-dismiss" aria-label="关闭提示" @click="arcade.clearError()">
         <X :size="18" />
-      </button>
+      </UiIconButton>
     </div>
 
     <div v-if="arcade.busy" class="busy-indicator" aria-label="正在处理">

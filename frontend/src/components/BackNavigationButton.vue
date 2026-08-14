@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ArrowLeft } from '@lucide/vue'
+import UiIconButton from './ui/UiIconButton.vue'
 
 withDefaults(
   defineProps<{
@@ -18,13 +19,12 @@ defineEmits<{
 </script>
 
 <template>
-  <button
-    type="button"
-    class="icon-button back-navigation-button"
+  <UiIconButton
+    class="back-navigation-button"
     :aria-label="label"
     :disabled="disabled"
     @click="$emit('click')"
   >
     <ArrowLeft :size="21" aria-hidden="true" />
-  </button>
+  </UiIconButton>
 </template>

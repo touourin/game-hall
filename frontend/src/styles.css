@@ -624,24 +624,6 @@ button:disabled {
   color: color-mix(in srgb, var(--gold) 74%, transparent);
 }
 
-.header-action,
-.icon-button,
-.modal-close {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  color: var(--text-soft);
-  background: var(--control-surface), var(--surface-inset);
-  box-shadow:
-    var(--shadow-contact),
-    inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 66%, transparent),
-    inset 0 0 0 1px color-mix(in srgb, var(--line-bright) 12%, transparent);
-  cursor: pointer;
-}
-
 .phase-stack {
   display: grid;
   gap: 16px;
@@ -2971,12 +2953,10 @@ button:disabled {
   min-height: min(420px, 68vh);
 }
 
-.modal-close {
+.dialog-close {
   position: absolute;
   top: 12px;
   right: 12px;
-  width: 34px;
-  height: 34px;
 }
 
 .modal-icon {
@@ -3056,10 +3036,7 @@ button:disabled {
   color: #041f18;
 }
 
-:root[data-theme="royal"] .account-bar button,
-:root[data-theme="royal"] .header-action,
-:root[data-theme="royal"] .icon-button,
-:root[data-theme="royal"] .modal-close {
+:root[data-theme="royal"] .account-bar button {
   color: var(--text-soft);
 }
 
@@ -3123,9 +3100,7 @@ button:disabled {
   font-size: 11px;
 }
 
-.toast .icon-button {
-  width: 34px;
-  height: 34px;
+.toast .toast-dismiss {
   border: 0;
   background: transparent;
 }

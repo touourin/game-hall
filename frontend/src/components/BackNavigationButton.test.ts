@@ -7,7 +7,7 @@ describe('BackNavigationButton', () => {
       props: { label: '返回游戏大厅' },
     })
 
-    expect(wrapper.classes()).toContain('icon-button')
+    expect(wrapper.classes()).toContain('ui-icon-button')
     expect(wrapper.classes()).toContain('back-navigation-button')
     expect(wrapper.attributes('aria-label')).toBe('返回游戏大厅')
 

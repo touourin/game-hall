@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { History, Trophy } from '@lucide/vue'
 import LeaderboardModal from './LeaderboardModal.vue'
 import StatsModal from './StatsModal.vue'
+import UiButton from './ui/UiButton.vue'
 
 const props = defineProps<{
   accountId?: string
@@ -17,25 +18,25 @@ const showLeaderboard = ref(false)
 </script>
 
 <template>
-  <button
+  <UiButton
     v-if="!props.guest"
-    type="button"
-    class="header-action room-record-action"
+    compact
+    class="room-record-action"
     aria-label="查看我的战绩"
     @click="showStats = true"
   >
     <History :size="18" />
     <span>我的战绩</span>
-  </button>
-  <button
-    type="button"
-    class="header-action room-record-action"
+  </UiButton>
+  <UiButton
+    compact
+    class="room-record-action"
     aria-label="查看排行榜"
     @click="showLeaderboard = true"
   >
     <Trophy :size="18" />
     <span>排行榜</span>
-  </button>
+  </UiButton>
 
   <StatsModal
     v-if="showStats && !props.guest"
@@ -56,29 +57,13 @@ const showLeaderboard = ref(false)
 
 <style scoped>
 .room-record-action {
-  display: inline-flex;
-  width: auto;
   min-width: 112px;
-  height: 42px;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 0 12px;
   font-size: 12px;
-  font-weight: 800;
   white-space: nowrap;
 }
 
 .room-record-action > svg {
   flex: 0 0 auto;
-}
-
-@media (hover: hover) {
-  .room-record-action:hover {
-    border-color: var(--line-strong);
-    color: var(--gold);
-    background: var(--surface-soft);
-  }
 }
 
 @media (max-width: 680px) {

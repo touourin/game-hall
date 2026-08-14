@@ -22,6 +22,7 @@ import AvatarImage from '../components/AvatarImage.vue'
 import RoomPlayerRoster from '../components/RoomPlayerRoster.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
 import UiButton from '../components/ui/UiButton.vue'
+import UiIconButton from '../components/ui/UiIconButton.vue'
 import { useArcadeStore } from '../stores/arcade'
 import type { ArcadeSnapshot } from '../types/arcade'
 import { gameRuleLabels, withDefaultGameRules } from '../gameRules'
@@ -203,23 +204,19 @@ function openSharedChat() {
           :game-mode="roomStatsMode"
           :guest="viewerIsGuest"
         />
-        <button
-          type="button"
-          class="header-action"
+        <UiIconButton
           aria-label="打开设置"
           @click="emit('settings')"
         >
           <Settings2 :size="20" />
-        </button>
-        <button
+        </UiIconButton>
+        <UiIconButton
           v-if="snapshot.phase === 'lobby' && !isSolo"
-          type="button"
-          class="header-action"
           aria-label="显示加入二维码"
           @click="showQr = true"
         >
           <QrCode :size="21" />
-        </button>
+        </UiIconButton>
         <component
           v-if="moduleHeaderActions"
           :is="moduleHeaderActions"

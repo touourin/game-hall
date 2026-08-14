@@ -5,6 +5,7 @@ import {
   Eye,
 } from '@lucide/vue'
 import BaseModal from '../../components/ui/BaseModal.vue'
+import UiIconButton from '../../components/ui/UiIconButton.vue'
 import ModeGuide from '../../components/ModeGuide.vue'
 import PressRevealCard from '../../components/PressRevealCard.vue'
 import type { ArcadeSnapshot } from '../../types/arcade'
@@ -67,24 +68,20 @@ function selfRoleArtworkFraming() {
 </script>
 
 <template>
-  <button
+  <UiIconButton
     v-if="avalonSnapshot?.game.self.role && avalonSnapshot.game.phase !== 'game_over'"
-    class="header-action"
-    type="button"
     aria-label="查看我的身份"
     @click="showIdentity = true"
   >
     <Eye :size="20" />
-  </button>
-  <button
+  </UiIconButton>
+  <UiIconButton
     v-if="avalonSnapshot"
-    class="header-action"
-    type="button"
     aria-label="查看玩法说明"
     @click="showRules = true"
   >
     <CircleHelp :size="21" />
-  </button>
+  </UiIconButton>
 
   <BaseModal
     v-if="showIdentity && avalonSnapshot?.game.self.role"

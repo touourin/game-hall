@@ -19,6 +19,7 @@ import MissionProgressTrack from '../../components/MissionProgressTrack.vue'
 import PressRevealCard from '../../components/PressRevealCard.vue'
 import AvatarImage from '../../components/AvatarImage.vue'
 import UiButton from '../../components/ui/UiButton.vue'
+import UiIconButton from '../../components/ui/UiIconButton.vue'
 import {
   roleArtwork,
   roleArtworkFraming,
@@ -1573,14 +1574,14 @@ function selfRoleArtworkFraming() {
         aria-modal="true"
         aria-label="提前刺杀"
       >
-        <button
-          class="modal-close"
-          type="button"
+        <UiIconButton
+          compact
+          class="dialog-close"
           aria-label="关闭提前刺杀"
           @click="showEarlyAssassination = false"
         >
           <X :size="20" />
-        </button>
+        </UiIconButton>
         <span class="modal-icon danger-modal-icon">
           <Swords :size="25" />
         </span>
@@ -1629,14 +1630,14 @@ function selfRoleArtworkFraming() {
         aria-modal="true"
         aria-label="湖中仙女查验历史"
       >
-        <button
-          class="modal-close"
-          type="button"
+        <UiIconButton
+          compact
+          class="dialog-close"
           aria-label="关闭仙女记录"
           @click="showLadyHistory = false"
         >
           <X :size="20" />
-        </button>
+        </UiIconButton>
         <span class="modal-icon"><Sparkles :size="25" /></span>
         <h2>仙女记录</h2>
         <p>查验关系公开，查验结果在游戏中保持私密</p>
@@ -1730,14 +1731,14 @@ function selfRoleArtworkFraming() {
         aria-modal="true"
         aria-label="组队投票复盘"
       >
-        <button
-          class="modal-close"
-          type="button"
+        <UiIconButton
+          compact
+          class="dialog-close"
           aria-label="关闭投票复盘"
           @click="showReplay = false"
         >
           <X :size="20" />
-        </button>
+        </UiIconButton>
         <span class="modal-icon"><History :size="25" /></span>
         <h2>
           {{ selectedReplayMission === null ? '投票复盘' : `第 ${selectedReplayMission} 轮复盘` }}
