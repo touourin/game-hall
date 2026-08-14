@@ -84,19 +84,6 @@ export interface ChatMessage {
   createdAt: string
 }
 
-export interface LobbyRoom {
-  roomCode: string
-  hostName: string
-  hostAvatarUrl?: string | null
-  playerCount: number
-  maxPlayers: number
-  ladyEnabled: boolean
-  mode: AvalonMode
-  phase?: Phase
-  cleanupAvailable?: boolean
-  allHumansOffline?: boolean
-}
-
 export interface RoomActions {
   canStart: boolean
   canUpdateSettings: boolean

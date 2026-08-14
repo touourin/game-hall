@@ -22,8 +22,6 @@ export interface StatsSummary {
   dissentingAssassinationHits?: number
 }
 
-export type AvalonStatsVariant = 'classic' | 'shadow_merlin'
-
 export type MatchOutcome = 'win' | 'loss' | 'draw' | 'completed'
 
 export interface MatchHistoryItem {

@@ -275,24 +275,12 @@ export function storedRoleSkin(): RoleSkinId {
   return 'classic-tabletop'
 }
 
-export function rememberRoleSkin(skin: RoleSkinId): void {
-  localStorage.setItem(ROLE_SKIN_STORAGE_KEY, skin)
-}
-
 export function storedRoleSkinLock(roomCode: string): RoleSkinId | null {
   const key = roleSkinLockKey(roomCode)
   const saved = localStorage.getItem(key)
   if (isRoleSkinId(saved)) return saved
   if (saved !== null) localStorage.removeItem(key)
   return null
-}
-
-export function lockRoleSkin(
-  roomCode: string,
-  skin: RoleSkinId,
-): RoleSkinId {
-  localStorage.setItem(roleSkinLockKey(roomCode), skin)
-  return skin
 }
 
 export function clearRoleSkinLock(roomCode: string): void {

@@ -170,10 +170,6 @@ export function gameSkinKind(gameKey: ArcadeGameKey): GameSkinKind | null {
   return null
 }
 
-export function supportsGameSkin(gameKey: ArcadeGameKey): boolean {
-  return gameSkinKind(gameKey) !== null
-}
-
 export function storedGameSkin(): GameSkinId {
   const saved = localStorage.getItem(GAME_SKIN_STORAGE_KEY)
   return isGameSkinId(saved) ? saved : 'classic-wood'

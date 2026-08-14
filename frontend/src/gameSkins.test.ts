@@ -5,7 +5,6 @@ import {
   gameSkinKind,
   rememberGameSkin,
   storedGameSkin,
-  supportsGameSkin,
 } from './gameSkins'
 
 describe('game skins', () => {
@@ -32,8 +31,6 @@ describe('game skins', () => {
     expect(gameSkinKind('chess')).toBe('board')
     expect(gameSkinKind('poker')).toBe('cards')
     expect(gameSkinKind('hanoi')).toBeNull()
-    expect(supportsGameSkin('doudizhu')).toBe(true)
-    expect(supportsGameSkin('reaction')).toBe(false)
   })
 
   it('exposes the selected treatment as shared css variables', () => {

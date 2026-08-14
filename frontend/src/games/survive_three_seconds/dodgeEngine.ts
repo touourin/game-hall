@@ -23,7 +23,6 @@ export const EDGE_PRESSURE_LIMIT = 36
 export const EDGE_PRESSURE_DECAY = 1
 export const EDGE_WALL_SPEED = 50
 export const EDGE_WALL_DEPTH = 1_000
-export const EDGE_WALL_HIT_RADIUS = 80
 export const EDGE_PRESSURE_MAX = EDGE_PRESSURE_LIMIT + EDGE_WALL_DEPTH / EDGE_WALL_SPEED
 
 export const INPUT_UP = 1

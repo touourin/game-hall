@@ -73,10 +73,3 @@ export function gameRuleLabels(
   labels.push(options.allowGuests ? '允许游客' : '仅登录玩家')
   return labels
 }
-
-export function gameRuleSummary(
-  gameKey: ArcadeGameKey,
-  options: Record<string, unknown>,
-): string {
-  return gameRuleLabels(gameKey, options).join(' · ')
-}

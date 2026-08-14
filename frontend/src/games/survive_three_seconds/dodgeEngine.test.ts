@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   DURATION_TICKS,
   EDGE_PRESSURE_LIMIT,
-  INPUT_LEFT,
   INPUT_RIGHT,
   INPUT_UP,
   WAVE_BULLET_SPEED,

@@ -110,11 +110,6 @@ const assassinationCandidates = computed(() => {
     eligibleTargetIds.has(player.id),
   )
 })
-const dissentingPlayer = computed(() =>
-  props.snapshot.players.find(
-    (player) => player.role === 'dissenting_courtier',
-  ),
-)
 const daggerTarget = computed(() =>
   props.snapshot.players.find(
     (player) => player.id === props.snapshot.courtUndercurrent.daggerTargetId,

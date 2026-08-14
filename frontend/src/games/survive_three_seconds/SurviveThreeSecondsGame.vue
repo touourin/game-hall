@@ -19,7 +19,6 @@ import {
   DURATION_TICKS,
   EDGE_PRESSURE_LIMIT,
   EDGE_SIDES,
-  EDGE_WALL_DEPTH,
   EDGE_ZONE_X,
   EDGE_ZONE_Y,
   INPUT_DOWN,
@@ -58,7 +57,6 @@ interface ServerGame {
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
 const canvas = ref<HTMLCanvasElement | null>(null)
-const arena = ref<HTMLElement | null>(null)
 const phase = ref<'ready' | 'playing' | 'submitting' | 'finished'>(
   props.snapshot.phase === 'finished' ? 'finished' : 'ready',
 )
@@ -471,7 +469,7 @@ onBeforeUnmount(() => {
       ]"
     />
 
-    <section ref="arena" class="survive-arena surface" :class="`phase-${phase}`">
+    <section class="survive-arena surface" :class="`phase-${phase}`">
       <canvas ref="canvas" aria-label="坚持三秒弹幕躲避区域" />
       <div v-if="phase === 'ready'" class="arena-overlay ready-overlay">
         <small>方向键 / WASD 移动</small>

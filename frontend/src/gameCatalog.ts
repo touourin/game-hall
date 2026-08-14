@@ -1,4 +1,4 @@
-import type { ArcadeGameKey, GameCatalogItem } from './types/arcade'
+import type { GameCatalogItem } from './types/arcade'
 import { BUILTIN_GAME_DEFINITIONS } from './game-platform/registry'
 import { builtinGamePlayerLabel } from './game-platform/types'
 import { THIRD_PARTY_GAME_PLUGINS } from './thirdPartyGameRegistry'
@@ -47,10 +47,6 @@ export const GAME_CATALOG: readonly GameCatalogEntry[] = [
 export function gameCatalogItem(key: unknown): GameCatalogEntry | null {
   if (typeof key !== 'string') return null
   return GAME_CATALOG.find((game) => game.key === key) ?? null
-}
-
-export function isArcadeGameKey(key: unknown): key is ArcadeGameKey {
-  return gameCatalogItem(key) !== null
 }
 
 export function isSoloGameKey(key: unknown): boolean {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Clock3, Lightbulb, MousePointerClick, RotateCcw, Sparkles } from '@lucide/vue'
+import { Lightbulb, MousePointerClick, RotateCcw, Sparkles } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
 import SoloMetricGrid from '../shared/solo/SoloMetricGrid.vue'
