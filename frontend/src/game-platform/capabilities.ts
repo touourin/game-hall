@@ -1,6 +1,6 @@
 import type { BuiltinGameCapabilities } from './types'
 
-const boardGameDefaults: BuiltinGameCapabilities = {
+const boardDuelDefaults: BuiltinGameCapabilities = {
   undo: true,
   draw: true,
   guests: true,
@@ -20,10 +20,10 @@ const soloGameDefaults: BuiltinGameCapabilities = {
   ai: false,
 }
 
-export function boardGameCapabilities(
+export function boardDuelCapabilities(
   overrides: Partial<BuiltinGameCapabilities> = {},
 ): BuiltinGameCapabilities {
-  return { ...boardGameDefaults, ...overrides }
+  return { ...boardDuelDefaults, ...overrides }
 }
 
 export function soloGameCapabilities(

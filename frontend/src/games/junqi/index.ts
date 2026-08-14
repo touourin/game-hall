@@ -1,6 +1,6 @@
 import { defineAsyncComponent } from 'vue'
 import junqiArtwork from '../../assets/game-hall/icons/junqi.webp'
-import { boardGameCapabilities } from '../../game-platform/capabilities'
+import { boardDuelCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { junqiStats } from './records'
 import { junqiRules } from './rules'
@@ -16,7 +16,7 @@ export const junqiGame = defineBuiltinGame({
     category: '棋类竞技',
     artwork: junqiArtwork,
   },
-  capabilities: boardGameCapabilities({ undo: false, draw: false }),
+  capabilities: boardDuelCapabilities({ undo: false, draw: false }),
   presentation: {
     component: defineAsyncComponent(() => import('./JunqiBoard.vue')),
     roomLayout: 'wide',

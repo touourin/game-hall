@@ -1,6 +1,6 @@
 import { defineAsyncComponent } from 'vue'
 import chessArtwork from '../../assets/game-hall/icons/chess.webp'
-import { boardGameCapabilities } from '../../game-platform/capabilities'
+import { boardDuelCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { createCompetitiveStatsPresentation } from '../../game-platform/recordFormatting'
 
@@ -15,7 +15,7 @@ export const chessGame = defineBuiltinGame({
     category: '棋类竞技',
     artwork: chessArtwork,
   },
-  capabilities: boardGameCapabilities({ replay: true }),
+  capabilities: boardDuelCapabilities({ replay: true }),
   presentation: {
     component: defineAsyncComponent(() => import('./ChessBoard.vue')),
     roomLayout: 'standard',
