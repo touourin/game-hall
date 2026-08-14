@@ -48,6 +48,7 @@ export interface BuiltinGamePresentation {
   roomLayout: BuiltinGameRoomLayout
   skinKind: BuiltinGameSkinKind | null
   roomShell?: BuiltinGameRoomShellPresentation
+  solo?: BuiltinGameSoloPresentation
 }
 
 export interface BuiltinGameRoomShellPresentation {
@@ -58,6 +59,32 @@ export interface BuiltinGameRoomShellPresentation {
   abandonLabel?: string
   finishedLabel?: string
   rematchLabel?: string
+}
+
+export interface BuiltinGameSoloMetric {
+  label: string
+  value: string
+}
+
+export interface BuiltinGameSoloContent {
+  category: string
+  kicker: string
+  title: string
+  description: string
+  button: string
+  features: readonly string[]
+  metrics: readonly BuiltinGameSoloMetric[]
+  stages: readonly string[]
+  recordNote: string
+}
+
+export interface BuiltinGameSoloPresentation {
+  icon: Component
+  accent: string
+  hasRuleSettings?: boolean
+  content: (
+    options: Readonly<Record<string, unknown>>,
+  ) => BuiltinGameSoloContent
 }
 
 export interface BuiltinGameRuleSettingsProps {
@@ -133,6 +160,9 @@ export interface BuiltinGameRecords {
   leaderboard?: BuiltinGameLeaderboardPresentation
   stats?: BuiltinGameStatsPresentation
   matchDetailComponent?: Component
+  modeFromRules?: (
+    options: Readonly<Record<string, unknown>>,
+  ) => string | undefined
 }
 
 export interface BuiltinGameDefinition<

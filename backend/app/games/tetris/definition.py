@@ -1,12 +1,25 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any
+
 from backend.app.games.definition import (
     GameCapabilities,
     GameCatalogMetadata,
     GameDefinition,
+    GameRecords,
 )
 
 from .engine import TetrisEngine
+
+
+def tetris_match_mode(details: Mapping[str, Any]) -> str:
+    options = details.get("options")
+    if isinstance(options, dict) and options.get("challengeMode") == "timed":
+        duration = options.get("durationSeconds")
+        if duration in {60, 180, 300}:
+            return f"timed_{duration}"
+    return "standard"
 
 
 TETRIS_GAME = GameDefinition(
@@ -23,5 +36,9 @@ TETRIS_GAME = GameDefinition(
         guests=False,
         spectators=False,
         first_player=False,
+    ),
+    records=GameRecords(
+        score_kind="high_score",
+        match_mode=tetris_match_mode,
     ),
 )

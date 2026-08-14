@@ -4,6 +4,7 @@ import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
 import { hanoiLeaderboard, hanoiStats } from './records'
 import { hanoiRoomShell } from './roomPresentation'
+import { hanoiSoloPresentation } from './soloPresentation'
 
 export const hanoiGame = defineBuiltinGame({
   key: 'hanoi',
@@ -30,6 +31,7 @@ export const hanoiGame = defineBuiltinGame({
     roomLayout: 'standard',
     skinKind: null,
     roomShell: hanoiRoomShell,
+    solo: hanoiSoloPresentation,
   },
   rules: {
     settingsComponent: RuleSettings,

@@ -27,6 +27,10 @@ from .database import (
     users,
 )
 from .games.avalon.models import ROLE_ALIGNMENT, Room, Role
+from .games.builtin import (
+    BUILTIN_GAME_DEFINITIONS,
+    builtin_game_definition,
+)
 from .games.catalog import BUILTIN_GAME_NAMES
 
 
@@ -53,9 +57,11 @@ AVALON_ROLE_SKIN_ULTIMATE_WINS = 5
 # 2026-08-03 00:00 through 2026-08-10 00:00 in Asia/Shanghai (UTC+8).
 AVALON_ROLE_SKIN_FREE_WEEK_START = datetime(2026, 8, 2, 16, 0, 0)
 AVALON_ROLE_SKIN_FREE_WEEK_END = datetime(2026, 8, 9, 16, 0, 0)
-TIME_TRIAL_GAMES = {"reaction", "schulte", "minesweeper"}
-HIGH_SCORE_GAMES = {"tetris", "deep_shaft"}
-SCORED_SOLO_GAMES = TIME_TRIAL_GAMES | HIGH_SCORE_GAMES
+SCORED_GAME_KEYS = frozenset(
+    definition.key
+    for definition in BUILTIN_GAME_DEFINITIONS
+    if definition.records.score_kind != "outcome"
+)
 AVALON_STATS_VARIANTS = {"classic", "shadow_merlin"}
 AVATAR_PRESET_IDS = (
     "moon-fox",
@@ -67,6 +73,13 @@ AVATAR_PRESET_IDS = (
     "star-deer",
     "ink-dragon",
 )
+
+
+def _game_score_kind(game_key: str | None) -> str:
+    if game_key is None:
+        return "outcome"
+    definition = builtin_game_definition(game_key)
+    return definition.records.score_kind if definition else "outcome"
 
 
 class AccountError(ValueError):
@@ -707,7 +720,7 @@ class AccountStore:
         game_variant: str | None = None,
     ) -> dict[str, int | float | None]:
         self.initialize()
-        if game_key in TIME_TRIAL_GAMES:
+        if _game_score_kind(game_key) == "time_trial":
             statement = (
                 select(
                     func.count().label("games"),
@@ -751,7 +764,7 @@ class AccountStore:
                     else None
                 ),
             }
-        if game_key in HIGH_SCORE_GAMES:
+        if _game_score_kind(game_key) == "high_score":
             statement = (
                 select(
                     func.count().label("games"),
@@ -907,7 +920,7 @@ class AccountStore:
         if game_key is not None:
             statement = statement.where(matches.c.game_key == game_key)
         else:
-            statement = statement.where(matches.c.game_key.not_in(SCORED_SOLO_GAMES))
+            statement = statement.where(matches.c.game_key.not_in(SCORED_GAME_KEYS))
         if game_mode is not None:
             statement = statement.where(matches.c.mode == game_mode)
         statement = self._filter_game_variant(statement, game_variant)
@@ -945,7 +958,7 @@ class AccountStore:
         limit: int = 50,
     ) -> list[dict]:
         self.initialize()
-        if game_key in TIME_TRIAL_GAMES:
+        if _game_score_kind(game_key) == "time_trial":
             attempt_count = func.count().label("games")
             best_ms = func.min(match_players.c.score_value).label("best_ms")
             average_ms = func.avg(match_players.c.score_value).label("average_ms")
@@ -1004,7 +1017,7 @@ class AccountStore:
                 }
                 for index, row in enumerate(rows, start=1)
             ]
-        if game_key in HIGH_SCORE_GAMES:
+        if _game_score_kind(game_key) == "high_score":
             attempt_count = func.count().label("games")
             best_score = func.max(match_players.c.score_value).label("best_score")
             average_score = func.avg(match_players.c.score_value).label("average_score")
@@ -1318,6 +1331,7 @@ class AccountStore:
         details = row.get("details_json")
         if isinstance(details, str):
             details = json.loads(details)
+        score_kind = _game_score_kind(row["game_key"])
         return {
             "id": row["id"],
             "gameKey": row["game_key"],
@@ -1341,13 +1355,13 @@ class AccountStore:
             "scoreMs": (
                 int(row["score_value"])
                 if row["score_value"] is not None
-                and row["game_key"] in TIME_TRIAL_GAMES
+                and score_kind == "time_trial"
                 else None
             ),
             "scoreValue": (
                 int(row["score_value"])
                 if row["score_value"] is not None
-                and row["game_key"] in HIGH_SCORE_GAMES
+                and score_kind == "high_score"
                 else None
             ),
             "gameMode": row["mode"],
@@ -1355,7 +1369,7 @@ class AccountStore:
 
     @staticmethod
     def _game_outcome(*, game_key: str, winner: str, won: bool) -> str:
-        if game_key in SCORED_SOLO_GAMES and won:
+        if _game_score_kind(game_key) != "outcome" and won:
             return "completed"
         if winner == "draw":
             return "draw"
@@ -1472,19 +1486,12 @@ class AccountStore:
 
     @staticmethod
     def _match_mode(game_key: str, details: dict[str, Any]) -> str:
-        if game_key == "minesweeper":
-            state = details.get("state")
-            if isinstance(state, dict):
-                difficulty = state.get("difficulty")
-                if isinstance(difficulty, str) and difficulty:
-                    return difficulty
-        if game_key == "tetris":
-            options = details.get("options")
-            if isinstance(options, dict) and options.get("challengeMode") == "timed":
-                duration = options.get("durationSeconds")
-                if duration in {60, 180, 300}:
-                    return f"timed_{duration}"
-        return "standard"
+        definition = builtin_game_definition(game_key)
+        return (
+            definition.records.match_mode(details)
+            if definition
+            else "standard"
+        )
 
     @classmethod
     def _account_from_row(cls, row: Mapping[str, Any]) -> Account:

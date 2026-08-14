@@ -6,6 +6,7 @@ import {
   surviveThreeSecondsStats,
 } from './records'
 import { surviveThreeSecondsRoomShell } from './roomPresentation'
+import { surviveThreeSecondsSoloPresentation } from './soloPresentation'
 
 export const surviveThreeSecondsGame = defineBuiltinGame({
   key: 'survive_three_seconds',
@@ -32,6 +33,7 @@ export const surviveThreeSecondsGame = defineBuiltinGame({
     roomLayout: 'standard',
     skinKind: null,
     roomShell: surviveThreeSecondsRoomShell,
+    solo: surviveThreeSecondsSoloPresentation,
   },
   rules: {
     defaults: { allowSpectators: false },

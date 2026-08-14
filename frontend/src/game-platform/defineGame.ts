@@ -15,6 +15,9 @@ export function defineBuiltinGame<Key extends BuiltinArcadeGameKey>(
       roomShell: definition.presentation.roomShell
         ? Object.freeze({ ...definition.presentation.roomShell })
         : undefined,
+      solo: definition.presentation.solo
+        ? Object.freeze({ ...definition.presentation.solo })
+        : undefined,
     }),
     rules: Object.freeze({
       ...definition.rules,

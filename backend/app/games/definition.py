@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
+from typing import Any, Literal
 
 from backend.app.games.base import GameEngine
 
@@ -53,12 +54,28 @@ class GameCatalogMetadata:
         }
 
 
+GameScoreKind = Literal["outcome", "time_trial", "high_score"]
+
+
+def standard_match_mode(_: Mapping[str, Any]) -> str:
+    return "standard"
+
+
+@dataclass(frozen=True)
+class GameRecords:
+    """How the shared account service stores and aggregates game records."""
+
+    score_kind: GameScoreKind = "outcome"
+    match_mode: Callable[[Mapping[str, Any]], str] = standard_match_mode
+
+
 @dataclass(frozen=True)
 class GameDefinition:
     key: str
     engine_factory: Callable[[], GameEngine]
     catalog: GameCatalogMetadata
     capabilities: GameCapabilities = field(default_factory=GameCapabilities)
+    records: GameRecords = field(default_factory=GameRecords)
 
     def create_engine(self) -> GameEngine:
         engine = self.engine_factory()

@@ -3,6 +3,7 @@ import schulteArtwork from '../../assets/game-hall/icons/schulte.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { schulteLeaderboard, schulteStats } from './records'
 import { schulteRoomShell } from './roomPresentation'
+import { schulteSoloPresentation } from './soloPresentation'
 
 export const schulteGame = defineBuiltinGame({
   key: 'schulte',
@@ -29,6 +30,7 @@ export const schulteGame = defineBuiltinGame({
     roomLayout: 'standard',
     skinKind: null,
     roomShell: schulteRoomShell,
+    solo: schulteSoloPresentation,
   },
   rules: {
     defaults: { allowSpectators: false },

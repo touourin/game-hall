@@ -4,6 +4,7 @@ from backend.app.games.definition import (
     GameCapabilities,
     GameCatalogMetadata,
     GameDefinition,
+    GameRecords,
 )
 
 from .engine import ReactionEngine
@@ -24,4 +25,5 @@ REACTION_GAME = GameDefinition(
         spectators=False,
         first_player=False,
     ),
+    records=GameRecords(score_kind="time_trial"),
 )

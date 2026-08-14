@@ -1,39 +1,21 @@
 <script setup lang="ts">
 import { computed, type Component } from 'vue'
 import {
-  Bomb,
   CircleCheckBig,
-  Grid3X3,
   Gamepad2,
-  Layers3,
   Play,
   ShieldCheck,
   Sparkles,
-  Timer,
-  MoveHorizontal,
-  Zap,
-  Blocks,
 } from '@lucide/vue'
 import type { ArcadeGameKey } from '../types/arcade'
+import { builtinGameDefinition } from '../game-platform/registry'
+import type { BuiltinGameSoloContent } from '../game-platform/types'
 import { gameCatalogItem } from '../gameCatalog'
 import GameRuleSettings from './GameRuleSettings.vue'
 
-interface ChallengeMetric {
-  label: string
-  value: string
-}
-
-interface SoloChallengeConfig {
+type RenderedSoloChallenge = BuiltinGameSoloContent & {
   icon: Component
-  category: string
-  kicker: string
-  title: string
-  description: string
-  button: string
-  features: string[]
-  metrics: ChallengeMetric[]
-  stages: [string, string, string]
-  recordNote: string
+  accent: string
 }
 
 const props = defineProps<{
@@ -53,186 +35,49 @@ const rules = computed({
   set: (value: Record<string, unknown>) => emit('update:modelValue', value),
 })
 
-const hasRules = computed(() => ['minesweeper', 'hanoi', 'tetris'].includes(props.gameKey))
+const builtinPresentation = computed(
+  () => builtinGameDefinition(props.gameKey)?.presentation.solo,
+)
+const hasRules = computed(() => builtinPresentation.value?.hasRuleSettings === true)
 const catalogGame = computed(() => gameCatalogItem(props.gameKey))
 
-const challenge = computed<SoloChallengeConfig>(() => {
-  if (props.gameKey.startsWith('plugin-')) {
-    const game = catalogGame.value
+const challenge = computed<RenderedSoloChallenge>(() => {
+  const presentation = builtinPresentation.value
+  if (presentation) {
     return {
-      icon: Gamepad2,
-      category: '第三方单人挑战',
-      kicker: '第三方单人挑战',
-      title: game?.name ?? '插件挑战',
-      description: game?.description ?? '由第三方插件提供的单人挑战。',
-      button: `进入${game?.name ?? '插件挑战'}`,
-      features: ['自动创建单人房间', '服务端规则验证', '独立战绩与排行'],
-      metrics: [
-        { label: '挑战人数', value: '1 人' },
-        { label: '房间方式', value: '自动创建' },
-        { label: '成绩记录', value: '独立统计' },
-      ],
-      stages: ['创建挑战', '完成目标', '记录成绩'],
-      recordNote: '挑战完成后，公共房间系统会自动保存结果并更新排行榜。',
+      icon: presentation.icon,
+      accent: presentation.accent,
+      ...presentation.content(props.modelValue),
     }
   }
 
-  if (props.gameKey === 'schulte') {
-    return {
-      icon: Grid3X3,
-      category: '专注力挑战',
-      kicker: '视觉搜索与持续专注',
-      title: '按顺序找到 1–25',
-      description: '让视线覆盖整张方格，在不漏号、不跳号的前提下压缩每一次搜索时间。',
-      button: '进入舒尔特方格',
-      features: ['顺序完整验证', '服务端精确计时', '专注速度计榜'],
-      metrics: [
-        { label: '标准版式', value: '5 × 5' },
-        { label: '搜索目标', value: '1 → 25' },
-        { label: '完成判定', value: '依次点击' },
-      ],
-      stages: ['稳定视线', '依次搜索', '完成计时'],
-      recordNote: '完整点击 1–25 后，服务端将自动保存本次用时。',
-    }
-  }
-
-  if (props.gameKey === 'deep_shaft') {
-    return {
-      icon: MoveHorizontal,
-      category: '平台生存',
-      kicker: '落点判断与连续下降',
-      title: '深入百层，别被深井吞没',
-      description: '角色会自动下落，你只需控制左右。踩准不断上移的平台，避开尖刺并维持生命。',
-      button: '进入百层深井',
-      features: ['五类特殊平台', '键盘与双拇指控制', '服务端重放轨迹'],
-      metrics: [
-        { label: '通关目标', value: '100 层' },
-        { label: '生命上限', value: '10' },
-        { label: '操作方式', value: '仅左右' },
-      ],
-      stages: ['判断落点', '应对平台', '深入百层'],
-      recordNote: '本轮左右输入会由服务器重放，最深层数将进入独立排行榜。',
-    }
-  }
-
-  if (props.gameKey === 'survive_three_seconds') {
-    return {
-      icon: Timer,
-      category: '极限闪避',
-      kicker: '方向控制与瞬时路线判断',
-      title: '只要坚持三秒',
-      description: '三段慢速弹幕会依次横向、纵向和交叉来袭。看清青色缺口及时换位，不要长期躲在边缘。',
-      button: '进入三秒挑战',
-      features: ['三段可读波次', '边缘清场压力', '服务端重放轨迹'],
-      metrics: [
-        { label: '生存目标', value: '3.00 秒' },
-        { label: '轨迹采样', value: '60 Hz' },
-        { label: '移动方式', value: '四方向' },
-      ],
-      stages: ['观察预警', '穿过缺口', '远离边缘'],
-      recordNote: '完成后服务器会重放全部 180 帧输入，验证碰撞与存活结果。',
-    }
-  }
-
-  if (props.gameKey === 'minesweeper') {
-    const difficulty = String(props.modelValue.difficulty ?? 'beginner')
-    const difficultyMetrics: Record<string, ChallengeMetric[]> = {
-      beginner: [
-        { label: '雷区规格', value: '9 × 9' },
-        { label: '地雷数量', value: '10' },
-        { label: '安全方格', value: '71' },
-      ],
-      intermediate: [
-        { label: '雷区规格', value: '16 × 16' },
-        { label: '地雷数量', value: '40' },
-        { label: '安全方格', value: '216' },
-      ],
-      expert: [
-        { label: '雷区规格', value: '16 × 30' },
-        { label: '地雷数量', value: '99' },
-        { label: '安全方格', value: '381' },
-      ],
-    }
-    return {
-      icon: Bomb,
-      category: '逻辑排雷',
-      kicker: '逻辑排雷与风险控制',
-      title: '清除所有安全方格',
-      description: '从数字线索推演雷区结构；首次点击必定安全，插旗与清除均为经典规则。',
-      button: '进入扫雷挑战',
-      features: ['首次点击安全', '电脑与触屏适配', '三种难度独立计榜'],
-      metrics: difficultyMetrics[difficulty] ?? difficultyMetrics.beginner!,
-      stages: ['观察线索', '标记雷区', '清空方格'],
-      recordNote: '仅完整清除全部安全方格的成绩会进入对应难度排行榜。',
-    }
-  }
-
-  if (props.gameKey === 'hanoi') {
-    const discCount = Number(props.modelValue.discCount ?? 5)
-    return {
-      icon: Layers3,
-      category: '空间推演',
-      kicker: '递归推演与最短路径',
-      title: '把整座圆盘移到最右侧',
-      description: '每次只能移动最上方一块圆盘，大圆盘不能压在小圆盘上。',
-      button: '进入汉诺塔挑战',
-      features: ['3–8 层自由选择', '步数实时记录', '理论最优对照'],
-      metrics: [
-        { label: '当前层数', value: `${discCount} 层` },
-        { label: '理论最少', value: `${2 ** discCount - 1} 步` },
-        { label: '移动规则', value: '单盘移动' },
-      ],
-      stages: ['规划路径', '逐层迁移', '完成整塔'],
-      recordNote: '完成整塔迁移后，本次层数、步数与用时会保存到个人战绩。',
-    }
-  }
-
-  if (props.gameKey === 'tetris') {
-    const timed = props.modelValue.challengeMode !== 'endless'
-    const duration = Number(props.modelValue.durationSeconds ?? 180)
-    return {
-      icon: Blocks,
-      category: '空间排列',
-      kicker: '空间规划与即时决策',
-      title: '排列方块，持续消行',
-      description: timed
-        ? `在 ${duration / 60} 分钟内预判方块，用旋转、暂存和快速落底冲击高分。`
-        : '预判接下来的方块，用旋转、暂存和快速落底保持棋盘整洁，冲击更高分数。',
-      button: '进入落块挑战',
-      features: ['7-bag 公平随机', '键盘与拇指控制', timed ? '到点自动结算' : '堆顶自动结算'],
-      metrics: [
-        { label: '挑战模式', value: timed ? `${duration / 60} 分钟` : '无限' },
-        { label: '标准棋盘', value: '10 × 20' },
-        { label: '方块种类', value: '7 种' },
-      ],
-      stages: ['规划落点', '排列消行', '挑战高分'],
-      recordNote: timed
-        ? '倒计时结束或方块提前堆顶后，本轮成绩会保存到对应时长排行榜。'
-        : '方块堆到顶部后，本轮得分、消行数与等级会保存到无限挑战排行榜。',
-    }
-  }
-
+  const game = catalogGame.value
   return {
-    icon: Zap,
-    category: '反应速度',
-    kicker: '视觉信号与瞬时反应',
-    title: '挑战你的毫秒反应',
-    description: '保持专注，等待信号真正亮起后再行动；抢跑同样会被准确记录。',
-    button: '进入反应挑战',
-    features: ['随机信号间隔', '抢跑即时判定', '三轮平均计榜'],
+    icon: Gamepad2,
+    accent: '#7794a8',
+    category: '第三方单人挑战',
+    kicker: '第三方单人挑战',
+    title: game?.name ?? '插件挑战',
+    description: game?.description ?? '由第三方插件提供的单人挑战。',
+    button: `进入${game?.name ?? '插件挑战'}`,
+    features: ['自动创建单人房间', '服务端规则验证', '独立战绩与排行'],
     metrics: [
-      { label: '测试赛制', value: '3 轮' },
-      { label: '记录精度', value: '毫秒级' },
-      { label: '排名依据', value: '平均反应' },
+      { label: '挑战人数', value: '1 人' },
+      { label: '房间方式', value: '自动创建' },
+      { label: '成绩记录', value: '独立统计' },
     ],
-    stages: ['保持待命', '捕捉信号', '记录反应'],
-    recordNote: '完成三轮信号测试后，服务端将以平均反应时间记录成绩。',
+    stages: ['创建挑战', '完成目标', '记录成绩'],
+    recordNote: '挑战完成后，公共房间系统会自动保存结果并更新排行榜。',
   }
 })
 </script>
 
 <template>
-  <section class="solo-launcher surface" :class="`solo-launcher-${gameKey}`">
+  <section
+    class="solo-launcher surface"
+    :class="`solo-launcher-${gameKey}`"
+    :style="{ '--solo-accent': challenge.accent }"
+  >
     <div class="solo-story">
       <div class="solo-visual" aria-hidden="true">
         <span class="solo-orbit solo-orbit-outer"></span>
@@ -340,13 +185,6 @@ const challenge = computed<SoloChallengeConfig>(() => {
   content: '';
   pointer-events: none;
 }
-
-.solo-launcher-reaction { --solo-accent: #7299a8; }
-.solo-launcher-schulte { --solo-accent: #8584a6; }
-.solo-launcher-minesweeper { --solo-accent: #6e9d89; }
-.solo-launcher-hanoi { --solo-accent: #a48a65; }
-.solo-launcher-tetris { --solo-accent: #719aa3; }
-.solo-launcher-survive_three_seconds { --solo-accent: #d46b7b; }
 
 .solo-story {
   position: relative;

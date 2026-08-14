@@ -4,6 +4,7 @@ import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
 import { minesweeperLeaderboard, minesweeperStats } from './records'
 import { minesweeperRoomShell } from './roomPresentation'
+import { minesweeperSoloPresentation } from './soloPresentation'
 
 export const minesweeperGame = defineBuiltinGame({
   key: 'minesweeper',
@@ -30,6 +31,7 @@ export const minesweeperGame = defineBuiltinGame({
     roomLayout: 'wide',
     skinKind: null,
     roomShell: minesweeperRoomShell,
+    solo: minesweeperSoloPresentation,
   },
   rules: {
     settingsComponent: RuleSettings,
@@ -44,6 +46,7 @@ export const minesweeperGame = defineBuiltinGame({
     },
   },
   records: {
+    modeFromRules: (options) => String(options.difficulty ?? 'beginner'),
     leaderboard: minesweeperLeaderboard,
     stats: minesweeperStats,
     matchDetailComponent: defineAsyncComponent(() => import('./MatchDetail.vue')),

@@ -4,6 +4,7 @@ import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
 import { tetrisLeaderboard, tetrisStats } from './records'
 import { tetrisRoomShell } from './roomPresentation'
+import { tetrisSoloPresentation } from './soloPresentation'
 
 export const tetrisGame = defineBuiltinGame({
   key: 'tetris',
@@ -30,6 +31,7 @@ export const tetrisGame = defineBuiltinGame({
     roomLayout: 'standard',
     skinKind: null,
     roomShell: tetrisRoomShell,
+    solo: tetrisSoloPresentation,
   },
   rules: {
     settingsComponent: RuleSettings,
@@ -47,6 +49,9 @@ export const tetrisGame = defineBuiltinGame({
     ],
   },
   records: {
+    modeFromRules: (options) => options.challengeMode === 'endless'
+      ? 'standard'
+      : `timed_${Number(options.durationSeconds ?? 180)}`,
     leaderboard: tetrisLeaderboard,
     stats: tetrisStats,
     matchDetailComponent: defineAsyncComponent(() => import('./MatchDetail.vue')),

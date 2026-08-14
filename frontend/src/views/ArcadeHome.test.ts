@@ -294,6 +294,35 @@ describe('ArcadeHome', () => {
     expect(wrapper.text()).toContain('三轮平均计榜')
   })
 
+  it.each([
+    ['reaction', false],
+    ['hanoi', true],
+  ] as const)(
+    'uses the %s module capability to decide whether spectating is available',
+    (gameKey, expected) => {
+      const wrapper = mount(ArcadeHome, {
+        props: {
+          game: {
+            key: gameKey,
+            name: gameKey === 'reaction' ? '反应挑战' : '汉诺塔',
+            players: '1 人',
+            description: '测试',
+          },
+          account: {
+            id: 'account-1',
+            username: 'tester',
+            playerName: '测试玩家',
+            nextRenameAt: null,
+            createdAt: '2026-08-01T00:00:00Z',
+          },
+        },
+        global: { plugins: [createPinia()] },
+      })
+
+      expect(wrapper.find('.spectator-browser').exists()).toBe(expected)
+    },
+  )
+
   it('shows and cleans an abandoned room without joining it', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)

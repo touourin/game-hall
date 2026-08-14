@@ -48,4 +48,28 @@ describe('built-in game registry', () => {
     expect(keys.indexOf('xiangqi')).toBeLessThan(keys.indexOf('chess'))
     expect(keys.indexOf('chess')).toBeLessThan(keys.indexOf('go'))
   })
+
+  it('lets every built-in solo game own its launcher presentation', () => {
+    const soloDefinitions = BUILTIN_GAME_DEFINITIONS.filter(
+      (definition) => definition.catalog.players.max === 1,
+    )
+
+    expect(soloDefinitions).toHaveLength(7)
+    for (const definition of soloDefinitions) {
+      expect(definition.presentation.solo).toBeDefined()
+      expect(definition.presentation.solo?.content({}).metrics).toHaveLength(3)
+    }
+
+    expect(
+      builtinGameDefinition('minesweeper')?.records?.modeFromRules?.({
+        difficulty: 'expert',
+      }),
+    ).toBe('expert')
+    expect(
+      builtinGameDefinition('tetris')?.records?.modeFromRules?.({
+        challengeMode: 'timed',
+        durationSeconds: 300,
+      }),
+    ).toBe('timed_300')
+  })
 })

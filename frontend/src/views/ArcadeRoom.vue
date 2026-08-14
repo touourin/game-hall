@@ -809,9 +809,6 @@ function openSharedChat() {
 .guest-match-notice strong,.guest-match-notice span { display: block; }.guest-match-notice strong { color: var(--gold); font-size: 13px; }.guest-match-notice span { margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .spectator-mode-banner { display: flex; align-items: center; gap: 11px; margin: 0 0 18px; padding: 12px 15px; border-color: color-mix(in srgb, #68c8df 38%, var(--line)); background: color-mix(in srgb, #68c8df 7%, var(--surface)); }
 .spectator-mode-banner > svg { flex: 0 0 auto; color: #83d4e7; }.spectator-mode-banner span { min-width: 0; display: grid; gap: 3px; }.spectator-mode-banner strong { color: #9dddeb; font-size: 13px; }.spectator-mode-banner small { color: var(--muted); line-height: 1.45; }
-.arcade-player-strip { position: relative; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 24px; padding: 43px 14px 14px; border-color: color-mix(in srgb, var(--line-strong) 65%, var(--line)); }
-.arcade-player-strip::before { position: absolute; top: 14px; right: 16px; left: 16px; height: 17px; border-bottom: 1px solid var(--instrument-line); color: var(--gold); font-size: 9px; font-weight: 800; letter-spacing: .08em; content: '房间座位  ·  SEAT ARRAY'; }
-.arcade-player-strip::after { position: absolute; inset: 4px; border: 1px solid color-mix(in srgb, var(--line-bright) 11%, transparent); border-radius: calc(var(--radius-panel) - 4px); content: ''; pointer-events: none; }
 .arcade-spectator-strip { display: grid; gap: 10px; margin: -10px 0 24px; padding: 12px 14px; border-style: dashed; }
 .arcade-spectator-strip > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }.arcade-spectator-strip > header span { display: inline-flex; align-items: center; gap: 7px; color: #83d4e7; }.arcade-spectator-strip > header b { color: var(--muted); font-size: 10px; }
 .arcade-spectator-strip > div { display: flex; flex-wrap: wrap; gap: 8px; }.arcade-spectator-strip article { min-width: min(100%, 190px); display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: var(--radius-control); padding: 8px 10px; background: var(--control-surface), var(--surface-inset); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 28%, transparent); }.arcade-spectator-strip article > span:last-child { min-width: 0; display: grid; gap: 1px; }.arcade-spectator-strip article strong,.arcade-spectator-strip article small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.arcade-spectator-strip article small { color: var(--muted); font-size: 9px; }.arcade-spectator-strip > p { margin: 0; color: var(--muted); font-size: 10px; }
@@ -843,9 +840,6 @@ function openSharedChat() {
 :global(.modal-card.one-night-rules-modal) { width:min(94vw,780px); max-height:min(88vh,880px); overflow-y:auto; }
 :global(.modal-card.rule-editor-modal) > p { margin: -4px 0 20px; color: var(--muted); }
 :global(.modal-card.rule-editor-modal) > .wide-button { margin-top: 22px; }
-@media (max-width: 860px) {
-  .arcade-player-strip > :deep(.room-player-seat) { flex-basis: calc(33.333333% - 6.667px); }
-}
 @media (max-width: 620px), (orientation: landscape) and (max-height: 600px) and (max-width: 980px) {
   .arcade-room--active { display: flex; flex-direction: column; }
   .arcade-room--active :deep(.room-page-header) { order: 1; }
@@ -862,7 +856,6 @@ function openSharedChat() {
   .arcade-room--active.arcade-room--board-game :deep(.room-page-copy > small) { font-size: 9px; letter-spacing: .08em; }
   .arcade-room--active.arcade-room--board-game :deep(.room-page-title-row h1) { font-size: 23px; }
   .arcade-room--active.arcade-room--board-game :deep(.room-page-actions) { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; }
-  .arcade-player-strip > :deep(.room-player-seat) { flex-basis: calc(50% - 5px); }
   .room-rule-bar { align-items: stretch; flex-direction: column; }
   .room-rule-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
   .room-rule-actions button { width: 100%; }
@@ -870,9 +863,6 @@ function openSharedChat() {
   .arcade-waiting > svg { width: 38px; height: 38px; }
   .arcade-waiting h2 { font-size: 20px; }
   .arcade-waiting .room-code-share { margin-top: 7px; font-size: 24px; }
-}
-@media (max-width: 430px) {
-  .arcade-player-strip > :deep(.room-player-seat) { flex-basis: 100%; }
 }
 @media (orientation: landscape) and (min-width: 621px) and (max-width: 980px) and (max-height: 600px) {
   .arcade-room--active.arcade-room--board-game :deep(.room-page-header) { grid-template-columns: auto minmax(0, 1fr) auto; }

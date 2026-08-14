@@ -3,6 +3,7 @@ import reactionArtwork from '../../assets/game-hall/icons/reaction.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { reactionLeaderboard, reactionStats } from './records'
 import { reactionRoomShell } from './roomPresentation'
+import { reactionSoloPresentation } from './soloPresentation'
 
 export const reactionGame = defineBuiltinGame({
   key: 'reaction',
@@ -29,6 +30,7 @@ export const reactionGame = defineBuiltinGame({
     roomLayout: 'standard',
     skinKind: null,
     roomShell: reactionRoomShell,
+    solo: reactionSoloPresentation,
   },
   rules: {
     defaults: { allowSpectators: false },

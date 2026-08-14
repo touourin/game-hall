@@ -92,3 +92,57 @@ function aiDifficultyLabel(difficulty?: string | null): string {
     />
   </section>
 </template>
+
+<style scoped>
+.arcade-player-strip {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  padding: 43px 14px 14px;
+  border-color: color-mix(in srgb, var(--line-strong) 65%, var(--line));
+}
+
+.arcade-player-strip::before {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  left: 16px;
+  height: 17px;
+  border-bottom: 1px solid var(--instrument-line);
+  color: var(--gold);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  content: '房间座位  ·  SEAT ARRAY';
+}
+
+.arcade-player-strip::after {
+  position: absolute;
+  inset: 4px;
+  border: 1px solid color-mix(in srgb, var(--line-bright) 11%, transparent);
+  border-radius: calc(var(--radius-panel) - 4px);
+  content: '';
+  pointer-events: none;
+}
+
+@media (max-width: 860px) {
+  .arcade-player-strip > :deep(.room-player-seat) {
+    flex-basis: calc(33.333333% - 6.667px);
+  }
+}
+
+@media (max-width: 620px), (orientation: landscape) and (max-height: 600px) and (max-width: 980px) {
+  .arcade-player-strip > :deep(.room-player-seat) {
+    flex-basis: calc(50% - 5px);
+  }
+}
+
+@media (max-width: 430px) {
+  .arcade-player-strip > :deep(.room-player-seat) {
+    flex-basis: 100%;
+  }
+}
+</style>

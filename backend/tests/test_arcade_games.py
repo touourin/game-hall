@@ -57,6 +57,30 @@ def test_all_registered_builtin_game_definitions_validate_their_engines() -> Non
         assert engine.name == definition.catalog.name
 
 
+def test_scored_games_own_their_record_contract() -> None:
+    reaction = builtin_game_definition("reaction")
+    deep_shaft = builtin_game_definition("deep_shaft")
+    minesweeper = builtin_game_definition("minesweeper")
+    tetris = builtin_game_definition("tetris")
+    chess = builtin_game_definition("chess")
+
+    assert reaction is not None
+    assert reaction.records.score_kind == "time_trial"
+    assert deep_shaft is not None
+    assert deep_shaft.records.score_kind == "high_score"
+    assert minesweeper is not None
+    assert minesweeper.records.match_mode(
+        {"state": {"difficulty": "expert"}}
+    ) == "expert"
+    assert tetris is not None
+    assert tetris.records.match_mode(
+        {"options": {"challengeMode": "timed", "durationSeconds": 300}}
+    ) == "timed_300"
+    assert chess is not None
+    assert chess.records.score_kind == "outcome"
+    assert chess.records.match_mode({}) == "standard"
+
+
 @pytest.mark.parametrize(
     ("game_key", "undo_actions", "supports_draw", "supports_ai"),
     (
