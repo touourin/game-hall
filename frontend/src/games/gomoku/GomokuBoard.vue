@@ -275,7 +275,7 @@ function pass() {
 </template>
 
 <style scoped>
-.board-game-panel { min-width: 0; display: grid; gap: 16px; justify-items: center; }
+.board-game-panel { width: 100%; min-width: 0; display: grid; gap: 16px; justify-items: center; }
 .turn-banner { color: var(--muted); text-align: center; font-weight: 700; }
 .turn-banner.active { color: var(--gold); }
 .turn-banner small { display: block; margin-top: 3px; font-weight: 500; }
@@ -290,7 +290,6 @@ function pass() {
 }
 .board-point {
   position: relative;
-  min-width: 0;
   padding: 0;
   border: 0;
   background: transparent;
@@ -349,6 +348,9 @@ function pass() {
   .gomoku-board { --board-padding: 8px; --board-border-width: 4px; }
   .gomoku-rule-notice, .renju-legend, .swap2-choice-panel, .gomoku-pass-notice { width: 100%; }
   .swap2-choice-panel > div { grid-template-columns: 1fr; }
+}
+@media (orientation: landscape) and (max-width: 980px) and (max-height: 600px) {
+  .gomoku-board { --board-max-width: min(58vw, calc(100svh - 96px)); }
 }
 @media (hover: none) {
   .board-point:hover .stone-preview:not(.active) { opacity: 0; transform: scale(.82); }

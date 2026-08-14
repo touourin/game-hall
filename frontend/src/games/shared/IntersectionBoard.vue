@@ -14,28 +14,30 @@ const lastCoordinate = computed(() => props.size - 0.5)
     class="intersection-board"
     :style="{ '--board-size': size }"
   >
-    <svg
-      class="intersection-board__lattice"
-      :viewBox="`0 0 ${size} ${size}`"
-      preserveAspectRatio="none"
-      aria-hidden="true"
-    >
-      <template v-for="coordinate in coordinates" :key="coordinate">
-        <line
-          x1="0.5"
-          :x2="lastCoordinate"
-          :y1="coordinate"
-          :y2="coordinate"
-        />
-        <line
-          :x1="coordinate"
-          :x2="coordinate"
-          y1="0.5"
-          :y2="lastCoordinate"
-        />
-      </template>
-    </svg>
-    <slot />
+    <div class="intersection-board__stage">
+      <svg
+        class="intersection-board__lattice"
+        :viewBox="`0 0 ${size} ${size}`"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <template v-for="coordinate in coordinates" :key="coordinate">
+          <line
+            x1="0.5"
+            :x2="lastCoordinate"
+            :y1="coordinate"
+            :y2="coordinate"
+          />
+          <line
+            :x1="coordinate"
+            :x2="coordinate"
+            y1="0.5"
+            :y2="lastCoordinate"
+          />
+        </template>
+      </svg>
+      <slot />
+    </div>
   </div>
 </template>
 
@@ -50,10 +52,7 @@ const lastCoordinate = computed(() => props.size - 0.5)
   width: min(100%, var(--board-max-width));
   box-sizing: border-box;
   overflow: hidden;
-  aspect-ratio: 1;
   padding: var(--board-padding);
-  display: grid;
-  grid-template-columns: repeat(var(--board-size), minmax(0, 1fr));
   border: var(--board-border-width) solid var(--game-board-frame, #74451f);
   border-radius: var(--radius-card);
   background-color: var(--game-board-surface, #d5a45d);
@@ -92,13 +91,26 @@ const lastCoordinate = computed(() => props.size - 0.5)
   box-shadow: inset 0 0 26px rgba(54, 27, 8, .12);
 }
 
+.intersection-board__stage {
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  aspect-ratio: 1;
+  display: grid;
+  grid-template-columns: repeat(var(--board-size), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--board-size), minmax(0, 1fr));
+}
+
 .intersection-board__lattice {
   pointer-events: none;
   position: absolute;
   z-index: 1;
-  inset: var(--board-padding);
-  width: auto;
-  height: auto;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   overflow: visible;
 }
 
@@ -110,6 +122,12 @@ const lastCoordinate = computed(() => props.size - 0.5)
 }
 
 :slotted(button) {
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  touch-action: manipulation;
   z-index: 2;
 }
 </style>

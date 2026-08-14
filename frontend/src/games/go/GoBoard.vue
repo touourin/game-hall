@@ -261,7 +261,7 @@ function selectPoint(row: number, column: number, cell: number, event: MouseEven
 </template>
 
 <style scoped>
-.go-panel { min-width: 0; display: grid; gap: 14px; justify-items: center; }
+.go-panel { width: 100%; min-width: 0; display: grid; gap: 14px; justify-items: center; }
 .go-status { width: 100%; min-width: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 16px; color: var(--muted); }
 .go-status strong { color: var(--gold); }
 .go-scoring-guide { width: min(100%, 700px); padding: 13px 15px; border: 1px solid color-mix(in srgb, var(--gold) 42%, var(--line)); border-radius: 13px; background: color-mix(in srgb, var(--gold) 8%, var(--surface)); text-align: center; }
@@ -273,7 +273,6 @@ function selectPoint(row: number, column: number, cell: number, event: MouseEven
 .go-board.scoring { --board-status-ring: 0 0 0 3px color-mix(in srgb, var(--gold) 45%, transparent); }
 .go-point {
   position: relative;
-  min-width: 0;
   padding: 0;
   border: 0;
   background: transparent;
@@ -317,6 +316,9 @@ function selectPoint(row: number, column: number, cell: number, event: MouseEven
   .go-scoring-guide { text-align: left; }
   .go-scoring-actions > div, .go-score-breakdown { grid-template-columns: 1fr; }
   .go-board { --board-padding: 7px; --board-border-width: 4px; }
+}
+@media (orientation: landscape) and (max-width: 980px) and (max-height: 600px) {
+  .go-board { --board-max-width: min(58vw, calc(100svh - 96px)); }
 }
 @media (hover: none) {
   .go-point:hover .go-preview:not(.active) { opacity: 0; transform: scale(.82); }
