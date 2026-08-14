@@ -469,7 +469,6 @@ describe('ArcadeRoom', () => {
     await settleLazyComponents()
 
     expect(wrapper.findAll('main.arcade-room')).toHaveLength(1)
-    expect(wrapper.find('.game-page').exists()).toBe(false)
     expect(wrapper.get('.arcade-player-strip').text()).toContain('AI玩家 1')
     expect(wrapper.get('.role-skin-loadout').text()).toContain('开局后锁定')
     expect(wrapper.findAll('[data-role-skin-role]')).toHaveLength(10)

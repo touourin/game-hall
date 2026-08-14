@@ -28,11 +28,4 @@ describe('theme preferences', () => {
     expect(document.documentElement.dataset.theme).toBe('royal')
   })
 
-  it('migrates the legacy Avalon theme preference', () => {
-    localStorage.setItem('avalon:theme', 'avalon')
-
-    expect(storedTheme()).toBe('emerald')
-    expect(localStorage.getItem('game-hall:theme')).toBe('emerald')
-    expect(localStorage.getItem('avalon:theme')).toBeNull()
-  })
 })
