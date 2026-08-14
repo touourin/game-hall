@@ -37,6 +37,7 @@ describe('built-in game registry', () => {
     expect(builtinGameDefinition('xiangqi')?.capabilities.ai).toBe(true)
     expect(builtinGameDefinition('go')?.capabilities.ai).toBe(true)
     expect(builtinGameDefinition('junqi')?.presentation.roomLayout).toBe('wide')
+    expect(builtinGameDefinition('junqi')?.records?.matchDetailComponent).toBeUndefined()
     expect(builtinGameDefinition('plugin-number-vault')).toBeNull()
   })
 

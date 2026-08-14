@@ -37,7 +37,6 @@ export const junqiGame = defineBuiltinGame({
   rules: { ...junqiRules, settingsComponent: RuleSettings },
   records: {
     stats: junqiStats,
-    matchDetailComponent: defineAsyncComponent(() => import('./MatchDetail.vue')),
   },
 })
 

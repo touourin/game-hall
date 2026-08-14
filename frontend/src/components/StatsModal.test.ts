@@ -64,7 +64,11 @@ describe('StatsModal', () => {
       assassinationHit: null,
       startedAt: '2026-08-01T00:00:00+00:00',
       endedAt: '2026-08-01T00:10:00+00:00',
-      details: { players: [] },
+      details: {
+        players: [
+          { id: 'black', name: '棋手一', seat: 0, role: 'black', alignment: 'black' },
+        ],
+      },
     })
 
     const wrapper = mount(StatsModal, {
@@ -82,6 +86,7 @@ describe('StatsModal', () => {
 
     expect(wrapper.get('.match-detail-result').classes()).toContain('draw')
     expect(wrapper.get('.match-detail-result strong').text()).toBe('双方和棋')
+    expect(wrapper.get('.match-player-list').text()).toContain('黑方')
     expect(wrapper.get('.stats-back').attributes('aria-label')).toBe(
       '返回战绩列表',
     )

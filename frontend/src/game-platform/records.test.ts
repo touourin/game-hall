@@ -43,6 +43,7 @@ describe('built-in game record presentations', () => {
   it('uses module-owned personal stats copy and scoring', () => {
     const reaction = statsPresentation('reaction')
     const gomoku = statsPresentation('gomoku')
+    const junqi = statsPresentation('junqi')
     const summary = {
       games: 3,
       wins: 1,
@@ -62,5 +63,6 @@ describe('built-in game record presentations', () => {
       label: '历史最佳',
     })
     expect(gomoku.showDrawSummary).toBe(true)
+    expect(junqi.detailPlayerRoleLabel?.('flip-red')).toBe('翻棋军旗·红方')
   })
 })

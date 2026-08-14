@@ -40,7 +40,7 @@ const selectedMatchDetailSection = computed(() => {
 const selectedMatchDetailComponent = computed(() => {
   if (!selectedMatch.value) return null
   return builtinGameDefinition(selectedMatch.value.gameKey)?.records?.matchDetailComponent
-    ?? DefaultMatchDetail
+    ?? null
 })
 
 function historyPresentation(match: MatchHistoryItem) {
@@ -139,6 +139,12 @@ watch([activeGameMode, activeGameVariant], loadStats)
             </p>
           </template>
         </Suspense>
+
+        <DefaultMatchDetail
+          v-else
+          :match="selectedMatch"
+          :role-label="selectedMatchPresentation.detailPlayerRoleLabel"
+        />
 
         <p class="match-detail-note">
           {{ selectedMatchPresentation.detailNote(selectedMatch) }}

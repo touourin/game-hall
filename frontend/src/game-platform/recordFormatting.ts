@@ -61,6 +61,7 @@ export function createCompetitiveStatsPresentation(
       `${match.gameName} · ${roleLabel(match.role)}`,
     historyMeta: (match: MatchHistoryItem, formattedDate: string) =>
       `${formattedDate} · ${match.playerCount} 人 · 房间 ${match.roomCode}`,
+    detailPlayerRoleLabel: options.roleLabels ? roleLabel : undefined,
     detailModeLabel: options.detailModeLabel,
     detailWinnerLabel: (match: MatchDetail) => {
       if (match.winner === 'draw') return '双方和棋'

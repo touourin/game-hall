@@ -153,6 +153,7 @@ export interface BuiltinGameStatsPresentation {
   historyTitle: (match: MatchHistoryItem) => string
   historyMeta: (match: MatchHistoryItem, formattedDate: string) => string
   detailSection?: (match: MatchDetail) => BuiltinGameMatchDetailSection
+  detailPlayerRoleLabel?: (role: string) => string
   detailModeLabel?: (match: MatchDetail) => string
   detailWinnerLabel: (match: MatchDetail) => string
   detailNote: (match: MatchDetail) => string
