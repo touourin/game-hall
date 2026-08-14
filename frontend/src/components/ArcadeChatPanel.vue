@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { MessageCircle, Send, X } from '@lucide/vue'
 import type { ArcadeChatMessage } from '../types/arcade'
 import AvatarImage from './AvatarImage.vue'
+import UiIconButton from './ui/UiIconButton.vue'
 
 const props = defineProps<{
   messages: ArcadeChatMessage[]
@@ -90,7 +91,7 @@ defineExpose({ openChat })
   <section v-else class="arcade-chat-panel" aria-label="房间聊天">
     <header>
       <div><MessageCircle :size="18" /><strong>房间聊天</strong></div>
-      <button type="button" aria-label="关闭聊天" @click="closeChat"><X :size="19" /></button>
+      <UiIconButton compact aria-label="关闭聊天" @click="closeChat"><X :size="19" /></UiIconButton>
     </header>
     <div ref="chatList" class="arcade-chat-list" aria-live="polite">
       <div v-if="!messages.length" class="arcade-chat-empty">发一条消息开始聊天</div>
@@ -187,14 +188,6 @@ defineExpose({ openChat })
   gap: 8px;
 }
 
-.arcade-chat-panel button {
-  display: grid;
-  place-items: center;
-  border: 0;
-  color: inherit;
-  background: transparent;
-}
-
 .arcade-chat-list {
   overflow-y: auto;
   padding: 14px;
@@ -279,6 +272,9 @@ defineExpose({ openChat })
 }
 
 .arcade-chat-panel form button {
+  display: grid;
+  place-items: center;
+  border: 0;
   border-radius: 11px;
   color: var(--accent-contrast);
   background: var(--gold);

@@ -34,6 +34,7 @@ withDefaults(defineProps<{
     inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 66%, transparent),
     inset 0 0 0 1px color-mix(in srgb, var(--line-bright) 12%, transparent);
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .ui-icon-button--compact {
@@ -50,6 +51,13 @@ withDefaults(defineProps<{
     border-color: var(--line-strong);
     color: var(--gold);
     transform: translateY(-1px);
+  }
+}
+
+@media (max-width: 760px) {
+  .ui-icon-button {
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 

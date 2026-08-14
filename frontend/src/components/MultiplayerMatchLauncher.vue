@@ -21,6 +21,7 @@ import { gameRuleLabels } from '../gameRules'
 import AvatarImage from './AvatarImage.vue'
 import GameCardArtwork from './GameCardArtwork.vue'
 import GameRuleSettings from './GameRuleSettings.vue'
+import UiIconButton from './ui/UiIconButton.vue'
 
 const props = defineProps<{
   game: GameCatalogItem
@@ -232,14 +233,13 @@ function saveRules() {
         <section class="match-rule-modal adaptive-dialog" role="dialog" aria-modal="true" aria-label="创建房间规则">
           <header>
             <span><small>房间设置</small><strong>{{ game.name }}房间规则</strong></span>
-            <button
-              type="button"
+            <UiIconButton
               class="adaptive-touch-target"
               aria-label="关闭规则设置"
               @click="showRules = false"
             >
               <X :size="20" />
-            </button>
+            </UiIconButton>
           </header>
           <div class="match-rule-body adaptive-scroll-region">
             <GameRuleSettings v-model="ruleDraft" :game-key="gameKey" :guest-mode="guest" />
@@ -338,7 +338,6 @@ function saveRules() {
 .match-rule-modal { width: min(920px, 100%); height: min(88dvh, 820px); min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; border: 1px solid color-mix(in srgb, var(--match-accent) 30%, var(--line)); border-radius: 22px; color: var(--text); background: var(--material-pattern), var(--modal-surface); box-shadow: 0 28px 90px rgba(0,0,0,.48); }
 .match-rule-modal > header, .match-rule-modal > footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px; background: color-mix(in srgb, var(--surface-elevated) 84%, transparent); }
 .match-rule-modal > header { border-bottom: 1px solid var(--line); }.match-rule-modal > header > span { display: grid; gap: 3px; }.match-rule-modal > header small { color: var(--match-accent); font-size: 9px; font-weight: 850; letter-spacing: .05em; }.match-rule-modal > header strong { font-size: 18px; }
-.match-rule-modal > header button { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 50%; color: var(--text); background: var(--surface-inset); }
 .match-rule-body { min-width: 0; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 18px; }
 .match-rule-modal > footer { border-top: 1px solid var(--line); }.match-rule-modal > footer > span { color: var(--muted); font-size: 9px; }.match-rule-modal > footer button { min-width: 124px; min-height: 40px; border: 0; border-radius: 11px; color: var(--accent-contrast); background: var(--match-accent); font-weight: 900; }
 @media (hover: hover) { .match-room-item:hover:not(:disabled) { border-color: color-mix(in srgb, var(--match-accent) 42%, var(--line)); transform: translateY(-1px); }.match-primary-action:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 19px 39px color-mix(in srgb, var(--match-glow) 31%, transparent); }.match-primary-action:hover:not(:disabled) .match-primary-arrow { opacity: .82; transform: translateX(3px); } }

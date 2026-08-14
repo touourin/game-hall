@@ -7,6 +7,7 @@ import {
   resizeSquareCrop,
   type SquareCrop,
 } from '../avatarCrop'
+import UiIconButton from './ui/UiIconButton.vue'
 
 const props = defineProps<{
   file: File
@@ -226,15 +227,15 @@ onBeforeUnmount(() => {
   <Teleport to="body">
     <div class="crop-backdrop" @click.self="!processing && $emit('close')">
       <section class="crop-modal" role="dialog" aria-modal="true" aria-labelledby="avatar-crop-title">
-        <button
+        <UiIconButton
+          compact
           class="crop-close"
-          type="button"
           aria-label="关闭头像裁剪"
           :disabled="processing"
           @click="$emit('close')"
         >
           <X :size="20" />
-        </button>
+        </UiIconButton>
 
         <header class="crop-header">
           <span><Crop :size="21" /></span>
@@ -357,14 +358,6 @@ onBeforeUnmount(() => {
   z-index: 2;
   top: 14px;
   right: 14px;
-  display: grid;
-  width: 36px;
-  height: 36px;
-  place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  color: var(--muted);
-  background: rgba(3, 19, 20, .75);
 }
 .crop-header { display: flex; align-items: center; gap: 12px; padding-right: 38px; }
 .crop-header > span { display: grid; width: 42px; height: 42px; flex: 0 0 auto; place-items: center; border-radius: 13px; color: var(--gold); background: rgba(225, 188, 104, .11); }
@@ -421,7 +414,7 @@ onBeforeUnmount(() => {
 .crop-actions button { min-height: 48px; border-radius: 14px; font-weight: 850; }
 .crop-cancel { border: 1px solid var(--line); color: var(--muted); background: rgba(4, 27, 28, .72); }
 .crop-confirm { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 0; color: #172018; background: linear-gradient(135deg, #efd58e, var(--gold)); box-shadow: 0 10px 26px rgba(166, 121, 39, .22); }
-.crop-actions button:disabled, .crop-close:disabled { opacity: .52; cursor: not-allowed; }
+.crop-actions button:disabled { opacity: .52; cursor: not-allowed; }
 @media (max-width: 620px) {
   .crop-backdrop { padding: 10px; }
   .crop-modal { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); padding: 17px; border-radius: 20px; }

@@ -7,6 +7,7 @@ import {
   type GameSkinId,
   type GameSkinKind,
 } from '../gameSkins'
+import UiIconButton from './ui/UiIconButton.vue'
 
 const props = defineProps<{
   modelValue: GameSkinId
@@ -70,7 +71,7 @@ function selectSkin(skin: GameSkinId) {
     >
       <header class="game-skin-mobile-sheet-header">
         <span><small>LOCAL APPEARANCE</small><strong>选择本局画风</strong></span>
-        <button type="button" aria-label="关闭画风选择" @click="mobileOpen = false"><X :size="19" /></button>
+        <UiIconButton class="adaptive-touch-target" aria-label="关闭画风选择" @click="mobileOpen = false"><X :size="19" /></UiIconButton>
       </header>
       <button
         v-for="skin in GAME_SKINS"
@@ -115,9 +116,9 @@ function selectSkin(skin: GameSkinId) {
 .game-skin-icon { display: grid; flex: 0 0 auto; place-items: center; width: 42px; height: 42px; border: 1px solid rgba(225,188,104,.18); border-radius: 14px; color: var(--gold); background: rgba(225,188,104,.08); }
 .game-skin-mobile-trigger, .game-skin-mobile-sheet-header, .game-skin-mobile-backdrop { display: none; }
 .game-skin-options { display: grid; grid-auto-columns: minmax(154px, 1fr); grid-auto-flow: column; gap: 10px; margin-inline: -4px; padding: 2px 4px 9px; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-color: rgba(225,188,104,.34) transparent; scrollbar-width: thin; scroll-snap-type: inline proximity; }
-.game-skin-options button { display: grid; align-content: start; gap: 9px; min-width: 0; border: 1px solid var(--line); border-radius: 15px; padding: 6px 6px 10px; color: var(--text); background: rgba(var(--surface-header-rgb),.58); text-align: left; cursor: pointer; overflow: hidden; scroll-snap-align: start; transition: border-color 160ms ease, background 160ms ease, transform 160ms ease; }
-.game-skin-options button.active { border-color: rgba(225,188,104,.52); background: rgba(225,188,104,.11); box-shadow: inset 0 0 0 1px rgba(225,188,104,.08); }
-.game-skin-options button:active { transform: scale(.985); }
+.game-skin-options > button { display: grid; align-content: start; gap: 9px; min-width: 0; border: 1px solid var(--line); border-radius: 15px; padding: 6px 6px 10px; color: var(--text); background: rgba(var(--surface-header-rgb),.58); text-align: left; cursor: pointer; overflow: hidden; scroll-snap-align: start; transition: border-color 160ms ease, background 160ms ease, transform 160ms ease; }
+.game-skin-options > button.active { border-color: rgba(225,188,104,.52); background: rgba(225,188,104,.11); box-shadow: inset 0 0 0 1px rgba(225,188,104,.08); }
+.game-skin-options > button:active { transform: scale(.985); }
 .game-skin-preview { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 5px; aspect-ratio: 4 / 3; padding: 18px 8px 8px; border-radius: 10px; background: #071512; overflow: hidden; }
 .preview-board { position: relative; border: 3px solid var(--game-board-frame); border-radius: 5px; background-color: var(--game-board-surface); background-image: linear-gradient(var(--game-board-line) 1px, transparent 1px), linear-gradient(90deg, var(--game-board-line) 1px, transparent 1px), var(--game-board-texture); background-position: center; background-size: 16% 16%, 16% 16%, auto; box-shadow: inset 0 0 0 1px var(--game-board-highlight); }
 .preview-stone { position: absolute; width: 22%; aspect-ratio: 1; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,.5); }
@@ -160,7 +161,6 @@ function selectSkin(skin: GameSkinId) {
   .game-skin-mobile-sheet-header > span { display: grid; gap: 2px; }
   .game-skin-mobile-sheet-header small { color: var(--gold); font-size: 8px; font-weight: 900; letter-spacing: .12em; }
   .game-skin-mobile-sheet-header strong { font-family: "Songti SC", "STSong", serif; font-size: 17px; }
-  .game-skin-mobile-sheet-header button { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 50%; color: var(--text); background: var(--surface-inset); }
   .game-skin-options.is-mobile-open > button { scroll-snap-align: none; }
 }
 </style>

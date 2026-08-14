@@ -2,6 +2,7 @@
 import { Check, ChevronRight, Images, LockKeyhole, Trophy, X } from '@lucide/vue'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { RoleSkinLoadoutRoleOption } from './uiTypes'
+import UiIconButton from './ui/UiIconButton.vue'
 
 const props = withDefaults(defineProps<{
   roles: RoleSkinLoadoutRoleOption[]
@@ -100,14 +101,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
             <p v-else-if="activeRole.legacyAllUnlocked">老账号已保留全部画风，可自由选择。</p>
             <p v-else>赢 {{ activeRole.upgradeWinsRequired }} 局解锁全部升级款，赢 {{ activeRole.ultimateWinsRequired }} 局解锁终极款。</p>
           </div>
-          <button
-            type="button"
+          <UiIconButton
             class="adaptive-touch-target"
             aria-label="关闭角色画风选择"
             @click="closePicker"
           >
             <X :size="20" />
-          </button>
+          </UiIconButton>
         </header>
 
         <div class="role-skin-choice-grid adaptive-scroll-region">
@@ -173,7 +173,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
 .role-skin-picker-modal header small { color: var(--gold); font-size: 9px; font-weight: 850; }
 .role-skin-picker-modal h2 { margin: 0; font-family: "Songti SC", "STSong", serif; font-size: clamp(22px, 3vw, 32px); }
 .role-skin-picker-modal p { margin: 0; color: var(--muted); font-size: 10px; }
-.role-skin-picker-modal > header button { display: grid; flex: 0 0 auto; place-items: center; width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 50%; color: var(--text); background: var(--surface-inset); cursor: pointer; }
 .role-skin-choice-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); grid-auto-rows: max-content; align-content: start; align-items: start; gap: 11px; min-height: 0; padding: 18px 20px 24px; overflow-y: auto; }
 .role-skin-choice { display: grid; gap: 9px; min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 15px; padding: 6px 6px 10px; color: var(--text); background: rgba(var(--surface-header-rgb), .56); text-align: left; cursor: pointer; }
 .role-skin-choice.selected { border-color: color-mix(in srgb, var(--gold) 58%, var(--line)); background: color-mix(in srgb, var(--gold) 9%, var(--surface-inset)); }
