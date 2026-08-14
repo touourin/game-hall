@@ -34,8 +34,10 @@ describe('built-in game registry', () => {
 
   it('owns each migrated board game and ignores third-party ids', () => {
     expect(builtinGameDefinition('gomoku')?.presentation.skinKind).toBe('board')
-    expect(builtinGameDefinition('xiangqi')?.capabilities.ai).toBe(true)
-    expect(builtinGameDefinition('go')?.capabilities.ai).toBe(true)
+    expect(builtinGameDefinition('xiangqi')?.capabilities).toMatchObject({ replay: true, ai: true })
+    expect(builtinGameDefinition('go')?.capabilities).toMatchObject({ replay: false, ai: true })
+    expect(builtinGameDefinition('gomoku')?.capabilities).toMatchObject({ replay: false, ai: false })
+    expect(builtinGameDefinition('junqi')?.capabilities).toMatchObject({ undo: false, draw: false })
     expect(builtinGameDefinition('junqi')?.presentation.roomLayout).toBe('wide')
     expect(builtinGameDefinition('junqi')?.records?.matchDetailComponent).toBeUndefined()
     expect(builtinGameDefinition('plugin-number-vault')).toBeNull()

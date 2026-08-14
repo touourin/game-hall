@@ -1,5 +1,6 @@
 import { defineAsyncComponent } from 'vue'
 import gomokuArtwork from '../../assets/game-hall/icons/gomoku.webp'
+import { boardGameCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { createCompetitiveStatsPresentation } from '../../game-platform/recordFormatting'
 import RuleSettings from './RuleSettings.vue'
@@ -16,15 +17,7 @@ export const gomokuGame = defineBuiltinGame({
     category: '棋类竞技',
     artwork: gomokuArtwork,
   },
-  capabilities: {
-    undo: true,
-    draw: true,
-    guests: true,
-    spectators: true,
-    firstPlayer: true,
-    replay: false,
-    ai: false,
-  },
+  capabilities: boardGameCapabilities(),
   presentation: {
     component: defineAsyncComponent(() => import('./GomokuBoard.vue')),
     roomLayout: 'standard',

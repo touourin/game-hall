@@ -1,5 +1,6 @@
 import { defineAsyncComponent } from 'vue'
 import xiangqiArtwork from '../../assets/game-hall/icons/xiangqi.webp'
+import { boardGameCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { createCompetitiveStatsPresentation } from '../../game-platform/recordFormatting'
 import RuleSettings from './RuleSettings.vue'
@@ -16,15 +17,7 @@ export const xiangqiGame = defineBuiltinGame({
     category: '棋类竞技',
     artwork: xiangqiArtwork,
   },
-  capabilities: {
-    undo: true,
-    draw: true,
-    guests: true,
-    spectators: true,
-    firstPlayer: true,
-    replay: true,
-    ai: true,
-  },
+  capabilities: boardGameCapabilities({ replay: true, ai: true }),
   presentation: {
     component: defineAsyncComponent(() => import('./XiangqiBoard.vue')),
     roomLayout: 'standard',
