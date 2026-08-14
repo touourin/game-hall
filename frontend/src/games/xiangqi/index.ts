@@ -22,6 +22,13 @@ export const xiangqiGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./XiangqiBoard.vue')),
     roomLayout: 'standard',
     skinKind: 'board',
+    launcher: {
+      kicker: '隔河列阵，攻守有序',
+      title: '布下楚汉战局',
+      description: '创建一场完整可复盘的中国象棋对局，让每一步进退都有回应。',
+      accent: '#df887d',
+      glow: '#9d433d',
+    },
   },
   rules: { ...xiangqiRules, settingsComponent: RuleSettings },
   records: {

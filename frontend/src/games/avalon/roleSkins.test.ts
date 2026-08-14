@@ -13,7 +13,7 @@ import {
   storedRoleSkin,
   storedRoleSkinLoadout,
   storedRoleSkinLoadoutLock,
-} from './gameRoleSkins'
+} from './roleSkins'
 
 describe('Avalon role skin artwork framing', () => {
   beforeEach(() => localStorage.clear())

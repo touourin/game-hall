@@ -26,6 +26,13 @@ export const departedSuspicionGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./DepartedSuspicionTable.vue')),
     roomLayout: 'wide',
     skinKind: null,
+    launcher: {
+      kicker: '身份藏在底牌里，枪口决定谁能留下',
+      title: '建立秘密调查组',
+      description: '召集两方特工入席，在装备、试探与临场判断中找出对方领袖。',
+      accent: '#c98d87',
+      glow: '#7d4745',
+    },
     roomShell: {
       headerEyebrowSuffix: (snapshot) =>
         ` · ${snapshot.options.equipmentSet === 'base' ? '基础装备局' : '炸弹客/叛徒装备局'}`,

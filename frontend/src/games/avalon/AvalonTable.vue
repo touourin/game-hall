@@ -23,10 +23,10 @@ import {
   roleArtworkFraming,
   roleSkinName,
   type RoleSkinId,
-} from '../../gameRoleSkins'
+} from './roleSkins'
 import { useArcadeStore } from '../../stores/arcade'
 import type { MissionProgressItem } from '../../components/uiTypes'
-import type { PlayerView, RoomSnapshot } from '../../types/avalon'
+import type { PlayerView, RoomSnapshot } from './types'
 
 const props = withDefaults(defineProps<{
   snapshot: RoomSnapshot

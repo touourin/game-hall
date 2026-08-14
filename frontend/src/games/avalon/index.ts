@@ -27,9 +27,16 @@ export const avalonGame = defineBuiltinGame({
     ai: true,
   },
   presentation: {
-    component: defineAsyncComponent(() => import('./AvalonTable.vue')),
+    component: defineAsyncComponent(() => import('./AvalonRoomGame.vue')),
     roomLayout: 'wide',
     skinKind: null,
+    launcher: {
+      kicker: '忠诚与谎言同时入席',
+      title: '召集远征议会',
+      description: '建立你的议会，邀请熟悉的伙伴，在身份与投票之间决定王国的命运。',
+      accent: '#e1bc68',
+      glow: '#a77a2d',
+    },
     roomShell: avalonRoomShell,
   },
   rules: { ...avalonRules, settingsComponent: RuleSettings },

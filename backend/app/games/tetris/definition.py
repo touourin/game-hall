@@ -40,5 +40,8 @@ TETRIS_GAME = GameDefinition(
     records=GameRecords(
         score_kind="high_score",
         match_mode=tetris_match_mode,
+        query_modes=frozenset(
+            {"standard", "timed_60", "timed_180", "timed_300"}
+        ),
     ),
 )

@@ -57,6 +57,10 @@ class GameCatalogMetadata:
 GameScoreKind = Literal["outcome", "time_trial", "high_score"]
 
 
+class GameRecordQueryError(ValueError):
+    """Raised when shared stats endpoints receive unsupported filters."""
+
+
 def standard_match_mode(_: Mapping[str, Any]) -> str:
     return "standard"
 
@@ -67,6 +71,23 @@ class GameRecords:
 
     score_kind: GameScoreKind = "outcome"
     match_mode: Callable[[Mapping[str, Any]], str] = standard_match_mode
+    query_modes: frozenset[str] = field(default_factory=frozenset)
+    query_variants: Mapping[str, frozenset[str]] = field(default_factory=dict)
+    invalid_mode_message: str = "游戏模式或难度不正确"
+    invalid_variant_message: str = "战绩统计分组不正确"
+
+    def validate_query(
+        self,
+        mode: str | None,
+        variant: str | None,
+    ) -> None:
+        if mode is not None and mode not in self.query_modes:
+            raise GameRecordQueryError(self.invalid_mode_message)
+        if variant is None:
+            return
+        allowed_variants = self.query_variants.get(mode or "", frozenset())
+        if variant not in allowed_variants:
+            raise GameRecordQueryError(self.invalid_variant_message)
 
 
 @dataclass(frozen=True)

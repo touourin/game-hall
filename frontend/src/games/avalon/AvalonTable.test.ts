@@ -2,7 +2,7 @@ import { createPinia } from 'pinia'
 import { mount } from '@vue/test-utils'
 import { beforeEach, vi } from 'vitest'
 import { useArcadeStore } from '../../stores/arcade'
-import type { RoomSnapshot } from '../../types/avalon'
+import type { RoomSnapshot } from './types'
 import AvalonTable from './AvalonTable.vue'
 
 function roleRevealSnapshot(revision: number): RoomSnapshot {

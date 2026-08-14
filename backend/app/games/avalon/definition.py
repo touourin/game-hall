@@ -4,6 +4,7 @@ from backend.app.games.definition import (
     GameCapabilities,
     GameCatalogMetadata,
     GameDefinition,
+    GameRecords,
 )
 
 from .arcade import AvalonEngine
@@ -25,5 +26,12 @@ AVALON_GAME = GameDefinition(
         first_player=False,
         replay=True,
         ai=True,
+    ),
+    records=GameRecords(
+        query_modes=frozenset({"standard", "court_undercurrent"}),
+        query_variants={
+            "court_undercurrent": frozenset({"classic", "shadow_merlin"}),
+        },
+        invalid_variant_message="王庭暗流统计分组不正确",
     ),
 )

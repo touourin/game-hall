@@ -20,7 +20,7 @@ Each skin directory follows the same contract:
 
 Preview order is Merlin, Percival, Loyal Servant, Assassin, Morgana,
 Mordred, Oberon, and Minion. Runtime IDs, names, tiers, previews, and role
-artwork are registered in `frontend/src/gameRoleSkins.ts`.
+artwork are registered in `frontend/src/games/avalon/roleSkins.ts`.
 
 The in-game loadout contains all ten roles. Shadow Merlin has dedicated art
 while sharing Merlin's unlock progress. The Dissenting Courtier has dedicated

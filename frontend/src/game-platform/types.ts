@@ -47,14 +47,29 @@ export interface BuiltinGamePresentation {
   component: Component
   roomLayout: BuiltinGameRoomLayout
   skinKind: BuiltinGameSkinKind | null
+  launcher?: BuiltinGameLauncherPresentation
   roomShell?: BuiltinGameRoomShellPresentation
   solo?: BuiltinGameSoloPresentation
 }
 
+export interface BuiltinGameLauncherPresentation {
+  kicker: string
+  title: string
+  description: string
+  accent: string
+  glow: string
+}
+
 export interface BuiltinGameRoomShellPresentation {
+  headerDetailsComponent?: Component
+  headerActionsComponent?: Component
+  ruleActionsComponent?: Component
+  lobbyComponent?: Component
   headerEyebrowSuffix?: (snapshot: ArcadeSnapshot) => string
   headerTitle?: (snapshot: ArcadeSnapshot) => string
   statsMode?: (snapshot: ArcadeSnapshot) => string | undefined
+  waitingMessage?: (snapshot: ArcadeSnapshot) => string | null
+  handlesResult?: boolean
   activeExitDescription?: string
   abandonLabel?: string
   finishedLabel?: string

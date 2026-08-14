@@ -22,6 +22,13 @@ export const goGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./GoBoard.vue')),
     roomLayout: 'standard',
     skinKind: 'board',
+    launcher: {
+      kicker: '方寸落子，争地围空',
+      title: '开启手谈棋局',
+      description: '设定棋盘、贴目与先手，在安静的落子中争夺整片疆域。',
+      accent: '#79c9ae',
+      glow: '#327c68',
+    },
   },
   rules: { ...goRules, settingsComponent: RuleSettings },
   records: {

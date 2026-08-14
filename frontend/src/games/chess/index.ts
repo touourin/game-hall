@@ -20,6 +20,13 @@ export const chessGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./ChessBoard.vue')),
     roomLayout: 'standard',
     skinKind: 'board',
+    launcher: {
+      kicker: '六十四格之间，每一步都在收紧王的退路',
+      title: '开启黑白棋局',
+      description: '邀请对手落座，在完整升变、王车易位与和棋判定中展开较量。',
+      accent: '#b8b7ae',
+      glow: '#6d6b62',
+    },
   },
   rules: {
     defaults: {

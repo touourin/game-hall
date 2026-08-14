@@ -22,6 +22,13 @@ export const gomokuGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./GomokuBoard.vue')),
     roomLayout: 'standard',
     skinKind: 'board',
+    launcher: {
+      kicker: '纵横十五路，一线定胜负',
+      title: '落座连珠棋局',
+      description: '选择公平开局与胜负规则，邀请对手在棋盘中央展开攻守。',
+      accent: '#c5d2d7',
+      glow: '#71858d',
+    },
   },
   rules: { ...gomokuRules, settingsComponent: RuleSettings },
   records: {

@@ -20,6 +20,7 @@ from backend.app.arcade.views import (
     build_spectator_room_view,
 )
 from backend.app.games.base import GameRuleError
+from backend.app.games.definition import GameRecordQueryError
 from backend.app.games.builtin import (
     BUILTIN_GAME_DEFINITIONS,
     BUILTIN_GAME_NAMES,
@@ -81,6 +82,30 @@ def test_scored_games_own_their_record_contract() -> None:
     assert chess is not None
     assert chess.records.score_kind == "outcome"
     assert chess.records.match_mode({}) == "standard"
+
+
+def test_filtered_records_own_their_query_contract() -> None:
+    avalon = builtin_game_definition("avalon")
+    minesweeper = builtin_game_definition("minesweeper")
+    tetris = builtin_game_definition("tetris")
+    chess = builtin_game_definition("chess")
+
+    assert avalon is not None
+    avalon.records.validate_query("standard", None)
+    avalon.records.validate_query("court_undercurrent", "shadow_merlin")
+    with pytest.raises(GameRecordQueryError, match="王庭暗流统计分组不正确"):
+        avalon.records.validate_query("standard", "shadow_merlin")
+
+    assert minesweeper is not None
+    minesweeper.records.validate_query("expert", None)
+    with pytest.raises(GameRecordQueryError, match="游戏模式或难度不正确"):
+        minesweeper.records.validate_query("timed_60", None)
+
+    assert tetris is not None
+    tetris.records.validate_query("timed_300", None)
+    assert chess is not None
+    with pytest.raises(GameRecordQueryError, match="游戏模式或难度不正确"):
+        chess.records.validate_query("standard", None)
 
 
 @pytest.mark.parametrize(

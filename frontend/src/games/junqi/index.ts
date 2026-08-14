@@ -21,6 +21,13 @@ export const junqiGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./JunqiBoard.vue')),
     roomLayout: 'wide',
     skinKind: 'board',
+    launcher: {
+      kicker: '暗中布阵，铁路突袭',
+      title: '建立前线指挥所',
+      description: '选择暗棋或翻棋模式，与对手在隐蔽信息中争夺最后的军旗。',
+      accent: '#b4bd75',
+      glow: '#687039',
+    },
     roomShell: {
       headerEyebrowSuffix: (snapshot) =>
         ` · ${snapshot.options.mode === 'flip' ? '翻棋军旗' : '暗军旗'}`,

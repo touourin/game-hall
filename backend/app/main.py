@@ -28,6 +28,8 @@ from .avatars import (
     process_avatar_upload,
 )
 from .games.registry import GAME_CATALOG
+from .games.builtin import builtin_game_definition
+from .games.definition import GameRecordQueryError, GameRecords
 from .guests import GuestSessionError, guest_for_token, issue_guest_session
 from .infrastructure import redis_status
 from .logging_config import (
@@ -50,6 +52,20 @@ from .realtime import (
 
 logger = logging.getLogger(__name__)
 GAME_NAMES = {item["key"]: item["name"] for item in GAME_CATALOG}
+DEFAULT_GAME_RECORDS = GameRecords()
+
+
+def validate_record_query(
+    game: str | None,
+    mode: str | None,
+    variant: str | None,
+) -> None:
+    definition = builtin_game_definition(game) if game is not None else None
+    records = definition.records if definition else DEFAULT_GAME_RECORDS
+    try:
+        records.validate_query(mode, variant)
+    except GameRecordQueryError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
 
 
 @asynccontextmanager
@@ -531,19 +547,7 @@ def personal_stats(
     account = require_account_session(authorization, game_hall_access)
     if game is not None and game not in GAME_NAMES:
         raise HTTPException(status_code=404, detail="没有找到这个游戏")
-    valid_modes = {
-        "minesweeper": {"beginner", "intermediate", "expert"},
-        "tetris": {"standard", "timed_60", "timed_180", "timed_300"},
-        "avalon": {"standard", "court_undercurrent"},
-    }
-    if mode is not None and mode not in valid_modes.get(game or "", set()):
-        raise HTTPException(status_code=400, detail="游戏模式或难度不正确")
-    if variant is not None and (
-        game != "avalon"
-        or mode != "court_undercurrent"
-        or variant not in {"classic", "shadow_merlin"}
-    ):
-        raise HTTPException(status_code=400, detail="王庭暗流统计分组不正确")
+    validate_record_query(game, mode, variant)
     return {
         "ok": True,
         "summary": account_store().summary_for_account(
@@ -584,19 +588,7 @@ def leaderboard(
     require_identity_session(authorization, game_hall_access)
     if game not in GAME_NAMES:
         raise HTTPException(status_code=404, detail="没有找到这个游戏")
-    valid_modes = {
-        "minesweeper": {"beginner", "intermediate", "expert"},
-        "tetris": {"standard", "timed_60", "timed_180", "timed_300"},
-        "avalon": {"standard", "court_undercurrent"},
-    }
-    if mode is not None and mode not in valid_modes.get(game, set()):
-        raise HTTPException(status_code=400, detail="游戏模式或难度不正确")
-    if variant is not None and (
-        game != "avalon"
-        or mode != "court_undercurrent"
-        or variant not in {"classic", "shadow_merlin"}
-    ):
-        raise HTTPException(status_code=400, detail="王庭暗流统计分组不正确")
+    validate_record_query(game, mode, variant)
     return {
         "ok": True,
         "players": account_store().leaderboard(

@@ -1,5 +1,5 @@
-import { storedAccessToken } from './access'
-import { storedAccountToken } from './account'
+import { storedAccessToken } from '../../access'
+import { storedAccountToken } from '../../account'
 import {
   ROLE_SKINS,
   ROLE_SKIN_ROLES,
@@ -7,7 +7,7 @@ import {
   roleSkinRoleCode,
   type RoleSkinId,
   type RoleSkinRoleCode,
-} from './gameRoleSkins'
+} from './roleSkins'
 
 export interface AvalonRoleSkinRoleProgress {
   wins: number

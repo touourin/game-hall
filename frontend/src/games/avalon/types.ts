@@ -1,3 +1,6 @@
+import type { ArcadeSnapshot } from '../../types/arcade'
+
+/** Server snapshot owned by the built-in Avalon module. */
 export type Alignment = 'good' | 'evil'
 export type AvalonMode = 'standard' | 'court_undercurrent'
 
@@ -234,4 +237,15 @@ export interface RoomSnapshot {
     messages: ChatMessage[]
   }
   actions: RoomActions
+}
+
+export type AvalonArcadeSnapshot = Omit<ArcadeSnapshot, 'gameKey' | 'game'> & {
+  gameKey: 'avalon'
+  game: RoomSnapshot
+}
+
+export function isAvalonArcadeSnapshot(
+  snapshot: ArcadeSnapshot,
+): snapshot is AvalonArcadeSnapshot {
+  return snapshot.gameKey === 'avalon'
 }

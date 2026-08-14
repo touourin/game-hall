@@ -117,4 +117,39 @@ describe('built-in game registry', () => {
       }),
     ).toBe('timed_300')
   })
+
+  it('lets every built-in multiplayer game own its launcher identity', () => {
+    const multiplayerDefinitions = BUILTIN_GAME_DEFINITIONS.filter(
+      (definition) => definition.catalog.players.max > 1,
+    )
+
+    expect(multiplayerDefinitions).toHaveLength(11)
+    for (const definition of multiplayerDefinitions) {
+      expect(definition.presentation.launcher).toMatchObject({
+        kicker: expect.any(String),
+        title: expect.any(String),
+        description: expect.any(String),
+        accent: expect.stringMatching(/^#[0-9a-f]{6}$/i),
+        glow: expect.stringMatching(/^#[0-9a-f]{6}$/i),
+      })
+    }
+  })
+
+  it('lets game modules extend the shared room shell without central branches', () => {
+    const avalonRoomShell = builtinGameDefinition('avalon')?.presentation.roomShell
+    const oneNightRoomShell = builtinGameDefinition('one_night_werewolf')
+      ?.presentation.roomShell
+
+    expect(avalonRoomShell).toMatchObject({
+      headerDetailsComponent: expect.any(Object),
+      headerActionsComponent: expect.any(Object),
+      lobbyComponent: expect.any(Object),
+      waitingMessage: expect.any(Function),
+      handlesResult: true,
+    })
+    expect(oneNightRoomShell).toMatchObject({
+      headerActionsComponent: expect.any(Object),
+      ruleActionsComponent: expect.any(Object),
+    })
+  })
 })

@@ -28,6 +28,13 @@ export const oneNightWerewolfGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./OneNightWerewolfTable.vue')),
     roomLayout: 'wide',
     skinKind: null,
+    launcher: {
+      kicker: '月落之前，每个人都可能换了身份',
+      title: '召集月夜村庄',
+      description: '一晚完成所有行动，天亮后通过发言和一次秘密投票找出狼人。',
+      accent: '#95a9ee',
+      glow: '#4d5f9e',
+    },
     roomShell: oneNightWerewolfRoomShell,
   },
   rules: {

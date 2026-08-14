@@ -27,6 +27,13 @@ export const doudizhuGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./DoudizhuTable.vue')),
     roomLayout: 'wide',
     skinKind: 'cards',
+    launcher: {
+      kicker: '三人入局，叫抢定势',
+      title: '召集一桌牌局',
+      description: '创建三人牌局，确认玩法后邀请另外两位玩家加入。',
+      accent: '#83bde5',
+      glow: '#3d6f99',
+    },
   },
   rules: {
     settingsGroups: [{

@@ -40,5 +40,6 @@ MINESWEEPER_GAME = GameDefinition(
     records=GameRecords(
         score_kind="time_trial",
         match_mode=minesweeper_match_mode,
+        query_modes=frozenset({"beginner", "intermediate", "expert"}),
     ),
 )

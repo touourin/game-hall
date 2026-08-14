@@ -26,6 +26,13 @@ export const monopolyGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./MonopolyBoard.vue')),
     roomLayout: 'wide',
     skinKind: null,
+    launcher: {
+      kicker: '掷骰启程，让每条街道成为资产',
+      title: '开启城市财富竞赛',
+      description: '邀请伙伴环游城市，收购同色街区、升级地产，在回合终点成为首席大亨。',
+      accent: '#dfb45f',
+      glow: '#8a6126',
+    },
   },
   rules: {
     settingsGroups: [

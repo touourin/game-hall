@@ -15,18 +15,12 @@ import {
   X,
 } from '@lucide/vue'
 import type { ArcadeGameKey, ArcadeLobbyRoom, GameCatalogItem } from '../types/arcade'
+import { builtinGameDefinition } from '../game-platform/registry'
+import type { BuiltinGameLauncherPresentation } from '../game-platform/types'
 import { gameRuleLabels } from '../gameRules'
 import AvatarImage from './AvatarImage.vue'
 import GameCardArtwork from './GameCardArtwork.vue'
 import GameRuleSettings from './GameRuleSettings.vue'
-
-interface MatchIdentity {
-  kicker: string
-  title: string
-  description: string
-  accent: string
-  glow: string
-}
 
 const props = defineProps<{
   game: GameCatalogItem
@@ -53,79 +47,15 @@ const joinInput = ref<HTMLInputElement | null>(null)
 const showRules = ref(false)
 const ruleDraft = ref<Record<string, unknown>>({})
 
-const identities: Partial<Record<ArcadeGameKey, MatchIdentity>> = {
-  avalon: {
-    kicker: '忠诚与谎言同时入席',
-    title: '召集远征议会',
-    description: '建立你的议会，邀请熟悉的伙伴，在身份与投票之间决定王国的命运。',
+const identity = computed<BuiltinGameLauncherPresentation>(() => (
+  builtinGameDefinition(props.gameKey)?.presentation.launcher ?? {
+    kicker: props.game.description,
+    title: `创建${props.game.name}对局`,
+    description: '设置规则，邀请玩家加入房间。',
     accent: '#e1bc68',
-    glow: '#a77a2d',
-  },
-  one_night_werewolf: {
-    kicker: '月落之前，每个人都可能换了身份',
-    title: '召集月夜村庄',
-    description: '一晚完成所有行动，天亮后通过发言和一次秘密投票找出狼人。',
-    accent: '#95a9ee',
-    glow: '#4d5f9e',
-  },
-  gomoku: {
-    kicker: '纵横十五路，一线定胜负',
-    title: '落座连珠棋局',
-    description: '选择公平开局与胜负规则，邀请对手在棋盘中央展开攻守。',
-    accent: '#c5d2d7',
-    glow: '#71858d',
-  },
-  xiangqi: {
-    kicker: '隔河列阵，攻守有序',
-    title: '布下楚汉战局',
-    description: '创建一场完整可复盘的中国象棋对局，让每一步进退都有回应。',
-    accent: '#df887d',
-    glow: '#9d433d',
-  },
-  go: {
-    kicker: '方寸落子，争地围空',
-    title: '开启手谈棋局',
-    description: '设定棋盘、贴目与先手，在安静的落子中争夺整片疆域。',
-    accent: '#79c9ae',
-    glow: '#327c68',
-  },
-  poker: {
-    kicker: '筹码、位置与对手',
-    title: '开启德州牌桌',
-    description: '设定筹码与盲注，邀请玩家入席，让每一轮下注都保留压力。',
-    accent: '#df9d9d',
-    glow: '#8f4247',
-  },
-  doudizhu: {
-    kicker: '三人入局，叫抢定势',
-    title: '召集一桌牌局',
-    description: '创建三人牌局，确认玩法后邀请另外两位玩家加入。',
-    accent: '#83bde5',
-    glow: '#3d6f99',
-  },
-  junqi: {
-    kicker: '暗中布阵，铁路突袭',
-    title: '建立前线指挥所',
-    description: '选择暗棋或翻棋模式，与对手在隐蔽信息中争夺最后的军旗。',
-    accent: '#b4bd75',
-    glow: '#687039',
-  },
-  monopoly: {
-    kicker: '掷骰启程，让每条街道成为资产',
-    title: '开启城市财富竞赛',
-    description: '邀请伙伴环游城市，收购同色街区、升级地产，在回合终点成为首席大亨。',
-    accent: '#dfb45f',
-    glow: '#8a6126',
-  },
-}
-
-const identity = computed(() => identities[props.gameKey] ?? {
-  kicker: props.game.description,
-  title: `创建${props.game.name}对局`,
-  description: '设置规则，邀请玩家加入房间。',
-  accent: '#e1bc68',
-  glow: '#8a6b32',
-})
+    glow: '#8a6b32',
+  }
+))
 const ruleLabels = computed(() => gameRuleLabels(props.gameKey, props.modelValue))
 const selectedPublicRoom = computed(() => props.rooms.find(
   (room) => room.roomCode === props.roomCode.trim().toUpperCase(),

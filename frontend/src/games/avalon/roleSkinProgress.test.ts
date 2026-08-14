@@ -5,9 +5,9 @@ import {
   isAvalonRoleSkinFreeWeek,
   isRoleSkinUnlocked,
   loadAvalonRoleSkinProgress,
-} from './avalonRoleSkinProgress'
-import { rememberAccessToken } from './access'
-import { rememberAccountToken } from './account'
+} from './roleSkinProgress'
+import { rememberAccessToken } from '../../access'
+import { rememberAccountToken } from '../../account'
 
 describe('Avalon role skin progression', () => {
   beforeEach(() => {

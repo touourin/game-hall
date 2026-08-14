@@ -1,14 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import {
-  ChevronRight,
-  CircleHelp,
   Eye,
   QrCode,
   RotateCcw,
   Settings2,
   UsersRound,
-  X,
 } from '@lucide/vue'
 import ArcadeChatPanel from '../components/ArcadeChatPanel.vue'
 import GameSkinPicker from '../components/GameSkinPicker.vue'
@@ -21,43 +18,13 @@ import RoomDissolveButton from '../components/RoomDissolveButton.vue'
 import RoomPageHeader from '../components/RoomPageHeader.vue'
 import RoomRecordActions from '../components/RoomRecordActions.vue'
 import RoomInviteModal from '../components/RoomInviteModal.vue'
-import ModeGuide from '../components/ModeGuide.vue'
-import PressRevealCard from '../components/PressRevealCard.vue'
-import RoleSkinLoadoutPicker from '../components/RoleSkinLoadoutPicker.vue'
 import AvatarImage from '../components/AvatarImage.vue'
 import RoomPlayerRoster from '../components/RoomPlayerRoster.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
 import { useArcadeStore } from '../stores/arcade'
-import {
-  isAvalonArcadeSnapshot,
-  type ArcadeSnapshot,
-} from '../types/arcade'
-import type { RoleSkinLoadoutRoleOption } from '../components/uiTypes'
+import type { ArcadeSnapshot } from '../types/arcade'
 import { gameRuleLabels, withDefaultGameRules } from '../gameRules'
 import { isSoloGameKey } from '../gameCatalog'
-import { AVALON_COURT_GUIDE } from '../gameModeGuides'
-import {
-  ROLE_SKINS,
-  ROLE_SKIN_ROLES,
-  clearRoleSkinLoadoutLock,
-  defaultRoleSkinLoadout,
-  lockRoleSkinLoadout,
-  rememberRoleSkinLoadout,
-  roleArtwork,
-  roleArtworkFraming,
-  roleSkinName,
-  roleSkinRoleCode,
-  storedRoleSkinLoadout,
-  storedRoleSkinLoadoutLock,
-  type RoleSkinLoadout,
-  type RoleSkinId,
-} from '../gameRoleSkins'
-import {
-  emptyAvalonRoleSkinProgress,
-  isAvalonRoleSkinFreeWeek,
-  isRoleSkinUnlocked,
-  loadAvalonRoleSkinProgress,
-} from '../avalonRoleSkinProgress'
 import {
   gameSkinCssVariables,
   gameSkinKind,
@@ -65,8 +32,6 @@ import {
   storedGameSkin,
   type GameSkinId,
 } from '../gameSkins'
-import OneNightWerewolfRules from '../games/one_night_werewolf/OneNightWerewolfRules.vue'
-import type { OneNightWerewolfView } from '../games/one_night_werewolf/types'
 import { builtinGameDefinition } from '../game-platform/registry'
 import {
   thirdPartyGameComponent,
@@ -80,17 +45,17 @@ const builtinGame = computed(() => builtinGameDefinition(props.snapshot.gameKey)
 const roomShell = computed(() => builtinGame.value?.presentation.roomShell ?? {})
 const builtinGameView = computed(() => builtinGame.value?.presentation.component ?? null)
 const builtinRoomLayout = computed(() => builtinGame.value?.presentation.roomLayout ?? null)
+const moduleHeaderDetails = computed(() => roomShell.value.headerDetailsComponent ?? null)
+const moduleHeaderActions = computed(() => roomShell.value.headerActionsComponent ?? null)
+const moduleRuleActions = computed(() => roomShell.value.ruleActionsComponent ?? null)
+const moduleLobby = computed(() => roomShell.value.lobbyComponent ?? null)
+const moduleWaitingMessage = computed(() => (
+  roomShell.value.waitingMessage?.(props.snapshot) ?? null
+))
 const pluginGameComponent = computed(() => thirdPartyGameComponent(props.snapshot.gameKey))
 const pluginRoomLayout = computed(() => thirdPartyGameRoomLayout(props.snapshot.gameKey))
-const avalonSnapshot = computed(
-  () => isAvalonArcadeSnapshot(props.snapshot) ? props.snapshot.game : null,
-)
 const ruleEditor = ref<Record<string, unknown> | null>(null)
 const showQr = ref(false)
-const showPlayerNumbers = ref(false)
-const showIdentity = ref(false)
-const showAvalonRules = ref(false)
-const showOneNightRules = ref(false)
 const sharedChat = ref<{ openChat: () => Promise<void> } | null>(null)
 const activeGameSkin = ref<GameSkinId>(storedGameSkin())
 const isSpectating = computed(() => props.snapshot.viewer?.mode === 'spectator')
@@ -98,33 +63,9 @@ const perspectivePlayer = computed(() => props.snapshot.players.find(
   (player) => player.id === props.snapshot.self.id,
 ) ?? null)
 const roomSpectators = computed(() => props.snapshot.spectators ?? [])
-const oneNightSnapshot = computed(() => (
-  props.snapshot.gameKey === 'one_night_werewolf'
-    ? props.snapshot.game as unknown as OneNightWerewolfView
-    : null
-))
-const oneNightActiveRoleCodes = computed(() => (
-  [...new Set(oneNightSnapshot.value?.roleDeck.map(role => role.code) ?? [])]
-))
 const viewerIsGuest = computed(() => (
   props.snapshot.viewer?.isGuest ?? props.snapshot.self.isGuest
 ))
-const roleSkinAccountId = computed(() => (
-  props.snapshot.viewer?.accountId
-  ?? props.snapshot.self.accountId
-  ?? props.snapshot.viewer?.id
-  ?? props.snapshot.self.id
-))
-const selectedRoleSkinLoadout = ref<RoleSkinLoadout>(
-  viewerIsGuest.value
-    ? defaultRoleSkinLoadout()
-    : storedRoleSkinLoadout(roleSkinAccountId.value),
-)
-const lockedRoleSkinLoadout = ref<RoleSkinLoadout | null>(null)
-const roleSkinProgress = ref(emptyAvalonRoleSkinProgress())
-const roleSkinProgressLoading = ref(false)
-const roleSkinProgressError = ref<string | null>(null)
-let roleSkinProgressRequest = 0
 const missingPlayers = computed(
   () => Math.max(0, (props.snapshot.minimumPlayers ?? props.snapshot.requiredPlayers) - props.snapshot.players.length),
 )
@@ -150,62 +91,6 @@ const activeGameSkinKind = computed(() => gameSkinKind(props.snapshot.gameKey))
 const activeGameSkinStyle = computed(() => (
   activeGameSkinKind.value ? gameSkinCssVariables(activeGameSkin.value) : undefined
 ))
-const activeRoleFamily = computed(() => roleSkinRoleCode(
-  avalonSnapshot.value?.self.role?.code ?? '',
-))
-const activeRoleSkin = computed<RoleSkinId>(() => {
-  const role = activeRoleFamily.value
-  if (!role) return 'classic-tabletop'
-  const candidate = (
-    lockedRoleSkinLoadout.value ?? selectedRoleSkinLoadout.value
-  )[role]
-  return isRoleSkinUnlocked(roleSkinProgress.value, role, candidate)
-    ? candidate
-    : 'classic-tabletop'
-})
-const roleSkinLoadoutOptions = computed<RoleSkinLoadoutRoleOption[]>(() => (
-  ROLE_SKIN_ROLES.map((role) => {
-    const progressCode = role.code === 'shadow_merlin'
-      ? 'merlin'
-      : role.code === 'dissenting_courtier'
-        ? 'loyal_servant'
-        : role.code
-    const progress = roleSkinProgress.value.roles[progressCode]
-    const selectedSkinId = selectedRoleSkinLoadout.value[role.code]
-    const selectedSkin = ROLE_SKINS.find((skin) => skin.id === selectedSkinId)
-      ?? ROLE_SKINS[0]!
-    return {
-      code: role.code,
-      name: role.name,
-      group: role.alignment === 'good' ? '亚瑟阵营' : '莫德雷德阵营',
-      wins: progress.wins,
-      currentSkinName: selectedSkin.name,
-      currentArtwork: roleArtwork(role.code, selectedSkin.id) ?? selectedSkin.preview,
-      currentFraming: roleArtworkFraming(role.code, selectedSkin.id),
-      legacyAllUnlocked: roleSkinProgress.value.legacyAllUnlocked,
-      eventAllUnlocked: roleSkinProgress.value.eventAllUnlocked,
-      upgradeWinsRequired: roleSkinProgress.value.upgradeWinsRequired,
-      ultimateWinsRequired: roleSkinProgress.value.ultimateWinsRequired,
-      choices: ROLE_SKINS.map((skin) => {
-        const requiredWins = skin.tier === '终极'
-          ? roleSkinProgress.value.ultimateWinsRequired
-          : skin.tier === '升级'
-            ? roleSkinProgress.value.upgradeWinsRequired
-            : 0
-        return {
-          id: skin.id,
-          name: skin.name,
-          description: skin.description,
-          tier: skin.tier,
-          artwork: roleArtwork(role.code, skin.id) ?? skin.preview,
-          framing: roleArtworkFraming(role.code, skin.id),
-          unlocked: isRoleSkinUnlocked(roleSkinProgress.value, role.code, skin.id),
-          remainingWins: Math.max(0, requiredWins - progress.wins),
-        }
-      }),
-    }
-  })
-))
 const roomHeaderEyebrow = computed(() => {
   const suffix = roomShell.value.headerEyebrowSuffix?.(props.snapshot)
     ?? (isSolo.value ? ' · 单人挑战' : '')
@@ -219,98 +104,10 @@ const roomHeaderTitle = computed(() => {
 })
 const roomStatsMode = computed(() => roomShell.value.statsMode?.(props.snapshot))
 
-function reconciledRoleSkinLoadout(loadout: RoleSkinLoadout): RoleSkinLoadout {
-  return Object.fromEntries(
-    ROLE_SKIN_ROLES.map((role) => {
-      const skin = loadout[role.code]
-      return [
-        role.code,
-        isRoleSkinUnlocked(roleSkinProgress.value, role.code, skin)
-          ? skin
-          : 'classic-tabletop',
-      ]
-    }),
-  ) as RoleSkinLoadout
-}
-
-async function refreshRoleSkinProgress() {
-  if (!avalonSnapshot.value) return
-  const request = ++roleSkinProgressRequest
-  roleSkinProgressError.value = null
-  if (viewerIsGuest.value) {
-    roleSkinProgress.value = emptyAvalonRoleSkinProgress(
-      isAvalonRoleSkinFreeWeek(),
-    )
-    selectedRoleSkinLoadout.value = defaultRoleSkinLoadout()
-    return
-  }
-  roleSkinProgressLoading.value = true
-  try {
-    const progress = await loadAvalonRoleSkinProgress()
-    if (request !== roleSkinProgressRequest) return
-    roleSkinProgress.value = progress
-    const reconciled = reconciledRoleSkinLoadout(selectedRoleSkinLoadout.value)
-    selectedRoleSkinLoadout.value = reconciled
-    rememberRoleSkinLoadout(roleSkinAccountId.value, reconciled)
-  } catch (error) {
-    if (request !== roleSkinProgressRequest) return
-    roleSkinProgress.value = emptyAvalonRoleSkinProgress(
-      isAvalonRoleSkinFreeWeek(),
-    )
-    selectedRoleSkinLoadout.value = defaultRoleSkinLoadout()
-    roleSkinProgressError.value = error instanceof Error
-      ? error.message
-      : '身份皮肤进度读取失败'
-  } finally {
-    if (request === roleSkinProgressRequest) roleSkinProgressLoading.value = false
-  }
-}
-
 watch(
   () => [props.snapshot.phase, props.snapshot.gameKey] as const,
   ([phase]) => {
     if (phase !== 'lobby' || isSolo.value) showQr.value = false
-  },
-)
-watch(
-  () => [props.snapshot.roomCode, avalonSnapshot.value?.phase] as const,
-  ([roomCode, phase]) => {
-    if (!phase) return
-    if (phase === 'lobby') {
-      clearRoleSkinLoadoutLock(roomCode)
-      lockedRoleSkinLoadout.value = null
-      selectedRoleSkinLoadout.value = viewerIsGuest.value
-        ? defaultRoleSkinLoadout()
-        : storedRoleSkinLoadout(roleSkinAccountId.value)
-      return
-    }
-    lockedRoleSkinLoadout.value =
-      storedRoleSkinLoadoutLock(roomCode) ??
-      lockRoleSkinLoadout(roomCode, selectedRoleSkinLoadout.value)
-  },
-  { immediate: true },
-)
-watch(
-  () => [
-    props.snapshot.gameKey,
-    roleSkinAccountId.value,
-    viewerIsGuest.value,
-  ] as const,
-  ([gameKey]) => {
-    if (gameKey !== 'avalon') return
-    selectedRoleSkinLoadout.value = viewerIsGuest.value
-      ? defaultRoleSkinLoadout()
-      : storedRoleSkinLoadout(roleSkinAccountId.value)
-    void refreshRoleSkinProgress()
-  },
-  { immediate: true },
-)
-watch(
-  () => avalonSnapshot.value?.phase,
-  (phase, previousPhase) => {
-    if (phase === 'lobby' && previousPhase && previousPhase !== 'lobby') {
-      void refreshRoleSkinProgress()
-    }
   },
 )
 const exitDescription = computed(() => {
@@ -355,49 +152,8 @@ function selectGameSkin(skin: GameSkinId) {
   rememberGameSkin(skin)
 }
 
-function selectRoleSkin(roleCode: string, skinId: string) {
-  if (avalonSnapshot.value?.phase !== 'lobby') return
-  const role = roleSkinRoleCode(roleCode)
-  const skin = ROLE_SKINS.find((option) => option.id === skinId)?.id
-  if (!role || !skin || !isRoleSkinUnlocked(roleSkinProgress.value, role, skin)) return
-  const next = { ...selectedRoleSkinLoadout.value, [role]: skin }
-  selectedRoleSkinLoadout.value = next
-  if (!viewerIsGuest.value) {
-    rememberRoleSkinLoadout(roleSkinAccountId.value, next)
-  }
-}
-
-function playerNumber(playerId: string): number | null {
-  const player = props.snapshot.players.find((item) => item.id === playerId)
-  return player ? player.seat + 1 : null
-}
-
-function avalonPlayerLabel(playerId: string): string {
-  const player = props.snapshot.players.find((item) => item.id === playerId)
-  return player ? `${player.seat + 1}号 ${player.name}` : '未知玩家'
-}
-
-function aiDifficultyLabel(difficulty?: string | null): string {
-  if (!difficulty) return '普通'
-  return props.snapshot.ai?.difficulties.find(
-    (option) => option.key === difficulty,
-  )?.label ?? difficulty
-}
-
 function addAiPlayer(difficulty: string) {
   void arcade.action('add_ai', { difficulty })
-}
-
-function selfRoleArtwork(): string | null {
-  const roleCode = avalonSnapshot.value?.self.role?.code
-  return roleCode ? roleArtwork(roleCode, activeRoleSkin.value) : null
-}
-
-function selfRoleArtworkFraming() {
-  return roleArtworkFraming(
-    avalonSnapshot.value?.self.role?.code ?? '',
-    activeRoleSkin.value,
-  )
 }
 
 function openSharedChat() {
@@ -434,22 +190,8 @@ function openSharedChat() {
           @abandon="arcade.abandonRoom"
         />
       </template>
-      <template v-if="avalonSnapshot" #details>
-        <button
-          class="self-number-trigger"
-          type="button"
-          :aria-label="`${isSpectating ? '观战视角' : '我的号码'}是 ${playerNumber(snapshot.self.id)} 号，查看玩家号码表`"
-          @click="showPlayerNumbers = true"
-        >
-          <span class="self-number-value">
-            {{ playerNumber(snapshot.self.id) }}号
-          </span>
-          <span class="self-number-copy">
-            <small>{{ isSpectating ? '观战视角' : '我的号码' }}</small>
-            <span>查看号码表</span>
-          </span>
-          <ChevronRight :size="14" aria-hidden="true" />
-        </button>
+      <template v-if="moduleHeaderDetails" #details>
+        <component :is="moduleHeaderDetails" :snapshot="snapshot" />
       </template>
       <template #actions>
         <RoomRecordActions
@@ -477,33 +219,11 @@ function openSharedChat() {
         >
           <QrCode :size="21" />
         </button>
-        <button
-          v-if="avalonSnapshot?.self.role && avalonSnapshot.phase !== 'game_over'"
-          class="header-action"
-          type="button"
-          aria-label="查看我的身份"
-          @click="showIdentity = true"
-        >
-          <Eye :size="20" />
-        </button>
-        <button
-          v-if="avalonSnapshot"
-          class="header-action"
-          type="button"
-          aria-label="查看玩法说明"
-          @click="showAvalonRules = true"
-        >
-          <CircleHelp :size="21" />
-        </button>
-        <button
-          v-if="oneNightSnapshot"
-          class="header-action"
-          type="button"
-          aria-label="查看一夜狼人规则与角色"
-          @click="showOneNightRules = true"
-        >
-          <CircleHelp :size="21" />
-        </button>
+        <component
+          v-if="moduleHeaderActions"
+          :is="moduleHeaderActions"
+          :snapshot="snapshot"
+        />
         <RoomDissolveButton
           v-if="snapshot.actions.canDissolve"
           :busy="arcade.busy"
@@ -565,7 +285,12 @@ function openSharedChat() {
         <span>掉线保护 10 分钟</span>
       </div>
       <div class="room-rule-actions">
-        <button v-if="oneNightSnapshot" type="button" @click="showOneNightRules = true">规则与角色</button>
+        <component
+          v-if="moduleRuleActions"
+          :is="moduleRuleActions"
+          :snapshot="snapshot"
+          placement="rule"
+        />
         <button v-if="snapshot.actions.canEditRules" type="button" @click="openRuleEditor">{{ snapshot.phase === 'finished' ? '修改下局规则' : '修改规则' }}</button>
       </div>
     </section>
@@ -577,24 +302,16 @@ function openSharedChat() {
       @update:model-value="selectGameSkin"
     />
 
-    <RoleSkinLoadoutPicker
-      v-if="avalonSnapshot?.phase === 'lobby'"
-      :roles="roleSkinLoadoutOptions"
-      :loading="roleSkinProgressLoading"
-      :error="roleSkinProgressError"
-      @select="selectRoleSkin"
-      @retry="refreshRoleSkinProgress"
+    <component
+      v-if="snapshot.phase === 'lobby' && moduleLobby"
+      :is="moduleLobby"
+      :snapshot="snapshot"
     />
 
     <section v-if="snapshot.phase === 'lobby'" class="surface arcade-waiting">
       <UsersRound :size="48" />
       <h2>等待玩家到齐</h2>
-      <p
-        v-if="avalonSnapshot?.settings.shadowMerlinEnabled && snapshot.players.length < 6"
-      >
-        暗影梅林扩展至少需要 6 名玩家，还需
-        {{ 6 - snapshot.players.length }} 名
-      </p>
+      <p v-if="moduleWaitingMessage">{{ moduleWaitingMessage }}</p>
       <p v-else-if="missingPlayers > 0">还需要 {{ missingPlayers }} 名玩家</p>
       <p v-else-if="availableSeats > 0">已可开始，还可加入 {{ availableSeats }} 名玩家</p>
       <p v-else>人员已到齐，房主可以开始</p>
@@ -618,7 +335,7 @@ function openSharedChat() {
     </section>
 
     <section v-else class="arcade-game-stage">
-      <div v-if="snapshot.phase === 'finished' && !isSolo && !avalonSnapshot" class="surface result-banner">
+      <div v-if="snapshot.phase === 'finished' && !isSolo && !roomShell.handlesResult" class="surface result-banner">
         <small>{{ roomShell.finishedLabel ?? '本局结束' }}</small>
         <h2>{{ snapshot.winReason }}</h2>
         <p>
@@ -643,13 +360,11 @@ function openSharedChat() {
       </div>
 
       <component
-        v-if="avalonSnapshot && builtinGameView"
+        v-if="builtinGameView"
         :is="builtinGameView"
-        :snapshot="avalonSnapshot"
-        :role-skin="activeRoleSkin"
+        :snapshot="snapshot"
         @open-chat="openSharedChat"
       />
-      <component v-else-if="builtinGameView" :is="builtinGameView" :snapshot="snapshot" />
       <component v-else-if="pluginGameComponent" :is="pluginGameComponent" :snapshot="snapshot" />
 
       <MatchRequestPanel
@@ -699,106 +414,6 @@ function openSharedChat() {
         <button type="button" class="primary-button wide-button" :disabled="arcade.busy" @click="saveRules">保存规则</button>
     </BaseModal>
 
-    <BaseModal
-      v-if="showPlayerNumbers && avalonSnapshot"
-      aria-label="玩家号码表"
-      panel-class="player-number-modal"
-      close-label="关闭玩家号码表"
-      mobile-sheet
-      inline
-      @close="showPlayerNumbers = false"
-    >
-        <span class="modal-icon"><UsersRound :size="25" /></span>
-        <h2>玩家号码表</h2>
-        <p>本局号码保持不变</p>
-        <div class="player-number-list">
-          <div
-            v-for="player in snapshot.players"
-            :key="player.id"
-            :class="{ self: player.id === snapshot.self.id }"
-          >
-            <span>{{ player.seat + 1 }}</span>
-            <strong>{{ player.name }}</strong>
-            <small v-if="player.isBot">AI · {{ aiDifficultyLabel(player.botDifficulty) }}</small>
-            <small v-if="player.id === snapshot.self.id">{{ isSpectating ? '观战视角' : '你' }}</small>
-          </div>
-        </div>
-    </BaseModal>
-
-    <div v-if="showIdentity && avalonSnapshot?.self.role" class="modal-backdrop" @click.self="showIdentity = false">
-      <section class="modal-card identity-modal" role="dialog" aria-modal="true">
-        <button class="modal-close" type="button" aria-label="关闭身份" @click="showIdentity = false">
-          <X :size="20" />
-        </button>
-        <PressRevealCard
-          :title="avalonSnapshot.self.role.label"
-          :subtitle="avalonSnapshot.self.role.alignment === 'good' ? '亚瑟阵营' : '莫德雷德阵营'"
-          :artwork="selfRoleArtwork()"
-          :artwork-label="roleSkinName(activeRoleSkin)"
-          :artwork-framing="selfRoleArtworkFraming()"
-          hint="按住重新查看身份"
-        >
-          <p class="secret-description">{{ avalonSnapshot.self.role.description }}</p>
-          <div v-if="avalonSnapshot.self.role.knowledge.length" class="knowledge-list">
-            <span v-for="item in avalonSnapshot.self.role.knowledge" :key="item.playerId">
-              {{ avalonPlayerLabel(item.playerId) }} · {{ item.label }}
-            </span>
-          </div>
-          <div v-if="avalonSnapshot.lady.myChecks.length" class="knowledge-list">
-            <span v-for="check in avalonSnapshot.lady.myChecks" :key="`${check.missionNumber}-${check.targetId}`">
-              仙女：{{ avalonPlayerLabel(check.targetId) }} · {{ check.alignment === 'good' ? '好人阵营' : '坏人阵营' }}
-            </span>
-          </div>
-        </PressRevealCard>
-      </section>
-    </div>
-
-    <BaseModal
-      v-if="showAvalonRules && avalonSnapshot"
-      aria-label="阿瓦隆玩法说明"
-      panel-class="rules-modal"
-      close-label="关闭玩法说明"
-      mobile-sheet
-      inline
-      @close="showAvalonRules = false"
-    >
-        <span class="modal-icon"><CircleHelp :size="25" /></span>
-        <h2>{{ avalonSnapshot.settings.mode === 'court_undercurrent' ? '王庭暗流 · 玩法说明' : '标准阿瓦隆 · 玩法说明' }}</h2>
-        <p>{{ avalonSnapshot.settings.mode === 'court_undercurrent' ? '背景故事、特殊角色与终局规则集中在这里。' : '本局采用标准阿瓦隆规则。' }}</p>
-        <ModeGuide
-          v-if="avalonSnapshot.settings.mode === 'court_undercurrent'"
-          :content="AVALON_COURT_GUIDE"
-        />
-        <section class="avalon-core-rules">
-          <h3>阿瓦隆基础规则</h3>
-          <ul>
-            <li>好人只能提交任务成功，坏人可选择成功或失败。</li>
-            <li>队伍表决需要过半赞成，平票视为否决。</li>
-            <li>同一任务连续五次组队被否决，当前任务直接失败。</li>
-            <li>部分玩家掉线超过 10 分钟，其所属阵营弃权；全员离线只进入房间清理流程。</li>
-            <li v-if="snapshot.players.length >= 7">第四次任务需要两张失败票才会失败。</li>
-            <li v-if="avalonSnapshot.settings.ladyEnabled">仙女只查阵营，持有者可以谎报查验结果。</li>
-          </ul>
-        </section>
-    </BaseModal>
-
-    <BaseModal
-      v-if="showOneNightRules && oneNightSnapshot"
-      aria-label="一夜狼人规则与角色说明"
-      panel-class="one-night-rules-modal"
-      close-label="关闭规则与角色说明"
-      mobile-sheet
-      inline
-      @close="showOneNightRules = false"
-    >
-        <span class="modal-icon"><CircleHelp :size="25" /></span>
-        <h2>一夜狼人 · 规则与角色</h2>
-        <p>玩法流程、角色技能、行动限制与胜负条件统一整理在这里。</p>
-        <OneNightWerewolfRules
-          :roles="oneNightSnapshot.roleGuide"
-          :active-role-codes="oneNightActiveRoleCodes"
-        />
-    </BaseModal>
   </main>
 </template>
 
@@ -836,7 +451,6 @@ function openSharedChat() {
 .result-banner .rematch-progress { margin-bottom: 0; font-size: 11px; }
 .result-banner .primary-button { margin: 12px auto 0; }
 :global(.modal-card.rule-editor-modal) { width: min(94vw, 620px); max-height: min(88vh, 820px); overflow-y: auto; }
-:global(.modal-card.one-night-rules-modal) { width:min(94vw,780px); max-height:min(88vh,880px); overflow-y:auto; }
 :global(.modal-card.rule-editor-modal) > p { margin: -4px 0 20px; color: var(--muted); }
 :global(.modal-card.rule-editor-modal) > .wide-button { margin-top: 22px; }
 @media (max-width: 620px), (orientation: landscape) and (max-height: 600px) and (max-width: 980px) {

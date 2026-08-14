@@ -1,3 +1,4 @@
+import { defineAsyncComponent } from 'vue'
 import type { BuiltinGameRoomShellPresentation } from '../../game-platform/types'
 
 const phaseLabels: Record<string, string> = {
@@ -10,6 +11,8 @@ const phaseLabels: Record<string, string> = {
 }
 
 export const oneNightWerewolfRoomShell: BuiltinGameRoomShellPresentation = {
+  headerActionsComponent: defineAsyncComponent(() => import('./RoomHelp.vue')),
+  ruleActionsComponent: defineAsyncComponent(() => import('./RoomHelp.vue')),
   headerEyebrowSuffix: (snapshot) =>
     ` · ${phaseLabels[snapshot.phase] ?? snapshot.phase}`,
 }

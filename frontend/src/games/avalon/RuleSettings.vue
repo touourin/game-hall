@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import ModeGuide from '../../components/ModeGuide.vue'
 import type { BuiltinGameRuleSettingsEmits, BuiltinGameRuleSettingsProps } from '../../game-platform/types'
-import { AVALON_COURT_GUIDE } from '../../gameModeGuides'
+import { AVALON_COURT_GUIDE } from './modeGuide'
 
 defineProps<BuiltinGameRuleSettingsProps>()
 const emit = defineEmits<BuiltinGameRuleSettingsEmits>()

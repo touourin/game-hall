@@ -3,13 +3,15 @@ import { flushPromises, mount, shallowMount } from '@vue/test-utils'
 import type {
   ArcadeGameKey,
   ArcadeSnapshot,
-  AvalonArcadeSnapshot,
 } from '../types/arcade'
 import * as clipboard from '../clipboard'
 import RoomPageHeader from '../components/RoomPageHeader.vue'
 import RoomPlayerRoster from '../components/RoomPlayerRoster.vue'
 import { useArcadeStore } from '../stores/arcade'
-import type { RoomSnapshot as AvalonRoomSnapshot } from '../types/avalon'
+import type {
+  AvalonArcadeSnapshot,
+  RoomSnapshot as AvalonRoomSnapshot,
+} from '../games/avalon/types'
 import ArcadeRoom from './ArcadeRoom.vue'
 import AvalonTable from '../games/avalon/AvalonTable.vue'
 import ChessBoard from '../games/chess/ChessBoard.vue'
@@ -19,7 +21,7 @@ import {
   defaultRoleSkinLoadout,
   rememberRoleSkinLoadout,
   storedRoleSkinLoadout,
-} from '../gameRoleSkins'
+} from '../games/avalon/roleSkins'
 
 function roleSkinProgressResponse(legacyAllUnlocked = true): Response {
   const roleProgress = {
@@ -50,6 +52,11 @@ function roleSkinProgressResponse(legacyAllUnlocked = true): Response {
       ),
     },
   }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+}
+
+async function settleLazyComponents(): Promise<void> {
+  await vi.dynamicImportSettled()
+  await flushPromises()
 }
 
 function snapshot(gameKey: ArcadeGameKey): ArcadeSnapshot {
@@ -247,7 +254,8 @@ describe('ArcadeRoom', () => {
     sessionStorage.clear()
   })
 
-  afterEach(() => {
+  afterEach(async () => {
+    await vi.dynamicImportSettled()
     vi.unstubAllGlobals()
     document.body.innerHTML = ''
   })
@@ -353,7 +361,7 @@ describe('ArcadeRoom', () => {
       props: { snapshot: room },
       global: { plugins: [createPinia()] },
     })
-    await flushPromises()
+    await settleLazyComponents()
 
     expect(wrapper.findComponent(ChessBoard).exists()).toBe(true)
     expect(wrapper.findAll('.chess-cell')).toHaveLength(64)
@@ -458,6 +466,7 @@ describe('ArcadeRoom', () => {
       props: { snapshot: room },
       global: { plugins: [pinia] },
     })
+    await settleLazyComponents()
 
     expect(wrapper.findAll('main.arcade-room')).toHaveLength(1)
     expect(wrapper.find('.game-page').exists()).toBe(false)
@@ -522,7 +531,7 @@ describe('ArcadeRoom', () => {
       props: { snapshot: avalonSnapshot() },
       global: { plugins: [createPinia()] },
     })
-    await flushPromises()
+    await settleLazyComponents()
 
     await wrapper.get('[data-role-skin-role="merlin"]').trigger('click')
     document.body.querySelector<HTMLButtonElement>(
@@ -554,7 +563,7 @@ describe('ArcadeRoom', () => {
       props: { snapshot: room },
       global: { plugins: [createPinia()] },
     })
-    await flushPromises()
+    await settleLazyComponents()
 
     expect(wrapper.getComponent(AvalonTable).props('roleSkin')).toBe('dark-chronicle')
   })
@@ -577,7 +586,7 @@ describe('ArcadeRoom', () => {
       props: { snapshot: room },
       global: { plugins: [createPinia()] },
     })
-    await flushPromises()
+    await settleLazyComponents()
 
     expect(wrapper.getComponent(AvalonTable).props('roleSkin')).toBe('grail-myth')
   })
@@ -624,7 +633,7 @@ describe('ArcadeRoom', () => {
     expect(wrapper.get('.rules-modal').text()).toContain('心怀异念之臣')
 
     await wrapper.setProps({ snapshot: avalonSnapshot('role_reveal') })
-    await flushPromises()
+    await settleLazyComponents()
     expect(wrapper.find('[aria-label="查看我的战绩"]').exists()).toBe(true)
     expect(wrapper.find('[aria-label="查看排行榜"]').exists()).toBe(true)
     expect(wrapper.find('[aria-label="打开设置"]').exists()).toBe(true)
@@ -912,6 +921,7 @@ describe('ArcadeRoom', () => {
       props: { snapshot: room },
       global: { plugins: [createPinia()] },
     })
+    await settleLazyComponents()
 
     const guideButton = wrapper
       .findAll('.room-rule-actions button')

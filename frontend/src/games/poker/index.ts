@@ -27,6 +27,13 @@ export const pokerGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./PokerTable.vue')),
     roomLayout: 'wide',
     skinKind: 'cards',
+    launcher: {
+      kicker: '筹码、位置与对手',
+      title: '开启德州牌桌',
+      description: '设定筹码与盲注，邀请玩家入席，让每一轮下注都保留压力。',
+      accent: '#df9d9d',
+      glow: '#8f4247',
+    },
     roomShell: {
       activeExitDescription: '暂时返回会保留座位和筹码；退出并淘汰将放弃本桌，而且无法再返回。',
       abandonLabel: '退出并淘汰',

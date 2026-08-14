@@ -1,5 +1,6 @@
+import { defineAsyncComponent } from 'vue'
 import type { BuiltinGameRoomShellPresentation } from '../../game-platform/types'
-import { isAvalonArcadeSnapshot } from '../../types/arcade'
+import { isAvalonArcadeSnapshot } from './types'
 
 const phaseLabels: Record<string, string> = {
   lobby: '等待玩家集结',
@@ -20,6 +21,15 @@ const phaseLabels: Record<string, string> = {
 }
 
 export const avalonRoomShell: BuiltinGameRoomShellPresentation = {
+  headerDetailsComponent: defineAsyncComponent(
+    () => import('./AvalonRoomHeaderDetails.vue'),
+  ),
+  headerActionsComponent: defineAsyncComponent(
+    () => import('./AvalonRoomHeaderActions.vue'),
+  ),
+  lobbyComponent: defineAsyncComponent(
+    () => import('./AvalonRoomLobby.vue'),
+  ),
   headerEyebrowSuffix: (snapshot) => {
     if (!isAvalonArcadeSnapshot(snapshot)) return ''
     const mode = snapshot.game.settings.mode === 'court_undercurrent'
@@ -27,4 +37,12 @@ export const avalonRoomShell: BuiltinGameRoomShellPresentation = {
       : '标准模式'
     return ` · ${mode} · ${phaseLabels[snapshot.game.phase] ?? snapshot.game.phase}`
   },
+  waitingMessage: (snapshot) => {
+    if (!isAvalonArcadeSnapshot(snapshot)) return null
+    if (!snapshot.game.settings.shadowMerlinEnabled || snapshot.players.length >= 6) {
+      return null
+    }
+    return `暗影梅林扩展至少需要 6 名玩家，还需 ${6 - snapshot.players.length} 名`
+  },
+  handlesResult: true,
 }

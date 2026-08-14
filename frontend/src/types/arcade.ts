@@ -166,17 +166,6 @@ export interface ArcadeSnapshot {
   game: Record<string, unknown>
 }
 
-export type AvalonArcadeSnapshot = Omit<ArcadeSnapshot, 'gameKey' | 'game'> & {
-  gameKey: 'avalon'
-  game: import('./avalon').RoomSnapshot
-}
-
-export function isAvalonArcadeSnapshot(
-  snapshot: ArcadeSnapshot,
-): snapshot is ArcadeSnapshot & AvalonArcadeSnapshot {
-  return snapshot.gameKey === 'avalon'
-}
-
 export type ArcadePhase =
   | 'lobby'
   | 'setup'

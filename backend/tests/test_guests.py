@@ -55,6 +55,18 @@ def test_guest_http_session_can_restore_and_view_leaderboard(
         leaderboard = client.get(
             "/api/leaderboard?game=gomoku", headers=authenticated
         )
+        invalid_mode = client.get(
+            "/api/leaderboard?game=gomoku&mode=standard",
+            headers=authenticated,
+        )
+        valid_mode = client.get(
+            "/api/leaderboard?game=tetris&mode=timed_300",
+            headers=authenticated,
+        )
+        invalid_variant = client.get(
+            "/api/leaderboard?game=avalon&mode=standard&variant=shadow_merlin",
+            headers=authenticated,
+        )
         stats = client.get("/api/stats/me", headers=authenticated)
 
     assert created.status_code == 200
@@ -62,6 +74,11 @@ def test_guest_http_session_can_restore_and_view_leaderboard(
     assert restored.status_code == 200
     assert restored.json()["account"]["playerName"] == "观战骑士"
     assert leaderboard.status_code == 200
+    assert invalid_mode.status_code == 400
+    assert invalid_mode.json()["detail"] == "游戏模式或难度不正确"
+    assert valid_mode.status_code == 200
+    assert invalid_variant.status_code == 400
+    assert invalid_variant.json()["detail"] == "王庭暗流统计分组不正确"
     assert stats.status_code == 401
 
 
