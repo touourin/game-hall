@@ -1,5 +1,6 @@
 import { defineAsyncComponent } from 'vue'
 import avalonArtwork from '../../assets/game-hall/icons/avalon.webp'
+import { socialTableCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
 import { avalonLeaderboard, avalonStats } from './records'
@@ -17,15 +18,11 @@ export const avalonGame = defineBuiltinGame({
     category: '社交推理',
     artwork: avalonArtwork,
   },
-  capabilities: {
-    undo: false,
-    draw: false,
-    guests: true,
-    spectators: true,
+  capabilities: socialTableCapabilities({
     firstPlayer: false,
     replay: true,
     ai: true,
-  },
+  }),
   presentation: {
     component: defineAsyncComponent(() => import('./AvalonRoomGame.vue')),
     roomLayout: 'wide',

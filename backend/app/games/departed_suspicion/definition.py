@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from backend.app.games.definition import (
-    GameCapabilities,
     GameCatalogMetadata,
     GameDefinition,
+    social_table_capabilities,
 )
 
 from .engine import DepartedSuspicionEngine
@@ -19,9 +19,5 @@ DEPARTED_SUSPICION_GAME = GameDefinition(
         max_players=8,
         description="调查底细、装备应变并找出敌方领袖",
     ),
-    capabilities=GameCapabilities(
-        guests=True,
-        spectators=True,
-        first_player=True,
-    ),
+    capabilities=social_table_capabilities(),
 )

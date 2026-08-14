@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from backend.app.games.definition import (
-    GameCapabilities,
     GameCatalogMetadata,
     GameDefinition,
     GameRecords,
+    social_table_capabilities,
 )
 
 from .arcade import AvalonEngine
@@ -20,9 +20,7 @@ AVALON_GAME = GameDefinition(
         max_players=10,
         description="身份推理与团队博弈",
     ),
-    capabilities=GameCapabilities(
-        guests=True,
-        spectators=True,
+    capabilities=social_table_capabilities(
         first_player=False,
         replay=True,
         ai=True,

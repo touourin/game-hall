@@ -28,6 +28,25 @@ class GameCapabilities:
         return bool(self.undo_actions)
 
 
+def social_table_capabilities(
+    *,
+    guests: bool = True,
+    spectators: bool = True,
+    first_player: bool = True,
+    replay: bool = False,
+    ai: bool = False,
+) -> GameCapabilities:
+    """Shared platform defaults for social, card, and party tables."""
+
+    return GameCapabilities(
+        guests=guests,
+        spectators=spectators,
+        first_player=first_player,
+        replay=replay,
+        ai=ai,
+    )
+
+
 @dataclass(frozen=True)
 class GameCatalogMetadata:
     order: int

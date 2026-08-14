@@ -1,5 +1,6 @@
 import { defineAsyncComponent } from 'vue'
 import artwork from '../../assets/game-hall/icons/one-night-werewolf.webp'
+import { socialTableCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { oneNightWerewolfStats } from './records'
 import { oneNightWerewolfRoomShell } from './roomPresentation'
@@ -15,15 +16,10 @@ export const oneNightWerewolfGame = defineBuiltinGame({
     category: '社交推理',
     artwork,
   },
-  capabilities: {
-    undo: false,
-    draw: false,
-    guests: true,
+  capabilities: socialTableCapabilities({
     spectators: false,
     firstPlayer: false,
-    replay: false,
-    ai: false,
-  },
+  }),
   presentation: {
     component: defineAsyncComponent(() => import('./OneNightWerewolfTable.vue')),
     roomLayout: 'wide',

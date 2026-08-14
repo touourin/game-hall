@@ -20,6 +20,21 @@ const soloGameDefaults: BuiltinGameCapabilities = {
   ai: false,
 }
 
+const socialTableDefaults: BuiltinGameCapabilities = {
+  undo: false,
+  draw: false,
+  guests: true,
+  spectators: true,
+  firstPlayer: true,
+  replay: false,
+  ai: false,
+}
+
+type SocialTableCapabilityOverrides = Partial<Pick<
+  BuiltinGameCapabilities,
+  'guests' | 'spectators' | 'firstPlayer' | 'replay' | 'ai'
+>>
+
 export function boardDuelCapabilities(
   overrides: Partial<BuiltinGameCapabilities> = {},
 ): BuiltinGameCapabilities {
@@ -30,4 +45,10 @@ export function soloGameCapabilities(
   overrides: Partial<BuiltinGameCapabilities> = {},
 ): BuiltinGameCapabilities {
   return { ...soloGameDefaults, ...overrides }
+}
+
+export function socialTableCapabilities(
+  overrides: SocialTableCapabilityOverrides = {},
+): BuiltinGameCapabilities {
+  return { ...socialTableDefaults, ...overrides }
 }

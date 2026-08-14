@@ -1,5 +1,6 @@
 import { defineAsyncComponent } from 'vue'
 import monopolyArtwork from '../../assets/game-hall/icons/monopoly.webp'
+import { socialTableCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 
 export const monopolyGame = defineBuiltinGame({
@@ -13,15 +14,7 @@ export const monopolyGame = defineBuiltinGame({
     category: '派对桌游',
     artwork: monopolyArtwork,
   },
-  capabilities: {
-    undo: false,
-    draw: false,
-    guests: true,
-    spectators: true,
-    firstPlayer: true,
-    replay: false,
-    ai: false,
-  },
+  capabilities: socialTableCapabilities(),
   presentation: {
     component: defineAsyncComponent(() => import('./MonopolyBoard.vue')),
     roomLayout: 'wide',

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from backend.app.games.definition import (
-    GameCapabilities,
     GameCatalogMetadata,
     GameDefinition,
+    social_table_capabilities,
 )
 
 from .engine import OneNightWerewolfEngine
@@ -19,8 +19,7 @@ ONE_NIGHT_WEREWOLF_GAME = GameDefinition(
         max_players=10,
         description="一晚行动、晨间推理与一次终局投票",
     ),
-    capabilities=GameCapabilities(
-        guests=True,
+    capabilities=social_table_capabilities(
         spectators=False,
         first_player=False,
     ),

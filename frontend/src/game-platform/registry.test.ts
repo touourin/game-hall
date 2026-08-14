@@ -71,6 +71,54 @@ describe('built-in game registry', () => {
     })
   })
 
+  it('preserves every social-table capability after sharing defaults', () => {
+    const socialTableKeys = [
+      'avalon',
+      'departed_suspicion',
+      'one_night_werewolf',
+      'poker',
+      'doudizhu',
+      'monopoly',
+    ] as const
+    const shared = {
+      undo: false,
+      draw: false,
+      guests: true,
+      spectators: true,
+      firstPlayer: true,
+      replay: false,
+      ai: false,
+    }
+
+    expect(builtinGameDefinition('departed_suspicion')?.capabilities).toEqual(shared)
+    expect(builtinGameDefinition('doudizhu')?.capabilities).toEqual(shared)
+    expect(builtinGameDefinition('monopoly')?.capabilities).toEqual(shared)
+    expect(builtinGameDefinition('poker')?.capabilities).toEqual({
+      ...shared,
+      firstPlayer: false,
+    })
+    expect(builtinGameDefinition('one_night_werewolf')?.capabilities).toEqual({
+      ...shared,
+      spectators: false,
+      firstPlayer: false,
+    })
+    expect(builtinGameDefinition('avalon')?.capabilities).toEqual({
+      ...shared,
+      firstPlayer: false,
+      replay: true,
+      ai: true,
+    })
+
+    for (const gameKey of socialTableKeys) {
+      const definition = builtinGameDefinition(gameKey)
+      const defaults = definition?.rules.defaults ?? {}
+
+      expect('firstPlayer' in defaults).toBe(definition?.capabilities.firstPlayer)
+      expect(defaults.allowGuests).toBe(definition?.capabilities.guests)
+      expect(defaults.allowSpectators).toBe(definition?.capabilities.spectators)
+    }
+  })
+
   it('keeps the migrated game in its existing hall position without duplicates', () => {
     const keys = GAME_CATALOG.map((game) => game.key)
 

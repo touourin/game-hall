@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from backend.app.games.definition import (
-    GameCapabilities,
     GameCatalogMetadata,
     GameDefinition,
+    social_table_capabilities,
 )
 
 from .engine import DoudizhuEngine
@@ -19,9 +19,5 @@ DOUDIZHU_GAME = GameDefinition(
         max_players=3,
         description="叫抢地主、三种玩法与倍数结算",
     ),
-    capabilities=GameCapabilities(
-        guests=True,
-        spectators=True,
-        first_player=True,
-    ),
+    capabilities=social_table_capabilities(),
 )

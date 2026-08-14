@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from backend.app.games.definition import (
-    GameCapabilities,
     GameCatalogMetadata,
     GameDefinition,
+    social_table_capabilities,
 )
 
 from .engine import PokerEngine
@@ -19,9 +19,5 @@ POKER_GAME = GameDefinition(
         max_players=8,
         description="大小盲、四轮下注与全押边池",
     ),
-    capabilities=GameCapabilities(
-        guests=True,
-        spectators=True,
-        first_player=False,
-    ),
+    capabilities=social_table_capabilities(first_player=False),
 )

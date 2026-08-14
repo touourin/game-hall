@@ -1,5 +1,6 @@
 import { defineAsyncComponent } from 'vue'
 import artwork from '../../assets/game-hall/icons/departed-suspicion.webp'
+import { socialTableCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 
 export const departedSuspicionGame = defineBuiltinGame({
@@ -13,15 +14,7 @@ export const departedSuspicionGame = defineBuiltinGame({
     category: '身份推理',
     artwork,
   },
-  capabilities: {
-    undo: false,
-    draw: false,
-    guests: true,
-    spectators: true,
-    firstPlayer: true,
-    replay: false,
-    ai: false,
-  },
+  capabilities: socialTableCapabilities(),
   presentation: {
     component: defineAsyncComponent(() => import('./DepartedSuspicionTable.vue')),
     roomLayout: 'wide',

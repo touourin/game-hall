@@ -20,7 +20,7 @@ from backend.app.arcade.views import (
     build_spectator_room_view,
 )
 from backend.app.games.base import GameRuleError
-from backend.app.games.definition import GameRecordQueryError
+from backend.app.games.definition import GameCapabilities, GameRecordQueryError
 from backend.app.games.builtin import (
     BUILTIN_GAME_DEFINITIONS,
     BUILTIN_GAME_NAMES,
@@ -106,6 +106,30 @@ def test_filtered_records_own_their_query_contract() -> None:
     assert chess is not None
     with pytest.raises(GameRecordQueryError, match="游戏模式或难度不正确"):
         chess.records.validate_query("standard", None)
+
+
+def test_social_table_games_preserve_their_shared_capability_contract() -> None:
+    expected = {
+        "departed_suspicion": GameCapabilities(),
+        "doudizhu": GameCapabilities(),
+        "monopoly": GameCapabilities(),
+        "poker": GameCapabilities(first_player=False),
+        "one_night_werewolf": GameCapabilities(
+            spectators=False,
+            first_player=False,
+        ),
+        "avalon": GameCapabilities(
+            first_player=False,
+            replay=True,
+            ai=True,
+        ),
+    }
+
+    for game_key, capabilities in expected.items():
+        definition = builtin_game_definition(game_key)
+
+        assert definition is not None
+        assert definition.capabilities == capabilities
 
 
 @pytest.mark.parametrize(
