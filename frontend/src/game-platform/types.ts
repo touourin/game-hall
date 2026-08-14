@@ -5,7 +5,7 @@ import type {
   MatchHistoryItem,
   StatsSummary,
 } from '../stats'
-import type { BuiltinArcadeGameKey } from '../types/arcade'
+import type { ArcadeSnapshot, BuiltinArcadeGameKey } from '../types/arcade'
 
 export type BuiltinGameRoomLayout = 'standard' | 'wide' | 'immersive'
 export type BuiltinGameSkinKind = 'board' | 'cards'
@@ -47,6 +47,17 @@ export interface BuiltinGamePresentation {
   component: Component
   roomLayout: BuiltinGameRoomLayout
   skinKind: BuiltinGameSkinKind | null
+  roomShell?: BuiltinGameRoomShellPresentation
+}
+
+export interface BuiltinGameRoomShellPresentation {
+  headerEyebrowSuffix?: (snapshot: ArcadeSnapshot) => string
+  headerTitle?: (snapshot: ArcadeSnapshot) => string
+  statsMode?: (snapshot: ArcadeSnapshot) => string | undefined
+  activeExitDescription?: string
+  abandonLabel?: string
+  finishedLabel?: string
+  rematchLabel?: string
 }
 
 export interface BuiltinGameRuleSettingsProps {

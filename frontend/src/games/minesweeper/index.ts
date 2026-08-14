@@ -3,6 +3,7 @@ import minesweeperArtwork from '../../assets/game-hall/icons/minesweeper.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
 import { minesweeperLeaderboard, minesweeperStats } from './records'
+import { minesweeperRoomShell } from './roomPresentation'
 
 export const minesweeperGame = defineBuiltinGame({
   key: 'minesweeper',
@@ -28,6 +29,7 @@ export const minesweeperGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./MinesweeperBoard.vue')),
     roomLayout: 'wide',
     skinKind: null,
+    roomShell: minesweeperRoomShell,
   },
   rules: {
     settingsComponent: RuleSettings,

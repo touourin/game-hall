@@ -3,6 +3,7 @@ import pokerArtwork from '../../assets/game-hall/icons/poker.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
 import { pokerStats } from './records'
+import { pokerRoomShell } from './roomPresentation'
 
 export const pokerGame = defineBuiltinGame({
   key: 'poker',
@@ -28,6 +29,7 @@ export const pokerGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./PokerTable.vue')),
     roomLayout: 'wide',
     skinKind: 'cards',
+    roomShell: pokerRoomShell,
   },
   rules: {
     settingsComponent: RuleSettings,

@@ -5,6 +5,7 @@ import {
   surviveThreeSecondsLeaderboard,
   surviveThreeSecondsStats,
 } from './records'
+import { surviveThreeSecondsRoomShell } from './roomPresentation'
 
 export const surviveThreeSecondsGame = defineBuiltinGame({
   key: 'survive_three_seconds',
@@ -30,6 +31,7 @@ export const surviveThreeSecondsGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./SurviveThreeSecondsGame.vue')),
     roomLayout: 'standard',
     skinKind: null,
+    roomShell: surviveThreeSecondsRoomShell,
   },
   rules: {
     defaults: { allowSpectators: false },

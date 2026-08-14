@@ -2,6 +2,7 @@ import { defineAsyncComponent } from 'vue'
 import artwork from '../../assets/game-hall/icons/departed-suspicion.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
+import { departedSuspicionRoomShell } from './roomPresentation'
 
 export const departedSuspicionGame = defineBuiltinGame({
   key: 'departed_suspicion',
@@ -27,6 +28,7 @@ export const departedSuspicionGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./DepartedSuspicionTable.vue')),
     roomLayout: 'wide',
     skinKind: null,
+    roomShell: departedSuspicionRoomShell,
   },
   rules: {
     settingsComponent: RuleSettings,

@@ -21,13 +21,11 @@ import RoomDissolveButton from '../components/RoomDissolveButton.vue'
 import RoomPageHeader from '../components/RoomPageHeader.vue'
 import RoomRecordActions from '../components/RoomRecordActions.vue'
 import RoomInviteModal from '../components/RoomInviteModal.vue'
-import RoomKickButton from '../components/RoomKickButton.vue'
 import ModeGuide from '../components/ModeGuide.vue'
 import PressRevealCard from '../components/PressRevealCard.vue'
-import RoomAiSeatControl from '../components/RoomAiSeatControl.vue'
 import RoleSkinLoadoutPicker from '../components/RoleSkinLoadoutPicker.vue'
 import AvatarImage from '../components/AvatarImage.vue'
-import RoomPlayerSeat from '../components/RoomPlayerSeat.vue'
+import RoomPlayerRoster from '../components/RoomPlayerRoster.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
 import { useArcadeStore } from '../stores/arcade'
 import {
@@ -70,6 +68,7 @@ import {
 import OneNightWerewolfRules from '../games/one_night_werewolf/OneNightWerewolfRules.vue'
 import type { OneNightWerewolfView } from '../games/one_night_werewolf/types'
 import { builtinGameComponent, builtinGameDefinition } from '../game-platform/registry'
+import { roomShellPresentation } from '../game-platform/roomPresentation'
 import {
   thirdPartyGameComponent,
   thirdPartyGameRoomLayout,
@@ -79,6 +78,7 @@ const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const emit = defineEmits<{ settings: [] }>()
 const arcade = useArcadeStore()
 const builtinGame = computed(() => builtinGameDefinition(props.snapshot.gameKey))
+const roomShell = computed(() => roomShellPresentation(props.snapshot.gameKey))
 const builtinGameView = computed(() => builtinGameComponent(props.snapshot.gameKey))
 const builtinRoomLayout = computed(() => builtinGame.value?.presentation.roomLayout ?? null)
 const pluginGameComponent = computed(() => thirdPartyGameComponent(props.snapshot.gameKey))
@@ -136,20 +136,6 @@ const canAddAiPlayer = computed(() => (
   props.snapshot.actions.canAddAiPlayer === true
   && availableSeats.value > 0
 ))
-const playerStripColumns = computed(() => {
-  const playerCount = props.snapshot.players.length + (canAddAiPlayer.value ? 1 : 0)
-  if (playerCount <= 5) return Math.max(1, playerCount)
-  if (playerCount === 6) return 3
-  return Math.ceil(playerCount / 2)
-})
-const playerStripStyle = computed(() => {
-  const columns = playerStripColumns.value
-  const widthPercent = Number((100 / columns).toFixed(6))
-  const gapCorrection = Number((10 * (columns - 1) / columns).toFixed(3))
-  return {
-    '--player-card-width': `calc(${widthPercent}% - ${gapCorrection}px)`,
-  }
-})
 const inviteUrl = computed(() => {
   const url = new URL(window.location.href)
   url.pathname = `/games/${props.snapshot.gameKey}/rooms/${props.snapshot.roomCode}`
@@ -221,87 +207,18 @@ const roleSkinLoadoutOptions = computed<RoleSkinLoadoutRoleOption[]>(() => (
     }
   })
 ))
-const avalonPhaseLabel = computed(() => {
-  const phase = avalonSnapshot.value?.phase
-  if (!phase) return ''
-  return {
-    lobby: '等待玩家集结',
-    role_reveal: '确认身份',
-    team_building: '组建任务队伍',
-    team_voting: '表决任务队伍',
-    mission_voting: '执行秘密任务',
-    round_result: '任务结算',
-    lady_select: '湖中仙女',
-    lady_reveal: '仙女启示',
-    assassination: '最后刺杀',
-    dagger_grant: '黑誓授刃',
-    final_council: '最后议事',
-    exile_council_ballot: '祓影议庭锁票',
-    exile_council_assassination_decision: '祓影议庭',
-    exile_council_assassination_target: '暗刃刺杀',
-    game_over: '本局终章',
-  }[phase]
-})
 const roomHeaderEyebrow = computed(() => {
-  const oneNightPhaseLabels: Partial<Record<ArcadeSnapshot['phase'], string>> = {
-    lobby: '等待集结',
-    role_reveal: '确认身份',
-    night: '秘密夜晚',
-    discussion: '晨间讨论',
-    voting: '秘密投票',
-    finished: '真相揭晓',
-  }
-  const suffix = props.snapshot.gameKey === 'avalon'
-    ? ` · ${avalonSnapshot.value?.settings.mode === 'court_undercurrent' ? '王庭暗流' : '标准模式'} · ${avalonPhaseLabel.value}`
-    : props.snapshot.gameKey === 'departed_suspicion'
-      ? ` · ${props.snapshot.options.equipmentSet === 'base' ? '基础装备局' : '炸弹客/叛徒装备局'}`
-    : props.snapshot.gameKey === 'one_night_werewolf'
-      ? ` · ${oneNightPhaseLabels[props.snapshot.phase] ?? props.snapshot.phase}`
-    : props.snapshot.gameKey === 'junqi'
-    ? ` · ${props.snapshot.options.mode === 'flip' ? '翻棋军旗' : '暗军旗'}`
-    : props.snapshot.gameKey === 'reaction'
-      ? ' · 单人测试'
-      : props.snapshot.gameKey === 'deep_shaft'
-        ? ' · 百层平台生存'
-      : props.snapshot.gameKey === 'schulte'
-        ? ' · 单人专注'
-        : props.snapshot.gameKey === 'survive_three_seconds'
-          ? ' · 三秒极限闪避'
-        : props.snapshot.gameKey === 'minesweeper'
-          ? ` · ${props.snapshot.game.difficultyLabel}`
-          : props.snapshot.gameKey === 'hanoi'
-            ? ' · 单人益智'
-            : props.snapshot.gameKey === 'tetris'
-              ? props.snapshot.options.challengeMode === 'endless'
-                ? ' · 无限高分挑战'
-                : ` · ${Number(props.snapshot.options.durationSeconds ?? 180) / 60} 分钟限时`
-            : isSolo.value
-              ? ' · 单人挑战'
-              : ''
+  const suffix = roomShell.value.headerEyebrowSuffix?.(props.snapshot)
+    ?? (isSolo.value ? ' · 单人挑战' : '')
   return `${props.snapshot.gameName}${suffix}`
 })
 const roomHeaderTitle = computed(() => {
-  const soloTitles: Partial<Record<ArcadeSnapshot['gameKey'], string>> = {
-    reaction: '反应挑战',
-    deep_shaft: '百层深井',
-    schulte: '舒尔特挑战',
-    survive_three_seconds: '坚持三秒',
-    minesweeper: '扫雷挑战',
-    hanoi: '汉诺塔挑战',
-    tetris: '落块挑战',
-  }
-  if (isSolo.value) return soloTitles[props.snapshot.gameKey] ?? props.snapshot.gameName
+  const moduleTitle = roomShell.value.headerTitle?.(props.snapshot)
+  if (moduleTitle) return moduleTitle
+  if (isSolo.value) return props.snapshot.gameName
   return props.snapshot.roomName || `房间 ${props.snapshot.roomCode}`
 })
-const roomStatsMode = computed(() => (
-  props.snapshot.gameKey === 'minesweeper'
-    ? String(props.snapshot.options.difficulty ?? 'beginner')
-    : props.snapshot.gameKey === 'tetris'
-      ? props.snapshot.options.challengeMode === 'endless'
-        ? 'standard'
-        : `timed_${Number(props.snapshot.options.durationSeconds ?? 180)}`
-    : undefined
-))
+const roomStatsMode = computed(() => roomShell.value.statsMode?.(props.snapshot))
 
 function reconciledRoleSkinLoadout(loadout: RoleSkinLoadout): RoleSkinLoadout {
   return Object.fromEntries(
@@ -405,10 +322,8 @@ const exitDescription = computed(() => {
     return '退出将放弃当前进度，未完成的挑战不会记录成绩。'
   }
   if (props.snapshot.actions.canAct) {
-    if (props.snapshot.gameKey === 'poker') {
-      return '暂时返回会保留座位和筹码；退出并淘汰将放弃本桌，而且无法再返回。'
-    }
-    return '暂时返回会保留座位和进度；认输并退出将放弃本局，而且无法再返回。'
+    return roomShell.value.activeExitDescription
+      ?? '暂时返回会保留座位和进度；认输并退出将放弃本局，而且无法再返回。'
   }
   if (props.snapshot.phase === 'lobby') {
     return '你会离开房间并让出座位；如果你是房主，房主将自动移交。'
@@ -514,7 +429,7 @@ function openSharedChat() {
           :busy="arcade.busy"
           :description="exitDescription"
           :mode="exitMode"
-          :abandon-label="snapshot.gameKey === 'poker' ? '退出并淘汰' : undefined"
+          :abandon-label="roomShell.abandonLabel"
           @leave="arcade.leaveRoom"
           @detach="arcade.detachRoom"
           @abandon="arcade.abandonRoom"
@@ -614,49 +529,19 @@ function openSharedChat() {
       <span>{{ snapshot.statsEligible !== false ? '目前尚无游客；若游客加入并参与开局，整局不会计入任何玩家战绩。' : '本局阵容包含游客，所有玩家的场次、胜负、历史和排行榜成绩均不会记录。' }}</span>
     </section>
 
-    <section
+    <RoomPlayerRoster
       v-if="!isSolo"
-      class="surface arcade-player-strip"
-      :data-player-columns="playerStripColumns"
-      :style="playerStripStyle"
-      aria-label="房间玩家"
-    >
-      <RoomPlayerSeat
-        v-for="player in snapshot.players"
-        :key="player.id"
-        :avatar-url="player.avatarUrl"
-        :name="player.name"
-        :seat="player.seat"
-        :host="player.isHost"
-        :bot="player.isBot"
-        :bot-difficulty="aiDifficultyLabel(player.botDifficulty)"
-        :guest="player.isGuest"
-        :connected="player.connected"
-        :left-room="player.leftRoom"
-        :disconnect-forfeited="player.disconnectForfeited"
-        :disconnect-forfeit-at="player.disconnectForfeitAt"
-        :self="player.id === snapshot.self.id"
-        :perspective="isSpectating && player.id === snapshot.self.id"
-      >
-        <template
-          v-if="snapshot.actions.canKickPlayers && player.id !== snapshot.self.id"
-          #actions
-        >
-          <RoomKickButton
-            :player-name="player.name"
-            :busy="arcade.busy"
-            @confirm="arcade.kickPlayer(player.id)"
-          />
-        </template>
-      </RoomPlayerSeat>
-      <RoomAiSeatControl
-        v-if="canAddAiPlayer"
-        :config="snapshot.ai"
-        :available-seats="availableSeats"
-        :busy="arcade.busy"
-        @add="addAiPlayer"
-      />
-    </section>
+      :players="snapshot.players"
+      :self-id="snapshot.self.id"
+      :perspective-player-id="isSpectating ? snapshot.self.id : null"
+      :can-kick-players="snapshot.actions.canKickPlayers"
+      :can-add-ai-player="canAddAiPlayer"
+      :available-seats="availableSeats"
+      :ai="snapshot.ai"
+      :busy="arcade.busy"
+      @kick="arcade.kickPlayer"
+      @add-ai="addAiPlayer"
+    />
 
     <section v-if="!isSolo || roomSpectators.length" class="surface arcade-spectator-strip" aria-label="房间观众">
       <header><span><Eye :size="17" /><strong>观战席</strong></span><b>{{ roomSpectators.length }} 人</b></header>
@@ -735,7 +620,7 @@ function openSharedChat() {
 
     <section v-else class="arcade-game-stage">
       <div v-if="snapshot.phase === 'finished' && !isSolo && !avalonSnapshot" class="surface result-banner">
-        <small>{{ snapshot.gameKey === 'poker' ? '本桌结束' : '本局结束' }}</small>
+        <small>{{ roomShell.finishedLabel ?? '本局结束' }}</small>
         <h2>{{ snapshot.winReason }}</h2>
         <p>
           {{ isSpectating
@@ -754,7 +639,7 @@ function openSharedChat() {
           @click="arcade.restartGame"
         >
           <RotateCcw :size="18" />
-          {{ selfRematchReady ? '等待其他玩家' : snapshot.gameKey === 'poker' ? '准备重新开桌' : '准备再来一局' }}
+          {{ selfRematchReady ? '等待其他玩家' : roomShell.rematchLabel ?? '准备再来一局' }}
         </button>
       </div>
 

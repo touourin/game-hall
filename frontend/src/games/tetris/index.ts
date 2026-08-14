@@ -3,6 +3,7 @@ import tetrisArtwork from '../../assets/game-hall/icons/tetris.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
 import { tetrisLeaderboard, tetrisStats } from './records'
+import { tetrisRoomShell } from './roomPresentation'
 
 export const tetrisGame = defineBuiltinGame({
   key: 'tetris',
@@ -28,6 +29,7 @@ export const tetrisGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./TetrisGame.vue')),
     roomLayout: 'standard',
     skinKind: null,
+    roomShell: tetrisRoomShell,
   },
   rules: {
     settingsComponent: RuleSettings,

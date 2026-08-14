@@ -3,6 +3,7 @@ import avalonArtwork from '../../assets/game-hall/icons/avalon.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
 import { avalonLeaderboard, avalonStats } from './records'
+import { avalonRoomShell } from './roomPresentation'
 import { avalonRules } from './rules'
 
 export const avalonGame = defineBuiltinGame({
@@ -29,6 +30,7 @@ export const avalonGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./AvalonRoomView.vue')),
     roomLayout: 'wide',
     skinKind: null,
+    roomShell: avalonRoomShell,
   },
   rules: { ...avalonRules, settingsComponent: RuleSettings },
   records: {

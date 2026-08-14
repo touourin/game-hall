@@ -7,7 +7,7 @@ import type {
 } from '../types/arcade'
 import * as clipboard from '../clipboard'
 import RoomPageHeader from '../components/RoomPageHeader.vue'
-import RoomPlayerSeat from '../components/RoomPlayerSeat.vue'
+import RoomPlayerRoster from '../components/RoomPlayerRoster.vue'
 import { useArcadeStore } from '../stores/arcade'
 import type { RoomSnapshot as AvalonRoomSnapshot } from '../types/avalon'
 import ArcadeRoom from './ArcadeRoom.vue'
@@ -419,7 +419,10 @@ describe('ArcadeRoom', () => {
     }
     const wrapper = shallowMount(ArcadeRoom, {
       props: { snapshot: room },
-      global: { plugins: [createPinia()] },
+      global: {
+        plugins: [createPinia()],
+        stubs: { RoomPlayerRoster: false },
+      },
     })
 
     expect(wrapper.getComponent(RoomPageHeader).props('title')).toBe('数字密匣')
@@ -579,7 +582,7 @@ describe('ArcadeRoom', () => {
     expect(wrapper.getComponent(AvalonRoomView).props('roleSkin')).toBe('grail-myth')
   })
 
-  it('balances a seven-player Avalon lobby instead of leaving one orphan card', () => {
+  it('passes every seat in a seven-player Avalon lobby to the shared roster', () => {
     const room = avalonSnapshot()
     room.players = Array.from({ length: 7 }, (_, index) => ({
       id: `p${index + 1}`,
@@ -594,13 +597,9 @@ describe('ArcadeRoom', () => {
       global: { plugins: [createPinia()] },
     })
 
-    const playerStrip = wrapper.get('.arcade-player-strip')
-    const playerCards = playerStrip.findAllComponents(RoomPlayerSeat)
-    expect(playerStrip.attributes('data-player-columns')).toBe('4')
-    expect(playerStrip.attributes('style')).toContain(
-      '--player-card-width: calc(25% - 7.5px)',
-    )
-    expect(playerCards).toHaveLength(7)
+    const roster = wrapper.getComponent(RoomPlayerRoster)
+    expect(roster.props('players')).toHaveLength(7)
+    expect(roster.props('canAddAiPlayer')).toBe(true)
   })
 
   it('keeps Avalon rules, identity, table and chat in the shared room page', async () => {
@@ -654,7 +653,10 @@ describe('ArcadeRoom', () => {
       props: { snapshot: playingRoom },
       global: {
         plugins: [createPinia()],
-        stubs: { RoomPlayerSeat: false },
+        stubs: {
+          RoomPlayerRoster: false,
+          RoomPlayerSeat: false,
+        },
       },
     })
 

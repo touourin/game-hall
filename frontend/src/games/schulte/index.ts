@@ -2,6 +2,7 @@ import { defineAsyncComponent } from 'vue'
 import schulteArtwork from '../../assets/game-hall/icons/schulte.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { schulteLeaderboard, schulteStats } from './records'
+import { schulteRoomShell } from './roomPresentation'
 
 export const schulteGame = defineBuiltinGame({
   key: 'schulte',
@@ -27,6 +28,7 @@ export const schulteGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./SchulteGrid.vue')),
     roomLayout: 'standard',
     skinKind: null,
+    roomShell: schulteRoomShell,
   },
   rules: {
     defaults: { allowSpectators: false },

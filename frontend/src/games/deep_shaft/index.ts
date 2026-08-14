@@ -2,6 +2,7 @@ import { defineAsyncComponent } from 'vue'
 import deepShaftArtwork from '../../assets/game-hall/icons/deep-shaft.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { deepShaftLeaderboard, deepShaftStats } from './records'
+import { deepShaftRoomShell } from './roomPresentation'
 
 export const deepShaftGame = defineBuiltinGame({
   key: 'deep_shaft',
@@ -27,6 +28,7 @@ export const deepShaftGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./DeepShaftGame.vue')),
     roomLayout: 'standard',
     skinKind: null,
+    roomShell: deepShaftRoomShell,
   },
   rules: {
     defaults: { allowSpectators: false },

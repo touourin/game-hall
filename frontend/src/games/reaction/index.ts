@@ -2,6 +2,7 @@ import { defineAsyncComponent } from 'vue'
 import reactionArtwork from '../../assets/game-hall/icons/reaction.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { reactionLeaderboard, reactionStats } from './records'
+import { reactionRoomShell } from './roomPresentation'
 
 export const reactionGame = defineBuiltinGame({
   key: 'reaction',
@@ -27,6 +28,7 @@ export const reactionGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./ReactionTest.vue')),
     roomLayout: 'standard',
     skinKind: null,
+    roomShell: reactionRoomShell,
   },
   rules: {
     defaults: { allowSpectators: false },

@@ -3,6 +3,7 @@ import hanoiArtwork from '../../assets/game-hall/icons/hanoi.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
 import { hanoiLeaderboard, hanoiStats } from './records'
+import { hanoiRoomShell } from './roomPresentation'
 
 export const hanoiGame = defineBuiltinGame({
   key: 'hanoi',
@@ -28,6 +29,7 @@ export const hanoiGame = defineBuiltinGame({
     component: defineAsyncComponent(() => import('./HanoiGame.vue')),
     roomLayout: 'standard',
     skinKind: null,
+    roomShell: hanoiRoomShell,
   },
   rules: {
     settingsComponent: RuleSettings,

@@ -10,7 +10,12 @@ export function defineBuiltinGame<Key extends BuiltinArcadeGameKey>(
     ...definition,
     catalog: Object.freeze({ ...definition.catalog }),
     capabilities: Object.freeze({ ...definition.capabilities }),
-    presentation: Object.freeze({ ...definition.presentation }),
+    presentation: Object.freeze({
+      ...definition.presentation,
+      roomShell: definition.presentation.roomShell
+        ? Object.freeze({ ...definition.presentation.roomShell })
+        : undefined,
+    }),
     rules: Object.freeze({
       ...definition.rules,
       defaults: Object.freeze({ ...definition.rules.defaults }),
