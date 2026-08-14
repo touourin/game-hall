@@ -2,7 +2,6 @@ import { defineAsyncComponent } from 'vue'
 import pokerArtwork from '../../assets/game-hall/icons/poker.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { createCompetitiveStatsPresentation } from '../../game-platform/recordFormatting'
-import RuleSettings from './RuleSettings.vue'
 
 export const pokerGame = defineBuiltinGame({
   key: 'poker',
@@ -36,7 +35,18 @@ export const pokerGame = defineBuiltinGame({
     },
   },
   rules: {
-    settingsComponent: RuleSettings,
+    settingsGroups: [
+      {
+        key: 'startingChips', title: '起始筹码', control: 'segmented', columns: 3,
+        description: '开桌时发放，后续手牌持续继承，不涉及真实货币',
+        options: [[500, '500'], [1000, '1000'], [2000, '2000']],
+      },
+      {
+        key: 'smallBlind', title: '大小盲注', control: 'segmented', columns: 3,
+        description: '大盲始终是小盲的两倍',
+        options: [[5, '5/10'], [10, '10/20'], [20, '20/40']],
+      },
+    ],
     defaults: {
       allowGuests: true,
       allowSpectators: true,

@@ -2,7 +2,6 @@ import { defineAsyncComponent } from 'vue'
 import doudizhuArtwork from '../../assets/game-hall/icons/doudizhu.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { createCompetitiveStatsPresentation } from '../../game-platform/recordFormatting'
-import RuleSettings from './RuleSettings.vue'
 
 export const doudizhuGame = defineBuiltinGame({
   key: 'doudizhu',
@@ -30,7 +29,15 @@ export const doudizhuGame = defineBuiltinGame({
     skinKind: 'cards',
   },
   rules: {
-    settingsComponent: RuleSettings,
+    settingsGroups: [{
+      key: 'variant', title: '斗地主玩法', control: 'cards', columns: 3,
+      description: '三种玩法共用叫地主、抢地主与倍数结算',
+      options: [
+        ['classic', '经典', '标准54张牌'],
+        ['laizi', '癞子', '随机点数充当万能牌'],
+        ['no_shuffle', '不洗牌', '再来一局保留收牌顺序'],
+      ],
+    }],
     defaults: {
       firstPlayer: 'random',
       allowGuests: true,

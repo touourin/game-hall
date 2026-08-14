@@ -1,7 +1,7 @@
 # 官方游戏模块减法重构清单
 
 更新日期：2026-08-14  
-当前基线：`main@af151d3`
+当前基线：`main@30a692b`
 
 ## 目标
 
@@ -45,6 +45,7 @@
 - [x] 将后端官方目录派生逻辑迁回唯一数据源 `builtin.py`，删除 `catalog.py`；新增 27 行、删除 28 行，后端 563 项测试全部通过。
 - [x] 将 7 个单人战绩详情迁为模块自有数据映射和单一共享渲染器，删除 7 个异步组件；源码与测试新增 192 行、删除 196 行，净减少 4 行、净减少 6 个文件；372 项前端测试、生产构建和主题检查通过。
 - [x] 默认玩家详情支持模块自有角色标签，删除 `junqi/MatchDetail.vue`；棋类和斗地主同步获得一致的执棋方/身份展示；源码与测试新增 25 行、删除 32 行，372 项前端测试、生产构建和主题检查通过。
+- [x] 将 9 个静态或简单条件规则组件迁为模块自有 `settingsGroups`，删除对应的旧 Vue 文件；源码新增 151 行、删除 159 行，净减少 8 行；372 项前端测试、生产构建和主题检查通过。
 
 ## 第一优先级：可以整文件删除
 
@@ -116,17 +117,19 @@
 
 ### 简单规则设置组件
 
-先建立声明式选项组渲染器，再评估删除以下重复模板：
+以下重复模板已迁入各自模块的声明式选项组，并由共享设置页渲染：
 
-- [~] `departed_suspicion/RuleSettings.vue`
-- [~] `doudizhu/RuleSettings.vue`
-- [~] `hanoi/RuleSettings.vue`
-- [~] `junqi/RuleSettings.vue`
-- [~] `minesweeper/RuleSettings.vue`
-- [~] `monopoly/RuleSettings.vue`
-- [~] `poker/RuleSettings.vue`
+- [x] `departed_suspicion/RuleSettings.vue`
+- [x] `doudizhu/RuleSettings.vue`
+- [x] `hanoi/RuleSettings.vue`
+- [x] `junqi/RuleSettings.vue`
+- [x] `minesweeper/RuleSettings.vue`
+- [x] `monopoly/RuleSettings.vue`
+- [x] `one_night_werewolf/RuleSettings.vue`
+- [x] `poker/RuleSettings.vue`
+- [x] `tetris/RuleSettings.vue`
 
-只有当共享渲染器与配置的总复杂度低于现有组件时才实施。阿瓦隆、围棋、五子棋、中国象棋和一夜狼人的条件逻辑较多，继续使用独立组件。
+迁移结果：静态卡片、分段选择和单字段 `visibleWhen` 统一使用共享渲染器；配置仍归对应游戏所有。阿瓦隆、围棋、五子棋和中国象棋包含多字段约束或专有交互，继续使用独立组件，不强行复用。
 
 ## 第三优先级：减少声明样板，但不以删文件为目标
 

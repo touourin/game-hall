@@ -102,9 +102,26 @@ export interface BuiltinGameFirstPlayerCopy {
   hostDescription: string
 }
 
+export type BuiltinGameRuleSettingOption = readonly [
+  value: string | number | boolean,
+  label: string,
+  description?: string,
+]
+
+export interface BuiltinGameRuleSettingGroup {
+  key: string
+  title: string
+  description: string
+  control: 'cards' | 'segmented'
+  columns?: 2 | 3 | 5 | 6
+  visibleWhen?: readonly [key: string, value: string | number | boolean]
+  options: readonly BuiltinGameRuleSettingOption[]
+}
+
 export interface BuiltinGameRules {
   defaults: Readonly<Record<string, unknown>>
   labels: (options: Readonly<Record<string, unknown>>) => string[]
+  settingsGroups?: readonly BuiltinGameRuleSettingGroup[]
   settingsComponent?: Component
   firstPlayerCopy?: (
     options: Readonly<Record<string, unknown>>,

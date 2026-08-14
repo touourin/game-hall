@@ -1,7 +1,6 @@
 import { defineAsyncComponent } from 'vue'
 import artwork from '../../assets/game-hall/icons/departed-suspicion.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
-import RuleSettings from './RuleSettings.vue'
 
 export const departedSuspicionGame = defineBuiltinGame({
   key: 'departed_suspicion',
@@ -33,7 +32,14 @@ export const departedSuspicionGame = defineBuiltinGame({
     },
   },
   rules: {
-    settingsComponent: RuleSettings,
+    settingsGroups: [{
+      key: 'equipmentSet', title: '装备牌库', control: 'cards',
+      description: '卧底扩展依赖完整掩护系统，因此不混入普通身份局',
+      options: [
+        ['bombers', '炸弹客/叛徒装备', '基础16张加该扩展5张，共21张'],
+        ['base', '基础装备', '只使用经典16张，适合第一次教学'],
+      ],
+    }],
     defaults: {
       equipmentSet: 'bombers',
       firstPlayer: 'random',

@@ -2,7 +2,6 @@ import { defineAsyncComponent } from 'vue'
 import hanoiArtwork from '../../assets/game-hall/icons/hanoi.webp'
 import { soloGameCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
-import RuleSettings from './RuleSettings.vue'
 import { hanoiLeaderboard, hanoiStats } from './records'
 import { hanoiSoloPresentation } from './soloPresentation'
 
@@ -29,7 +28,14 @@ export const hanoiGame = defineBuiltinGame({
     solo: hanoiSoloPresentation,
   },
   rules: {
-    settingsComponent: RuleSettings,
+    settingsGroups: [{
+      key: 'discCount', title: '挑战层数', control: 'segmented', columns: 6,
+      description: '层数越高，理论最少步数呈指数增长',
+      options: [
+        [3, '3 层', '7 步'], [4, '4 层', '15 步'], [5, '5 层', '31 步'],
+        [6, '6 层', '63 步'], [7, '7 层', '127 步'], [8, '8 层', '255 步'],
+      ],
+    }],
     defaults: {
       discCount: 5,
       allowSpectators: true,

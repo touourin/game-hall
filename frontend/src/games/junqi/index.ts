@@ -1,7 +1,6 @@
 import { defineAsyncComponent } from 'vue'
 import junqiArtwork from '../../assets/game-hall/icons/junqi.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
-import RuleSettings from './RuleSettings.vue'
 import { junqiStats } from './records'
 import { junqiRules } from './rules'
 
@@ -34,7 +33,7 @@ export const junqiGame = defineBuiltinGame({
         ` · ${snapshot.options.mode === 'flip' ? '翻棋军旗' : '暗军旗'}`,
     },
   },
-  rules: { ...junqiRules, settingsComponent: RuleSettings },
+  rules: junqiRules,
   records: {
     stats: junqiStats,
   },

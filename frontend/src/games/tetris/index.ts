@@ -2,7 +2,6 @@ import { defineAsyncComponent } from 'vue'
 import tetrisArtwork from '../../assets/game-hall/icons/tetris.webp'
 import { soloGameCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
-import RuleSettings from './RuleSettings.vue'
 import { tetrisLeaderboard, tetrisStats } from './records'
 import { tetrisSoloPresentation } from './soloPresentation'
 
@@ -34,7 +33,22 @@ export const tetrisGame = defineBuiltinGame({
     solo: tetrisSoloPresentation,
   },
   rules: {
-    settingsComponent: RuleSettings,
+    settingsGroups: [
+      {
+        key: 'challengeMode', title: '挑战模式', control: 'cards',
+        description: '限时模式到点自动结算；无限模式保留堆顶结束玩法',
+        options: [
+          ['timed', '限时挑战', '在固定时间内尽可能获得高分'],
+          ['endless', '无限挑战', '持续游玩，直到方块堆到顶部'],
+        ],
+      },
+      {
+        key: 'durationSeconds', title: '挑战时长', control: 'segmented', columns: 3,
+        description: '不同时间档位分别记录排行榜',
+        visibleWhen: ['challengeMode', 'timed'],
+        options: [[60, '1 分钟'], [180, '3 分钟'], [300, '5 分钟']],
+      },
+    ],
     defaults: {
       challengeMode: 'timed',
       durationSeconds: 180,

@@ -1,7 +1,6 @@
 import { defineAsyncComponent } from 'vue'
 import monopolyArtwork from '../../assets/game-hall/icons/monopoly.webp'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
-import RuleSettings from './RuleSettings.vue'
 
 export const monopolyGame = defineBuiltinGame({
   key: 'monopoly',
@@ -29,7 +28,18 @@ export const monopolyGame = defineBuiltinGame({
     skinKind: null,
   },
   rules: {
-    settingsComponent: RuleSettings,
+    settingsGroups: [
+      {
+        key: 'startingCash', title: '起始资金', control: 'segmented', columns: 3,
+        description: '资金越少，前期买地取舍越明显',
+        options: [[6000, '6000'], [8000, '8000'], [10000, '10000']],
+      },
+      {
+        key: 'maxRounds', title: '比赛回合', control: 'segmented', columns: 3,
+        description: '达到上限时按现金、地产与升级总值排名',
+        options: [[12, '12 回合'], [20, '20 回合'], [30, '30 回合']],
+      },
+    ],
     defaults: {
       firstPlayer: 'random',
       allowGuests: true,

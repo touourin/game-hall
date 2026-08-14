@@ -25,6 +25,12 @@ const resolvedOptions = computed(() => withDefaultGameRules(
 const gameSettingsComponent = computed(
   () => builtinGame.value?.rules.settingsComponent ?? null,
 )
+const gameSettingsGroups = computed(
+  () => (builtinGame.value?.rules.settingsGroups ?? []).filter((group) => (
+    !group.visibleWhen
+    || resolvedOptions.value[group.visibleWhen[0]] === group.visibleWhen[1]
+  )),
+)
 const firstPlayerCopy = computed(() => (
   builtinGame.value?.rules.firstPlayerCopy?.(resolvedOptions.value) ?? {
     title: '首局先手',
@@ -72,6 +78,32 @@ function supportsSpectators(): boolean {
 
 <template>
   <div class="game-rule-settings">
+    <section v-for="group in gameSettingsGroups" :key="group.key" class="rule-setting-group">
+      <header><strong>{{ group.title }}</strong><small>{{ group.description }}</small></header>
+      <div v-if="group.control === 'cards'" class="rule-option-grid" :class="{ three: group.columns === 3 }">
+        <button
+          v-for="[value, label, description] in group.options"
+          :key="String(value)"
+          type="button"
+          :class="{ active: option(group.key) === value }"
+          @click="setOption(group.key, value)"
+        >
+          <strong>{{ label }}</strong><small v-if="description">{{ description }}</small>
+        </button>
+      </div>
+      <div v-else class="rule-segmented" :class="{ three: group.columns === 3, five: group.columns === 5, six: group.columns === 6 }">
+        <button
+          v-for="[value, label, description] in group.options"
+          :key="String(value)"
+          type="button"
+          :class="{ active: option(group.key) === value }"
+          @click="setOption(group.key, value)"
+        >
+          {{ label }}<br v-if="description"><small v-if="description">{{ description }}</small>
+        </button>
+      </div>
+    </section>
+
     <component
       :is="gameSettingsComponent"
       v-if="gameSettingsComponent"

@@ -2,7 +2,6 @@ import { defineAsyncComponent } from 'vue'
 import minesweeperArtwork from '../../assets/game-hall/icons/minesweeper.webp'
 import { soloGameCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
-import RuleSettings from './RuleSettings.vue'
 import { minesweeperLeaderboard, minesweeperStats } from './records'
 import { minesweeperSoloPresentation } from './soloPresentation'
 
@@ -30,7 +29,15 @@ export const minesweeperGame = defineBuiltinGame({
     solo: minesweeperSoloPresentation,
   },
   rules: {
-    settingsComponent: RuleSettings,
+    settingsGroups: [{
+      key: 'difficulty', title: '挑战难度', control: 'cards', columns: 3,
+      description: '三种经典规格分别记录成绩和排行榜',
+      options: [
+        ['beginner', '初级', '9×9 · 10 雷'],
+        ['intermediate', '中级', '16×16 · 40 雷'],
+        ['expert', '高级', '16×30 · 99 雷'],
+      ],
+    }],
     defaults: {
       difficulty: 'beginner',
       allowSpectators: true,
