@@ -1,11 +1,11 @@
 import { defineAsyncComponent } from 'vue'
 import surviveArtwork from '../../assets/game-hall/icons/survive-three-seconds.webp'
+import { soloGameCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import {
   surviveThreeSecondsLeaderboard,
   surviveThreeSecondsStats,
 } from './records'
-import { surviveThreeSecondsRoomShell } from './roomPresentation'
 import { surviveThreeSecondsSoloPresentation } from './soloPresentation'
 
 export const surviveThreeSecondsGame = defineBuiltinGame({
@@ -19,20 +19,15 @@ export const surviveThreeSecondsGame = defineBuiltinGame({
     category: '个人挑战',
     artwork: surviveArtwork,
   },
-  capabilities: {
-    undo: false,
-    draw: false,
-    guests: false,
-    spectators: false,
-    firstPlayer: false,
-    replay: false,
-    ai: false,
-  },
+  capabilities: soloGameCapabilities(),
   presentation: {
     component: defineAsyncComponent(() => import('./SurviveThreeSecondsGame.vue')),
     roomLayout: 'standard',
     skinKind: null,
-    roomShell: surviveThreeSecondsRoomShell,
+    roomShell: {
+      headerEyebrowSuffix: () => ' · 三秒极限闪避',
+      headerTitle: () => '坚持三秒',
+    },
     solo: surviveThreeSecondsSoloPresentation,
   },
   rules: {

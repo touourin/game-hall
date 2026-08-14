@@ -58,7 +58,19 @@ describe('built-in game registry', () => {
     for (const definition of soloDefinitions) {
       expect(definition.presentation.solo).toBeDefined()
       expect(definition.presentation.solo?.content({}).metrics).toHaveLength(3)
+      expect(definition.capabilities).toMatchObject({
+        undo: false,
+        draw: false,
+        guests: false,
+        firstPlayer: false,
+        replay: false,
+        ai: false,
+      })
     }
+
+    expect(builtinGameDefinition('hanoi')?.capabilities.spectators).toBe(true)
+    expect(builtinGameDefinition('minesweeper')?.capabilities.spectators).toBe(true)
+    expect(builtinGameDefinition('reaction')?.capabilities.spectators).toBe(false)
 
     expect(
       builtinGameDefinition('minesweeper')?.records?.modeFromRules?.({

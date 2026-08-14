@@ -1,9 +1,9 @@
 import { defineAsyncComponent } from 'vue'
 import hanoiArtwork from '../../assets/game-hall/icons/hanoi.webp'
+import { soloGameCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
 import { hanoiLeaderboard, hanoiStats } from './records'
-import { hanoiRoomShell } from './roomPresentation'
 import { hanoiSoloPresentation } from './soloPresentation'
 
 export const hanoiGame = defineBuiltinGame({
@@ -17,20 +17,15 @@ export const hanoiGame = defineBuiltinGame({
     category: '个人挑战',
     artwork: hanoiArtwork,
   },
-  capabilities: {
-    undo: false,
-    draw: false,
-    guests: false,
-    spectators: true,
-    firstPlayer: false,
-    replay: false,
-    ai: false,
-  },
+  capabilities: soloGameCapabilities({ spectators: true }),
   presentation: {
     component: defineAsyncComponent(() => import('./HanoiGame.vue')),
     roomLayout: 'standard',
     skinKind: null,
-    roomShell: hanoiRoomShell,
+    roomShell: {
+      headerEyebrowSuffix: () => ' · 单人益智',
+      headerTitle: () => '汉诺塔挑战',
+    },
     solo: hanoiSoloPresentation,
   },
   rules: {

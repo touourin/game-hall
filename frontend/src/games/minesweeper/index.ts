@@ -1,9 +1,9 @@
 import { defineAsyncComponent } from 'vue'
 import minesweeperArtwork from '../../assets/game-hall/icons/minesweeper.webp'
+import { soloGameCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
 import { minesweeperLeaderboard, minesweeperStats } from './records'
-import { minesweeperRoomShell } from './roomPresentation'
 import { minesweeperSoloPresentation } from './soloPresentation'
 
 export const minesweeperGame = defineBuiltinGame({
@@ -17,20 +17,16 @@ export const minesweeperGame = defineBuiltinGame({
     category: '个人挑战',
     artwork: minesweeperArtwork,
   },
-  capabilities: {
-    undo: false,
-    draw: false,
-    guests: false,
-    spectators: true,
-    firstPlayer: false,
-    replay: false,
-    ai: false,
-  },
+  capabilities: soloGameCapabilities({ spectators: true }),
   presentation: {
     component: defineAsyncComponent(() => import('./MinesweeperBoard.vue')),
     roomLayout: 'wide',
     skinKind: null,
-    roomShell: minesweeperRoomShell,
+    roomShell: {
+      headerEyebrowSuffix: (snapshot) => ` · ${snapshot.game.difficultyLabel}`,
+      headerTitle: () => '扫雷挑战',
+      statsMode: (snapshot) => String(snapshot.options.difficulty ?? 'beginner'),
+    },
     solo: minesweeperSoloPresentation,
   },
   rules: {

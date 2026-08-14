@@ -1,8 +1,8 @@
 import { defineAsyncComponent } from 'vue'
 import schulteArtwork from '../../assets/game-hall/icons/schulte.webp'
+import { soloGameCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { schulteLeaderboard, schulteStats } from './records'
-import { schulteRoomShell } from './roomPresentation'
 import { schulteSoloPresentation } from './soloPresentation'
 
 export const schulteGame = defineBuiltinGame({
@@ -16,20 +16,15 @@ export const schulteGame = defineBuiltinGame({
     category: '个人挑战',
     artwork: schulteArtwork,
   },
-  capabilities: {
-    undo: false,
-    draw: false,
-    guests: false,
-    spectators: false,
-    firstPlayer: false,
-    replay: false,
-    ai: false,
-  },
+  capabilities: soloGameCapabilities(),
   presentation: {
     component: defineAsyncComponent(() => import('./SchulteGrid.vue')),
     roomLayout: 'standard',
     skinKind: null,
-    roomShell: schulteRoomShell,
+    roomShell: {
+      headerEyebrowSuffix: () => ' · 单人专注',
+      headerTitle: () => '舒尔特挑战',
+    },
     solo: schulteSoloPresentation,
   },
   rules: {

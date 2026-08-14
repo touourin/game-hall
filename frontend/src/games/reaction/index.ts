@@ -1,8 +1,8 @@
 import { defineAsyncComponent } from 'vue'
 import reactionArtwork from '../../assets/game-hall/icons/reaction.webp'
+import { soloGameCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { reactionLeaderboard, reactionStats } from './records'
-import { reactionRoomShell } from './roomPresentation'
 import { reactionSoloPresentation } from './soloPresentation'
 
 export const reactionGame = defineBuiltinGame({
@@ -16,20 +16,15 @@ export const reactionGame = defineBuiltinGame({
     category: '个人挑战',
     artwork: reactionArtwork,
   },
-  capabilities: {
-    undo: false,
-    draw: false,
-    guests: false,
-    spectators: false,
-    firstPlayer: false,
-    replay: false,
-    ai: false,
-  },
+  capabilities: soloGameCapabilities(),
   presentation: {
     component: defineAsyncComponent(() => import('./ReactionTest.vue')),
     roomLayout: 'standard',
     skinKind: null,
-    roomShell: reactionRoomShell,
+    roomShell: {
+      headerEyebrowSuffix: () => ' · 单人测试',
+      headerTitle: () => '反应挑战',
+    },
     solo: reactionSoloPresentation,
   },
   rules: {

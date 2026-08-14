@@ -1,9 +1,9 @@
 import { defineAsyncComponent } from 'vue'
 import tetrisArtwork from '../../assets/game-hall/icons/tetris.webp'
+import { soloGameCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import RuleSettings from './RuleSettings.vue'
 import { tetrisLeaderboard, tetrisStats } from './records'
-import { tetrisRoomShell } from './roomPresentation'
 import { tetrisSoloPresentation } from './soloPresentation'
 
 export const tetrisGame = defineBuiltinGame({
@@ -17,20 +17,20 @@ export const tetrisGame = defineBuiltinGame({
     category: '个人挑战',
     artwork: tetrisArtwork,
   },
-  capabilities: {
-    undo: false,
-    draw: false,
-    guests: false,
-    spectators: false,
-    firstPlayer: false,
-    replay: false,
-    ai: false,
-  },
+  capabilities: soloGameCapabilities(),
   presentation: {
     component: defineAsyncComponent(() => import('./TetrisGame.vue')),
     roomLayout: 'standard',
     skinKind: null,
-    roomShell: tetrisRoomShell,
+    roomShell: {
+      headerEyebrowSuffix: (snapshot) => snapshot.options.challengeMode === 'endless'
+        ? ' · 无限高分挑战'
+        : ` · ${Number(snapshot.options.durationSeconds ?? 180) / 60} 分钟限时`,
+      headerTitle: () => '落块挑战',
+      statsMode: (snapshot) => snapshot.options.challengeMode === 'endless'
+        ? 'standard'
+        : `timed_${Number(snapshot.options.durationSeconds ?? 180)}`,
+    },
     solo: tetrisSoloPresentation,
   },
   rules: {

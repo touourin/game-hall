@@ -1,8 +1,8 @@
 import { defineAsyncComponent } from 'vue'
 import deepShaftArtwork from '../../assets/game-hall/icons/deep-shaft.webp'
+import { soloGameCapabilities } from '../../game-platform/capabilities'
 import { defineBuiltinGame } from '../../game-platform/defineGame'
 import { deepShaftLeaderboard, deepShaftStats } from './records'
-import { deepShaftRoomShell } from './roomPresentation'
 import { deepShaftSoloPresentation } from './soloPresentation'
 
 export const deepShaftGame = defineBuiltinGame({
@@ -16,20 +16,15 @@ export const deepShaftGame = defineBuiltinGame({
     category: '个人挑战',
     artwork: deepShaftArtwork,
   },
-  capabilities: {
-    undo: false,
-    draw: false,
-    guests: false,
-    spectators: false,
-    firstPlayer: false,
-    replay: false,
-    ai: false,
-  },
+  capabilities: soloGameCapabilities(),
   presentation: {
     component: defineAsyncComponent(() => import('./DeepShaftGame.vue')),
     roomLayout: 'standard',
     skinKind: null,
-    roomShell: deepShaftRoomShell,
+    roomShell: {
+      headerEyebrowSuffix: () => ' · 百层平台生存',
+      headerTitle: () => '百层深井',
+    },
     solo: deepShaftSoloPresentation,
   },
   rules: {
