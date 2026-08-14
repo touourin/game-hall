@@ -4,15 +4,19 @@ import pytest
 from sqlalchemy import select, update
 
 from backend.app.accounts import (
-    AVALON_ROLE_SKIN_FREE_WEEK_END,
-    AVALON_ROLE_SKIN_FREE_WEEK_START,
-    AVALON_ROLE_SKIN_PROGRESSION_START,
     AVATAR_PRESET_IDS,
     AccountError,
     AccountStore,
 )
 from backend.app.database import matches, users
 from backend.app.games.avalon.models import Alignment, AvalonMode, Phase, Role
+from backend.app.games.avalon.records import (
+    ROLE_SKIN_FREE_WEEK_END,
+    ROLE_SKIN_FREE_WEEK_START,
+    ROLE_SKIN_PROGRESSION_START,
+    avalon_role_skin_progress,
+    persist_avalon_match,
+)
 
 from .test_engine import start_room
 
@@ -281,15 +285,16 @@ def test_existing_accounts_keep_every_avalon_role_skin(tmp_path):
             .where(users.c.id == account.id)
             .values(
                 created_at=(
-                    AVALON_ROLE_SKIN_PROGRESSION_START
+                    ROLE_SKIN_PROGRESSION_START
                     - timedelta(seconds=1)
                 )
             )
         )
 
-    progress = store.avalon_role_skin_progress(
+    progress = avalon_role_skin_progress(
+        store.engine,
         account.id,
-        now=AVALON_ROLE_SKIN_FREE_WEEK_END,
+        now=ROLE_SKIN_FREE_WEEK_END,
     )
 
     assert progress["legacyAllUnlocked"] is True
@@ -308,7 +313,7 @@ def test_new_accounts_unlock_role_skins_from_ranked_family_wins(tmp_path):
             .where(users.c.id == account.id)
             .values(
                 created_at=(
-                    AVALON_ROLE_SKIN_PROGRESSION_START
+                    ROLE_SKIN_PROGRESSION_START
                     + timedelta(seconds=1)
                 )
             )
@@ -334,9 +339,10 @@ def test_new_accounts_unlock_role_skins_from_ranked_family_wins(tmp_path):
         ranked=False,
     )
 
-    progress = store.avalon_role_skin_progress(
+    progress = avalon_role_skin_progress(
+        store.engine,
         account.id,
-        now=AVALON_ROLE_SKIN_FREE_WEEK_END,
+        now=ROLE_SKIN_FREE_WEEK_END,
     )
     loyal = progress["roles"]["loyal_servant"]
     assert progress["legacyAllUnlocked"] is False
@@ -356,9 +362,10 @@ def test_new_accounts_unlock_role_skins_from_ranked_family_wins(tmp_path):
             role="loyal_servant",
         )
 
-    completed = store.avalon_role_skin_progress(
+    completed = avalon_role_skin_progress(
+        store.engine,
         account.id,
-        now=AVALON_ROLE_SKIN_FREE_WEEK_END,
+        now=ROLE_SKIN_FREE_WEEK_END,
     )["roles"]["loyal_servant"]
     assert completed["wins"] == 5
     assert completed["ultimateUnlocked"] is True
@@ -368,9 +375,10 @@ def test_everyone_can_use_every_avalon_role_skin_during_free_week(tmp_path):
     store = AccountStore(tmp_path / "role-skin-free-week.sqlite3")
     account, _ = store.register("free_week_skin", "secret123", "本周玩家")
 
-    progress = store.avalon_role_skin_progress(
+    progress = avalon_role_skin_progress(
+        store.engine,
         account.id,
-        now=AVALON_ROLE_SKIN_FREE_WEEK_START + timedelta(days=2),
+        now=ROLE_SKIN_FREE_WEEK_START + timedelta(days=2),
     )
 
     assert progress["eventAllUnlocked"] is True
@@ -380,9 +388,10 @@ def test_everyone_can_use_every_avalon_role_skin_during_free_week(tmp_path):
         for role in progress["roles"].values()
     )
 
-    after_event = store.avalon_role_skin_progress(
+    after_event = avalon_role_skin_progress(
+        store.engine,
         account.id,
-        now=AVALON_ROLE_SKIN_FREE_WEEK_END,
+        now=ROLE_SKIN_FREE_WEEK_END,
     )
     assert after_event["eventAllUnlocked"] is False
     assert all(
@@ -396,8 +405,8 @@ def test_completed_match_is_saved_once_with_personal_history(tmp_path):
     room = completed_room_with_accounts(store)
     first_player = room.players[0]
 
-    assert store.record_match(room) is True
-    assert store.record_match(room) is False
+    assert persist_avalon_match(room, store) is True
+    assert persist_avalon_match(room, store) is False
 
     history = store.history_for_account(first_player.account_id)
     summary = store.summary_for_account(first_player.account_id)
@@ -436,7 +445,7 @@ def test_court_undercurrent_match_records_final_alignment_and_mode(tmp_path):
     engine.grant_dagger(room, assassin.id, dissenting.id)
     engine.dissenting_assassinate(room, dissenting.id, merlin.id)
 
-    assert store.record_match(room) is True
+    assert persist_avalon_match(room, store) is True
 
     court_history = store.history_for_account(
         dissenting.account_id,
@@ -585,7 +594,7 @@ def test_court_stats_separate_shadow_merlin_and_legacy_matches(tmp_path):
 def test_ranked_leaderboard_excludes_matches_with_ai_players(tmp_path):
     store = AccountStore(tmp_path / "leaderboard.sqlite3")
     ranked_room = completed_room_with_accounts(store)
-    store.record_match(ranked_room)
+    persist_avalon_match(ranked_room, store)
 
     leaderboard = store.leaderboard(game_key="avalon")
     assert leaderboard
@@ -595,7 +604,7 @@ def test_ranked_leaderboard_excludes_matches_with_ai_players(tmp_path):
     ai_room = completed_room_with_accounts(store, prefix="ai_player")
     ai_room.players[-1].is_bot = True
     ai_room.players[-1].account_id = None
-    store.record_match(ai_room)
+    persist_avalon_match(ai_room, store)
 
     assert all(
         player["games"] == 1

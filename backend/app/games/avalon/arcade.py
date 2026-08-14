@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from typing import Any
 
@@ -24,6 +26,7 @@ from .models import (
     Player,
     Room,
 )
+from .records import persist_avalon_match
 from .views import build_player_view
 
 
@@ -253,6 +256,7 @@ class AvalonEngine:
 
     def repair_restored_room(self, room: ArcadeRoom) -> bool:
         domain = self._domain(room)
+        self._repair_legacy_domain(domain, reset_lock=True)
         repaired = self.rules.resolve_restored_exile_council_assassination(
             domain
         )
@@ -289,7 +293,7 @@ class AvalonEngine:
         return role, alignment, domain_player.alignment == domain.winner
 
     def persist_match(self, room: ArcadeRoom, store: Any) -> bool:
-        return bool(store.record_match(self._domain(room)))
+        return persist_avalon_match(self._domain(room), store)
 
     def _domain(self, room: ArcadeRoom) -> Room:
         domain = room.state
@@ -302,24 +306,7 @@ class AvalonEngine:
             )
             room.state = domain
 
-        if not hasattr(domain.settings, "shadow_merlin_enabled"):
-            domain.settings.shadow_merlin_enabled = False
-        legacy_defaults: dict[str, Any] = {
-            "shadow_merlin_transformed": False,
-            "exile_council_triggered": False,
-            "exile_council_open_votes": {},
-            "exile_council_target_votes": {},
-            "exile_council_opened": None,
-            "exile_council_assassination_decisions": {},
-            "exile_council_assassination_chosen": None,
-            "exile_council_assassination_targets": {},
-            "exile_council_assassination_target_id": None,
-            "exile_council_exile_target_id": None,
-            "exile_council_exile_success": None,
-        }
-        for field_name, default in legacy_defaults.items():
-            if not hasattr(domain, field_name):
-                setattr(domain, field_name, default)
+        self._repair_legacy_domain(domain)
 
         existing = {player.id: player for player in domain.players}
         synchronized_players: list[Player] = []
@@ -369,6 +356,48 @@ class AvalonEngine:
         domain.cleanup_ready = room.cleanup_ready
         domain.host_offline_since = room.host_offline_since
         return domain
+
+    @staticmethod
+    def _repair_legacy_domain(
+        domain: Room,
+        *,
+        reset_lock: bool = False,
+    ) -> None:
+        if not hasattr(domain.settings, "mode"):
+            domain.settings.mode = AvalonMode.STANDARD
+        if not hasattr(domain.settings, "shadow_merlin_enabled"):
+            domain.settings.shadow_merlin_enabled = False
+        legacy_defaults: dict[str, Any] = {
+            "ending_route": None,
+            "dagger_candidate_ids": [],
+            "dagger_target_id": None,
+            "dagger_hit": None,
+            "transformed_player_id": None,
+            "dissenting_assassination_target_id": None,
+            "shadow_merlin_transformed": False,
+            "exile_council_triggered": False,
+            "exile_council_open_votes": {},
+            "exile_council_target_votes": {},
+            "exile_council_opened": None,
+            "exile_council_assassination_decisions": {},
+            "exile_council_assassination_chosen": None,
+            "exile_council_assassination_targets": {},
+            "exile_council_assassination_target_id": None,
+            "exile_council_exile_target_id": None,
+            "exile_council_exile_success": None,
+        }
+        for field_name, default in legacy_defaults.items():
+            if not hasattr(domain, field_name):
+                setattr(domain, field_name, default)
+        if reset_lock:
+            domain.lock = asyncio.Lock()
+        for player in domain.players:
+            player.alignment_override = getattr(
+                player, "alignment_override", None
+            )
+            player.disconnect_forfeited = getattr(
+                player, "disconnect_forfeited", False
+            )
 
     def _sync_outer(self, room: ArcadeRoom, domain: Room) -> None:
         allow_guests = room.options.get("allowGuests", True)
@@ -450,6 +479,7 @@ class AvalonEngine:
     @classmethod
     def migrate_legacy_room(cls, legacy: Room) -> ArcadeRoom:
         engine = cls()
+        engine._repair_legacy_domain(legacy, reset_lock=True)
         players = [
             ArcadePlayer(
                 id=player.id,
@@ -527,3 +557,17 @@ class AvalonEngine:
             host_offline_since=legacy.host_offline_since,
         )
         return room
+
+    def restore_legacy_rooms(
+        self,
+        state: Mapping[str, Any],
+    ) -> dict[str, ArcadeRoom]:
+        """Migrate rooms saved before Avalon joined the shared Arcade store."""
+        saved_rooms = state.get(self.key)
+        if not isinstance(saved_rooms, dict):
+            return {}
+        return {
+            code: self.migrate_legacy_room(legacy)
+            for code, legacy in saved_rooms.items()
+            if isinstance(code, str) and isinstance(legacy, Room)
+        }

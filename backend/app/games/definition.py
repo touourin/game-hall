@@ -74,6 +74,7 @@ class GameCatalogMetadata:
 
 
 GameScoreKind = Literal["outcome", "time_trial", "high_score"]
+GameRecordVariantValue = bool | int | str
 
 
 class GameRecordQueryError(ValueError):
@@ -85,6 +86,15 @@ def standard_match_mode(_: Mapping[str, Any]) -> str:
 
 
 @dataclass(frozen=True)
+class GameRecordVariantSelector:
+    """Describe how one game-owned record variant is stored in match JSON."""
+
+    details_key: str
+    value: GameRecordVariantValue
+    include_missing: bool = False
+
+
+@dataclass(frozen=True)
 class GameRecords:
     """How the shared account service stores and aggregates game records."""
 
@@ -92,8 +102,20 @@ class GameRecords:
     match_mode: Callable[[Mapping[str, Any]], str] = standard_match_mode
     query_modes: frozenset[str] = field(default_factory=frozenset)
     query_variants: Mapping[str, frozenset[str]] = field(default_factory=dict)
+    variant_selectors: Mapping[str, GameRecordVariantSelector] = field(
+        default_factory=dict
+    )
     invalid_mode_message: str = "游戏模式或难度不正确"
     invalid_variant_message: str = "战绩统计分组不正确"
+
+    def __post_init__(self) -> None:
+        declared_variants = {
+            variant
+            for variants in self.query_variants.values()
+            for variant in variants
+        }
+        if declared_variants != set(self.variant_selectors):
+            raise ValueError("战绩统计分组必须声明完整的存储选择器")
 
     def validate_query(
         self,
@@ -107,6 +129,15 @@ class GameRecords:
         allowed_variants = self.query_variants.get(mode or "", frozenset())
         if variant not in allowed_variants:
             raise GameRecordQueryError(self.invalid_variant_message)
+
+    def variant_selector(
+        self,
+        variant: str,
+    ) -> GameRecordVariantSelector:
+        selector = self.variant_selectors.get(variant)
+        if selector is None:
+            raise GameRecordQueryError(self.invalid_variant_message)
+        return selector
 
 
 @dataclass(frozen=True)

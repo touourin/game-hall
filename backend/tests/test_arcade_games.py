@@ -108,6 +108,24 @@ def test_filtered_records_own_their_query_contract() -> None:
         chess.records.validate_query("standard", None)
 
 
+def test_avalon_record_variants_own_their_storage_selectors() -> None:
+    avalon = builtin_game_definition("avalon")
+
+    assert avalon is not None
+    classic = avalon.records.variant_selector("classic")
+    shadow_merlin = avalon.records.variant_selector("shadow_merlin")
+    assert (
+        classic.details_key,
+        classic.value,
+        classic.include_missing,
+    ) == ("shadowMerlinEnabled", False, True)
+    assert (
+        shadow_merlin.details_key,
+        shadow_merlin.value,
+        shadow_merlin.include_missing,
+    ) == ("shadowMerlinEnabled", True, False)
+
+
 def test_social_table_games_preserve_their_shared_capability_contract() -> None:
     expected = {
         "departed_suspicion": GameCapabilities(),

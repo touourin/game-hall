@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import case, delete, func, insert, select, update
+from sqlalchemy import case, delete, func, insert, or_, select, update
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 
@@ -26,12 +26,12 @@ from .database import (
     player_name_claims,
     users,
 )
-from .games.avalon.models import ROLE_ALIGNMENT, Room, Role
 from .games.builtin import (
     BUILTIN_GAME_DEFINITIONS,
     BUILTIN_GAME_NAMES,
     builtin_game_definition,
 )
+from .games.definition import GameRecordQueryError
 
 
 logger = logging.getLogger(__name__)
@@ -39,30 +39,11 @@ SESSION_LIFETIME = timedelta(days=30)
 PLAYER_NAME_CHANGE_INTERVAL = timedelta(days=30)
 USERNAME_MIN_LENGTH = 2
 USERNAME_MAX_LENGTH = 50
-GAME_KEY = "avalon"
-# Accounts present when role progression shipped retain the complete skin library.
-AVALON_ROLE_SKIN_PROGRESSION_START = datetime(2026, 8, 2, 17, 18, 0)
-AVALON_ROLE_SKIN_ROLES = (
-    "merlin",
-    "percival",
-    "loyal_servant",
-    "assassin",
-    "morgana",
-    "mordred",
-    "oberon",
-    "minion",
-)
-AVALON_ROLE_SKIN_UPGRADE_WINS = 2
-AVALON_ROLE_SKIN_ULTIMATE_WINS = 5
-# 2026-08-03 00:00 through 2026-08-10 00:00 in Asia/Shanghai (UTC+8).
-AVALON_ROLE_SKIN_FREE_WEEK_START = datetime(2026, 8, 2, 16, 0, 0)
-AVALON_ROLE_SKIN_FREE_WEEK_END = datetime(2026, 8, 9, 16, 0, 0)
 SCORED_GAME_KEYS = frozenset(
     definition.key
     for definition in BUILTIN_GAME_DEFINITIONS
     if definition.records.score_kind != "outcome"
 )
-AVALON_STATS_VARIANTS = {"classic", "shadow_merlin"}
 AVATAR_PRESET_IDS = (
     "moon-fox",
     "jade-owl",
@@ -475,93 +456,6 @@ class AccountStore:
                 )
             ).first() is not None
 
-    def record_match(self, room: Room) -> bool:
-        if (
-            room.game_id is None
-            or room.game_started_at is None
-            or room.winner is None
-            or room.win_reason is None
-        ):
-            return False
-        human_players = [player for player in room.players if not player.is_bot]
-        account_ids = [
-            player.account_id
-            for player in human_players
-            if player.account_id is not None
-        ]
-        if not account_ids:
-            return False
-        ranked = (
-            len(human_players) == len(room.players)
-            and len(account_ids) == len(human_players)
-            and len(set(account_ids)) == len(account_ids)
-        )
-        assassination_target_id = (
-            room.dissenting_assassination_target_id
-            or room.assassin_target_id
-        )
-        assassination_target = (
-            room.player(assassination_target_id)
-            if assassination_target_id is not None
-            else None
-        )
-        assassination_hit = (
-            assassination_target.role == Role.MERLIN
-            if assassination_target is not None
-            else None
-        )
-        ended_at = self._now()
-        started_at = self._parse_datetime(room.game_started_at)
-        details = self._match_details(room)
-        self.initialize()
-        try:
-            with self.engine.begin() as connection:
-                existing = connection.execute(
-                    select(matches.c.id).where(matches.c.id == room.game_id)
-                ).scalar_one_or_none()
-                if existing is not None:
-                    return False
-                connection.execute(
-                    insert(matches).values(
-                        id=room.game_id,
-                        game_key=GAME_KEY,
-                        room_code=room.code,
-                        mode=room.settings.mode.value,
-                        player_count=len(room.players),
-                        winner=room.winner.value,
-                        reason=room.win_reason,
-                        ranked=ranked,
-                        assassination_hit=assassination_hit,
-                        ending_route=room.ending_route,
-                        recruitment_hit=room.dagger_hit,
-                        started_at=started_at,
-                        ended_at=ended_at,
-                        details_json=details,
-                    )
-                )
-                player_rows = [
-                    {
-                        "match_id": room.game_id,
-                        "account_id": player.account_id,
-                        "player_name": player.name,
-                        "seat": player.seat,
-                        "role": player.role.value,
-                        "alignment": player.alignment.value,
-                        "won": player.alignment == room.winner,
-                        "outcome": (
-                            "win" if player.alignment == room.winner else "loss"
-                        ),
-                        "is_host": player.id == room.host_id,
-                    }
-                    for player in human_players
-                    if player.account_id is not None
-                ]
-                if player_rows:
-                    connection.execute(insert(match_players), player_rows)
-        except IntegrityError:
-            return False
-        return True
-
     def record_game_match(
         self,
         *,
@@ -706,7 +600,9 @@ class AccountStore:
             statement = statement.where(matches.c.game_key == game_key)
         if game_mode is not None:
             statement = statement.where(matches.c.mode == game_mode)
-        statement = self._filter_game_variant(statement, game_variant)
+        statement = self._filter_game_variant(
+            statement, game_key, game_variant
+        )
         with self.engine.connect() as connection:
             rows = connection.execute(statement).mappings().all()
         return [self._history_row(row) for row in rows]
@@ -740,7 +636,9 @@ class AccountStore:
             )
             if game_mode is not None:
                 statement = statement.where(matches.c.mode == game_mode)
-            statement = self._filter_game_variant(statement, game_variant)
+            statement = self._filter_game_variant(
+                statement, game_key, game_variant
+            )
             with self.engine.connect() as connection:
                 row = connection.execute(statement).mappings().one()
             return {
@@ -923,7 +821,9 @@ class AccountStore:
             statement = statement.where(matches.c.game_key.not_in(SCORED_GAME_KEYS))
         if game_mode is not None:
             statement = statement.where(matches.c.mode == game_mode)
-        statement = self._filter_game_variant(statement, game_variant)
+        statement = self._filter_game_variant(
+            statement, game_key, game_variant
+        )
         with self.engine.connect() as connection:
             row = connection.execute(statement).mappings().one()
         game_count = int(row["games"])
@@ -999,7 +899,9 @@ class AccountStore:
             )
             if game_mode is not None:
                 statement = statement.where(matches.c.mode == game_mode)
-            statement = self._filter_game_variant(statement, game_variant)
+            statement = self._filter_game_variant(
+                statement, game_key, game_variant
+            )
             with self.engine.connect() as connection:
                 rows = connection.execute(statement).mappings().all()
             return [
@@ -1116,7 +1018,9 @@ class AccountStore:
         statement = statement.where(matches.c.game_key == game_key)
         if game_mode is not None:
             statement = statement.where(matches.c.mode == game_mode)
-        statement = self._filter_game_variant(statement, game_variant)
+        statement = self._filter_game_variant(
+            statement, game_key, game_variant
+        )
         with self.engine.connect() as connection:
             rows = connection.execute(statement).mappings().all()
         return [
@@ -1134,95 +1038,39 @@ class AccountStore:
         ]
 
     @staticmethod
-    def _filter_game_variant(statement, game_variant: str | None):
+    def _filter_game_variant(
+        statement,
+        game_key: str | None,
+        game_variant: str | None,
+    ):
         if game_variant is None:
             return statement
-        if game_variant not in AVALON_STATS_VARIANTS:
-            raise AccountError("未知的阿瓦隆统计分组")
-        shadow_merlin_enabled = matches.c.details_json[
-            "shadowMerlinEnabled"
-        ].as_boolean()
-        if game_variant == "shadow_merlin":
-            return statement.where(shadow_merlin_enabled.is_(True))
-        # 暗影梅林上线前的王庭暗流战绩没有这个字段；缺失值属于无暗影局。
-        return statement.where(shadow_merlin_enabled.is_not(True))
-
-    def avalon_role_skin_progress(
-        self,
-        account_id: str,
-        *,
-        now: datetime | None = None,
-    ) -> dict[str, Any]:
-        """Return server-authoritative, ranked Avalon wins by skin role family."""
-        current_time = now or self._now()
-        event_all_unlocked = (
-            AVALON_ROLE_SKIN_FREE_WEEK_START
-            <= current_time
-            < AVALON_ROLE_SKIN_FREE_WEEK_END
+        definition = (
+            builtin_game_definition(game_key)
+            if game_key is not None
+            else None
         )
-        self.initialize()
-        with self.engine.connect() as connection:
-            created_at = connection.execute(
-                select(users.c.created_at).where(users.c.id == account_id)
-            ).scalar_one_or_none()
-            if created_at is None:
-                raise AccountError("账号不存在")
-            rows = connection.execute(
-                select(
-                    match_players.c.role,
-                    func.count().label("wins"),
-                )
-                .select_from(
-                    match_players.join(
-                        matches, matches.c.id == match_players.c.match_id
-                    )
-                )
-                .where(
-                    match_players.c.account_id == account_id,
-                    matches.c.game_key == GAME_KEY,
-                    matches.c.ranked.is_(True),
-                    match_players.c.won.is_(True),
-                )
-                .group_by(match_players.c.role)
-            ).mappings().all()
+        if definition is None:
+            raise AccountError("这个游戏不支持战绩统计分组")
+        try:
+            selector = definition.records.variant_selector(game_variant)
+        except GameRecordQueryError as error:
+            raise AccountError(str(error)) from error
 
-        legacy_all_unlocked = (
-            created_at <= AVALON_ROLE_SKIN_PROGRESSION_START
-        )
-        wins = {role: 0 for role in AVALON_ROLE_SKIN_ROLES}
-        for row in rows:
-            role = str(row["role"])
-            if role == "dissenting_courtier":
-                role_family = "loyal_servant"
-            elif role == "shadow_merlin":
-                role_family = "merlin"
-            else:
-                role_family = role
-            if role_family in wins:
-                wins[role_family] += int(row["wins"])
-
-        return {
-            "legacyAllUnlocked": legacy_all_unlocked,
-            "eventAllUnlocked": event_all_unlocked,
-            "eventEndsAt": self._iso_datetime(
-                AVALON_ROLE_SKIN_FREE_WEEK_END
-            ),
-            "rankedOnly": True,
-            "upgradeWinsRequired": AVALON_ROLE_SKIN_UPGRADE_WINS,
-            "ultimateWinsRequired": AVALON_ROLE_SKIN_ULTIMATE_WINS,
-            "roles": {
-                role: {
-                    "wins": role_wins,
-                    "upgradeUnlocked": event_all_unlocked
-                    or legacy_all_unlocked
-                    or role_wins >= AVALON_ROLE_SKIN_UPGRADE_WINS,
-                    "ultimateUnlocked": event_all_unlocked
-                    or legacy_all_unlocked
-                    or role_wins >= AVALON_ROLE_SKIN_ULTIMATE_WINS,
-                }
-                for role, role_wins in wins.items()
-            },
-        }
+        detail_value = matches.c.details_json[selector.details_key]
+        if isinstance(selector.value, bool):
+            expression = detail_value.as_boolean()
+            if selector.include_missing:
+                return statement.where(expression.is_not(not selector.value))
+            return statement.where(expression.is_(selector.value))
+        if isinstance(selector.value, int):
+            expression = detail_value.as_integer()
+        else:
+            expression = detail_value.as_string()
+        criterion = expression == selector.value
+        if selector.include_missing:
+            criterion = or_(criterion, expression.is_(None))
+        return statement.where(criterion)
 
     def match_for_account(
         self, match_id: str, account_id: str
@@ -1374,115 +1222,6 @@ class AccountStore:
         if winner == "draw":
             return "draw"
         return "win" if won else "loss"
-
-    @staticmethod
-    def _match_details(room: Room) -> dict:
-        return {
-            "mode": room.settings.mode.value,
-            "shadowMerlinEnabled": room.settings.shadow_merlin_enabled,
-            "players": [
-                {
-                    "id": player.id,
-                    "name": player.name,
-                    "seat": player.seat,
-                    "isBot": player.is_bot,
-                    "role": player.role.value,
-                    "alignment": player.alignment.value,
-                    "initialAlignment": ROLE_ALIGNMENT[player.role].value,
-                    "finalAlignment": player.alignment.value,
-                    "transformed": (
-                        player.id == room.transformed_player_id
-                    ),
-                    "shadowMerlinTransformed": (
-                        player.role == Role.SHADOW_MERLIN
-                        and room.shadow_merlin_transformed
-                    ),
-                }
-                for player in room.players
-            ],
-            "missions": [
-                {
-                    "number": mission.number,
-                    "teamIds": mission.team_ids,
-                    "success": mission.success,
-                    "failCount": mission.fail_count,
-                    "failedByRejections": getattr(
-                        mission, "failed_by_rejections", False
-                    ),
-                }
-                for mission in room.mission_history
-            ],
-            "proposals": [
-                {
-                    "missionNumber": proposal.mission_number,
-                    "attempt": proposal.attempt,
-                    "leaderId": proposal.leader_id,
-                    "teamIds": proposal.team_ids,
-                    "votes": proposal.votes,
-                    "accepted": proposal.accepted,
-                }
-                for proposal in room.proposal_history
-            ],
-            "ladyChecks": [
-                {
-                    "inspectorId": check.inspector_id,
-                    "targetId": check.target_id,
-                    "alignment": check.alignment.value,
-                    "missionNumber": check.mission_number,
-                }
-                for check in room.lady_checks
-            ],
-            "assassinTargetId": room.assassin_target_id,
-            "assassinationWasEarly": room.assassination_was_early,
-            "courtUndercurrent": {
-                "daggerCandidateIds": list(room.dagger_candidate_ids),
-                "daggerTargetId": room.dagger_target_id,
-                "daggerHit": room.dagger_hit,
-                "transformedPlayerId": room.transformed_player_id,
-                "eligibleTargetIds": (
-                    [
-                        player.id
-                        for player in room.players
-                        if player.id != room.transformed_player_id
-                        and player.role
-                        not in {
-                            Role.ASSASSIN,
-                            Role.MORGANA,
-                            Role.MORDRED,
-                            Role.MINION,
-                        }
-                    ]
-                    if room.transformed_player_id is not None
-                    else []
-                ),
-                "assassinationTargetId": (
-                    room.dissenting_assassination_target_id
-                ),
-            },
-            "shadowMerlin": {
-                "enabled": room.settings.shadow_merlin_enabled,
-                "transformed": room.shadow_merlin_transformed,
-                "councilTriggered": room.exile_council_triggered,
-                "councilOpened": room.exile_council_opened,
-                "openVotes": dict(room.exile_council_open_votes),
-                "targetVotes": dict(room.exile_council_target_votes),
-                "assassinationDecisions": dict(
-                    room.exile_council_assassination_decisions
-                ),
-                "assassinationChosen": (
-                    room.exile_council_assassination_chosen
-                ),
-                "assassinationTargets": dict(
-                    room.exile_council_assassination_targets
-                ),
-                "assassinationTargetId": (
-                    room.exile_council_assassination_target_id
-                ),
-                "exileTargetId": room.exile_council_exile_target_id,
-                "exileSuccess": room.exile_council_exile_success,
-            },
-            "endingRoute": room.ending_route,
-        }
 
     @staticmethod
     def _match_mode(game_key: str, details: dict[str, Any]) -> str:

@@ -11,8 +11,6 @@ from .access import verify_access_token
 from .accounts import account_store
 from .arcade.models import ArcadeRoom
 from .arcade.realtime import arcade_realtime
-from .games.avalon.arcade import AvalonEngine
-from .games.avalon.models import AvalonMode, Room
 from .guests import guest_for_token
 from .infrastructure import redis_url
 from .room_state import RedisRoomStateStore
@@ -37,25 +35,6 @@ arcade_realtime.bind(sio)
 room_state_store = RedisRoomStateStore(redis_connection_url)
 
 
-def _repair_avalon_domain(room: Room) -> None:
-    if not hasattr(room.settings, "mode"):
-        room.settings.mode = AvalonMode.STANDARD
-    room.ending_route = getattr(room, "ending_route", None)
-    room.dagger_candidate_ids = getattr(room, "dagger_candidate_ids", [])
-    room.dagger_target_id = getattr(room, "dagger_target_id", None)
-    room.dagger_hit = getattr(room, "dagger_hit", None)
-    room.transformed_player_id = getattr(room, "transformed_player_id", None)
-    room.dissenting_assassination_target_id = getattr(
-        room, "dissenting_assassination_target_id", None
-    )
-    room.lock = asyncio.Lock()
-    for player in room.players:
-        player.alignment_override = getattr(player, "alignment_override", None)
-        player.disconnect_forfeited = getattr(
-            player, "disconnect_forfeited", False
-        )
-
-
 async def restore_room_state() -> None:
     state = await room_state_store.load()
     if state is None:
@@ -72,18 +51,12 @@ async def restore_room_state() -> None:
             }
         )
 
-    # One-time migration for rooms persisted before Avalon joined Arcade.
-    saved_avalon_rooms = state.get("avalon")
-    if isinstance(saved_avalon_rooms, dict):
-        for code, legacy_room in saved_avalon_rooms.items():
-            if (
-                not isinstance(code, str)
-                or not isinstance(legacy_room, Room)
-                or code in restored
-            ):
-                continue
-            _repair_avalon_domain(legacy_room)
-            restored[code] = AvalonEngine.migrate_legacy_room(legacy_room)
+    for engine in arcade_realtime.engines.values():
+        restore_legacy_rooms = getattr(engine, "restore_legacy_rooms", None)
+        if not callable(restore_legacy_rooms):
+            continue
+        for code, room in restore_legacy_rooms(state).items():
+            restored.setdefault(code, room)
 
     arcade_realtime.rooms.rooms = restored
     restored_at = datetime.now(timezone.utc)
@@ -92,8 +65,6 @@ async def restore_room_state() -> None:
         room.cleanup_ready = getattr(room, "cleanup_ready", False)
         room.stats_eligible = getattr(room, "stats_eligible", True)
         room.host_offline_since = None
-        if room.game_key == "avalon" and isinstance(room.state, Room):
-            _repair_avalon_domain(room.state)
         engine = arcade_realtime.engines.get(room.game_key)
         repair_restored_room = getattr(engine, "repair_restored_room", None)
         if callable(repair_restored_room):

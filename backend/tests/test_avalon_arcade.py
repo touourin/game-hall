@@ -203,6 +203,22 @@ def test_restored_legacy_council_target_finishes_without_human_decoys() -> None:
     assert room.phase == "finished"
 
 
+def test_avalon_engine_owns_pre_arcade_room_migration() -> None:
+    legacy = make_room(5)
+    adapter = AvalonEngine()
+
+    restored = adapter.restore_legacy_rooms(
+        {"avalon": {legacy.code: legacy}, "unrelated": {"NOPE": object()}}
+    )
+
+    assert set(restored) == {legacy.code}
+    room = restored[legacy.code]
+    assert room.game_key == "avalon"
+    assert room.state is legacy
+    assert room.players[0].id == legacy.players[0].id
+    assert adapter.restore_legacy_rooms({"arcade": {}}) == {}
+
+
 def finish_ten_player_shadow_scenario(
     adapter: AvalonEngine,
     room,

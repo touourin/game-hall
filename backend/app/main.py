@@ -29,6 +29,7 @@ from .avatars import (
 )
 from .games.registry import GAME_CATALOG
 from .games.builtin import builtin_game_definition
+from .games.avalon.records import avalon_role_skin_progress as role_skin_progress
 from .games.definition import GameRecordQueryError, GameRecords
 from .guests import GuestSessionError, guest_for_token, issue_guest_session
 from .infrastructure import redis_status
@@ -571,9 +572,11 @@ def avalon_role_skin_progress(
     game_hall_access: str | None = Depends(game_hall_access_header),
 ) -> dict:
     account = require_account_session(authorization, game_hall_access)
+    store = account_store()
+    store.initialize()
     return {
         "ok": True,
-        "progress": account_store().avalon_role_skin_progress(account.id),
+        "progress": role_skin_progress(store.engine, account.id),
     }
 
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 from backend.app.games.definition import (
     GameCatalogMetadata,
     GameDefinition,
+    GameRecordVariantSelector,
     GameRecords,
     social_table_capabilities,
 )
@@ -29,6 +30,17 @@ AVALON_GAME = GameDefinition(
         query_modes=frozenset({"standard", "court_undercurrent"}),
         query_variants={
             "court_undercurrent": frozenset({"classic", "shadow_merlin"}),
+        },
+        variant_selectors={
+            "classic": GameRecordVariantSelector(
+                details_key="shadowMerlinEnabled",
+                value=False,
+                include_missing=True,
+            ),
+            "shadow_merlin": GameRecordVariantSelector(
+                details_key="shadowMerlinEnabled",
+                value=True,
+            ),
         },
         invalid_variant_message="王庭暗流统计分组不正确",
     ),
