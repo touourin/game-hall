@@ -12,6 +12,8 @@
 - 使用圆润比例、4–6 层结构、精密倒角、柔和高光和真实接触阴影。
 - 画面有空间感和材质细节，但在 104px 尺寸下仍能一眼识别。
 - 每款游戏只使用一个低饱和点缀色；不依赖颜色区分游戏。
+- 黑、白、灰和金属中性色必须占画面 80%–90%，点缀色只占 10%–20%，并且只承担核心状态或结构提示。
+- 多人游戏的玩家阵营色属于对局 UI，不得原样搬进大厅图标；大厅图标仍只保留一种点缀色。
 - 所有主题共享同一构图、镜头和轮廓，只切换材质。
 
 禁止使用：人物、电影场景、电竞盾牌、奇幻徽章、强霓虹、卡通造型、廉价手游边框、大段文字、Apple 标志、水印和无意义装饰。
@@ -31,6 +33,7 @@
 
 - 命名：`<game-slug>-dark.webp`、`<game-slug>-light.webp`。
 - 格式：WebP，sRGB，768 × 768，质量 90；使用完整方形棚拍背景，不使用透明通道。
+- 运行时目录只允许提交成对的 WebP 和本 README；不得保留 SVG、PNG、生成草稿或同名旧资源，避免出现双轨源图。
 - 构图：正方形画布，略俯视 3/4 产品镜头；主体视觉中心约为 `(50%, 52%)`。
 - 安全区：主体宽高占画布 72%–82%，任何零件不得进入外侧 7% 的裁切危险区。
 - 背景：安静的单色棚拍台；可有微弱径向亮度和接触阴影，不得出现风景、房间或地平线。
@@ -61,6 +64,7 @@
 | `deep-shaft` | 垂直玻璃井、层叠平台、下降舱 | 明显纵向塔形 | 紫罗兰 |
 | `schulte` | 5×5 方格阵列、中央扫描焦点 | 规则矩阵 + 光学环 | 青色 |
 | `critical-crossing` | 四向脉冲导轨、中央安全孔与导航核心 | 十字导轨 + 中央核心 | 冰青 |
+| `pixel-push` | 低矮推力擂台、两枚对抗推块、边缘坠落缺口 | 圆角擂台 + 对置方块 + 单侧缺口 | 冰青 |
 | `minesweeper` | 方格盘、切面地雷、旗标 | 方板 + 球形雷 | 红色 |
 | `hanoi` | 三根立柱、阶梯圆盘 | 递减圆锥塔 | 金色 |
 | `tetris` | 竖向游戏舱、合法四格骨牌 | 窄高矩形舱 | 蓝紫 |
@@ -68,7 +72,18 @@
 | `one-night-werewolf` | 月相仪表、狼影遮片、三席节点 | 月盘 + 三节点 | 冷紫 |
 | `departed-suspicion` | 指纹扫描器、双人席位、证据槽 | 八角扫描台 | 青绿 |
 
-## 6. 生成提示词模板
+## 6. 新增与重做流程
+
+任何新增或重做图标都必须按以下顺序执行，不得直接生成后入库：
+
+1. 先在“当前官方游戏身份”中登记核心识别物、轮廓要求和唯一点缀色；没有身份定义不得开始制作。
+2. 从现有正式资源中选择 2–3 个同层级图标作为家族参考，但不得复制它们的游戏专属物件。
+3. 先制作 `dark` 几何母版；确认轮廓、镜头、留白和 104px 识别度后，才允许制作 `light`。
+4. `light` 必须以 `dark` 为几何参考，只切换材质、背景和明暗关系，不得重新构图。
+5. 导出时只把最终成对 WebP 放入本目录；旧版本、SVG 源图、PNG 母版和生成草稿必须移出或删除。
+6. 在 142px、104px、72px 三档与至少三款现有图标并排检查，然后执行 `npm run verify:game-icons`。
+
+### 生成提示词模板
 
 后续新增游戏时，在下面模板中只替换方括号内容。必须先制作 `dark`，再以 `dark` 作为几何参考制作 `light`。
 
@@ -78,6 +93,8 @@ Identity: [core object and silhouette from the table].
 Use the established official icon family: elevated three-quarter product camera,
 rounded double plinth, 4–6 material layers, precision bevels, soft studio highlights,
 real contact shadows, one restrained accent color, quiet full-square studio backdrop.
+Keep 80–90% of the image in black/white/gray/metal neutrals and limit the single
+accent color to 10–20%; multiplayer team colors belong to gameplay UI, not this icon.
 Keep the subject inside the central 82% safe area and readable at 104 px.
 [dark: black titanium, smoked glass, graphite ceramic, anodized metal]
 [light: moon-white ceramic, frosted glass, champagne silver; preserve the exact dark geometry]
@@ -97,3 +114,5 @@ cartoon styling, cheap mobile-game frame, or cropped parts.
 6. 深色版在极光雾舱和暖钛陶瓷中对比度合格。
 7. 浅色版在月白陶瓷中边界、按钮和主体层次清楚。
 8. 大厅运行时只加载当前主题需要的一个变体。
+9. 本目录没有 SVG、PNG、草稿或孤立变体，`npm run verify:game-icons` 通过。
+10. 新图标已与三款现有图标在 142px、104px、72px 下并排审查，仍属于同一家族。

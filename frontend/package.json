@@ -6,7 +6,8 @@
   "scripts": {
     "plugins:sync": "node scripts/generate-plugin-registry.mjs",
     "dev": "npm run plugins:sync && vite",
-    "build": "npm run plugins:sync && vue-tsc -b && vite build && npm run verify:theme-selectors && npm run verify:theme-contrast",
+    "build": "npm run plugins:sync && vue-tsc -b && npm run verify:game-icons && vite build && npm run verify:theme-selectors && npm run verify:theme-contrast",
+    "verify:game-icons": "node scripts/verify-game-icons.mjs",
     "verify:theme-selectors": "node scripts/verify-theme-selectors.mjs",
     "verify:theme-contrast": "node scripts/verify-theme-contrast.mjs",
     "test": "npm run plugins:sync && vitest",
