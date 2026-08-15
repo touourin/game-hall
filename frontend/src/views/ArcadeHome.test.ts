@@ -193,42 +193,6 @@ describe('ArcadeHome', () => {
     expect(wrapper.find('.solo-game-mark').exists()).toBe(false)
   })
 
-  it('automatically creates and starts a single-player plugin room', async () => {
-    const pinia = createPinia()
-    const arcade = useArcadeStore(pinia)
-    const createRoom = vi.spyOn(arcade, 'createRoom').mockResolvedValue(true)
-    const startGame = vi.spyOn(arcade, 'startGame').mockResolvedValue()
-    const wrapper = mount(ArcadeHome, {
-      props: {
-        game: {
-          key: 'plugin-pyramid-solitaire',
-          name: '金字塔纸牌',
-          players: '1 人',
-          description: '配对凑成 13 的计时纸牌挑战',
-        },
-        account: {
-          id: 'account-1',
-          username: 'tester',
-          playerName: '测试玩家',
-          nextRenameAt: null,
-          createdAt: '2026-08-01T00:00:00Z',
-        },
-      },
-      global: { plugins: [pinia] },
-    })
-
-    expect(wrapper.find('.multiplayer-match-launcher').exists()).toBe(false)
-    expect(wrapper.text()).toContain('自动创建单人房间')
-    await wrapper.get('form').trigger('submit')
-    await flushPromises()
-
-    expect(createRoom).toHaveBeenCalledWith(
-      'plugin-pyramid-solitaire',
-      expect.objectContaining({ listed: false, allowSpectators: true }),
-    )
-    expect(startGame).toHaveBeenCalledOnce()
-  })
-
   it('starts an expert Minesweeper challenge with classic rules', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)

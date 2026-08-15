@@ -33,16 +33,21 @@ describe('GameHall', () => {
     expect(wrapper.get('[aria-label="退出登录"]').text()).toContain('退出')
     expect(wrapper.get('[aria-label="打开设置"]').attributes('aria-label')).toBe('打开设置')
     expect(wrapper.get('[aria-label="打开第三方游戏入口"]').text()).toContain('第三方游戏')
-    expect(wrapper.get('[aria-label="打开第三方游戏入口"]').text()).toContain(
-      `${THIRD_PARTY_GAME_REGISTRATIONS.length} 款已启用`,
-    )
+    if (THIRD_PARTY_GAME_REGISTRATIONS.length) {
+      expect(wrapper.get('[aria-label="打开第三方游戏入口"]').text()).toContain(
+        `${THIRD_PARTY_GAME_REGISTRATIONS.length} 款已启用`,
+      )
+    }
     await wrapper.get('.account-bar-actions [aria-label="打开设置"]').trigger('click')
     expect(wrapper.emitted('settings')).toHaveLength(1)
     await wrapper.get('[aria-label="打开第三方游戏入口"]').trigger('click')
     expect(wrapper.find('[role="dialog"][aria-label="第三方游戏"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('欺诈者')
-    expect(wrapper.text()).toContain('疯狂期货')
-    expect(wrapper.text()).toContain('金字塔纸牌')
+    for (const registration of THIRD_PARTY_GAME_REGISTRATIONS) {
+      expect(wrapper.text()).toContain(registration.catalog.name)
+    }
+    if (!THIRD_PARTY_GAME_REGISTRATIONS.length) {
+      expect(wrapper.get('[role="status"]').text()).toContain('暂未启用第三方游戏')
+    }
     await wrapper.get('[aria-label="关闭第三方游戏"]').trigger('click')
     expect(wrapper.find('[role="dialog"][aria-label="第三方游戏"]').exists()).toBe(false)
     expect(wrapper.get('.account-identity-copy').text()).toContain('玩家账号 · tester')

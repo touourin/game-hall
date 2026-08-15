@@ -5,14 +5,13 @@ from pathlib import Path
 
 import pytest
 
+import backend.app.accounts as accounts_module
 from backend.app.accounts import AccountStore
 from backend.app.games.plugins import (
     GamePluginValidationError,
     discover_game_plugins,
-    third_party_games_root,
     validate_game_plugins,
 )
-from backend.app.games.registry import game_registration
 
 
 def write_plugin(
@@ -116,6 +115,27 @@ def test_enabled_plugin_is_discovered_from_its_own_directory(tmp_path) -> None:
     assert [plugin.engine.key for plugin in plugins] == ["plugin-test-game"]
     assert plugins[0].catalog_entry["players"] == "1 人"
     assert plugins[0].manifest["roomLayout"] == "immersive"
+    assert plugins[0].registration.source == "third_party"
+    assert plugins[0].registration.capabilities.spectators is True
+    assert plugins[0].registration.records.score_kind == "outcome"
+
+
+def test_absent_or_empty_plugin_repository_loads_no_plugins(tmp_path) -> None:
+    missing = tmp_path / "missing"
+    empty = tmp_path / "empty"
+    empty.mkdir()
+
+    assert validate_game_plugins(missing) == []
+    assert validate_game_plugins(empty) == []
+
+
+def test_nonempty_plugin_repository_requires_a_registry(tmp_path) -> None:
+    (tmp_path / "README.md").write_text("# 插件仓库\n", encoding="utf-8")
+
+    with pytest.raises(GamePluginValidationError) as error:
+        validate_game_plugins(tmp_path)
+
+    assert error.value.issues == ("registry.json: 缺少 registry.json",)
 
 
 def test_plugin_with_invalid_room_layout_is_rejected(tmp_path) -> None:
@@ -224,42 +244,32 @@ def test_release_validation_reports_every_invalid_plugin(tmp_path) -> None:
     )
 
 
-def test_release_validation_accepts_the_current_plugin_repository() -> None:
-    plugins = validate_game_plugins()
-
-    assert {plugin.engine.key for plugin in plugins} == {
-        "plugin-cheat-poker",
-        "plugin-crazy-futures",
-        "plugin-number-vault",
-        "plugin-pyramid-solitaire",
-        "plugin-star-stones",
-    }
-
-
-def test_repository_includes_a_safe_disabled_template() -> None:
-    root = third_party_games_root()
-    manifest = json.loads(
-        (root / "plugin-counter-demo" / "manifest.json").read_text(encoding="utf-8")
+def test_plugin_match_is_registered_and_visible_in_stats(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plugin_root = tmp_path / "plugins"
+    write_plugin(plugin_root, plugin_id="plugin-test-game")
+    registration = validate_game_plugins(plugin_root)[0].registration
+    monkeypatch.setattr(
+        accounts_module,
+        "GAME_NAMES",
+        {registration.key: registration.catalog.name},
     )
-
-    registry = json.loads((root / "registry.json").read_text(encoding="utf-8"))
-    assert manifest["apiVersion"] == 1
-    assert all(
-        entry["id"] != "plugin-counter-demo"
-        for entry in registry["plugins"]
+    monkeypatch.setattr(
+        accounts_module,
+        "game_registration",
+        lambda game_key: registration if game_key == registration.key else None,
     )
-    assert (root / "README.md").is_file()
-    assert (root / "plugin.schema.json").is_file()
+    monkeypatch.setattr(accounts_module, "SCORED_GAME_KEYS", frozenset())
 
-
-def test_plugin_match_is_registered_and_visible_in_stats(tmp_path) -> None:
     store = AccountStore(tmp_path / "plugin-stats.sqlite3")
     first, _ = store.register("plugin_one", "secret123", "插件玩家一")
     second, _ = store.register("plugin_two", "secret123", "插件玩家二")
 
     stored = store.record_game_match(
-        game_key="plugin-cheat-poker",
-        game_name="欺诈者",
+        game_key=registration.key,
+        game_name=registration.catalog.name,
         match_id="plugin-match-1",
         room_code="PLUG",
         winner="player",
@@ -291,29 +301,9 @@ def test_plugin_match_is_registered_and_visible_in_stats(tmp_path) -> None:
 
     assert stored is True
     assert store.summary_for_account(
-        first.id, game_key="plugin-cheat-poker"
+        first.id, game_key=registration.key
     )["wins"] == 1
     history = store.history_for_account(
-        first.id, game_key="plugin-cheat-poker"
+        first.id, game_key=registration.key
     )
-    assert history[0]["gameName"] == "欺诈者"
-
-
-def test_plugins_share_capabilities_and_records_with_official_games() -> None:
-    cheat_poker = game_registration("plugin-cheat-poker")
-    number_vault = game_registration("plugin-number-vault")
-    pyramid = game_registration("plugin-pyramid-solitaire")
-    star_stones = game_registration("plugin-star-stones")
-
-    assert cheat_poker is not None
-    assert cheat_poker.source == "third_party"
-    assert cheat_poker.capabilities.guests is True
-    assert cheat_poker.capabilities.spectators is True
-    assert number_vault is not None
-    assert number_vault.catalog.name == "数字密匣"
-    assert number_vault.records.score_kind == "outcome"
-    assert pyramid is not None
-    assert pyramid.records.score_kind == "time_trial"
-    assert star_stones is not None
-    assert star_stones.catalog.name == "星石争夺"
-    assert star_stones.records.score_kind == "outcome"
+    assert history[0]["gameName"] == registration.catalog.name

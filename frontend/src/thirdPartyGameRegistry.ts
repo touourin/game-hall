@@ -42,7 +42,7 @@ export interface ThirdPartyGameManifest {
 }
 
 type PluginViewModule = { default: Component }
-interface GeneratedPluginModule {
+export interface GeneratedPluginModule {
   directory: string
   status: GameAvailability
   order: number
@@ -83,7 +83,7 @@ function ruleLabels(
   return labels
 }
 
-function buildRegistration(
+export function buildThirdPartyGameRegistration(
   generated: GeneratedPluginModule,
 ): GameRegistration<PluginArcadeGameKey> {
   const { directory, manifest, order, status } = generated
@@ -145,5 +145,5 @@ function buildRegistration(
 
 export const THIRD_PARTY_GAME_REGISTRATIONS = Object.freeze(
   (GENERATED_THIRD_PARTY_GAME_MODULES as readonly GeneratedPluginModule[])
-    .map(buildRegistration),
+    .map(buildThirdPartyGameRegistration),
 )

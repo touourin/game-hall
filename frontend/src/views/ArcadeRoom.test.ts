@@ -383,11 +383,6 @@ describe('ArcadeRoom', () => {
     expect(wrapper.get('.arcade-room').classes()).not.toContain('arcade-room--wide')
     await wrapper.setProps({ snapshot: snapshot('minesweeper') })
     expect(wrapper.get('.arcade-room').classes()).toContain('arcade-room--wide')
-    await wrapper.setProps({ snapshot: snapshot('plugin-pyramid-solitaire') })
-    expect(wrapper.get('.arcade-room').classes()).toContain('arcade-room--immersive')
-    expect(wrapper.get('.arcade-room').classes()).not.toContain('arcade-room--wide')
-    await wrapper.setProps({ snapshot: snapshot('plugin-cheat-poker') })
-    expect(wrapper.get('.arcade-room').classes()).not.toContain('arcade-room--immersive')
   })
 
   it('marks active board rooms for the mobile board-first layout', () => {
@@ -440,9 +435,9 @@ describe('ArcadeRoom', () => {
     expect(wrapper.get('.result-banner').text()).not.toContain('战绩已保存')
   })
 
-  it('uses the shared solo room shell for a one-player plugin', () => {
-    const room = snapshot('plugin-pyramid-solitaire')
-    room.gameName = '金字塔纸牌'
+  it('uses the shared solo room shell for a one-player game', () => {
+    const room = snapshot('hanoi')
+    room.gameName = '汉诺塔'
     room.requiredPlayers = 1
     room.phase = 'playing'
     room.actions.canAct = true
@@ -455,7 +450,7 @@ describe('ArcadeRoom', () => {
       },
     })
 
-    expect(wrapper.getComponent(RoomPageHeader).props('title')).toBe('金字塔纸牌')
+    expect(wrapper.getComponent(RoomPageHeader).props('title')).toBe('汉诺塔挑战')
     expect(wrapper.find('.arcade-player-strip').exists()).toBe(false)
     expect(wrapper.findComponent({ name: 'ArcadeChatPanel' }).exists()).toBe(false)
   })

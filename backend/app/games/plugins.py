@@ -133,10 +133,9 @@ def _collect_game_plugins(
     fail_on_error: bool,
 ) -> list[GamePlugin]:
     plugin_root = root or third_party_games_root()
-    if not plugin_root.is_dir():
-        return []
-
     try:
+        if not _plugin_repository_available(plugin_root):
+            return []
         entries = _read_registry(plugin_root)
     except Exception as error:
         if fail_on_error:
@@ -186,6 +185,20 @@ def _collect_game_plugins(
     if issues:
         raise GamePluginValidationError(issues)
     return plugins
+
+
+def _plugin_repository_available(root: Path) -> bool:
+    """Return false only for an absent or uninitialized plugin repository."""
+
+    if not root.exists():
+        return False
+    if not root.is_dir():
+        raise ValueError("第三方游戏路径必须是目录")
+    if (root / "registry.json").is_file():
+        return True
+    if any(root.iterdir()):
+        raise ValueError("缺少 registry.json")
+    return False
 
 
 def plugin_catalog(root: Path | None = None) -> list[dict[str, str]]:

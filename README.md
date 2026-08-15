@@ -25,7 +25,7 @@
 - 像素推推王：2–4 人实时像素擂台，服务端 30Hz 权威模拟；支持移动、冲刺、稳住、失衡击退、三张轮换地图、突然死亡收缩、触屏多点操作和第一人称观战
 - 反应挑战：单人自动开局，随机信号、抢跑判定、空格键与触摸操作；连续三轮并记录最佳、平均成绩和独立排行榜
 - 舒尔特方格：5×5 标准挑战，按顺序点击 1–25；服务端校验点击顺序与完成用时，并记录独立排行榜
-- 临界穿越：5/8/10 秒三档单人挑战，识别横向、纵向与交叉脉冲的安全缺口；服务器以相同种子重放完整方向轨迹，三档成绩独立统计
+- 临界穿越：5/8/10 秒三档单人挑战；按档位生成无相邻重复的横向、纵向与交叉脉冲，逐档缩短预警并收窄缺口；服务器以相同种子重放完整方向轨迹，三档成绩独立统计
 - 扫雷：初级 9×9、中级 16×16、高级 16×30；首次点击安全，支持长按插旗、雷区缩放与分难度排行榜
 - 汉诺塔：3–8 层难度可选，支持点击与拖动操作；服务端校验移动规则，实时记录步数、理论最少步数和完成时间
 - 落块挑战：10×20 标准棋盘与 7-bag 随机序列，支持 1/3/5 分钟限时和无限挑战、预览、暂存、幽灵落点、软降、硬降、等级加速，以及键盘和手机拇指控制器；不同模式独立按历史最高得分排名
@@ -63,12 +63,15 @@
 
 服务器需要安装 Docker 和 Docker Compose。
 
-首次克隆需要同时初始化第三方游戏子仓库；已有检出也可以运行第二条命令补齐：
+主项目可以在未初始化第三方游戏子仓库时独立运行。生产环境或需要开发第三方游戏时，再执行第二条命令启用插件：
 
 ```bash
-git clone --recurse-submodules git@github.com:touourin/game-hall.git
+git clone git@github.com:touourin/game-hall.git
+cd game-hall
 git submodule update --init --recursive
 ```
+
+未初始化 Submodule 时，大厅只包含官方游戏；已初始化后，构建和启动会自动读取第三方仓库的 `registry.json`。空目录或目录不存在是合法状态，但只要目录中存在文件，注册表和已发布插件就必须完整通过校验。前端插件模块清单属于构建产物，不提交到主仓库，`dev`、`test` 和 `build` 会在运行前自动生成。
 
 首次部署时复制环境变量模板：
 
@@ -129,13 +132,14 @@ docker compose down
 需要 Node.js 24+ 和 Python 3.11+。
 
 ```bash
-git submodule update --init --recursive
 python3 -m venv .venv
 .venv/bin/pip install -e 'backend[dev]'
 npm install
 npm --prefix frontend install
 npm run dev
 ```
+
+以上命令可以直接运行仅含官方游戏的主项目。需要第三方游戏时，在启动前额外执行 `git submodule update --init --recursive`。
 
 开发地址：
 
@@ -208,7 +212,7 @@ docker exec game-hall-mysql sh -c 'exec mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASS
 
 新增或重写大厅自带游戏前，必须阅读[官方游戏开发与主题适配规范](frontend/src/games/README.md)。新游戏只维护一套结构和玩法逻辑，通过主题令牌或 Canvas 调色板适配极光雾舱、暖钛陶瓷与月白陶瓷；图标、电脑端、手机端和月白对比度也属于完成条件。
 
-第三方游戏只能放在根目录的 `third_party_games/` 中。该路径是独立仓库 [`touourin/game-hall-third-party-games`](https://github.com/touourin/game-hall-third-party-games) 的 Git Submodule，第三方作者可以在插件仓库独立提交；主仓库记录最近验证过的子模块提交，作为开发、CI、复现和回滚基线，服务器部署则默认更新到第三方仓库的 `main` 最新提交。官方与第三方游戏会被适配进同一个游戏注册表，房间、观战、规则和战绩统一按能力声明解析。部署脚本会先构建新镜像，再在新镜像内严格校验全部已发布插件，校验通过后才替换当前服务。新增游戏时复制 `plugin-counter-demo/`，完成 API v1 manifest、固定前后端入口和测试，再由维护者把它加入第三方仓库根部的 `registry.json`；无需修改大厅业务代码。完整步骤、能力字段和安全边界见 [`third_party_games/README.md`](third_party_games/README.md)。未进入发布注册表的示例不会进入前端构建，也不会被后端加载。
+第三方游戏只能放在根目录的 `third_party_games/` 中。该路径是可选的 Git Submodule，指向独立仓库 [`touourin/game-hall-third-party-games`](https://github.com/touourin/game-hall-third-party-games)。未初始化时主项目仍可构建、测试和运行，只加载官方游戏；初始化后会在前端构建与后端启动时自动读取第三方 `registry.json`，不需要在主仓库登记具体游戏。第三方目录存在但注册表或已发布插件损坏时会严格失败，不能静默跳过。主仓库记录最近验证过的子模块提交，作为开发、CI、复现和回滚基线，服务器部署则默认更新到第三方仓库的 `main` 最新提交。新增游戏时复制 `plugin-counter-demo/`，完成 API v1 manifest、固定前后端入口和测试，再由维护者把它加入第三方仓库根部的 `registry.json`。完整步骤、能力字段和安全边界见 [`third_party_games/README.md`](third_party_games/README.md)。
 
 ```text
 frontend/src/views/         游戏大厅、通用房间与账号界面

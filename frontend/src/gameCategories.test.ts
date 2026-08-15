@@ -23,7 +23,10 @@ describe('official game categories', () => {
   })
 
   it('fails loudly when a newly registered game has not been classified', () => {
-    const unclassifiedGame = GAME_CATALOG.find((game) => game.source === 'third_party')!
+    const unclassifiedGame = {
+      ...officialGames[0]!,
+      key: 'plugin-unclassified-game' as const,
+    }
 
     expect(() => buildOfficialGameCategories([
       ...officialGames,

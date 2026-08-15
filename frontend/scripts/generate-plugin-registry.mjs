@@ -1,4 +1,11 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -122,6 +129,18 @@ function validateRegistry() {
   }).sort((left, right) => left.order - right.order)
 }
 
+function pluginRepositoryAvailable() {
+  if (!existsSync(pluginRoot)) return false
+  if (!statSync(pluginRoot).isDirectory()) {
+    throw new Error('第三方游戏路径必须是目录')
+  }
+  if (existsSync(join(pluginRoot, 'registry.json'))) return true
+  if (readdirSync(pluginRoot).length) {
+    throw new Error('第三方仓库缺少 registry.json')
+  }
+  return false
+}
+
 function validateManifest(candidate, entry) {
   const manifest = assertObject(candidate, `${entry.id}/manifest.json`)
   rejectUnknownFields(manifest, manifestFields, `${entry.id}/manifest.json`)
@@ -228,7 +247,7 @@ function validateManifest(candidate, entry) {
 }
 
 const modules = []
-if (existsSync(pluginRoot)) {
+if (pluginRepositoryAvailable()) {
   for (const entry of validateRegistry()) {
     if (entry.status === 'disabled') continue
     const manifestPath = join(entry.directory, 'manifest.json')
