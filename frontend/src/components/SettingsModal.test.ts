@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { defineComponent, nextTick } from 'vue'
+import type { AccountProfile } from '../account'
 import SettingsModal from './SettingsModal.vue'
 
 const AvatarCropStub = defineComponent({
@@ -9,25 +10,37 @@ const AvatarCropStub = defineComponent({
   template: '<div class="avatar-crop-stub" />',
 })
 
+const defaultAccount: AccountProfile = {
+  id: 'account-1',
+  username: 'login_account',
+  playerName: '当前昵称',
+  nextRenameAt: null,
+  avatarType: 'preset',
+  avatarPreset: 'moon-fox',
+  avatarUrl: '/avatars/moon-fox.webp',
+  createdAt: '2026-08-01T00:00:00Z',
+  isGuest: false,
+}
+
+function mountSettings(
+  account: Partial<AccountProfile> = {},
+  stubAvatarCrop = false,
+) {
+  return mount(SettingsModal, {
+    props: {
+      account: { ...defaultAccount, ...account },
+      busy: false,
+      error: null,
+    },
+    global: stubAvatarCrop
+      ? { stubs: { AvatarCropModal: AvatarCropStub } }
+      : undefined,
+  })
+}
+
 describe('SettingsModal', () => {
   it('allows renaming to a one-character game nickname', async () => {
-    const wrapper = mount(SettingsModal, {
-      props: {
-        account: {
-          id: 'account-1',
-          username: 'login_account',
-          playerName: '旧昵称',
-          nextRenameAt: null,
-          avatarType: 'preset',
-          avatarPreset: 'moon-fox',
-          avatarUrl: '/avatars/moon-fox.webp',
-          createdAt: '2026-08-01T00:00:00Z',
-          isGuest: false,
-        },
-        busy: false,
-        error: null,
-      },
-    })
+    const wrapper = mountSettings({ playerName: '旧昵称' })
     const nameInput = wrapper.get(
       '.settings-section form input:not([disabled])',
     )
@@ -40,22 +53,7 @@ describe('SettingsModal', () => {
   })
 
   it('keeps the account name fixed and submits a new game nickname', async () => {
-    const wrapper = mount(SettingsModal, {
-      props: {
-        account: {
-          id: 'account-1',
-          username: 'login_account',
-          playerName: '旧昵称',
-          nextRenameAt: null,
-          avatarType: 'preset',
-          avatarPreset: 'moon-fox',
-          avatarUrl: '/avatars/moon-fox.webp',
-          createdAt: '2026-08-01T00:00:00Z',
-        },
-        busy: false,
-        error: null,
-      },
-    })
+    const wrapper = mountSettings({ playerName: '旧昵称' })
     const inputs = wrapper.findAll<HTMLInputElement>(
       '.settings-section form input',
     )
@@ -70,22 +68,7 @@ describe('SettingsModal', () => {
   })
 
   it('disables nickname changes until the cooldown expires', () => {
-    const wrapper = mount(SettingsModal, {
-      props: {
-        account: {
-          id: 'account-1',
-          username: 'login_account',
-          playerName: '当前昵称',
-          nextRenameAt: '2099-01-01T00:00:00Z',
-          avatarType: 'preset',
-          avatarPreset: 'moon-fox',
-          avatarUrl: '/avatars/moon-fox.webp',
-          createdAt: '2026-08-01T00:00:00Z',
-        },
-        busy: false,
-        error: null,
-      },
-    })
+    const wrapper = mountSettings({ nextRenameAt: '2099-01-01T00:00:00Z' })
 
     expect(wrapper.text()).toContain('每 30 天只能改名一次')
     expect(
@@ -93,47 +76,39 @@ describe('SettingsModal', () => {
     ).toBeDefined()
   })
 
-  it('offers built-in avatars and emits the selected preset', async () => {
-    const wrapper = mount(SettingsModal, {
-      props: {
-        account: {
-          id: 'account-1',
-          username: 'login_account',
-          playerName: '当前昵称',
-          nextRenameAt: null,
-          avatarType: 'preset',
-          avatarPreset: 'moon-fox',
-          avatarUrl: '/avatars/moon-fox.webp',
-          createdAt: '2026-08-01T00:00:00Z',
-        },
-        busy: false,
-        error: null,
-      },
-    })
-
+  it('previews a built-in avatar and only saves it after confirmation', async () => {
+    const wrapper = mountSettings()
     const presets = wrapper.findAll('.avatar-preset-grid button')
+
     expect(presets).toHaveLength(8)
     await presets[1]!.trigger('click')
+
+    expect(wrapper.emitted('avatarPreset')).toBeUndefined()
+    expect(presets[1]!.classes()).toContain('selected')
+    expect(wrapper.get('.current-avatar img').attributes('src')).toBe(
+      '/avatars/jade-owl.webp',
+    )
+    expect(wrapper.text()).toContain('头像更换尚未保存')
+
+    await wrapper.get('.avatar-confirm-button').trigger('click')
     expect(wrapper.emitted('avatarPreset')).toEqual([['jade-owl']])
   })
 
-  it('validates custom avatar type before emitting an upload', async () => {
-    const wrapper = mount(SettingsModal, {
-      props: {
-        account: {
-          id: 'account-1',
-          username: 'login_account',
-          playerName: '当前昵称',
-          nextRenameAt: null,
-          avatarType: 'preset',
-          avatarPreset: 'moon-fox',
-          avatarUrl: '/avatars/moon-fox.webp',
-          createdAt: '2026-08-01T00:00:00Z',
-        },
-        busy: false,
-        error: null,
-      },
-    })
+  it('can discard a staged avatar without changing the account', async () => {
+    const wrapper = mountSettings()
+
+    await wrapper.findAll('.avatar-preset-grid button')[2]!.trigger('click')
+    await wrapper.get('.avatar-discard-button').trigger('click')
+
+    expect(wrapper.emitted('avatarPreset')).toBeUndefined()
+    expect(wrapper.get('.current-avatar img').attributes('src')).toBe(
+      '/avatars/moon-fox.webp',
+    )
+    expect(wrapper.get('.avatar-confirm-button').attributes('disabled')).toBeDefined()
+  })
+
+  it('validates custom avatar type before opening the crop step', async () => {
+    const wrapper = mountSettings()
     const input = wrapper.get<HTMLInputElement>('.avatar-file-input')
     Object.defineProperty(input.element, 'files', {
       configurable: true,
@@ -146,26 +121,8 @@ describe('SettingsModal', () => {
     expect(wrapper.emitted('avatarUpload')).toBeUndefined()
   })
 
-  it('opens the crop step and only uploads the confirmed result', async () => {
-    const wrapper = mount(SettingsModal, {
-      props: {
-        account: {
-          id: 'account-1',
-          username: 'login_account',
-          playerName: '当前昵称',
-          nextRenameAt: null,
-          avatarType: 'preset',
-          avatarPreset: 'moon-fox',
-          avatarUrl: '/avatars/moon-fox.webp',
-          createdAt: '2026-08-01T00:00:00Z',
-        },
-        busy: false,
-        error: null,
-      },
-      global: {
-        stubs: { AvatarCropModal: AvatarCropStub },
-      },
-    })
+  it('stages the cropped upload and only saves it after confirmation', async () => {
+    const wrapper = mountSettings({}, true)
     const source = new File(['image'], 'portrait.png', { type: 'image/png' })
     const input = wrapper.get<HTMLInputElement>('.avatar-file-input')
     Object.defineProperty(input.element, 'files', {
@@ -185,26 +142,15 @@ describe('SettingsModal', () => {
     await nextTick()
 
     expect(wrapper.find('.avatar-crop-stub').exists()).toBe(false)
+    expect(wrapper.emitted('avatarUpload')).toBeUndefined()
+    expect(wrapper.text()).toContain('已完成裁剪：portrait-avatar.webp')
+
+    await wrapper.get('.avatar-confirm-button').trigger('click')
     expect(wrapper.emitted('avatarUpload')).toEqual([[cropped]])
   })
 
   it('offers the three material UI skins and applies the selected one', async () => {
-    const wrapper = mount(SettingsModal, {
-      props: {
-        account: {
-          id: 'account-1',
-          username: 'login_account',
-          playerName: '当前昵称',
-          nextRenameAt: null,
-          avatarType: 'preset',
-          avatarPreset: 'moon-fox',
-          avatarUrl: '/avatars/moon-fox.webp',
-          createdAt: '2026-08-01T00:00:00Z',
-        },
-        busy: false,
-        error: null,
-      },
-    })
+    const wrapper = mountSettings()
 
     expect(wrapper.text()).toContain('极光雾舱')
     expect(wrapper.text()).toContain('暖钛陶瓷')

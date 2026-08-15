@@ -241,7 +241,7 @@ onBeforeUnmount(() => {
           <span><Crop :size="21" /></span>
           <div>
             <h2 id="avatar-crop-title">裁剪你的头像</h2>
-            <p><Move :size="13" />拖动选框定位，调整取景范围后再保存</p>
+            <p><Move :size="13" />拖动选框定位，完成后返回设置页预览</p>
           </div>
         </header>
 
@@ -319,7 +319,7 @@ onBeforeUnmount(() => {
             :disabled="!ready || processing"
             @click="confirmCrop"
           >
-            <Check :size="17" />{{ processing ? '正在生成…' : '确认并上传' }}
+            <Check :size="17" />{{ processing ? '正在生成…' : '完成裁剪' }}
           </button>
         </div>
       </section>

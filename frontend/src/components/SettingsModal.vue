@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import {
   Check,
   ImagePlus,
@@ -35,11 +35,16 @@ const emit = defineEmits<{
   avatarUpload: [file: File]
 }>()
 
+type AvatarDraft =
+  | { kind: 'preset'; preset: AvatarPresetId }
+  | { kind: 'upload'; file: File; previewUrl: string }
+
 const playerName = ref(props.account.playerName)
 const submittedName = ref<string | null>(null)
 const savedMessage = ref<string | null>(null)
 const avatarInput = ref<HTMLInputElement | null>(null)
-const pendingAvatarFile = ref<File | null>(null)
+const avatarCropSourceFile = ref<File | null>(null)
+const avatarDraft = ref<AvatarDraft | null>(null)
 const avatarMessage = ref<string | null>(null)
 const localAvatarError = ref<string | null>(null)
 const awaitingAvatarUpdate = ref(false)
@@ -87,6 +92,44 @@ const canRename = computed(() => {
     && normalized !== props.account.playerName
 })
 
+const selectedAvatarPreset = computed<AvatarPresetId | null>(() => {
+  if (avatarDraft.value?.kind === 'preset') return avatarDraft.value.preset
+  if (avatarDraft.value?.kind === 'upload') return null
+  return props.account.avatarType === 'preset'
+    ? props.account.avatarPreset ?? null
+    : null
+})
+
+const avatarPreviewUrl = computed(() => {
+  const draft = avatarDraft.value
+  if (draft?.kind === 'upload') return draft.previewUrl || props.account.avatarUrl
+  if (draft?.kind === 'preset') {
+    return AVATAR_PRESETS.find((preset) => preset.id === draft.preset)?.url
+      ?? props.account.avatarUrl
+  }
+  return props.account.avatarUrl
+})
+
+const avatarPreviewTitle = computed(() => {
+  if (avatarDraft.value?.kind === 'upload') return '待确认的自定义头像'
+  if (avatarDraft.value?.kind === 'preset') return '待确认的内置头像'
+  return props.account.avatarType === 'custom' ? '当前自定义头像' : '当前内置头像'
+})
+
+const avatarPreviewDescription = computed(() => (
+  avatarDraft.value
+    ? '这是更换后的预览，确认前不会影响当前账号头像'
+    : '用于大厅、房间、对局和排行榜展示'
+))
+
+const avatarDraftDescription = computed(() => {
+  const draft = avatarDraft.value
+  if (!draft) return '选择内置头像或上传图片后，再确认更换'
+  if (draft.kind === 'upload') return `已完成裁剪：${draft.file.name}`
+  const preset = AVATAR_PRESETS.find((item) => item.id === draft.preset)
+  return `已选择“${preset?.name ?? '内置头像'}”，尚未保存`
+})
+
 const nextRenameLabel = computed(() => {
   if (!nextRenameDate.value) return ''
   return new Intl.DateTimeFormat('zh-CN', {
@@ -108,10 +151,15 @@ watch(
 )
 
 watch(
-  () => props.account.avatarUrl,
+  () => [
+    props.account.avatarType,
+    props.account.avatarPreset,
+    props.account.avatarUrl,
+  ] as const,
   () => {
     if (!awaitingAvatarUpdate.value) return
     awaitingAvatarUpdate.value = false
+    clearAvatarDraft()
     avatarMessage.value = '头像已更新，新建或重连房间时会同步给其他玩家。'
   },
 )
@@ -138,22 +186,48 @@ function chooseTheme(theme: ThemeName) {
   applyTheme(theme)
 }
 
-function chooseAvatar(preset: AvatarPresetId) {
+function revokePreviewUrl(draft: AvatarDraft | null) {
   if (
-    props.busy
-    || (
-      props.account.avatarType === 'preset'
-      && props.account.avatarPreset === preset
-    )
-  ) return
+    draft?.kind === 'upload'
+    && draft.previewUrl
+    && typeof URL.revokeObjectURL === 'function'
+  ) {
+    URL.revokeObjectURL(draft.previewUrl)
+  }
+}
+
+function replaceAvatarDraft(nextDraft: AvatarDraft | null) {
+  const previousDraft = avatarDraft.value
+  avatarDraft.value = nextDraft
+  revokePreviewUrl(previousDraft)
+}
+
+function clearAvatarDraft() {
+  replaceAvatarDraft(null)
+}
+
+function createPreviewUrl(file: File): string {
+  return typeof URL.createObjectURL === 'function'
+    ? URL.createObjectURL(file)
+    : ''
+}
+
+function chooseAvatar(preset: AvatarPresetId) {
+  if (props.busy || awaitingAvatarUpdate.value) return
   localAvatarError.value = null
   avatarMessage.value = null
-  awaitingAvatarUpdate.value = true
-  emit('avatarPreset', preset)
+  if (
+    props.account.avatarType === 'preset'
+    && props.account.avatarPreset === preset
+  ) {
+    clearAvatarDraft()
+    return
+  }
+  replaceAvatarDraft({ kind: 'preset', preset })
 }
 
 function openAvatarUpload() {
-  if (!props.busy) avatarInput.value?.click()
+  if (!props.busy && !awaitingAvatarUpdate.value) avatarInput.value?.click()
 }
 
 function selectAvatarFile(event: Event) {
@@ -171,14 +245,40 @@ function selectAvatarFile(event: Event) {
     localAvatarError.value = '头像图片不能超过 8 MB。'
     return
   }
-  pendingAvatarFile.value = file
+  avatarCropSourceFile.value = file
 }
 
 function confirmAvatarCrop(file: File) {
-  pendingAvatarFile.value = null
-  awaitingAvatarUpdate.value = true
-  emit('avatarUpload', file)
+  avatarCropSourceFile.value = null
+  avatarMessage.value = null
+  replaceAvatarDraft({
+    kind: 'upload',
+    file,
+    previewUrl: createPreviewUrl(file),
+  })
 }
+
+function confirmAvatarChange() {
+  const draft = avatarDraft.value
+  if (!draft || props.busy || awaitingAvatarUpdate.value) return
+  localAvatarError.value = null
+  avatarMessage.value = null
+  awaitingAvatarUpdate.value = true
+  if (draft.kind === 'preset') {
+    emit('avatarPreset', draft.preset)
+    return
+  }
+  emit('avatarUpload', draft.file)
+}
+
+function discardAvatarChange() {
+  if (props.busy || awaitingAvatarUpdate.value) return
+  localAvatarError.value = null
+  avatarMessage.value = null
+  clearAvatarDraft()
+}
+
+onBeforeUnmount(clearAvatarDraft)
 </script>
 
 <template>
@@ -199,21 +299,21 @@ function confirmAvatarCrop(file: File) {
         <div class="current-avatar-row">
           <AvatarImage
             class="current-avatar"
-            :src="account.avatarUrl"
+            :src="avatarPreviewUrl"
             :name="account.playerName"
           />
           <div>
-            <strong>{{ account.avatarType === 'custom' ? '自定义头像' : '内置头像' }}</strong>
-            <small>用于大厅、房间、对局和排行榜展示</small>
+            <strong>{{ avatarPreviewTitle }}</strong>
+            <small>{{ avatarPreviewDescription }}</small>
           </div>
           <button
             type="button"
             class="avatar-upload-button"
-            :disabled="busy"
+            :disabled="busy || awaitingAvatarUpdate"
             @click="openAvatarUpload"
           >
             <Upload :size="16" />
-            {{ busy ? '正在保存…' : '上传图片' }}
+            上传图片
           </button>
           <input
             ref="avatarInput"
@@ -230,12 +330,10 @@ function confirmAvatarCrop(file: File) {
             :key="preset.id"
             type="button"
             :class="{
-              selected: account.avatarType === 'preset'
-                && account.avatarPreset === preset.id,
+              selected: selectedAvatarPreset === preset.id,
             }"
-            :aria-pressed="account.avatarType === 'preset'
-              && account.avatarPreset === preset.id"
-            :disabled="busy"
+            :aria-pressed="selectedAvatarPreset === preset.id"
+            :disabled="busy || awaitingAvatarUpdate"
             @click="chooseAvatar(preset.id)"
           >
             <AvatarImage
@@ -245,11 +343,39 @@ function confirmAvatarCrop(file: File) {
             />
             <span>{{ preset.name }}</span>
             <Check
-              v-if="account.avatarType === 'preset'
-                && account.avatarPreset === preset.id"
+              v-if="selectedAvatarPreset === preset.id"
               :size="14"
             />
           </button>
+        </div>
+        <div
+          class="avatar-confirm-panel"
+          :class="{ pending: avatarDraft }"
+          aria-live="polite"
+        >
+          <span>
+            <strong>{{ avatarDraft ? '头像更换尚未保存' : '先预览，再确认更换' }}</strong>
+            <small>{{ avatarDraftDescription }}</small>
+          </span>
+          <button
+            v-if="avatarDraft"
+            type="button"
+            class="avatar-discard-button"
+            :disabled="busy || awaitingAvatarUpdate"
+            @click="discardAvatarChange"
+          >
+            取消更换
+          </button>
+          <UiButton
+            class="avatar-confirm-button"
+            variant="primary"
+            compact
+            :disabled="!avatarDraft || busy || awaitingAvatarUpdate"
+            @click="confirmAvatarChange"
+          >
+            <Check :size="17" />
+            {{ awaitingAvatarUpdate ? '正在保存…' : '确定更换' }}
+          </UiButton>
         </div>
         <p class="avatar-upload-hint">
           <ImagePlus :size="14" /> JPEG、PNG、WebP 或 GIF，最大 8 MB；上传前可拖动选框精确裁剪，服务器会压缩并移除照片元数据。
@@ -321,9 +447,9 @@ function confirmAvatarCrop(file: File) {
       </section>
   </BaseModal>
   <AvatarCropModal
-    v-if="pendingAvatarFile"
-    :file="pendingAvatarFile"
-    @close="pendingAvatarFile = null"
+    v-if="avatarCropSourceFile"
+    :file="avatarCropSourceFile"
+    @close="avatarCropSourceFile = null"
     @confirm="confirmAvatarCrop"
   />
 </template>
@@ -356,6 +482,15 @@ function confirmAvatarCrop(file: File) {
 .avatar-preset-grid button.selected { border-color: var(--gold); color: var(--text); background: color-mix(in srgb, var(--gold) 9%, transparent); box-shadow: inset 0 0 0 1px rgba(225, 188, 104, .08); }
 .avatar-preset-grid button > svg { position: absolute; top: 6px; right: 6px; border-radius: 50%; padding: 2px; color: #1d2a22; background: var(--gold); }
 .preset-avatar { width: 58px; height: 58px; border: 2px solid rgba(255, 255, 255, .09); border-radius: 50%; box-shadow: 0 7px 18px rgba(0, 0, 0, .25); }
+.avatar-confirm-panel { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 12px; margin-top: 12px; border: 1px solid var(--line); border-radius: var(--radius-control); padding: 11px; background: var(--control-surface), var(--surface-inset); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 42%, transparent); }
+.avatar-confirm-panel.pending { grid-template-columns: minmax(0, 1fr) auto auto; border-color: color-mix(in srgb, var(--gold) 54%, var(--line)); background: color-mix(in srgb, var(--gold) 7%, var(--surface-inset)); }
+.avatar-confirm-panel > span { min-width: 0; display: grid; gap: 3px; }
+.avatar-confirm-panel > span strong { color: var(--text); font-size: 12px; }
+.avatar-confirm-panel > span small { overflow: hidden; color: var(--muted); font-size: 10px; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
+.avatar-confirm-panel.pending > span strong { color: var(--gold); }
+.avatar-discard-button { min-height: 42px; border: 1px solid var(--line); border-radius: var(--radius-control); padding: 0 12px; color: var(--text-soft); background: var(--surface-inset); font-size: 11px; font-weight: 800; }
+.avatar-discard-button:disabled { cursor: not-allowed; opacity: .58; }
+.avatar-confirm-button { min-width: 126px; }
 .avatar-upload-hint { margin: 11px 0 0; display: flex; align-items: flex-start; gap: 6px; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .avatar-upload-hint svg { flex: 0 0 auto; margin-top: 1px; color: var(--gold); }
 @media (max-width: 520px) {
@@ -365,5 +500,11 @@ function confirmAvatarCrop(file: File) {
   .avatar-preset-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
   .preset-avatar { width: 48px; height: 48px; }
   .avatar-preset-grid button { font-size: 10px; }
+  .avatar-confirm-panel,
+  .avatar-confirm-panel.pending { grid-template-columns: 1fr 1fr; }
+  .avatar-confirm-panel > span { grid-column: 1 / -1; }
+  .avatar-confirm-panel:not(.pending) .avatar-confirm-button { grid-column: 1 / -1; }
+  .avatar-discard-button,
+  .avatar-confirm-button { width: 100%; min-width: 0; }
 }
 </style>
