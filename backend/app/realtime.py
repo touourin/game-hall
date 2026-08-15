@@ -111,6 +111,10 @@ async def resume_bot_turns() -> None:
     await arcade_realtime.resume_bot_turns()
 
 
+async def resume_realtime_games() -> None:
+    await arcade_realtime.resume_realtime_games()
+
+
 async def warm_game_engines() -> None:
     await arcade_realtime.warm_up()
 

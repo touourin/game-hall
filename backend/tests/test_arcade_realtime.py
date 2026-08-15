@@ -1,10 +1,14 @@
 import asyncio
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from pydantic import ValidationError
 
-from backend.app.arcade.realtime import ActionPayload, ArcadeRealtime
+from backend.app.arcade.realtime import (
+    ActionPayload,
+    ArcadeRealtime,
+    RealtimeInputPayload,
+)
 
 
 class DelayedPikafish:
@@ -51,6 +55,98 @@ def test_action_payload_accepts_legacy_council_action_from_open_browser() -> Non
 def test_action_payload_still_rejects_unbounded_action_names() -> None:
     with pytest.raises(ValidationError):
         ActionPayload.model_validate({"action": "a" * 65})
+
+
+def test_realtime_input_payload_has_bounded_integer_fields() -> None:
+    payload = RealtimeInputPayload.model_validate(
+        {"sequence": 12, "input_mask": 17}
+    )
+
+    assert payload.sequence == 12
+    assert payload.input_mask == 17
+    with pytest.raises(ValidationError):
+        RealtimeInputPayload.model_validate(
+            {"sequence": -1, "input_mask": 0}
+        )
+
+
+async def test_realtime_game_uses_a_dedicated_input_and_frame_loop() -> None:
+    realtime = ArcadeRealtime()
+    server = FakeSocketServer()
+    realtime.sio = server  # type: ignore[assignment]
+    room, host, _ = realtime.rooms.create_room(
+        "pixel_push",
+        "玩家一",
+        "account-1",
+        {"arena": "moon_station"},
+    )
+    _, opponent, _ = realtime.rooms.join_room(
+        room.code,
+        "pixel_push",
+        "玩家二",
+        "account-2",
+    )
+    realtime.rooms.start(room, host.id)
+    server.sessions["player-sid"] = {
+        "account_id": host.account_id,
+        "arcade_room_code": room.code,
+        "arcade_player_id": host.id,
+        "arcade_role": "player",
+    }
+
+    response = await realtime.realtime_input(
+        "player-sid",
+        {"sequence": 1, "input_mask": 8 | 16},
+    )
+
+    assert response == {"ok": True, "accepted": True, "sequence": 1}
+    assert room.state.players[host.id].last_input_sequence == 1
+    assert room.state.players[opponent.id].last_input_sequence == -1
+
+    realtime.schedule_realtime_game(room)
+    await asyncio.sleep(0.12)
+
+    assert room.state.tick >= 2
+    assert any(event == "arcade:frame" for event, _, _ in server.emissions)
+    frame = next(
+        payload
+        for event, payload, _ in reversed(server.emissions)
+        if event == "arcade:frame"
+    )
+    assert frame["roomCode"] == room.code
+    host_frame = next(
+        player for player in frame["players"] if player["id"] == host.id
+    )
+    assert host_frame["lastInputSequence"] == 1
+    await realtime.close()
+
+
+async def test_completed_realtime_driver_reschedules_an_immediate_rematch() -> None:
+    realtime = ArcadeRealtime()
+    room, host, _ = realtime.rooms.create_room(
+        "pixel_push",
+        "玩家一",
+        "account-1",
+        {"arena": "moon_station"},
+    )
+    realtime.rooms.join_room(
+        room.code,
+        "pixel_push",
+        "玩家二",
+        "account-2",
+    )
+    realtime.rooms.start(room, host.id)
+    completed = asyncio.create_task(asyncio.sleep(0))
+    await completed
+    realtime.realtime_tasks[room.code] = completed
+    schedule = Mock()
+    realtime.schedule_realtime_game = schedule  # type: ignore[method-assign]
+
+    realtime._realtime_task_done(room.code, completed)
+
+    schedule.assert_called_once_with(room)
+    assert room.code not in realtime.realtime_tasks
+    await realtime.close()
 
 
 async def test_external_bot_turn_runs_after_releasing_the_room_lock() -> None:

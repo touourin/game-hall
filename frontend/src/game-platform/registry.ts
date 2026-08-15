@@ -12,6 +12,7 @@ import minesweeperGame from '../games/minesweeper'
 import monopolyGame from '../games/monopoly'
 import oneNightWerewolfGame from '../games/one_night_werewolf'
 import pokerGame from '../games/poker'
+import pixelPushGame from '../games/pixel_push'
 import reactionGame from '../games/reaction'
 import schulteGame from '../games/schulte'
 import tetrisGame from '../games/tetris'
@@ -30,6 +31,7 @@ export const BUILTIN_GAME_DEFINITIONS = [
   pokerGame,
   doudizhuGame,
   junqiGame,
+  pixelPushGame,
   reactionGame,
   deepShaftGame,
   schulteGame,

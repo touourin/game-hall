@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import inspect, select, update
 
 from backend.app.accounts import (
     AVATAR_PRESET_IDS,
@@ -26,6 +26,30 @@ def account_for_player(store: AccountStore, index: int, prefix: str):
         f"{prefix}_{index}", "secret123", f"{prefix}{index}"
     )
     return account
+
+
+def test_existing_local_sqlite_score_column_is_upgraded(tmp_path):
+    database_path = tmp_path / "legacy-score.sqlite3"
+    store = AccountStore(database_path)
+    store.initialize()
+    with store.engine.begin() as connection:
+        connection.exec_driver_sql(
+            "ALTER TABLE match_players "
+            "RENAME COLUMN score_value TO score_ms"
+        )
+    store.dispose()
+
+    upgraded_store = AccountStore(database_path)
+    upgraded_store.initialize()
+
+    columns = {
+        column["name"]
+        for column in inspect(upgraded_store.engine).get_columns(
+            "match_players"
+        )
+    }
+    assert "score_value" in columns
+    assert "score_ms" not in columns
 
 
 def test_username_stays_stable_when_game_nickname_changes(tmp_path):

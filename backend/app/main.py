@@ -45,6 +45,7 @@ from .realtime import (
     persist_room_state,
     replace_account_session_connections,
     resume_bot_turns,
+    resume_realtime_games,
     restore_room_state,
     sio,
     warm_game_engines,
@@ -90,6 +91,7 @@ async def lifespan(_: FastAPI):
             name="game-engine-warmup",
         )
         await resume_bot_turns()
+        await resume_realtime_games()
         cleanup_task = asyncio.create_task(maintain_game_rooms())
         logger.info(
             "Game hall is ready",

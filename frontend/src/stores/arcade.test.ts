@@ -1,6 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ArcadeSnapshot } from '../types/arcade'
+import type { ArcadeRealtimeFrame, ArcadeSnapshot } from '../types/arcade'
 
 const socketMocks = vi.hoisted(() => ({
   emitWithAck: vi.fn(),
@@ -215,6 +215,46 @@ describe('arcade room store', () => {
     expect(socketMocks.emitWithAck).toHaveBeenCalledWith('arcade:action', {
       action: 'tap',
       payload: { value: 1 },
+    })
+  })
+
+  it('keeps only monotonic realtime frames for the active room', () => {
+    const arcade = useArcadeStore()
+    arcade.snapshot = {
+      roomCode: 'PUSH',
+      revision: 5,
+      phase: 'playing',
+    } as ArcadeSnapshot
+    arcade.init()
+    const receiveFrame = socketHandler<ArcadeRealtimeFrame>('arcade:frame')
+
+    receiveFrame?.({ roomCode: 'PUSH', revision: 6, tick: 12 })
+    receiveFrame?.({ roomCode: 'OTHER', revision: 7, tick: 20 })
+    receiveFrame?.({ roomCode: 'PUSH', revision: 8, tick: 11 })
+
+    expect(arcade.realtimeFrame).toEqual({
+      roomCode: 'PUSH',
+      revision: 6,
+      tick: 12,
+    })
+
+    socketHandler<ArcadeSnapshot>('arcade:snapshot')?.({
+      roomCode: 'PUSH',
+      revision: 9,
+      phase: 'finished',
+    } as ArcadeSnapshot)
+    expect(arcade.realtimeFrame).toBeNull()
+  })
+
+  it('sends realtime input on the low-latency channel without setting busy', async () => {
+    socketMocks.emitWithAck.mockResolvedValue({ ok: true, accepted: true })
+    const arcade = useArcadeStore()
+
+    expect(await arcade.realtimeInput(42, 24)).toBe(true)
+    expect(arcade.busy).toBe(false)
+    expect(socketMocks.emitWithAck).toHaveBeenCalledWith('arcade:input', {
+      sequence: 42,
+      input_mask: 24,
     })
   })
 

@@ -9,6 +9,7 @@ export type BuiltinArcadeGameKey =
   | 'poker'
   | 'doudizhu'
   | 'junqi'
+  | 'pixel_push'
   | 'reaction'
   | 'deep_shaft'
   | 'schulte'
@@ -164,6 +165,12 @@ export interface ArcadeSnapshot {
     messages: ArcadeChatMessage[]
   }
   game: Record<string, unknown>
+}
+
+export interface ArcadeRealtimeFrame extends Record<string, unknown> {
+  roomCode: string
+  revision: number
+  tick: number
 }
 
 export type ArcadePhase =

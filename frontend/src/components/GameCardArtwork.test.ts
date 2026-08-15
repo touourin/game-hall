@@ -15,6 +15,7 @@ const artworkSlugs: Record<BuiltinArcadeGameKey, string> = {
   poker: 'poker',
   doudizhu: 'doudizhu',
   junqi: 'junqi',
+  pixel_push: 'pixel-push',
   reaction: 'reaction',
   deep_shaft: 'deep-shaft',
   schulte: 'schulte',

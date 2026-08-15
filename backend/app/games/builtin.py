@@ -19,6 +19,7 @@ from backend.app.games.one_night_werewolf.definition import (
     ONE_NIGHT_WEREWOLF_GAME,
 )
 from backend.app.games.poker.definition import POKER_GAME
+from backend.app.games.pixel_push.definition import PIXEL_PUSH_GAME
 from backend.app.games.reaction.definition import REACTION_GAME
 from backend.app.games.schulte.definition import SCHULTE_GAME
 from backend.app.games.tetris.definition import TETRIS_GAME
@@ -36,6 +37,7 @@ BUILTIN_GAME_DEFINITIONS: tuple[GameDefinition, ...] = (
     POKER_GAME,
     DOUDIZHU_GAME,
     JUNQI_GAME,
+    PIXEL_PUSH_GAME,
     REACTION_GAME,
     DEEP_SHAFT_GAME,
     SCHULTE_GAME,

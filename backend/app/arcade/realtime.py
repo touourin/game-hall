@@ -5,7 +5,7 @@ import copy
 import inspect
 import logging
 import secrets
-from collections import defaultdict
+from collections import defaultdict, deque
 from dataclasses import asdict, is_dataclass
 from functools import wraps
 from typing import Any, Literal
@@ -87,6 +87,11 @@ class ActionPayload(BaseModel):
     payload: dict[str, Any] = Field(default_factory=dict)
 
 
+class RealtimeInputPayload(BaseModel):
+    sequence: int = Field(ge=0, le=2_147_483_647)
+    input_mask: int = Field(ge=0, le=2_147_483_647)
+
+
 class TargetPayload(BaseModel):
     target_id: str = Field(min_length=1, max_length=64)
 
@@ -148,6 +153,10 @@ class ArcadeRealtime:
         self.logger = logger
         self.bot_tasks: dict[str, asyncio.Task[None]] = {}
         self.bot_rerun_requested: set[str] = set()
+        self.realtime_tasks: dict[str, asyncio.Task[None]] = {}
+        self.realtime_input_times: dict[
+            tuple[str, str], deque[float]
+        ] = defaultdict(deque)
         self.closing = False
 
     def bind(self, sio: socketio.AsyncServer) -> None:
@@ -164,6 +173,7 @@ class ArcadeRealtime:
         self._bind_event(sio, "arcade:abandon", self.abandon_room)
         self._bind_event(sio, "arcade:start", self.start_game)
         self._bind_event(sio, "arcade:action", self.game_action)
+        self._bind_event(sio, "arcade:input", self.realtime_input)
         self._bind_event(sio, "arcade:restart", self.restart_game)
         self._bind_event(sio, "arcade:kick", self.kick_player)
         self._bind_event(sio, "arcade:dissolve", self.dissolve_room)
@@ -614,6 +624,7 @@ class ArcadeRealtime:
             await self.broadcast_room(room)
             await self.broadcast_lobby()
             self.schedule_bot_turns(room)
+            self.schedule_realtime_game(room)
             return {"ok": True}
         except ACTION_ERRORS as error:
             return error_response(error)
@@ -632,6 +643,34 @@ class ArcadeRealtime:
         except (ValidationError, *ACTION_ERRORS) as error:
             return error_response(error)
 
+    async def realtime_input(
+        self, sid: str, raw_data: Any
+    ) -> dict[str, Any]:
+        try:
+            payload = RealtimeInputPayload.model_validate(raw_data or {})
+            room, player = await self._context(sid)
+            engine = self.engines[room.game_key]
+            input_handler = getattr(engine, "apply_input", None)
+            if not callable(input_handler):
+                raise ArcadeRoomError("这个游戏不接收实时移动输入")
+            self._check_realtime_input_rate(room.code, player.id)
+            async with room.lock:
+                accepted = bool(
+                    input_handler(
+                        room,
+                        player,
+                        payload.sequence,
+                        payload.input_mask,
+                    )
+                )
+            return {
+                "ok": True,
+                "accepted": accepted,
+                "sequence": payload.sequence,
+            }
+        except (ValidationError, *ACTION_ERRORS) as error:
+            return error_response(error)
+
     async def restart_game(
         self, sid: str, raw_data: Any = None
     ) -> dict[str, Any]:
@@ -642,6 +681,7 @@ class ArcadeRealtime:
             await self.broadcast_room(room)
             await self.broadcast_lobby()
             self.schedule_bot_turns(room)
+            self.schedule_realtime_game(room)
             return {"ok": True}
         except ACTION_ERRORS as error:
             return error_response(error)
@@ -791,6 +831,10 @@ class ArcadeRealtime:
         for room in self.rooms.rooms.values():
             self.schedule_bot_turns(room)
 
+    async def resume_realtime_games(self) -> None:
+        for room in self.rooms.rooms.values():
+            self.schedule_realtime_game(room)
+
     async def warm_up(self) -> None:
         """Warm optional external engines without blocking application startup."""
         for game_key, engine in self.engines.items():
@@ -814,12 +858,14 @@ class ArcadeRealtime:
     async def close(self) -> None:
         self.closing = True
         self.bot_rerun_requested.clear()
-        tasks = list(self.bot_tasks.values())
+        tasks = [*self.bot_tasks.values(), *self.realtime_tasks.values()]
         for task in tasks:
             task.cancel()
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
         self.bot_tasks.clear()
+        self.realtime_tasks.clear()
+        self.realtime_input_times.clear()
         for engine in self.engines.values():
             closer = getattr(engine, "close", None)
             if callable(closer):
@@ -877,6 +923,128 @@ class ArcadeRealtime:
             self.bot_rerun_requested.discard(room_code)
             self.schedule_bot_turns(room)
 
+    def schedule_realtime_game(self, room: ArcadeRoom) -> None:
+        if self.closing or room.phase != "playing":
+            return
+        engine = self.engines[room.game_key]
+        if not callable(getattr(engine, "tick", None)):
+            return
+        current = self.realtime_tasks.get(room.code)
+        if current is not None and not current.done():
+            return
+        task = asyncio.create_task(
+            self._run_realtime_game(room),
+            name=f"arcade-realtime-{room.code}",
+        )
+        self.realtime_tasks[room.code] = task
+        task.add_done_callback(
+            lambda completed, room_code=room.code: self._realtime_task_done(
+                room_code,
+                completed,
+            )
+        )
+
+    async def _run_realtime_game(self, room: ArcadeRoom) -> None:
+        engine = self.engines[room.game_key]
+        tick_handler = getattr(engine, "tick")
+        tick_rate = int(getattr(engine, "realtime_tick_rate", 30))
+        snapshot_rate = int(getattr(engine, "realtime_snapshot_rate", 15))
+        if not 1 <= tick_rate <= 60 or not 1 <= snapshot_rate <= tick_rate:
+            raise RuntimeError("实时游戏 tick 或快照频率不正确")
+        frame_interval = max(1, round(tick_rate / snapshot_rate))
+        tick_interval = 1 / tick_rate
+        loop = asyncio.get_running_loop()
+        deadline = loop.time()
+        ticks_since_frame = 0
+
+        while not self.closing:
+            deadline += tick_interval
+            await asyncio.sleep(max(0, deadline - loop.time()))
+            if loop.time() - deadline > tick_interval * 4:
+                deadline = loop.time()
+
+            should_send_frame = False
+            should_send_snapshot = False
+            finished = False
+            changed = False
+            async with room.lock:
+                if self.rooms.rooms.get(room.code) is not room:
+                    return
+                if room.phase != "playing":
+                    return
+                state = room.state
+                previous_boundary = (
+                    getattr(state, "stage", None),
+                    getattr(state, "round_number", None),
+                )
+                changed = bool(tick_handler(room))
+                current_boundary = (
+                    getattr(room.state, "stage", None),
+                    getattr(room.state, "round_number", None),
+                )
+                if changed:
+                    room.revision += 1
+                    ticks_since_frame += 1
+                    should_send_frame = ticks_since_frame >= frame_interval
+                    if should_send_frame:
+                        ticks_since_frame = 0
+                should_send_snapshot = previous_boundary != current_boundary
+                finished = room.phase == "finished"
+                if finished:
+                    self._record_room(room)
+
+            if should_send_frame or finished:
+                await self.broadcast_realtime_frame(room)
+            if should_send_snapshot or finished:
+                await self.broadcast_room(room)
+            if finished:
+                await self.broadcast_lobby()
+                return
+
+    def _realtime_task_done(
+        self,
+        room_code: str,
+        task: asyncio.Task[None],
+    ) -> None:
+        owned_task = self.realtime_tasks.get(room_code) is task
+        if owned_task:
+            self.realtime_tasks.pop(room_code, None)
+        for key in tuple(self.realtime_input_times):
+            if key[0] == room_code:
+                self.realtime_input_times.pop(key, None)
+        if task.cancelled():
+            return
+        error = task.exception()
+        if error is not None:
+            self.logger.error(
+                "Realtime room driver failed",
+                exc_info=(type(error), error, error.__traceback__),
+                extra={
+                    "event": "realtime.driver_failed",
+                    "room_code": room_code,
+                },
+            )
+            return
+        # A rematch can enter ``playing`` while the previous room driver is
+        # returning but before its done callback runs. Start the replacement
+        # here so an immediate restart never loses the simulation clock.
+        room = self.rooms.rooms.get(room_code)
+        if owned_task and not self.closing and room is not None:
+            self.schedule_realtime_game(room)
+
+    def _check_realtime_input_rate(
+        self,
+        room_code: str,
+        player_id: str,
+    ) -> None:
+        now = asyncio.get_running_loop().time()
+        timestamps = self.realtime_input_times[(room_code, player_id)]
+        while timestamps and now - timestamps[0] >= 1:
+            timestamps.popleft()
+        if len(timestamps) >= 90:
+            raise ArcadeRoomError("操作过于频繁，请稍后再试")
+        timestamps.append(now)
+
     def lobby_view(self) -> list[dict[str, Any]]:
         spectator_counts = {
             room_code: len(self._room_spectators(room_code))
@@ -932,6 +1100,29 @@ class ArcadeRealtime:
                 ),
                 room=self._spectator_channel(
                     room.code, spectator.account_id
+                ),
+            )
+
+    async def broadcast_realtime_frame(self, room: ArcadeRoom) -> None:
+        engine = self.engines[room.game_key]
+        frame_builder = getattr(engine, "realtime_frame", None)
+        if not callable(frame_builder):
+            return
+        spectators = self._room_spectators(room.code)
+        for player in room.players:
+            await self._server.emit(
+                "arcade:frame",
+                frame_builder(room, player),
+                room=self._channel(room.code, player.id),
+            )
+        for spectator in spectators:
+            target = room.player(spectator.target_player_id)
+            await self._server.emit(
+                "arcade:frame",
+                frame_builder(room, target),
+                room=self._spectator_channel(
+                    room.code,
+                    spectator.account_id,
                 ),
             )
 

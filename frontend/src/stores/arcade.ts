@@ -4,6 +4,7 @@ import { emitWithAck, socket, type AckResponse } from '../socket'
 import type {
   ArcadeGameKey,
   ArcadeLobbyRoom,
+  ArcadeRealtimeFrame,
   ArcadeSnapshot,
 } from '../types/arcade'
 
@@ -53,6 +54,7 @@ function readSession(): StoredArcadeSession | null {
 
 export const useArcadeStore = defineStore('arcade', () => {
   const snapshot = ref<ArcadeSnapshot | null>(null)
+  const realtimeFrame = ref<ArcadeRealtimeFrame | null>(null)
   const availableRooms = ref<ArcadeLobbyRoom[]>([])
   const connected = ref(false)
   const busy = ref(false)
@@ -92,8 +94,19 @@ export const useArcadeStore = defineStore('arcade', () => {
     })
     socket.on('arcade:snapshot', (next: ArcadeSnapshot) => {
       if (!snapshot.value || next.revision >= snapshot.value.revision) {
+        if (
+          snapshot.value?.roomCode !== next.roomCode
+          || next.phase !== 'playing'
+        ) realtimeFrame.value = null
         snapshot.value = next
       }
+    })
+    socket.on('arcade:frame', (next: ArcadeRealtimeFrame) => {
+      if (snapshot.value?.roomCode !== next.roomCode) return
+      if (
+        !realtimeFrame.value
+        || next.tick >= realtimeFrame.value.tick
+      ) realtimeFrame.value = next
     })
     socket.on('arcade:kicked', (payload: RoomClosurePayload) => {
       handleRoomClosure(payload, '你已被移出房间')
@@ -220,6 +233,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     )
     if (!resumed) {
       snapshot.value = null
+      realtimeFrame.value = null
       clearSession()
       error.value = null
     }
@@ -230,6 +244,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     const response = await perform('arcade:unwatch')
     if (response) {
       snapshot.value = null
+      realtimeFrame.value = null
       clearSession()
     }
     return Boolean(response)
@@ -243,6 +258,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     })
     if (!response) {
       snapshot.value = null
+      realtimeFrame.value = null
       clearSession()
       error.value = null
       return false
@@ -273,7 +289,10 @@ export const useArcadeStore = defineStore('arcade', () => {
   async function detachRoom() {
     if (isSpectating.value) return leaveWatch()
     const response = await perform('arcade:detach')
-    if (response) snapshot.value = null
+    if (response) {
+      snapshot.value = null
+      realtimeFrame.value = null
+    }
     return Boolean(response)
   }
 
@@ -282,6 +301,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     const response = await perform('arcade:leave')
     if (response) {
       snapshot.value = null
+      realtimeFrame.value = null
       clearSession()
     }
     return Boolean(response)
@@ -292,6 +312,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     const response = await perform('arcade:abandon')
     if (response) {
       snapshot.value = null
+      realtimeFrame.value = null
       clearSession()
     }
     return Boolean(response)
@@ -303,6 +324,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     })
     if (response && session.value?.roomCode === roomCode) {
       snapshot.value = null
+      realtimeFrame.value = null
       clearSession()
     }
     return Boolean(response)
@@ -342,6 +364,27 @@ export const useArcadeStore = defineStore('arcade', () => {
       })
       if (!response.ok) {
         error.value = response.error ?? '操作没有成功'
+        return false
+      }
+      return true
+    } catch (caught) {
+      error.value = caught instanceof Error ? caught.message : '网络连接异常'
+      return false
+    }
+  }
+
+  async function realtimeInput(
+    sequence: number,
+    inputMask: number,
+  ): Promise<boolean> {
+    if (rejectSpectatorAction()) return false
+    try {
+      const response = await emitWithAck('arcade:input', {
+        sequence,
+        input_mask: inputMask,
+      })
+      if (!response.ok) {
+        error.value = response.error ?? '实时操作没有成功'
         return false
       }
       return true
@@ -428,12 +471,14 @@ export const useArcadeStore = defineStore('arcade', () => {
       && payload.roomCode !== currentRoomCode
     ) return
     snapshot.value = null
+    realtimeFrame.value = null
     clearSession()
     error.value = payload.silent ? null : (payload.message ?? fallbackMessage)
   }
 
   function resetForLogout() {
     snapshot.value = null
+    realtimeFrame.value = null
     connected.value = false
     busy.value = false
     error.value = null
@@ -442,6 +487,7 @@ export const useArcadeStore = defineStore('arcade', () => {
 
   return {
     snapshot,
+    realtimeFrame,
     availableRooms,
     connected,
     busy,
@@ -466,6 +512,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     action,
     actionWithResult,
     rapidAction,
+    realtimeInput,
     restartGame,
     kickPlayer,
     dissolveRoom,

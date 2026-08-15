@@ -5,7 +5,7 @@ describe('built-in game registry', () => {
   it('owns the complete board-game integration metadata', () => {
     const definition = builtinGameDefinition('chess')
 
-    expect(BUILTIN_GAME_DEFINITIONS).toHaveLength(18)
+    expect(BUILTIN_GAME_DEFINITIONS).toHaveLength(19)
     expect(definition?.catalog).toMatchObject({
       order: 50,
       name: '国际象棋',
@@ -90,6 +90,7 @@ describe('built-in game registry', () => {
       'poker',
       'doudizhu',
       'monopoly',
+      'pixel_push',
     ] as const
     const shared = {
       undo: false,
@@ -104,6 +105,10 @@ describe('built-in game registry', () => {
     expect(builtinGameDefinition('departed_suspicion')?.capabilities).toEqual(shared)
     expect(builtinGameDefinition('doudizhu')?.capabilities).toEqual(shared)
     expect(builtinGameDefinition('monopoly')?.capabilities).toEqual(shared)
+    expect(builtinGameDefinition('pixel_push')?.capabilities).toEqual({
+      ...shared,
+      firstPlayer: false,
+    })
     expect(builtinGameDefinition('poker')?.capabilities).toEqual({
       ...shared,
       firstPlayer: false,
@@ -187,7 +192,7 @@ describe('built-in game registry', () => {
       (definition) => definition.catalog.players.max > 1,
     )
 
-    expect(multiplayerDefinitions).toHaveLength(11)
+    expect(multiplayerDefinitions).toHaveLength(12)
     for (const definition of multiplayerDefinitions) {
       expect(definition.presentation.launcher).toMatchObject({
         kicker: expect.any(String),

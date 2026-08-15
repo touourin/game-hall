@@ -15,9 +15,9 @@ describe('official game categories', () => {
       '推理社交',
       '扑克牌类',
       '单人挑战',
-      '派对经营',
+      '多人派对',
     ])
-    expect(categories.map((category) => category.games.length)).toEqual([5, 3, 2, 7, 1])
+    expect(categories.map((category) => category.games.length)).toEqual([5, 3, 2, 7, 2])
     expect(new Set(categorizedKeys).size).toBe(officialGames.length)
     expect(categorizedKeys).toHaveLength(officialGames.length)
   })

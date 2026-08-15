@@ -6,7 +6,13 @@ const password = 'SmokePass123!'
 
 async function jsonRequest(path, options = {}) {
   const response = await fetch(`${baseUrl}${path}`, options)
-  const body = await response.json()
+  const text = await response.text()
+  let body
+  try {
+    body = JSON.parse(text)
+  } catch {
+    throw new Error(`${path}: HTTP ${response.status} ${text.slice(0, 200)}`)
+  }
   if (!response.ok) {
     throw new Error(`${path}: ${body.detail ?? response.statusText}`)
   }
@@ -24,7 +30,7 @@ async function register(accessToken, index) {
     body: JSON.stringify({
       username,
       password,
-      player_name: `冒烟玩家${index}`,
+      player_name: `冒烟${index}${prefix.slice(-6)}`,
     }),
   })
   return { ...result, username }
@@ -62,6 +68,22 @@ function emitAck(socket, event, payload = {}) {
       }
       resolve(response)
     })
+  })
+}
+
+function waitForSocketEvent(socket, event, predicate, timeoutMs = 5000) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      socket.off(event, handler)
+      reject(new Error(`${event}: timed out`))
+    }, timeoutMs)
+    function handler(payload) {
+      if (!predicate(payload)) return
+      clearTimeout(timeout)
+      socket.off(event, handler)
+      resolve(payload)
+    }
+    socket.on(event, handler)
   })
 }
 
@@ -117,6 +139,41 @@ async function playReaction(client) {
   }
   const left = await emitAck(client, 'arcade:leave')
   if (left.seatPreserved) throw new Error('反应测试结束后仍然要求续局')
+  return created.roomCode
+}
+
+async function playPixelPush(clients) {
+  const created = await emitAck(clients[0], 'arcade:create', {
+    game_key: 'pixel_push',
+    options: { arena: 'moon_station' },
+  })
+  await emitAck(clients[1], 'arcade:join', {
+    game_key: 'pixel_push',
+    room_code: created.roomCode,
+  })
+  const frame = waitForSocketEvent(
+    clients[0],
+    'arcade:frame',
+    payload => payload.roomCode === created.roomCode
+      && payload.players?.some(player => player.lastInputSequence === 0),
+  )
+  await emitAck(clients[0], 'arcade:start')
+  const input = await emitAck(clients[0], 'arcade:input', {
+    sequence: 0,
+    input_mask: 8 | 16,
+  })
+  if (!input.accepted) throw new Error('pixel_push 首个实时输入未被接受')
+  await frame
+  await emitAck(clients[0], 'arcade:action', {
+    action: 'resign',
+    payload: {},
+  })
+  for (const client of clients) {
+    const left = await emitAck(client, 'arcade:leave')
+    if (left.seatPreserved) {
+      throw new Error('pixel_push 已结束房间仍然要求续局')
+    }
+  }
   return created.roomCode
 }
 
@@ -181,7 +238,10 @@ try {
   const access = await jsonRequest('/api/access/session', {
     method: 'POST',
   })
-  const accounts = await Promise.all([1, 2, 3].map((index) => register(access.token, index)))
+  const accounts = []
+  for (const index of [1, 2, 3]) {
+    accounts.push(await register(access.token, index))
+  }
   for (const account of accounts) {
     sockets.push(await connectClient(access.token, account.token))
   }
@@ -201,6 +261,7 @@ try {
   rooms.junqiFlip = await playToResignation(
     'junqi', sockets.slice(0, 2), { mode: 'flip' },
   )
+  rooms.pixelPush = await playPixelPush(sockets.slice(0, 2))
   rooms.reaction = await playReaction(sockets[0])
   rooms.hanoi = await playHanoi(sockets[0])
   rooms.pluginStarStones = await playStarStones(sockets.slice(0, 2))
@@ -227,6 +288,7 @@ try {
     'poker',
     'doudizhu',
     'junqi',
+    'pixel_push',
     'plugin-number-vault',
     'plugin-star-stones',
   ]) {
@@ -236,6 +298,7 @@ try {
     'gomoku',
     'xiangqi',
     'go',
+    'pixel_push',
     'poker',
     'doudizhu',
     'plugin-star-stones',

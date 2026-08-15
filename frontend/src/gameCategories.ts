@@ -74,12 +74,12 @@ const CATEGORY_DEFINITIONS: readonly OfficialGameCategoryDefinition[] = [
   },
   {
     id: 'party',
-    eyebrow: '经营 · 聚会',
-    name: '派对经营',
-    description: '轻策略与桌面互动并行，适合朋友同桌展开一场城市竞逐。',
+    eyebrow: '乱斗 · 聚会',
+    name: '多人派对',
+    description: '实时碰撞与轻策略同场，让朋友聚会既有笑声也有最后一刻的翻盘。',
     layout: 'standard',
-    gameKeys: ['monopoly'],
-    artworkKeys: ['monopoly'],
+    gameKeys: ['pixel_push', 'monopoly'],
+    artworkKeys: ['pixel_push', 'monopoly'],
   },
 ]
 

@@ -409,6 +409,37 @@ describe('ArcadeRoom', () => {
     )
   })
 
+  it('returns to the top when a waiting room enters the match', async () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined)
+    const room = snapshot('pixel_push')
+    const wrapper = shallowMount(ArcadeRoom, {
+      props: { snapshot: room },
+      global: { plugins: [createPinia()] },
+    })
+
+    await wrapper.setProps({
+      snapshot: { ...room, phase: 'playing' },
+    })
+    await wrapper.vm.$nextTick()
+
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: 'auto' })
+  })
+
+  it('labels a guest match result as unranked instead of saved', () => {
+    const room = snapshot('pixel_push')
+    room.phase = 'finished'
+    room.statsEligible = false
+    room.winReason = '玩家一成为推推王'
+    room.winnerPlayerIds = ['p1']
+    const wrapper = shallowMount(ArcadeRoom, {
+      props: { snapshot: room },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.get('.result-banner').text()).toContain('休闲局不计战绩')
+    expect(wrapper.get('.result-banner').text()).not.toContain('战绩已保存')
+  })
+
   it('uses the shared solo room shell for a one-player plugin', () => {
     const room = snapshot('plugin-number-vault')
     room.gameName = '数字密匣'

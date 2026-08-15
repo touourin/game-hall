@@ -143,6 +143,7 @@ def test_social_table_games_preserve_their_shared_capability_contract() -> None:
         "departed_suspicion": GameCapabilities(),
         "doudizhu": GameCapabilities(),
         "monopoly": GameCapabilities(),
+        "pixel_push": GameCapabilities(first_player=False),
         "poker": GameCapabilities(first_player=False),
         "one_night_werewolf": GameCapabilities(
             spectators=False,
@@ -2180,7 +2181,7 @@ def test_solo_game_cannot_request_end_table() -> None:
 
 @pytest.mark.parametrize(
     "game_key",
-    ["avalon", "gomoku", "xiangqi", "chess", "go", "poker", "doudizhu", "junqi", "monopoly"],
+    ["avalon", "gomoku", "xiangqi", "chess", "go", "poker", "doudizhu", "junqi", "pixel_push", "monopoly"],
 )
 def test_every_multiplayer_game_can_end_the_table_by_unanimous_request(
     game_key: str,

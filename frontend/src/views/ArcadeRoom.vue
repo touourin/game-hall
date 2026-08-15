@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import {
   Eye,
   QrCode,
@@ -108,8 +108,12 @@ const roomStatsMode = computed(() => roomShell.value.statsMode?.(props.snapshot)
 
 watch(
   () => [props.snapshot.phase, props.snapshot.gameKey] as const,
-  ([phase]) => {
+  async ([phase], previous) => {
     if (phase !== 'lobby' || isSolo.value) showQr.value = false
+    if (previous?.[0] === 'lobby' && phase !== 'lobby') {
+      await nextTick()
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    }
   },
 )
 const exitDescription = computed(() => {
@@ -339,7 +343,7 @@ function openSharedChat() {
           {{ isSpectating
             ? `${perspectivePlayer?.name ?? '被观战玩家'}${snapshot.winnerPlayerIds.includes(snapshot.self.id) ? '赢了' : '未获胜'}`
             : snapshot.winnerPlayerIds.includes(snapshot.self.id) ? '你赢了' : '再接再厉' }}
-          · 战绩已保存
+          · {{ snapshot.statsEligible === false ? '休闲局不计战绩' : '战绩已保存' }}
         </p>
         <p class="rematch-progress">
           {{ snapshot.rematchReadyPlayerIds.length }} / {{ snapshot.players.length }} 人已准备
@@ -440,6 +444,20 @@ function openSharedChat() {
 .room-code-share { margin: 14px 0 0; border: 1px solid var(--line-strong); border-radius:var(--radius-control); padding:10px 16px; color: var(--gold); background: var(--control-surface), var(--surface-inset); box-shadow:var(--shadow-contact), inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 52%, transparent); font-family:ui-monospace,"SFMono-Regular",Consolas,monospace; font-size: 23px; font-weight: 800; letter-spacing: .18em; }
 .arcade-waiting :deep(.invite-link-panel) { width: min(100%, 620px); }
 .arcade-game-stage { display: grid; gap: 22px; }
+.arcade-room--active.arcade-room--immersive { display: flex; flex-direction: column; }
+.arcade-room--active.arcade-room--immersive :deep(.room-page-header) { order: 1; min-height: 60px; margin: 8px 0 10px; padding: 8px 11px; }
+.arcade-room--active.arcade-room--immersive :deep(.room-page-copy > small) { font-size: 8px; }
+.arcade-room--active.arcade-room--immersive :deep(.room-page-title-row) { margin-top: 2px; }
+.arcade-room--active.arcade-room--immersive :deep(.room-page-title-row h1) { font-size: clamp(20px, 2.5vw, 27px); }
+.arcade-room--active.arcade-room--immersive > .arcade-game-stage { order: 2; gap: 14px; }
+.arcade-room--active.arcade-room--immersive :deep(.host-transfer-notice),
+.arcade-room--active.arcade-room--immersive > .guest-match-notice,
+.arcade-room--active.arcade-room--immersive > .spectator-mode-banner { order: 3; margin-top: 18px; }
+.arcade-room--active.arcade-room--immersive > .arcade-player-strip { order: 4; }
+.arcade-room--active.arcade-room--immersive > .arcade-spectator-strip { order: 5; }
+.arcade-room--active.arcade-room--immersive > .room-rule-bar { order: 6; }
+.arcade-room--active.arcade-room--immersive > :deep(.arcade-chat-dock),
+.arcade-room--active.arcade-room--immersive > :deep(.arcade-chat-panel) { order: 7; }
 .result-banner { padding: 18px; text-align: center; }
 .result-banner small { color: var(--gold); }
 .result-banner h2 { margin: 5px 0; }

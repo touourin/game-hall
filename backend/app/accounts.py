@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import case, delete, func, insert, or_, select, update
+from sqlalchemy import case, delete, func, insert, inspect, or_, select, update
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 
@@ -117,6 +117,7 @@ class AccountStore:
         if self._initialized:
             return
         if self.engine.dialect.name == "sqlite":
+            self._upgrade_local_sqlite_schema()
             metadata.create_all(self.engine)
         now = self._now()
         with self.engine.begin() as connection:
@@ -142,6 +143,30 @@ class AccountStore:
                     .values(name=name)
                 )
         self._initialized = True
+
+    def _upgrade_local_sqlite_schema(self) -> None:
+        """Keep the migration-free local SQLite database compatible.
+
+        Production databases are upgraded by Alembic before the app starts. The
+        local fallback database is created directly from SQLAlchemy metadata, so
+        an existing file also needs the one historical column rename that
+        ``create_all`` cannot apply on its own.
+        """
+        inspector = inspect(self.engine)
+        if "match_players" not in inspector.get_table_names():
+            return
+        columns = {
+            column["name"]
+            for column in inspector.get_columns("match_players")
+        }
+        if "score_ms" not in columns or "score_value" in columns:
+            return
+        with self.engine.begin() as connection:
+            connection.exec_driver_sql(
+                "ALTER TABLE match_players "
+                "RENAME COLUMN score_ms TO score_value"
+            )
+        logger.info("Upgraded local SQLite match score column")
 
     def ping(self) -> None:
         with self.engine.connect() as connection:
