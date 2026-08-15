@@ -73,6 +73,18 @@ function roles(): RoleSkinLoadoutRoleOption[] {
   }))
 }
 
+function pickerColumns() {
+  const style = document.body.querySelector<HTMLElement>(
+    '.role-skin-picker-modal',
+  )?.style
+
+  return {
+    desktop: style?.getPropertyValue('--role-skin-choice-columns'),
+    medium: style?.getPropertyValue('--role-skin-choice-medium-columns'),
+    compact: style?.getPropertyValue('--role-skin-choice-compact-columns'),
+  }
+}
+
 describe('RoleSkinLoadoutPicker', () => {
   afterEach(() => {
     document.body.innerHTML = ''
@@ -122,6 +134,38 @@ describe('RoleSkinLoadoutPicker', () => {
     expect(document.body.querySelector('.role-skin-picker-modal')).toBeNull()
   })
 
+  it('adapts the picker columns to the available styles', async () => {
+    const compactRoles = roles()
+    compactRoles[0]!.choices = compactRoles[0]!.choices.slice(0, 1)
+    const wrapper = mount(RoleSkinLoadoutPicker, {
+      props: { roles: compactRoles },
+    })
+    await wrapper.get('[data-role-skin-role="merlin"]').trigger('click')
+
+    expect(pickerColumns()).toEqual({
+      desktop: '1',
+      medium: '1',
+      compact: '1',
+    })
+
+    const expandedRoles = roles()
+    const baseChoice = expandedRoles[0]!.choices[0]!
+    expandedRoles[0]!.choices.push(
+      ...Array.from({ length: 4 }, (_, index) => ({
+        ...baseChoice,
+        id: `extra-style-${index}`,
+        name: `额外画风 ${index + 1}`,
+      })),
+    )
+    await wrapper.setProps({ roles: expandedRoles })
+
+    expect(pickerColumns()).toEqual({
+      desktop: '5',
+      medium: '3',
+      compact: '2',
+    })
+  })
+
   it('does not select a style before its win requirement is met', async () => {
     const wrapper = mount(RoleSkinLoadoutPicker, { props: { roles: roles() } })
     await wrapper.get('[data-role-skin-role="percival"]').trigger('click')
@@ -146,6 +190,7 @@ describe('RoleSkinLoadoutPicker', () => {
     const wrapper = mount(RoleSkinLoadoutPicker, { props: { roles: eventRoles } })
 
     expect(wrapper.text()).toContain('本周限时开放')
+    expect(wrapper.text()).toContain('所有角色的全部皮肤均可自由选择')
     expect(wrapper.text()).toContain('全部皮肤可用')
     await wrapper.get('[data-role-skin-role="merlin"]').trigger('click')
     expect(document.body.textContent).toContain('8 月 10 日 00:00')
