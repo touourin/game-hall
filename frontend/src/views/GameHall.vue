@@ -15,7 +15,7 @@ import {
   UserRound,
 } from '@lucide/vue'
 import type { AccountProfile } from '../account'
-import { GAME_CATALOG, gameCatalogItem, type GameCatalogEntry } from '../gameCatalog'
+import { GAME_CATALOG, gameCatalogItem } from '../gameCatalog'
 import type { ArcadeLobbyRoom, GameCatalogItem } from '../types/arcade'
 import { useArcadeStore } from '../stores/arcade'
 import AvatarImage from '../components/AvatarImage.vue'
@@ -45,10 +45,13 @@ const gamesSection = ref<HTMLElement | null>(null)
 const categoryBrowser = ref<InstanceType<typeof GameCategoryBrowser> | null>(null)
 const roomsSection = ref<HTMLElement | null>(null)
 
-const games = GAME_CATALOG.filter((game) => !game.key.startsWith('plugin-')) as GameCatalogEntry[]
-const thirdPartyGames = GAME_CATALOG.filter((game) => game.key.startsWith('plugin-'))
+const games = GAME_CATALOG.filter((game) => game.source === 'official')
+const thirdPartyGames = GAME_CATALOG.filter((game) => game.source === 'third_party')
 const builtInRooms = computed(() => arcade.availableRooms.filter(
-  (room) => !room.gameKey.startsWith('plugin-') && !room.cleanupAvailable,
+  (room) => (
+    gameCatalogItem(room.gameKey)?.source === 'official'
+    && !room.cleanupAvailable
+  ),
 ))
 const liveRooms = computed(() => [...builtInRooms.value]
   .sort((first, second) => {
@@ -73,11 +76,11 @@ const hubRoom = computed(() => liveRooms.value[0] ?? null)
 const hubGame = computed(() => {
   if (arcade.resumableGame) {
     const resumable = gameCatalogItem(arcade.resumableGame)
-    if (resumable && !resumable.key.startsWith('plugin-')) return resumable
+    if (resumable?.source === 'official') return resumable
   }
   if (hubRoom.value) {
     const live = gameCatalogItem(hubRoom.value.gameKey)
-    if (live && !live.key.startsWith('plugin-')) return live
+    if (live?.source === 'official') return live
   }
   return games.find((game) => game.key === 'go') ?? games[0]!
 })

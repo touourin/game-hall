@@ -34,19 +34,15 @@ import {
   storedGameSkin,
   type GameSkinId,
 } from '../gameSkins'
-import { builtinGameDefinition } from '../game-platform/registry'
-import {
-  thirdPartyGameComponent,
-  thirdPartyGameRoomLayout,
-} from '../thirdPartyGameRegistry'
+import { gameRegistration } from '../game-platform/registry'
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const emit = defineEmits<{ settings: [] }>()
 const arcade = useArcadeStore()
-const builtinGame = computed(() => builtinGameDefinition(props.snapshot.gameKey))
-const roomShell = computed(() => builtinGame.value?.presentation.roomShell ?? {})
-const builtinGameView = computed(() => builtinGame.value?.presentation.component ?? null)
-const builtinRoomLayout = computed(() => builtinGame.value?.presentation.roomLayout ?? null)
+const registration = computed(() => gameRegistration(props.snapshot.gameKey))
+const roomShell = computed(() => registration.value?.presentation.roomShell ?? {})
+const gameView = computed(() => registration.value?.presentation.component ?? null)
+const roomLayout = computed(() => registration.value?.presentation.roomLayout ?? null)
 const moduleHeaderDetails = computed(() => roomShell.value.headerDetailsComponent ?? null)
 const moduleHeaderActions = computed(() => roomShell.value.headerActionsComponent ?? null)
 const moduleRuleActions = computed(() => roomShell.value.ruleActionsComponent ?? null)
@@ -54,8 +50,6 @@ const moduleLobby = computed(() => roomShell.value.lobbyComponent ?? null)
 const moduleWaitingMessage = computed(() => (
   roomShell.value.waitingMessage?.(props.snapshot) ?? null
 ))
-const pluginGameComponent = computed(() => thirdPartyGameComponent(props.snapshot.gameKey))
-const pluginRoomLayout = computed(() => thirdPartyGameRoomLayout(props.snapshot.gameKey))
 const ruleEditor = ref<Record<string, unknown> | null>(null)
 const showQr = ref(false)
 const sharedChat = ref<{ openChat: () => Promise<void> } | null>(null)
@@ -172,10 +166,10 @@ function openSharedChat() {
   <main
     class="arcade-room page-container adaptive-layout-root"
     :class="{
-      'arcade-room--wide': builtinRoomLayout === 'wide' || pluginRoomLayout === 'wide',
-      'arcade-room--immersive': builtinRoomLayout === 'immersive' || pluginRoomLayout === 'immersive',
+      'arcade-room--wide': roomLayout === 'wide',
+      'arcade-room--immersive': roomLayout === 'immersive',
       'arcade-room--active': snapshot.phase !== 'lobby',
-      'arcade-room--board-game': builtinGame?.presentation.skinKind === 'board',
+      'arcade-room--board-game': registration?.presentation.skinKind === 'board',
       'arcade-room--spectating': isSpectating,
     }"
     :data-game-skin="activeGameSkinKind ? activeGameSkin : undefined"
@@ -360,12 +354,11 @@ function openSharedChat() {
       </div>
 
       <component
-        v-if="builtinGameView"
-        :is="builtinGameView"
+        v-if="gameView"
+        :is="gameView"
         :snapshot="snapshot"
         @open-chat="openSharedChat"
       />
-      <component v-else-if="pluginGameComponent" :is="pluginGameComponent" :snapshot="snapshot" />
 
       <MatchRequestPanel
         v-if="!isSpectating && (snapshot.actions.canRequestUndo || snapshot.actions.canRequestDraw || snapshot.actions.canRequestEndTable || snapshot.request)"

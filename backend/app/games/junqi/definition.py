@@ -3,13 +3,13 @@ from __future__ import annotations
 from backend.app.games.definition import (
     GameCapabilities,
     GameCatalogMetadata,
-    GameDefinition,
+    GameRegistration,
 )
 
 from .engine import JunqiEngine
 
 
-JUNQI_GAME = GameDefinition(
+JUNQI_GAME = GameRegistration(
     key="junqi",
     engine_factory=JunqiEngine,
     catalog=GameCatalogMetadata(

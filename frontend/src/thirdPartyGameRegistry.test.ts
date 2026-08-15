@@ -1,63 +1,49 @@
-import {
-  THIRD_PARTY_GAME_PLUGINS,
-  thirdPartyGameRoomLayout,
-  validateThirdPartyGameManifest,
-} from './thirdPartyGameRegistry'
+import { gameRegistration } from './game-platform/registry'
+import { THIRD_PARTY_GAME_REGISTRATIONS } from './thirdPartyGameRegistry'
 
-describe('third-party game registry', () => {
-  it('registers the enabled single-player and multiplayer examples', () => {
-    expect(THIRD_PARTY_GAME_PLUGINS.map(({ manifest }) => manifest.id)).toEqual(expect.arrayContaining([
+describe('third-party game registrations', () => {
+  it('publishes only the three production games from registry.json', () => {
+    expect(THIRD_PARTY_GAME_REGISTRATIONS.map(({ key }) => key)).toEqual([
       'plugin-cheat-poker',
       'plugin-crazy-futures',
-      'plugin-number-vault',
       'plugin-pyramid-solitaire',
-      'plugin-star-stones',
-    ]))
+    ])
+    expect(gameRegistration('plugin-number-vault')).toBeNull()
+    expect(gameRegistration('plugin-star-stones')).toBeNull()
   })
 
-  it('accepts a valid v1 plugin manifest', () => {
-    const manifest = validateThirdPartyGameManifest({
-      apiVersion: 1,
-      enabled: true,
-      id: 'plugin-sample-game',
-      name: '示例游戏',
-      description: '用于验证插件协议',
-      category: '插件游戏',
-      tone: 'sample',
-      roomLayout: 'immersive',
-      players: { min: 2, max: 4 },
-    }, 'plugin-sample-game')
+  it('adapts plugin metadata to the shared game registration contract', () => {
+    const registration = gameRegistration('plugin-pyramid-solitaire')
 
-    expect(manifest?.id).toBe('plugin-sample-game')
-    expect(manifest?.roomLayout).toBe('immersive')
-  })
-
-  it('exposes a safe room layout and rejects unknown layout values', () => {
-    expect(thirdPartyGameRoomLayout('plugin-pyramid-solitaire')).toBe('immersive')
-    expect(thirdPartyGameRoomLayout('plugin-number-vault')).toBe('standard')
-    expect(validateThirdPartyGameManifest({
-      apiVersion: 1,
-      enabled: true,
-      id: 'plugin-invalid-layout',
-      name: '错误插件',
-      description: '错误宽度请求',
-      category: '插件',
-      tone: 'bad-layout',
-      roomLayout: 'fullscreen',
-      players: { min: 1, max: 1 },
-    }, 'plugin-invalid-layout')).toBeNull()
-  })
-
-  it('rejects unsafe keys, mismatched directories, and invalid player counts', () => {
-    expect(validateThirdPartyGameManifest({
-      apiVersion: 1,
-      enabled: true,
-      id: '../unsafe',
-      name: '错误插件',
-      description: '错误插件',
-      category: '插件',
-      tone: 'bad',
-      players: { min: 0, max: 99 },
-    }, 'plugin-safe')).toBeNull()
+    expect(registration).toMatchObject({
+      source: 'third_party',
+      availability: 'enabled',
+      catalog: {
+        name: '金字塔纸牌',
+        players: { min: 1, max: 1 },
+      },
+      capabilities: {
+        guests: false,
+        spectators: true,
+        spectatorFrames: false,
+        firstPlayer: false,
+      },
+      presentation: { roomLayout: 'immersive' },
+      plugin: { version: '1.0.0' },
+      records: { scoreKind: 'time_trial' },
+    })
+    expect(registration?.rules.defaults).toMatchObject({
+      allowSpectators: true,
+    })
+    expect(registration?.records?.leaderboard?.entryScore({
+      rank: 1,
+      accountId: 'a1',
+      playerName: '玩家一',
+      games: 1,
+      wins: 1,
+      draws: 0,
+      winRate: 100,
+      bestMs: 65_400,
+    })).toBe('1 分 5 秒')
   })
 })

@@ -17,7 +17,7 @@ export const deepShaftGame = defineBuiltinGame({
     category: '个人挑战',
     artwork: { dark: deepShaftArtworkDark, light: deepShaftArtworkLight },
   },
-  capabilities: soloGameCapabilities(),
+  capabilities: soloGameCapabilities({ spectatorFrames: true }),
   presentation: {
     component: defineAsyncComponent(() => import('./DeepShaftGame.vue')),
     roomLayout: 'wide',

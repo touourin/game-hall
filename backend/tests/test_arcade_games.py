@@ -22,9 +22,7 @@ from backend.app.arcade.views import (
 from backend.app.games.base import GameRuleError
 from backend.app.games.definition import GameCapabilities, GameRecordQueryError
 from backend.app.games.builtin import (
-    BUILTIN_GAME_DEFINITIONS,
-    BUILTIN_GAME_NAMES,
-    builtin_game_definition,
+    BUILTIN_GAME_REGISTRATIONS,
 )
 from backend.app.games.doudizhu.engine import (
     Card,
@@ -39,21 +37,30 @@ from backend.app.games.gomoku import GomokuEngine
 from backend.app.games.hanoi import HanoiEngine
 from backend.app.games.junqi.engine import JunqiEngine, JunqiPiece, JunqiState
 from backend.app.games.reaction import ReactionEngine
-from backend.app.games.registry import build_engine_registry
+from backend.app.games.registry import (
+    GAME_REGISTRATIONS,
+    build_engine_registry,
+    game_registration,
+)
 from backend.app.games.xiangqi import XiangqiEngine
 from backend.app.games.xiangqi.engine import XiangqiState
 
 
 def test_builtin_game_catalog_matches_engine_registry() -> None:
-    builtin_engine_keys = {
-        key for key in build_engine_registry() if not key.startswith("plugin-")
+    official_engine_keys = {
+        definition.key
+        for definition in GAME_REGISTRATIONS
+        if definition.source == "official"
     }
 
-    assert builtin_engine_keys == set(BUILTIN_GAME_NAMES)
+    assert official_engine_keys == {
+        definition.key for definition in BUILTIN_GAME_REGISTRATIONS
+    }
+    assert official_engine_keys <= set(build_engine_registry())
 
 
 def test_all_registered_builtin_game_definitions_validate_their_engines() -> None:
-    for definition in BUILTIN_GAME_DEFINITIONS:
+    for definition in BUILTIN_GAME_REGISTRATIONS:
         engine = definition.create_engine()
 
         assert engine.key == definition.key
@@ -61,12 +68,12 @@ def test_all_registered_builtin_game_definitions_validate_their_engines() -> Non
 
 
 def test_scored_games_own_their_record_contract() -> None:
-    reaction = builtin_game_definition("reaction")
-    critical_crossing = builtin_game_definition("critical_crossing")
-    deep_shaft = builtin_game_definition("deep_shaft")
-    minesweeper = builtin_game_definition("minesweeper")
-    tetris = builtin_game_definition("tetris")
-    chess = builtin_game_definition("chess")
+    reaction = game_registration("reaction")
+    critical_crossing = game_registration("critical_crossing")
+    deep_shaft = game_registration("deep_shaft")
+    minesweeper = game_registration("minesweeper")
+    tetris = game_registration("tetris")
+    chess = game_registration("chess")
 
     assert reaction is not None
     assert reaction.records.score_kind == "time_trial"
@@ -91,11 +98,11 @@ def test_scored_games_own_their_record_contract() -> None:
 
 
 def test_filtered_records_own_their_query_contract() -> None:
-    avalon = builtin_game_definition("avalon")
-    minesweeper = builtin_game_definition("minesweeper")
-    critical_crossing = builtin_game_definition("critical_crossing")
-    tetris = builtin_game_definition("tetris")
-    chess = builtin_game_definition("chess")
+    avalon = game_registration("avalon")
+    minesweeper = game_registration("minesweeper")
+    critical_crossing = game_registration("critical_crossing")
+    tetris = game_registration("tetris")
+    chess = game_registration("chess")
 
     assert avalon is not None
     avalon.records.validate_query("standard", None)
@@ -121,7 +128,7 @@ def test_filtered_records_own_their_query_contract() -> None:
 
 
 def test_avalon_record_variants_own_their_storage_selectors() -> None:
-    avalon = builtin_game_definition("avalon")
+    avalon = game_registration("avalon")
 
     assert avalon is not None
     classic = avalon.records.variant_selector("classic")
@@ -154,7 +161,7 @@ def test_social_table_games_preserve_their_shared_capability_contract() -> None:
     }
 
     for game_key, capabilities in expected.items():
-        definition = builtin_game_definition(game_key)
+        definition = game_registration(game_key)
 
         assert definition is not None
         assert definition.capabilities == capabilities
@@ -176,7 +183,7 @@ def test_board_games_use_builtin_game_definitions(
     supports_draw: bool,
     supports_ai: bool,
 ) -> None:
-    definition = builtin_game_definition(game_key)
+    definition = game_registration(game_key)
 
     assert definition is not None
     assert definition.catalog.players == "2 人"

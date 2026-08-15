@@ -6,7 +6,7 @@ from typing import Any
 from backend.app.games.definition import (
     GameCapabilities,
     GameCatalogMetadata,
-    GameDefinition,
+    GameRegistration,
     GameRecords,
 )
 
@@ -22,7 +22,7 @@ def critical_crossing_match_mode(details: Mapping[str, Any]) -> str:
     return DEFAULT_DIFFICULTY
 
 
-CRITICAL_CROSSING_GAME = GameDefinition(
+CRITICAL_CROSSING_GAME = GameRegistration(
     key="critical_crossing",
     engine_factory=CriticalCrossingEngine,
     catalog=GameCatalogMetadata(
@@ -35,6 +35,7 @@ CRITICAL_CROSSING_GAME = GameDefinition(
     capabilities=GameCapabilities(
         guests=False,
         spectators=True,
+        spectator_frames=True,
         first_player=False,
     ),
     records=GameRecords(

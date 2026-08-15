@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from backend.app.games.definition import (
     GameCatalogMetadata,
-    GameDefinition,
+    GameRegistration,
     social_table_capabilities,
 )
 
 from .engine import PixelPushEngine
 
 
-PIXEL_PUSH_GAME = GameDefinition(
+PIXEL_PUSH_GAME = GameRegistration(
     key="pixel_push",
     engine_factory=PixelPushEngine,
     catalog=GameCatalogMetadata(

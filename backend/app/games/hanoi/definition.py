@@ -3,13 +3,13 @@ from __future__ import annotations
 from backend.app.games.definition import (
     GameCapabilities,
     GameCatalogMetadata,
-    GameDefinition,
+    GameRegistration,
 )
 
 from .engine import HanoiEngine
 
 
-HANOI_GAME = GameDefinition(
+HANOI_GAME = GameRegistration(
     key="hanoi",
     engine_factory=HanoiEngine,
     catalog=GameCatalogMetadata(

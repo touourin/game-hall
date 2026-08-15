@@ -196,40 +196,33 @@ async function playHanoi(client) {
   return created.roomCode
 }
 
-async function playNumberVault(client) {
+async function playPyramidSolitaire(client) {
   const created = await emitAck(client, 'arcade:create', {
-    game_key: 'plugin-number-vault',
+    game_key: 'plugin-pyramid-solitaire',
   })
   await emitAck(client, 'arcade:start')
   await emitAck(client, 'arcade:action', {
-    action: 'guess',
-    payload: { value: 10 },
+    action: 'draw',
+    payload: {},
   })
   await emitAck(client, 'arcade:abandon')
   return created.roomCode
 }
 
-async function playStarStones(clients) {
+async function playCheatPoker(clients) {
   const created = await emitAck(clients[0], 'arcade:create', {
-    game_key: 'plugin-star-stones',
+    game_key: 'plugin-cheat-poker',
     options: { firstPlayer: 'host' },
   })
-  await emitAck(clients[1], 'arcade:join', {
-    game_key: 'plugin-star-stones',
-    room_code: created.roomCode,
-  })
+  for (const client of clients.slice(1)) {
+    await emitAck(client, 'arcade:join', {
+      game_key: 'plugin-cheat-poker',
+      room_code: created.roomCode,
+    })
+  }
   await emitAck(clients[0], 'arcade:start')
-  await emitAck(clients[0], 'arcade:action', {
-    action: 'take',
-    payload: { count: 3 },
-  })
-  await emitAck(clients[1], 'arcade:action', {
-    action: 'take',
-    payload: { count: 2 },
-  })
   await emitAck(clients[0], 'arcade:abandon')
-  const left = await emitAck(clients[1], 'arcade:leave')
-  if (left.seatPreserved) throw new Error('星石争夺结束后仍然要求续局')
+  for (const client of clients.slice(1)) await emitAck(client, 'arcade:leave')
   return created.roomCode
 }
 
@@ -239,7 +232,7 @@ try {
     method: 'POST',
   })
   const accounts = []
-  for (const index of [1, 2, 3]) {
+  for (const index of [1, 2, 3, 4]) {
     accounts.push(await register(access.token, index))
   }
   for (const account of accounts) {
@@ -264,8 +257,8 @@ try {
   rooms.pixelPush = await playPixelPush(sockets.slice(0, 2))
   rooms.reaction = await playReaction(sockets[0])
   rooms.hanoi = await playHanoi(sockets[0])
-  rooms.pluginStarStones = await playStarStones(sockets.slice(0, 2))
-  rooms.pluginNumberVault = await playNumberVault(sockets[0])
+  rooms.pluginCheatPoker = await playCheatPoker(sockets.slice(0, 4))
+  rooms.pluginPyramidSolitaire = await playPyramidSolitaire(sockets[0])
 
   const guest = await createGuest(access.token)
   const guestSocket = await connectClient(access.token, guest.token)
@@ -289,8 +282,9 @@ try {
     'doudizhu',
     'junqi',
     'pixel_push',
-    'plugin-number-vault',
-    'plugin-star-stones',
+    'plugin-cheat-poker',
+    'plugin-crazy-futures',
+    'plugin-pyramid-solitaire',
   ]) {
     if (!catalogKeys.has(gameKey)) throw new Error(`游戏目录缺少 ${gameKey}`)
   }
@@ -301,7 +295,6 @@ try {
     'pixel_push',
     'poker',
     'doudizhu',
-    'plugin-star-stones',
   ]) {
     const stats = await jsonRequest(`/api/stats/me?game=${gameKey}`, { headers })
     if (stats.summary.games !== 1 || stats.history[0]?.gameKey !== gameKey) {

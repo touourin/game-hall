@@ -3,14 +3,14 @@ from __future__ import annotations
 from backend.app.games.definition import (
     GameCapabilities,
     GameCatalogMetadata,
-    GameDefinition,
+    GameRegistration,
     GameRecords,
 )
 
 from .engine import SchulteEngine
 
 
-SCHULTE_GAME = GameDefinition(
+SCHULTE_GAME = GameRegistration(
     key="schulte",
     engine_factory=SchulteEngine,
     catalog=GameCatalogMetadata(

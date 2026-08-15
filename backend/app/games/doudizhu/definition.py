@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from backend.app.games.definition import (
     GameCatalogMetadata,
-    GameDefinition,
+    GameRegistration,
     social_table_capabilities,
 )
 
 from .engine import DoudizhuEngine
 
 
-DOUDIZHU_GAME = GameDefinition(
+DOUDIZHU_GAME = GameRegistration(
     key="doudizhu",
     engine_factory=DoudizhuEngine,
     catalog=GameCatalogMetadata(

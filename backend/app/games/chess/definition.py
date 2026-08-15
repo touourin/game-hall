@@ -3,13 +3,13 @@ from __future__ import annotations
 from backend.app.games.definition import (
     GameCapabilities,
     GameCatalogMetadata,
-    GameDefinition,
+    GameRegistration,
 )
 
 from .engine import ChessEngine
 
 
-CHESS_GAME = GameDefinition(
+CHESS_GAME = GameRegistration(
     key="chess",
     engine_factory=ChessEngine,
     catalog=GameCatalogMetadata(

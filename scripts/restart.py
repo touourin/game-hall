@@ -13,6 +13,8 @@ from pathlib import Path
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_HEALTH_TIMEOUT = 120
 DEPLOY_BRANCH = "main"
+APPLICATION_SERVICE = "app"
+PLUGIN_VALIDATION_MODULE = "backend.app.games.validate_plugins"
 
 
 def positive_integer(raw_value: str) -> int:
@@ -168,6 +170,49 @@ def update_sources() -> None:
     update_submodules_from_remotes()
 
 
+def build_application_image() -> None:
+    log("Building the game hall application image")
+    run(["docker", "compose", "build", APPLICATION_SERVICE])
+
+
+def validate_application_image() -> None:
+    log("Validating the third-party release registry and published plugins")
+    run(
+        [
+            "docker",
+            "compose",
+            "run",
+            "--rm",
+            "--no-deps",
+            APPLICATION_SERVICE,
+            "python",
+            "-m",
+            PLUGIN_VALIDATION_MODULE,
+        ]
+    )
+
+
+def start_application() -> None:
+    log("Restarting the game hall with the validated image")
+    run(
+        [
+            "docker",
+            "compose",
+            "up",
+            "-d",
+            "--no-build",
+            APPLICATION_SERVICE,
+        ]
+    )
+
+
+def deploy_application() -> None:
+    run(["docker", "compose", "config", "--quiet"])
+    build_application_image()
+    validate_application_image()
+    start_application()
+
+
 def container_status() -> str:
     container_result = run(
         ["docker", "compose", "ps", "-q", "app"],
@@ -237,10 +282,7 @@ def main() -> int:
     else:
         update_sources()
 
-    run(["docker", "compose", "config", "--quiet"])
-
-    log("Building and restarting the game hall")
-    run(["docker", "compose", "up", "-d", "--build", "app"])
+    deploy_application()
     wait_until_healthy(args.timeout)
     return 0
 

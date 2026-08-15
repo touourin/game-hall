@@ -8,7 +8,7 @@ import {
   Sparkles,
 } from '@lucide/vue'
 import type { ArcadeGameKey } from '../types/arcade'
-import { builtinGameDefinition } from '../game-platform/registry'
+import { gameRegistration } from '../game-platform/registry'
 import type { BuiltinGameSoloContent } from '../game-platform/types'
 import { gameCatalogItem } from '../gameCatalog'
 import GameRuleSettings from './GameRuleSettings.vue'
@@ -35,14 +35,14 @@ const rules = computed({
   set: (value: Record<string, unknown>) => emit('update:modelValue', value),
 })
 
-const builtinPresentation = computed(
-  () => builtinGameDefinition(props.gameKey)?.presentation.solo,
+const gamePresentation = computed(
+  () => gameRegistration(props.gameKey)?.presentation.solo,
 )
-const hasRules = computed(() => builtinPresentation.value?.hasRuleSettings === true)
+const hasRules = computed(() => gamePresentation.value?.hasRuleSettings === true)
 const catalogGame = computed(() => gameCatalogItem(props.gameKey))
 
 const challenge = computed<RenderedSoloChallenge>(() => {
-  const presentation = builtinPresentation.value
+  const presentation = gamePresentation.value
   if (presentation) {
     return {
       icon: presentation.icon,

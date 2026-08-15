@@ -7,6 +7,7 @@ describe('GameLibraryCard', () => {
       props: {
         game: {
           key: 'gomoku',
+          source: 'official',
           name: '五子棋',
           players: '2 人',
           description: '一子定势，五子连珠',
@@ -31,6 +32,7 @@ describe('GameLibraryCard', () => {
       props: {
         game: {
           key: 'avalon',
+          source: 'official',
           name: '阿瓦隆',
           players: '5–10 人',
           description: '谎言上桌，忠诚接受考验',

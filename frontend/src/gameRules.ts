@@ -1,16 +1,11 @@
+import { gameRegistration } from './game-platform/registry'
 import type { ArcadeGameKey } from './types/arcade'
-import { builtinGameDefinition } from './game-platform/registry'
-import {
-  thirdPartyGameDefaultOptions,
-  thirdPartyGameDefinition,
-  thirdPartyGameRuleLabels,
-} from './thirdPartyGameRegistry'
 
 export function hasGameHandicap(
   gameKey: ArcadeGameKey,
   options: Record<string, unknown>,
 ): boolean {
-  return builtinGameDefinition(gameKey)?.rules.hasHandicap?.(options) ?? false
+  return gameRegistration(gameKey)?.rules.hasHandicap?.(options) ?? false
 }
 
 export function applyGameRuleChange(
@@ -19,33 +14,22 @@ export function applyGameRuleChange(
   key: string,
   value: unknown,
 ): Record<string, unknown> {
-  const builtinRules = builtinGameDefinition(gameKey)?.rules
-  if (builtinRules?.applyChange) {
-    return builtinRules.applyChange(options, key, value)
-  }
-  const next = { ...options, [key]: value }
-  return next
+  const applyChange = gameRegistration(gameKey)?.rules.applyChange
+  return applyChange
+    ? applyChange(options, key, value)
+    : { ...options, [key]: value }
 }
 
 export function defaultGameRules(
   gameKey: ArcadeGameKey,
 ): Record<string, unknown> {
-  const builtinGame = builtinGameDefinition(gameKey)
-  if (builtinGame) return { ...builtinGame.rules.defaults }
-  if (thirdPartyGameDefinition(gameKey)) {
-    return {
-      firstPlayer: 'random',
-      allowGuests: true,
-      allowSpectators: true,
-      ...thirdPartyGameDefaultOptions(gameKey),
-    }
-  }
-  const options: Record<string, unknown> = {
+  const registration = gameRegistration(gameKey)
+  if (registration) return { ...registration.rules.defaults }
+  return {
     firstPlayer: 'random',
     allowGuests: true,
     allowSpectators: true,
   }
-  return options
 }
 
 export function withDefaultGameRules(
@@ -60,16 +44,10 @@ export function gameRuleLabels(
   rawOptions: Record<string, unknown>,
 ): string[] {
   const options = withDefaultGameRules(gameKey, rawOptions)
-  const builtinGame = builtinGameDefinition(gameKey)
-  if (builtinGame) return builtinGame.rules.labels(options)
-  if (thirdPartyGameDefinition(gameKey)) {
-    const labels = thirdPartyGameRuleLabels(gameKey)
-    labels.push(options.allowGuests ? '允许游客' : '仅登录玩家')
-    return labels
-  }
-  const labels = [
+  const registration = gameRegistration(gameKey)
+  if (registration) return registration.rules.labels(options)
+  return [
     options.firstPlayer === 'host' ? '房主先手' : '随机先手',
+    options.allowGuests ? '允许游客' : '仅登录玩家',
   ]
-  labels.push(options.allowGuests ? '允许游客' : '仅登录玩家')
-  return labels
 }

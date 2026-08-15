@@ -13,7 +13,7 @@ import SpectatorBrowser from '../components/SpectatorBrowser.vue'
 import MultiplayerMatchLauncher from '../components/MultiplayerMatchLauncher.vue'
 import { defaultGameRules } from '../gameRules'
 import { isSoloGameKey } from '../gameCatalog'
-import { builtinGameDefinition } from '../game-platform/registry'
+import { gameRegistration } from '../game-platform/registry'
 import AvatarImage from '../components/AvatarImage.vue'
 import UiButton from '../components/ui/UiButton.vue'
 
@@ -37,12 +37,12 @@ const showLeaderboard = ref(false)
 const gameKey = computed(() => props.game.key as ArcadeGameKey)
 const rules = ref<Record<string, unknown>>(defaultGameRules(gameKey.value))
 const isSolo = computed(() => isSoloGameKey(props.game.key))
-const builtinGame = computed(() => builtinGameDefinition(gameKey.value))
+const registration = computed(() => gameRegistration(gameKey.value))
 const statsMode = computed(
-  () => builtinGame.value?.records?.modeFromRules?.(rules.value),
+  () => registration.value?.records?.modeFromRules?.(rules.value),
 )
 const canSpectate = computed(
-  () => builtinGame.value?.capabilities.spectators ?? true,
+  () => registration.value?.capabilities.spectators ?? true,
 )
 const gameRooms = computed(() =>
   arcade.availableRooms.filter((room) => room.gameKey === props.game.key),

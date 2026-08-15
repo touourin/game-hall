@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { GameCatalogItem } from '../types/arcade'
-import { builtinGameDefinition } from '../game-platform/registry'
+import { gameRegistration } from '../game-platform/registry'
 import { currentTheme } from '../theme'
 
 const props = defineProps<{ gameKey: GameCatalogItem['key'] }>()
 
 const artwork = computed(() => {
-  const variants = builtinGameDefinition(props.gameKey)?.catalog.artwork
+  const variants = gameRegistration(props.gameKey)?.catalog.artwork
   if (!variants) return null
 
   return currentTheme.value === 'royal' ? variants.light : variants.dark

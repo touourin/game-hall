@@ -41,15 +41,15 @@ MAX_UNDO_HISTORY = 100
 ACTIVE_GAME_PHASES = {"setup", "playing", "bidding", "scoring"}
 
 
-def builtin_game_definition(game_key: str):
+def game_registration(game_key: str):
     """Resolve game metadata lazily to keep engines independent of rooms."""
-    from backend.app.games.builtin import builtin_game_definition as resolve
+    from backend.app.games.registry import game_registration as resolve
 
     return resolve(game_key)
 
 
 def game_undo_actions(game_key: str) -> frozenset[str]:
-    definition = builtin_game_definition(game_key)
+    definition = game_registration(game_key)
     if definition is not None:
         return definition.capabilities.undo_actions
     return frozenset()
@@ -60,7 +60,7 @@ def game_supports_undo(game_key: str) -> bool:
 
 
 def game_supports_draw(game_key: str) -> bool:
-    definition = builtin_game_definition(game_key)
+    definition = game_registration(game_key)
     return bool(definition and definition.capabilities.draw_requests)
 
 
@@ -1039,7 +1039,7 @@ class ArcadeRoomManager:
         engine: GameEngine, options: dict[str, Any]
     ) -> dict[str, Any]:
         normalized: dict[str, Any] = {}
-        definition = builtin_game_definition(engine.key)
+        definition = game_registration(engine.key)
         if definition is not None and not definition.capabilities.spectators:
             allow_spectators = False
         else:
@@ -1048,9 +1048,17 @@ class ArcadeRoomManager:
                 raise ArcadeRoomError("观战设置格式不正确")
         normalized["allowSpectators"] = allow_spectators
         if engine.max_players > 1:
-            allow_guests = options.get("allowGuests", True)
-            if not isinstance(allow_guests, bool):
-                raise ArcadeRoomError("游客准入设置格式不正确")
+            supports_guests = (
+                definition.capabilities.guests
+                if definition is not None
+                else True
+            )
+            if supports_guests:
+                allow_guests = options.get("allowGuests", True)
+                if not isinstance(allow_guests, bool):
+                    raise ArcadeRoomError("游客准入设置格式不正确")
+            else:
+                allow_guests = False
             normalized["allowGuests"] = allow_guests
         supports_first_player = (
             definition.capabilities.first_player

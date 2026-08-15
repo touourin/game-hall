@@ -9,7 +9,7 @@ from backend.app.games.base import GameEngine
 
 @dataclass(frozen=True)
 class GameCapabilities:
-    """Platform features used by a built-in game.
+    """Platform features used by a registered game.
 
     Game-specific rules stay on the engine.  This object only describes the
     services supplied by the shared room platform.
@@ -19,6 +19,7 @@ class GameCapabilities:
     draw_requests: bool = False
     guests: bool = True
     spectators: bool = True
+    spectator_frames: bool = False
     first_player: bool = True
     replay: bool = False
     ai: bool = False
@@ -74,6 +75,8 @@ class GameCatalogMetadata:
 
 
 GameScoreKind = Literal["outcome", "time_trial", "high_score"]
+GameSource = Literal["official", "third_party"]
+GameAvailability = Literal["enabled", "deprecated"]
 GameRecordVariantValue = bool | int | str
 
 
@@ -141,29 +144,46 @@ class GameRecords:
 
 
 @dataclass(frozen=True)
-class GameDefinition:
+class GamePluginMetadata:
+    version: str
+    author: str
+    license: str
+    directory: str
+
+
+@dataclass(frozen=True)
+class GameRegistration:
     key: str
     engine_factory: Callable[[], GameEngine]
     catalog: GameCatalogMetadata
     capabilities: GameCapabilities = field(default_factory=GameCapabilities)
     records: GameRecords = field(default_factory=GameRecords)
+    source: GameSource = "official"
+    availability: GameAvailability = "enabled"
+    plugin: GamePluginMetadata | None = None
+
+    def __post_init__(self) -> None:
+        if self.source == "official" and self.plugin is not None:
+            raise ValueError("官方游戏不能携带第三方插件元数据")
+        if self.source == "third_party" and self.plugin is None:
+            raise ValueError("第三方游戏必须携带插件元数据")
 
     def create_engine(self) -> GameEngine:
         engine = self.engine_factory()
         if engine.key != self.key:
             raise ValueError(
-                f"官方游戏 {self.key} 的引擎 key 不一致：{engine.key}"
+                f"游戏 {self.key} 的引擎 key 不一致：{engine.key}"
             )
         if engine.name != self.catalog.name:
             raise ValueError(
-                f"官方游戏 {self.key} 的目录名称与引擎名称不一致"
+                f"游戏 {self.key} 的目录名称与引擎名称不一致"
             )
         if (
             engine.min_players != self.catalog.min_players
             or engine.max_players != self.catalog.max_players
         ):
             raise ValueError(
-                f"官方游戏 {self.key} 的目录人数与引擎人数不一致"
+                f"游戏 {self.key} 的目录人数与引擎人数不一致"
             )
         supports_ai = any(
             callable(getattr(engine, attribute, None))
@@ -171,7 +191,7 @@ class GameDefinition:
         )
         if supports_ai != self.capabilities.ai:
             raise ValueError(
-                f"官方游戏 {self.key} 的 AI 能力声明与引擎不一致"
+                f"游戏 {self.key} 的 AI 能力声明与引擎不一致"
             )
         return engine
 

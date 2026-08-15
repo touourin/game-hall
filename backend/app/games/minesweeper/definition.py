@@ -6,7 +6,7 @@ from typing import Any
 from backend.app.games.definition import (
     GameCapabilities,
     GameCatalogMetadata,
-    GameDefinition,
+    GameRegistration,
     GameRecords,
 )
 
@@ -22,7 +22,7 @@ def minesweeper_match_mode(details: Mapping[str, Any]) -> str:
     return "standard"
 
 
-MINESWEEPER_GAME = GameDefinition(
+MINESWEEPER_GAME = GameRegistration(
     key="minesweeper",
     engine_factory=MinesweeperEngine,
     catalog=GameCatalogMetadata(

@@ -15,7 +15,7 @@ import {
   X,
 } from '@lucide/vue'
 import type { ArcadeGameKey, ArcadeLobbyRoom, GameCatalogItem } from '../types/arcade'
-import { builtinGameDefinition } from '../game-platform/registry'
+import { gameRegistration } from '../game-platform/registry'
 import type { BuiltinGameLauncherPresentation } from '../game-platform/types'
 import { gameRuleLabels } from '../gameRules'
 import AvatarImage from './AvatarImage.vue'
@@ -49,7 +49,7 @@ const showRules = ref(false)
 const ruleDraft = ref<Record<string, unknown>>({})
 
 const identity = computed<BuiltinGameLauncherPresentation>(() => (
-  builtinGameDefinition(props.gameKey)?.presentation.launcher ?? {
+  gameRegistration(props.gameKey)?.presentation.launcher ?? {
     kicker: props.game.description,
     title: `创建${props.game.name}对局`,
     description: '设置规则，邀请玩家加入房间。',

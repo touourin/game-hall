@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ArcadeGameKey } from '../types/arcade'
-import { builtinGameDefinition } from '../game-platform/registry'
+import { gameRegistration } from '../game-platform/registry'
 import {
   applyGameRuleChange,
   hasGameHandicap,
@@ -17,22 +17,22 @@ const emit = defineEmits<{
   'update:modelValue': [value: Record<string, unknown>]
 }>()
 
-const builtinGame = computed(() => builtinGameDefinition(props.gameKey))
+const registration = computed(() => gameRegistration(props.gameKey))
 const resolvedOptions = computed(() => withDefaultGameRules(
   props.gameKey,
   props.modelValue,
 ))
 const gameSettingsComponent = computed(
-  () => builtinGame.value?.rules.settingsComponent ?? null,
+  () => registration.value?.rules.settingsComponent ?? null,
 )
 const gameSettingsGroups = computed(
-  () => (builtinGame.value?.rules.settingsGroups ?? []).filter((group) => (
+  () => (registration.value?.rules.settingsGroups ?? []).filter((group) => (
     !group.visibleWhen
     || resolvedOptions.value[group.visibleWhen[0]] === group.visibleWhen[1]
   )),
 )
 const firstPlayerCopy = computed(() => (
-  builtinGame.value?.rules.firstPlayerCopy?.(resolvedOptions.value) ?? {
+  registration.value?.rules.firstPlayerCopy?.(resolvedOptions.value) ?? {
     title: '首局先手',
     description: '再来一局时仍会自动轮换',
     randomDescription: '开局随机分配座位',
@@ -56,23 +56,23 @@ function hasHandicap(): boolean {
 }
 
 function supportsUndo(): boolean {
-  return builtinGame.value?.capabilities.undo ?? false
+  return registration.value?.capabilities.undo ?? false
 }
 
 function supportsDraw(): boolean {
-  return builtinGame.value?.capabilities.draw ?? false
+  return registration.value?.capabilities.draw ?? false
 }
 
 function supportsFirstPlayer(): boolean {
-  return builtinGame.value?.capabilities.firstPlayer ?? true
+  return registration.value?.capabilities.firstPlayer ?? true
 }
 
 function supportsGuests(): boolean {
-  return builtinGame.value?.capabilities.guests ?? true
+  return registration.value?.capabilities.guests ?? true
 }
 
 function supportsSpectators(): boolean {
-  return builtinGame.value?.capabilities.spectators ?? true
+  return registration.value?.capabilities.spectators ?? true
 }
 </script>
 

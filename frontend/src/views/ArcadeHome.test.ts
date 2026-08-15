@@ -201,10 +201,10 @@ describe('ArcadeHome', () => {
     const wrapper = mount(ArcadeHome, {
       props: {
         game: {
-          key: 'plugin-number-vault',
-          name: '数字密匣',
+          key: 'plugin-pyramid-solitaire',
+          name: '金字塔纸牌',
           players: '1 人',
-          description: '六次机会破解秘密数字',
+          description: '配对凑成 13 的计时纸牌挑战',
         },
         account: {
           id: 'account-1',
@@ -223,8 +223,8 @@ describe('ArcadeHome', () => {
     await flushPromises()
 
     expect(createRoom).toHaveBeenCalledWith(
-      'plugin-number-vault',
-      expect.objectContaining({ listed: false, allowGuests: true }),
+      'plugin-pyramid-solitaire',
+      expect.objectContaining({ listed: false, allowSpectators: true }),
     )
     expect(startGame).toHaveBeenCalledOnce()
   })

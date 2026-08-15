@@ -3,13 +3,13 @@ from __future__ import annotations
 from backend.app.games.definition import (
     GameCapabilities,
     GameCatalogMetadata,
-    GameDefinition,
+    GameRegistration,
 )
 
 from .engine import GomokuEngine
 
 
-GOMOKU_GAME = GameDefinition(
+GOMOKU_GAME = GameRegistration(
     key="gomoku",
     engine_factory=GomokuEngine,
     catalog=GameCatalogMetadata(

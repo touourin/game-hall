@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from backend.app.games.definition import (
     GameCatalogMetadata,
-    GameDefinition,
+    GameRegistration,
     social_table_capabilities,
 )
 
 from .engine import MonopolyEngine
 
 
-MONOPOLY_GAME = GameDefinition(
+MONOPOLY_GAME = GameRegistration(
     key="monopoly",
     engine_factory=MonopolyEngine,
     catalog=GameCatalogMetadata(

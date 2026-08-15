@@ -15,7 +15,7 @@ import socketio
 from pydantic import BaseModel, Field, ValidationError
 
 from backend.app.accounts import account_store
-from backend.app.games.registry import build_engine_registry
+from backend.app.games.registry import build_engine_registry, game_registration
 from backend.app.logging_config import bind_game_context, reset_game_context
 
 from .models import ArcadeRoom, ArcadeSpectator
@@ -51,9 +51,6 @@ INFO_SOCKET_EVENTS = {
     "arcade:unwatch",
     "arcade:watch",
 }
-SPECTATOR_FRAME_GAME_KEYS = frozenset(
-    {"reaction", "deep_shaft", "critical_crossing", "tetris"}
-)
 MAX_SPECTATOR_FRAME_BYTES = 64 * 1024
 MAX_SPECTATOR_FRAMES_PER_SECOND = 20
 
@@ -694,7 +691,11 @@ class ArcadeRealtime:
         try:
             payload = SpectatorFramePayload.model_validate(raw_data or {})
             room, player = await self._context(sid)
-            if room.game_key not in SPECTATOR_FRAME_GAME_KEYS:
+            registration = game_registration(room.game_key)
+            if not (
+                registration
+                and registration.capabilities.spectator_frames
+            ):
                 raise ArcadeRoomError("这个游戏不接收观战画面同步")
             if room.phase != "playing":
                 raise ArcadeRoomError("当前对局不接收观战画面同步")

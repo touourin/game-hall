@@ -3,13 +3,13 @@ from __future__ import annotations
 from backend.app.games.definition import (
     GameCapabilities,
     GameCatalogMetadata,
-    GameDefinition,
+    GameRegistration,
 )
 
 from .engine import XiangqiEngine
 
 
-XIANGQI_GAME = GameDefinition(
+XIANGQI_GAME = GameRegistration(
     key="xiangqi",
     engine_factory=XiangqiEngine,
     catalog=GameCatalogMetadata(

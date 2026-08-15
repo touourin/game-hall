@@ -3,15 +3,23 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from backend.app.accounts import AccountStore
-from backend.app.games.plugins import discover_game_plugins, third_party_games_root
+from backend.app.games.plugins import (
+    GamePluginValidationError,
+    discover_game_plugins,
+    third_party_games_root,
+    validate_game_plugins,
+)
+from backend.app.games.registry import game_registration
 
 
 def write_plugin(
     root: Path,
     *,
     plugin_id: str,
-    enabled: bool = True,
+    status: str = "enabled",
     room_layout: str | None = None,
 ) -> Path:
     directory = root / plugin_id
@@ -19,13 +27,26 @@ def write_plugin(
     backend.mkdir(parents=True)
     manifest = {
         "apiVersion": 1,
-        "enabled": enabled,
+        "version": "1.0.0",
+        "author": "Test Author",
+        "license": "UNLICENSED",
         "id": plugin_id,
         "name": "测试插件",
         "description": "测试自动注册",
         "category": "插件游戏",
         "tone": "test",
         "players": {"min": 1, "max": 1},
+        "capabilities": {
+            "guests": False,
+            "spectators": True,
+            "spectatorFrames": False,
+            "firstPlayer": False,
+            "undoActions": [],
+            "drawRequests": False,
+            "replay": False,
+            "ai": False,
+        },
+        "records": {"scoreKind": "outcome"},
     }
     if room_layout is not None:
         manifest["roomLayout"] = room_layout
@@ -36,10 +57,10 @@ def write_plugin(
         ),
         encoding="utf-8",
     )
-    (backend / "plugin.py").write_text(
-        """
+    (directory / "README.md").write_text("# 测试插件\n", encoding="utf-8")
+    plugin_source = """
 class Engine:
-    key = 'plugin-test-game'
+    key = __PLUGIN_KEY__
     name = '测试插件'
     min_players = 1
     max_players = 1
@@ -51,7 +72,33 @@ class Engine:
 
 def create_engine():
     return Engine()
-""".strip(),
+""".replace("__PLUGIN_KEY__", repr(plugin_id)).strip()
+    (backend / "plugin.py").write_text(
+        plugin_source,
+        encoding="utf-8",
+    )
+    frontend = directory / "frontend"
+    frontend.mkdir()
+    (frontend / "GameView.vue").write_text(
+        "<template><main>测试插件</main></template>\n",
+        encoding="utf-8",
+    )
+    registry_path = root / "registry.json"
+    registry = (
+        json.loads(registry_path.read_text(encoding="utf-8"))
+        if registry_path.is_file()
+        else {"apiVersion": 1, "plugins": []}
+    )
+    registry["plugins"].append(
+        {
+            "id": plugin_id,
+            "path": plugin_id,
+            "status": status,
+            "order": len(registry["plugins"]) + 1,
+        }
+    )
+    registry_path.write_text(
+        json.dumps(registry, ensure_ascii=False),
         encoding="utf-8",
     )
     return directory
@@ -79,6 +126,42 @@ def test_plugin_with_invalid_room_layout_is_rejected(tmp_path) -> None:
     )
 
     assert discover_game_plugins(tmp_path) == []
+
+
+def test_plugin_with_fields_outside_the_manifest_schema_is_rejected(tmp_path) -> None:
+    directory = write_plugin(tmp_path, plugin_id="plugin-test-game")
+    manifest_path = directory / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["installScript"] = "unsafe"
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(GamePluginValidationError) as error:
+        validate_game_plugins(tmp_path)
+
+    assert error.value.issues == (
+        "plugin-test-game: manifest.json 包含未知字段：installScript",
+    )
+
+
+def test_scored_plugin_must_expose_player_score(tmp_path) -> None:
+    directory = write_plugin(tmp_path, plugin_id="plugin-test-game")
+    manifest_path = directory / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["records"]["scoreKind"] = "time_trial"
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(GamePluginValidationError) as error:
+        validate_game_plugins(tmp_path)
+
+    assert error.value.issues == (
+        "plugin-test-game: 计时或高分插件引擎必须实现 player_score()",
+    )
 
 
 def test_plugin_backend_can_keep_existing_logic_in_local_modules(tmp_path) -> None:
@@ -116,7 +199,7 @@ def create_engine():
 
 def test_disabled_or_broken_plugin_does_not_block_other_plugins(tmp_path) -> None:
     write_plugin(tmp_path, plugin_id="plugin-test-game")
-    write_plugin(tmp_path, plugin_id="plugin-disabled", enabled=False)
+    write_plugin(tmp_path, plugin_id="plugin-disabled", status="disabled")
     broken = tmp_path / "plugin-broken"
     broken.mkdir()
     (broken / "manifest.json").write_text("{}", encoding="utf-8")
@@ -126,13 +209,43 @@ def test_disabled_or_broken_plugin_does_not_block_other_plugins(tmp_path) -> Non
     assert [plugin.engine.key for plugin in plugins] == ["plugin-test-game"]
 
 
+def test_release_validation_reports_every_invalid_plugin(tmp_path) -> None:
+    missing_view = write_plugin(tmp_path, plugin_id="plugin-test-game")
+    (missing_view / "frontend" / "GameView.vue").unlink()
+    missing_readme = write_plugin(tmp_path, plugin_id="plugin-second-game")
+    (missing_readme / "README.md").unlink()
+
+    with pytest.raises(GamePluginValidationError) as error:
+        validate_game_plugins(tmp_path)
+
+    assert error.value.issues == (
+        "plugin-test-game: 缺少必需文件：frontend/GameView.vue",
+        "plugin-second-game: 缺少必需文件：README.md",
+    )
+
+
+def test_release_validation_accepts_the_current_plugin_repository() -> None:
+    plugins = validate_game_plugins()
+
+    assert {plugin.engine.key for plugin in plugins} == {
+        "plugin-cheat-poker",
+        "plugin-crazy-futures",
+        "plugin-pyramid-solitaire",
+    }
+
+
 def test_repository_includes_a_safe_disabled_template() -> None:
     root = third_party_games_root()
     manifest = json.loads(
         (root / "plugin-counter-demo" / "manifest.json").read_text(encoding="utf-8")
     )
 
-    assert manifest["enabled"] is False
+    registry = json.loads((root / "registry.json").read_text(encoding="utf-8"))
+    assert manifest["apiVersion"] == 1
+    assert all(
+        entry["id"] != "plugin-counter-demo"
+        for entry in registry["plugins"]
+    )
     assert (root / "README.md").is_file()
     assert (root / "plugin.schema.json").is_file()
 
@@ -143,8 +256,8 @@ def test_plugin_match_is_registered_and_visible_in_stats(tmp_path) -> None:
     second, _ = store.register("plugin_two", "secret123", "插件玩家二")
 
     stored = store.record_game_match(
-        game_key="plugin-counter-demo",
-        game_name="计数竞速",
+        game_key="plugin-cheat-poker",
+        game_name="欺诈者",
         match_id="plugin-match-1",
         room_code="PLUG",
         winner="player",
@@ -176,9 +289,21 @@ def test_plugin_match_is_registered_and_visible_in_stats(tmp_path) -> None:
 
     assert stored is True
     assert store.summary_for_account(
-        first.id, game_key="plugin-counter-demo"
+        first.id, game_key="plugin-cheat-poker"
     )["wins"] == 1
     history = store.history_for_account(
-        first.id, game_key="plugin-counter-demo"
+        first.id, game_key="plugin-cheat-poker"
     )
-    assert history[0]["gameName"] == "计数竞速"
+    assert history[0]["gameName"] == "欺诈者"
+
+
+def test_plugins_share_capabilities_and_records_with_official_games() -> None:
+    cheat_poker = game_registration("plugin-cheat-poker")
+    pyramid = game_registration("plugin-pyramid-solitaire")
+
+    assert cheat_poker is not None
+    assert cheat_poker.source == "third_party"
+    assert cheat_poker.capabilities.guests is True
+    assert cheat_poker.capabilities.spectators is True
+    assert pyramid is not None
+    assert pyramid.records.score_kind == "time_trial"

@@ -26,12 +26,8 @@ from .database import (
     player_name_claims,
     users,
 )
-from .games.builtin import (
-    BUILTIN_GAME_DEFINITIONS,
-    BUILTIN_GAME_NAMES,
-    builtin_game_definition,
-)
 from .games.definition import GameRecordQueryError
+from .games.registry import GAME_NAMES, GAME_REGISTRY, game_registration
 
 
 logger = logging.getLogger(__name__)
@@ -39,11 +35,7 @@ SESSION_LIFETIME = timedelta(days=30)
 PLAYER_NAME_CHANGE_INTERVAL = timedelta(days=30)
 USERNAME_MIN_LENGTH = 2
 USERNAME_MAX_LENGTH = 50
-SCORED_GAME_KEYS = frozenset(
-    definition.key
-    for definition in BUILTIN_GAME_DEFINITIONS
-    if definition.records.score_kind != "outcome"
-)
+SCORED_GAME_KEYS = GAME_REGISTRY.scored_game_keys
 AVATAR_PRESET_IDS = (
     "moon-fox",
     "jade-owl",
@@ -59,7 +51,7 @@ AVATAR_PRESET_IDS = (
 def _game_score_kind(game_key: str | None) -> str:
     if game_key is None:
         return "outcome"
-    definition = builtin_game_definition(game_key)
+    definition = game_registration(game_key)
     return definition.records.score_kind if definition else "outcome"
 
 
@@ -131,12 +123,12 @@ class AccountStore:
                     "enabled": True,
                     "created_at": now,
                 }
-                for key, name in BUILTIN_GAME_NAMES.items()
+                for key, name in GAME_NAMES.items()
                 if key not in existing_games
             ]
             if missing_games:
                 connection.execute(insert(games), missing_games)
-            for key, name in BUILTIN_GAME_NAMES.items():
+            for key, name in GAME_NAMES.items():
                 connection.execute(
                     update(games)
                     .where(games.c.key == key, games.c.name != name)
@@ -500,16 +492,13 @@ class AccountStore:
         if (
             not players
             or len(game_key) > 32
-            or (
-                game_key not in BUILTIN_GAME_NAMES
-                and not game_key.startswith("plugin-")
-            )
+            or game_key not in GAME_NAMES
         ):
             return False
         self.initialize()
         try:
             with self.engine.begin() as connection:
-                stored_game_name = game_name or BUILTIN_GAME_NAMES.get(
+                stored_game_name = game_name or GAME_NAMES.get(
                     game_key, game_key
                 )
                 existing_game = connection.execute(
@@ -1071,7 +1060,7 @@ class AccountStore:
         if game_variant is None:
             return statement
         definition = (
-            builtin_game_definition(game_key)
+            game_registration(game_key)
             if game_key is not None
             else None
         )
@@ -1250,7 +1239,7 @@ class AccountStore:
 
     @staticmethod
     def _match_mode(game_key: str, details: dict[str, Any]) -> str:
-        definition = builtin_game_definition(game_key)
+        definition = game_registration(game_key)
         return (
             definition.records.match_mode(details)
             if definition

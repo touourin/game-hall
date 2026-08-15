@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from backend.app.games.definition import (
     GameCatalogMetadata,
-    GameDefinition,
+    GameRegistration,
     social_table_capabilities,
 )
 
 from .engine import OneNightWerewolfEngine
 
 
-ONE_NIGHT_WEREWOLF_GAME = GameDefinition(
+ONE_NIGHT_WEREWOLF_GAME = GameRegistration(
     key="one_night_werewolf",
     engine_factory=OneNightWerewolfEngine,
     catalog=GameCatalogMetadata(

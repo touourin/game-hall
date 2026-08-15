@@ -1,13 +1,16 @@
 import type {
   BuiltinGameDefinition,
+  GameRegistration,
 } from './types'
 import type { BuiltinArcadeGameKey } from '../types/arcade'
 
 export function defineBuiltinGame<Key extends BuiltinArcadeGameKey>(
   definition: BuiltinGameDefinition<Key>,
-): BuiltinGameDefinition<Key> {
+): GameRegistration<Key> {
   return Object.freeze({
     ...definition,
+    source: 'official' as const,
+    availability: 'enabled' as const,
     catalog: Object.freeze({ ...definition.catalog }),
     capabilities: Object.freeze({ ...definition.capabilities }),
     presentation: Object.freeze({

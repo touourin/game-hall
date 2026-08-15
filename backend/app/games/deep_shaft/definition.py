@@ -3,14 +3,14 @@ from __future__ import annotations
 from backend.app.games.definition import (
     GameCapabilities,
     GameCatalogMetadata,
-    GameDefinition,
+    GameRegistration,
     GameRecords,
 )
 
 from .engine import DeepShaftEngine
 
 
-DEEP_SHAFT_GAME = GameDefinition(
+DEEP_SHAFT_GAME = GameRegistration(
     key="deep_shaft",
     engine_factory=DeepShaftEngine,
     catalog=GameCatalogMetadata(
@@ -23,6 +23,7 @@ DEEP_SHAFT_GAME = GameDefinition(
     capabilities=GameCapabilities(
         guests=False,
         spectators=True,
+        spectator_frames=True,
         first_player=False,
     ),
     records=GameRecords(score_kind="high_score"),

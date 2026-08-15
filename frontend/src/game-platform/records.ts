@@ -1,6 +1,6 @@
 import type { LeaderboardEntry } from '../stats'
 import { createCompetitiveStatsPresentation } from './recordFormatting'
-import { builtinGameDefinition } from './registry'
+import { gameRegistration } from './registry'
 import type {
   BuiltinGameLeaderboardPresentation,
   BuiltinGameStatsPresentation,
@@ -17,13 +17,13 @@ const standardLeaderboardPresentation: BuiltinGameLeaderboardPresentation = {
 export function leaderboardPresentation(
   gameKey: unknown,
 ): BuiltinGameLeaderboardPresentation {
-  return builtinGameDefinition(gameKey)?.records?.leaderboard
+  return gameRegistration(gameKey)?.records?.leaderboard
     ?? standardLeaderboardPresentation
 }
 
 const standardStatsPresentation = createCompetitiveStatsPresentation()
 
 export function statsPresentation(gameKey: unknown): BuiltinGameStatsPresentation {
-  return builtinGameDefinition(gameKey)?.records?.stats
+  return gameRegistration(gameKey)?.records?.stats
     ?? standardStatsPresentation
 }

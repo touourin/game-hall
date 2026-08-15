@@ -17,10 +17,11 @@ import reactionGame from '../games/reaction'
 import schulteGame from '../games/schulte'
 import tetrisGame from '../games/tetris'
 import xiangqiGame from '../games/xiangqi'
-import type { BuiltinArcadeGameKey } from '../types/arcade'
-import type { BuiltinGameDefinition } from './types'
+import { THIRD_PARTY_GAME_REGISTRATIONS } from '../thirdPartyGameRegistry'
+import type { ArcadeGameKey, BuiltinArcadeGameKey } from '../types/arcade'
+import type { GameRegistration } from './types'
 
-export const BUILTIN_GAME_DEFINITIONS = [
+export const BUILTIN_GAME_REGISTRATIONS = [
   avalonGame,
   departedSuspicionGame,
   oneNightWerewolfGame,
@@ -40,20 +41,23 @@ export const BUILTIN_GAME_DEFINITIONS = [
   hanoiGame,
   tetrisGame,
   monopolyGame,
-] as const satisfies readonly BuiltinGameDefinition[]
+] as const satisfies readonly GameRegistration<BuiltinArcadeGameKey>[]
 
-const builtinGameDefinitionsByKey = new Map<BuiltinArcadeGameKey, BuiltinGameDefinition>()
+export const GAME_REGISTRATIONS: readonly GameRegistration[] = Object.freeze([
+  ...BUILTIN_GAME_REGISTRATIONS,
+  ...THIRD_PARTY_GAME_REGISTRATIONS,
+])
 
-for (const definition of BUILTIN_GAME_DEFINITIONS) {
-  if (builtinGameDefinitionsByKey.has(definition.key)) {
-    throw new Error(`官方游戏模块重复注册：${definition.key}`)
+const registrationsByKey = new Map<ArcadeGameKey, GameRegistration>()
+
+for (const registration of GAME_REGISTRATIONS) {
+  if (registrationsByKey.has(registration.key)) {
+    throw new Error(`游戏模块重复注册：${registration.key}`)
   }
-  builtinGameDefinitionsByKey.set(definition.key, definition)
+  registrationsByKey.set(registration.key, registration)
 }
 
-export function builtinGameDefinition(
-  key: unknown,
-): BuiltinGameDefinition | null {
+export function gameRegistration(key: unknown): GameRegistration | null {
   if (typeof key !== 'string') return null
-  return builtinGameDefinitionsByKey.get(key as BuiltinArcadeGameKey) ?? null
+  return registrationsByKey.get(key as ArcadeGameKey) ?? null
 }

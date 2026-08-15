@@ -27,8 +27,7 @@ from .avatars import (
     AvatarValidationError,
     process_avatar_upload,
 )
-from .games.registry import GAME_CATALOG
-from .games.builtin import builtin_game_definition
+from .games.registry import GAME_CATALOG, GAME_NAMES, game_registration
 from .games.avalon.records import avalon_role_skin_progress as role_skin_progress
 from .games.definition import GameRecordQueryError, GameRecords
 from .guests import GuestSessionError, guest_for_token, issue_guest_session
@@ -53,7 +52,6 @@ from .realtime import (
 
 
 logger = logging.getLogger(__name__)
-GAME_NAMES = {item["key"]: item["name"] for item in GAME_CATALOG}
 DEFAULT_GAME_RECORDS = GameRecords()
 
 
@@ -62,7 +60,7 @@ def validate_record_query(
     mode: str | None,
     variant: str | None,
 ) -> None:
-    definition = builtin_game_definition(game) if game is not None else None
+    definition = game_registration(game)
     records = definition.records if definition else DEFAULT_GAME_RECORDS
     try:
         records.validate_query(mode, variant)

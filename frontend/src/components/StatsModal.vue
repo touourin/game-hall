@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { History, LoaderCircle } from '@lucide/vue'
-import { builtinGameDefinition } from '../game-platform/registry'
+import { gameRegistration } from '../game-platform/registry'
 import { statsPresentation } from '../game-platform/records'
 import BackNavigationButton from './BackNavigationButton.vue'
 import DefaultMatchDetail from './DefaultMatchDetail.vue'
@@ -39,7 +39,7 @@ const selectedMatchDetailSection = computed(() => {
 })
 const selectedMatchDetailComponent = computed(() => {
   if (!selectedMatch.value) return null
-  return builtinGameDefinition(selectedMatch.value.gameKey)?.records?.matchDetailComponent
+  return gameRegistration(selectedMatch.value.gameKey)?.records?.matchDetailComponent
     ?? null
 })
 

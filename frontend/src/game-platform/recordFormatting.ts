@@ -3,7 +3,10 @@ import type {
   MatchHistoryItem,
   StatsSummary,
 } from '../stats'
-import type { BuiltinGameStatsPresentation } from './types'
+import type {
+  BuiltinGameRecords,
+  BuiltinGameStatsPresentation,
+} from './types'
 
 export function formatRecordDuration(milliseconds: number | null | undefined): string {
   if (milliseconds === null || milliseconds === undefined) return '—'
@@ -77,4 +80,66 @@ export function standardOutcomeLabel(match: MatchHistoryItem): string {
   if (match.outcome === 'draw') return '和'
   if (match.outcome === 'completed') return '测'
   return match.outcome === 'win' ? '胜' : '负'
+}
+
+export function createScoredGameRecords(
+  scoreKind: 'time_trial' | 'high_score',
+  gameName: string,
+): BuiltinGameRecords {
+  if (scoreKind === 'time_trial') {
+    return {
+      scoreKind,
+      leaderboard: {
+        description: '按个人历史最佳完成时间排序，用时越短排名越前。',
+        entryDetail: (entry) => (
+          `${entry.games} 次挑战 · 平均 ${formatMatchDuration(entry.averageMs)}`
+        ),
+        entryScore: (entry) => formatMatchDuration(entry.bestMs),
+        note: '只有完整完成并通过服务端校验的挑战才会记录时间。',
+      },
+      stats: {
+        description: `记录每次${gameName}挑战的完成时间。`,
+        summaryItems: (summary) => [
+          { value: summary.games, label: '挑战次数' },
+          { value: formatMatchDuration(summary.bestMs), label: '历史最佳' },
+          { value: formatMatchDuration(summary.averageMs), label: '平均用时' },
+        ],
+        historyOutcome: () => '时',
+        historyTitle: (match) => `${gameName} · ${formatMatchDuration(match.scoreMs)}`,
+        historyMeta: (_match, date) => `${date} · 计时挑战`,
+        detailWinnerLabel: () => `${gameName}挑战完成`,
+        detailNote: (match) => match.ranked
+          ? '本次时间计入排行榜'
+          : '本次时间不计排行榜',
+      },
+    }
+  }
+  return {
+    scoreKind,
+    leaderboard: {
+      description: '按个人历史最高分排序，分数越高排名越前。',
+      entryDetail: (entry) => (
+        `${entry.games} 次挑战 · 平均 ${entry.averageScore?.toLocaleString() ?? '—'} 分`
+      ),
+      entryScore: (entry) => `${entry.bestScore?.toLocaleString() ?? '—'} 分`,
+      note: '只有完整结束并通过服务端校验的挑战才会记录分数。',
+    },
+    stats: {
+      description: `记录每次${gameName}挑战的服务端结算分数。`,
+      summaryItems: (summary) => [
+        { value: summary.games, label: '挑战次数' },
+        { value: summary.bestScore?.toLocaleString() ?? '—', label: '历史最高' },
+        { value: summary.averageScore?.toLocaleString() ?? '—', label: '平均分数' },
+      ],
+      historyOutcome: () => '分',
+      historyTitle: (match) => (
+        `${gameName} · ${match.scoreValue?.toLocaleString() ?? '—'} 分`
+      ),
+      historyMeta: (_match, date) => `${date} · 高分挑战`,
+      detailWinnerLabel: () => `${gameName}挑战结束`,
+      detailNote: (match) => match.ranked
+        ? '本次分数计入排行榜'
+        : '本次分数不计排行榜',
+    },
+  }
 }

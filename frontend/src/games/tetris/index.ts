@@ -17,7 +17,7 @@ export const tetrisGame = defineBuiltinGame({
     category: '个人挑战',
     artwork: { dark: tetrisArtworkDark, light: tetrisArtworkLight },
   },
-  capabilities: soloGameCapabilities(),
+  capabilities: soloGameCapabilities({ spectatorFrames: true }),
   presentation: {
     component: defineAsyncComponent(() => import('./TetrisGame.vue')),
     roomLayout: 'standard',

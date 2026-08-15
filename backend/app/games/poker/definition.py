@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from backend.app.games.definition import (
     GameCatalogMetadata,
-    GameDefinition,
+    GameRegistration,
     social_table_capabilities,
 )
 
 from .engine import PokerEngine
 
 
-POKER_GAME = GameDefinition(
+POKER_GAME = GameRegistration(
     key="poker",
     engine_factory=PokerEngine,
     catalog=GameCatalogMetadata(

@@ -1,7 +1,7 @@
 import { GAME_CATALOG } from './gameCatalog'
 import { buildOfficialGameCategories } from './gameCategories'
 
-const officialGames = GAME_CATALOG.filter((game) => !game.key.startsWith('plugin-'))
+const officialGames = GAME_CATALOG.filter((game) => game.source === 'official')
 
 describe('official game categories', () => {
   it('assigns every official game to exactly one product category', () => {
@@ -23,7 +23,7 @@ describe('official game categories', () => {
   })
 
   it('fails loudly when a newly registered game has not been classified', () => {
-    const unclassifiedGame = GAME_CATALOG.find((game) => game.key.startsWith('plugin-'))!
+    const unclassifiedGame = GAME_CATALOG.find((game) => game.source === 'third_party')!
 
     expect(() => buildOfficialGameCategories([
       ...officialGames,

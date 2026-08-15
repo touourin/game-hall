@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from backend.app.games.definition import (
     GameCatalogMetadata,
-    GameDefinition,
+    GameRegistration,
     social_table_capabilities,
 )
 
 from .engine import DepartedSuspicionEngine
 
 
-DEPARTED_SUSPICION_GAME = GameDefinition(
+DEPARTED_SUSPICION_GAME = GameRegistration(
     key="departed_suspicion",
     engine_factory=DepartedSuspicionEngine,
     catalog=GameCatalogMetadata(

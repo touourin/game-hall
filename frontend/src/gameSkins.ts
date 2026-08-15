@@ -1,5 +1,5 @@
 import type { ArcadeGameKey } from './types/arcade'
-import { builtinGameDefinition } from './game-platform/registry'
+import { gameRegistration } from './game-platform/registry'
 
 export type GameSkinId =
   | 'classic-wood'
@@ -165,8 +165,8 @@ function isGameSkinId(value: string | null): value is GameSkinId {
 }
 
 export function gameSkinKind(gameKey: ArcadeGameKey): GameSkinKind | null {
-  const builtinSkinKind = builtinGameDefinition(gameKey)?.presentation.skinKind
-  if (builtinSkinKind) return builtinSkinKind
+  const skinKind = gameRegistration(gameKey)?.presentation.skinKind
+  if (skinKind) return skinKind
   return null
 }
 

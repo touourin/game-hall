@@ -6,7 +6,7 @@ from typing import Any
 from backend.app.games.definition import (
     GameCapabilities,
     GameCatalogMetadata,
-    GameDefinition,
+    GameRegistration,
     GameRecords,
 )
 
@@ -22,7 +22,7 @@ def tetris_match_mode(details: Mapping[str, Any]) -> str:
     return "standard"
 
 
-TETRIS_GAME = GameDefinition(
+TETRIS_GAME = GameRegistration(
     key="tetris",
     engine_factory=TetrisEngine,
     catalog=GameCatalogMetadata(
@@ -35,6 +35,7 @@ TETRIS_GAME = GameDefinition(
     capabilities=GameCapabilities(
         guests=False,
         spectators=True,
+        spectator_frames=True,
         first_player=False,
     ),
     records=GameRecords(

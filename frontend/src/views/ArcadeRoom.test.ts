@@ -386,7 +386,7 @@ describe('ArcadeRoom', () => {
     await wrapper.setProps({ snapshot: snapshot('plugin-pyramid-solitaire') })
     expect(wrapper.get('.arcade-room').classes()).toContain('arcade-room--immersive')
     expect(wrapper.get('.arcade-room').classes()).not.toContain('arcade-room--wide')
-    await wrapper.setProps({ snapshot: snapshot('plugin-number-vault') })
+    await wrapper.setProps({ snapshot: snapshot('plugin-cheat-poker') })
     expect(wrapper.get('.arcade-room').classes()).not.toContain('arcade-room--immersive')
   })
 
@@ -441,21 +441,12 @@ describe('ArcadeRoom', () => {
   })
 
   it('uses the shared solo room shell for a one-player plugin', () => {
-    const room = snapshot('plugin-number-vault')
-    room.gameName = '数字密匣'
+    const room = snapshot('plugin-pyramid-solitaire')
+    room.gameName = '金字塔纸牌'
     room.requiredPlayers = 1
     room.phase = 'playing'
     room.actions.canAct = true
-    room.game = {
-      minimum: 1,
-      maximum: 20,
-      maxAttempts: 6,
-      remainingAttempts: 6,
-      guesses: [],
-      hint: 'ready',
-      answer: null,
-      won: false,
-    }
+    room.game = { elapsedMs: 0, won: false }
     const wrapper = shallowMount(ArcadeRoom, {
       props: { snapshot: room },
       global: {
@@ -464,7 +455,7 @@ describe('ArcadeRoom', () => {
       },
     })
 
-    expect(wrapper.getComponent(RoomPageHeader).props('title')).toBe('数字密匣')
+    expect(wrapper.getComponent(RoomPageHeader).props('title')).toBe('金字塔纸牌')
     expect(wrapper.find('.arcade-player-strip').exists()).toBe(false)
     expect(wrapper.findComponent({ name: 'ArcadeChatPanel' }).exists()).toBe(false)
   })

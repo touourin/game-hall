@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from backend.app.games.definition import (
     GameCatalogMetadata,
-    GameDefinition,
+    GameRegistration,
     GameRecordVariantSelector,
     GameRecords,
     social_table_capabilities,
@@ -11,7 +11,7 @@ from backend.app.games.definition import (
 from .arcade import AvalonEngine
 
 
-AVALON_GAME = GameDefinition(
+AVALON_GAME = GameRegistration(
     key="avalon",
     engine_factory=AvalonEngine,
     catalog=GameCatalogMetadata(

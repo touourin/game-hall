@@ -1,11 +1,11 @@
-import { builtinGameDefinition, BUILTIN_GAME_DEFINITIONS } from './registry'
+import { gameRegistration, BUILTIN_GAME_REGISTRATIONS } from './registry'
 import { GAME_CATALOG } from '../gameCatalog'
 
 describe('built-in game registry', () => {
   it('owns the complete board-game integration metadata', () => {
-    const definition = builtinGameDefinition('chess')
+    const definition = gameRegistration('chess')
 
-    expect(BUILTIN_GAME_DEFINITIONS).toHaveLength(19)
+    expect(BUILTIN_GAME_REGISTRATIONS).toHaveLength(19)
     expect(definition?.catalog).toMatchObject({
       order: 50,
       name: '国际象棋',
@@ -36,17 +36,17 @@ describe('built-in game registry', () => {
   })
 
   it('owns each migrated board game and ignores third-party ids', () => {
-    expect(builtinGameDefinition('gomoku')?.presentation.skinKind).toBe('board')
-    expect(builtinGameDefinition('junqi')?.presentation.roomLayout).toBe('wide')
-    expect(builtinGameDefinition('junqi')?.records?.matchDetailComponent).toBeUndefined()
-    expect(builtinGameDefinition('plugin-number-vault')).toBeNull()
+    expect(gameRegistration('gomoku')?.presentation.skinKind).toBe('board')
+    expect(gameRegistration('junqi')?.presentation.roomLayout).toBe('wide')
+    expect(gameRegistration('junqi')?.records?.matchDetailComponent).toBeUndefined()
+    expect(gameRegistration('plugin-number-vault')).toBeNull()
   })
 
   it('requires every official game to provide both material variants', () => {
-    for (const definition of BUILTIN_GAME_DEFINITIONS) {
-      expect(definition.catalog.artwork.dark).toContain('-dark')
-      expect(definition.catalog.artwork.light).toContain('-light')
-      expect(definition.catalog.artwork.dark).not.toBe(definition.catalog.artwork.light)
+    for (const definition of BUILTIN_GAME_REGISTRATIONS) {
+      expect(definition.catalog.artwork!.dark).toContain('-dark')
+      expect(definition.catalog.artwork!.light).toContain('-light')
+      expect(definition.catalog.artwork!.dark).not.toBe(definition.catalog.artwork!.light)
     }
   })
 
@@ -56,26 +56,27 @@ describe('built-in game registry', () => {
       draw: true,
       guests: true,
       spectators: true,
+      spectatorFrames: false,
       firstPlayer: true,
       replay: false,
       ai: false,
     }
 
-    expect(builtinGameDefinition('chess')?.capabilities).toEqual({
+    expect(gameRegistration('chess')?.capabilities).toEqual({
       ...shared,
       replay: true,
     })
-    expect(builtinGameDefinition('go')?.capabilities).toEqual({
+    expect(gameRegistration('go')?.capabilities).toEqual({
       ...shared,
       ai: true,
     })
-    expect(builtinGameDefinition('gomoku')?.capabilities).toEqual(shared)
-    expect(builtinGameDefinition('junqi')?.capabilities).toEqual({
+    expect(gameRegistration('gomoku')?.capabilities).toEqual(shared)
+    expect(gameRegistration('junqi')?.capabilities).toEqual({
       ...shared,
       undo: false,
       draw: false,
     })
-    expect(builtinGameDefinition('xiangqi')?.capabilities).toEqual({
+    expect(gameRegistration('xiangqi')?.capabilities).toEqual({
       ...shared,
       replay: true,
       ai: true,
@@ -97,27 +98,28 @@ describe('built-in game registry', () => {
       draw: false,
       guests: true,
       spectators: true,
+      spectatorFrames: false,
       firstPlayer: true,
       replay: false,
       ai: false,
     }
 
-    expect(builtinGameDefinition('departed_suspicion')?.capabilities).toEqual(shared)
-    expect(builtinGameDefinition('doudizhu')?.capabilities).toEqual(shared)
-    expect(builtinGameDefinition('monopoly')?.capabilities).toEqual(shared)
-    expect(builtinGameDefinition('pixel_push')?.capabilities).toEqual({
+    expect(gameRegistration('departed_suspicion')?.capabilities).toEqual(shared)
+    expect(gameRegistration('doudizhu')?.capabilities).toEqual(shared)
+    expect(gameRegistration('monopoly')?.capabilities).toEqual(shared)
+    expect(gameRegistration('pixel_push')?.capabilities).toEqual({
       ...shared,
       firstPlayer: false,
     })
-    expect(builtinGameDefinition('poker')?.capabilities).toEqual({
+    expect(gameRegistration('poker')?.capabilities).toEqual({
       ...shared,
       firstPlayer: false,
     })
-    expect(builtinGameDefinition('one_night_werewolf')?.capabilities).toEqual({
+    expect(gameRegistration('one_night_werewolf')?.capabilities).toEqual({
       ...shared,
       firstPlayer: false,
     })
-    expect(builtinGameDefinition('avalon')?.capabilities).toEqual({
+    expect(gameRegistration('avalon')?.capabilities).toEqual({
       ...shared,
       firstPlayer: false,
       replay: true,
@@ -125,7 +127,7 @@ describe('built-in game registry', () => {
     })
 
     for (const gameKey of socialTableKeys) {
-      const definition = builtinGameDefinition(gameKey)
+      const definition = gameRegistration(gameKey)
       const defaults = definition?.rules.defaults ?? {}
 
       expect('firstPlayer' in defaults).toBe(definition?.capabilities.firstPlayer)
@@ -144,7 +146,7 @@ describe('built-in game registry', () => {
   })
 
   it('lets every built-in solo game own its launcher presentation', () => {
-    const soloDefinitions = BUILTIN_GAME_DEFINITIONS.filter(
+    const soloDefinitions = BUILTIN_GAME_REGISTRATIONS.filter(
       (definition) => definition.catalog.players.max === 1,
     )
 
@@ -166,17 +168,17 @@ describe('built-in game registry', () => {
     }
 
     expect(
-      builtinGameDefinition('critical_crossing')?.records?.modeFromRules?.({
+      gameRegistration('critical_crossing')?.records?.modeFromRules?.({
         difficulty: '10s',
       }),
     ).toBe('10s')
     expect(
-      builtinGameDefinition('minesweeper')?.records?.modeFromRules?.({
+      gameRegistration('minesweeper')?.records?.modeFromRules?.({
         difficulty: 'expert',
       }),
     ).toBe('expert')
     expect(
-      builtinGameDefinition('tetris')?.records?.modeFromRules?.({
+      gameRegistration('tetris')?.records?.modeFromRules?.({
         challengeMode: 'timed',
         durationSeconds: 300,
       }),
@@ -184,7 +186,7 @@ describe('built-in game registry', () => {
   })
 
   it('lets every built-in multiplayer game own its launcher identity', () => {
-    const multiplayerDefinitions = BUILTIN_GAME_DEFINITIONS.filter(
+    const multiplayerDefinitions = BUILTIN_GAME_REGISTRATIONS.filter(
       (definition) => definition.catalog.players.max > 1,
     )
 
@@ -201,8 +203,8 @@ describe('built-in game registry', () => {
   })
 
   it('lets game modules extend the shared room shell without central branches', () => {
-    const avalonRoomShell = builtinGameDefinition('avalon')?.presentation.roomShell
-    const oneNightRoomShell = builtinGameDefinition('one_night_werewolf')
+    const avalonRoomShell = gameRegistration('avalon')?.presentation.roomShell
+    const oneNightRoomShell = gameRegistration('one_night_werewolf')
       ?.presentation.roomShell
 
     expect(avalonRoomShell).toMatchObject({

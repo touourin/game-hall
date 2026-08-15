@@ -17,7 +17,7 @@ export const reactionGame = defineBuiltinGame({
     category: '个人挑战',
     artwork: { dark: reactionArtworkDark, light: reactionArtworkLight },
   },
-  capabilities: soloGameCapabilities(),
+  capabilities: soloGameCapabilities({ spectatorFrames: true }),
   presentation: {
     component: defineAsyncComponent(() => import('./ReactionTest.vue')),
     roomLayout: 'standard',

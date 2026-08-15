@@ -5,7 +5,14 @@ import type {
   MatchHistoryItem,
   StatsSummary,
 } from '../stats'
-import type { ArcadeSnapshot, BuiltinArcadeGameKey } from '../types/arcade'
+import type {
+  ArcadeGameKey,
+  ArcadeSnapshot,
+  BuiltinArcadeGameKey,
+} from '../types/arcade'
+
+export type GameSource = 'official' | 'third_party'
+export type GameAvailability = 'enabled' | 'deprecated'
 
 export type BuiltinGameRoomLayout = 'standard' | 'wide' | 'immersive'
 export type BuiltinGameSkinKind = 'board' | 'cards'
@@ -26,10 +33,10 @@ export interface BuiltinGameCatalogMetadata {
   description: string
   tone: string
   category: string
-  artwork: BuiltinGameArtwork
+  artwork?: BuiltinGameArtwork
 }
 
-export function builtinGamePlayerLabel(
+export function gamePlayerLabel(
   players: BuiltinGameCatalogMetadata['players'],
 ): string {
   if (players.label) return players.label
@@ -38,11 +45,14 @@ export function builtinGamePlayerLabel(
     : `${players.min}–${players.max} 人`
 }
 
+export const builtinGamePlayerLabel = gamePlayerLabel
+
 export interface BuiltinGameCapabilities {
   undo: boolean
   draw: boolean
   guests: boolean
   spectators: boolean
+  spectatorFrames: boolean
   firstPlayer: boolean
   replay: boolean
   ai: boolean
@@ -208,6 +218,7 @@ export interface BuiltinGameLeaderboardPresentation {
 }
 
 export interface BuiltinGameRecords {
+  scoreKind?: 'outcome' | 'time_trial' | 'high_score'
   leaderboard?: BuiltinGameLeaderboardPresentation
   stats?: BuiltinGameStatsPresentation
   matchDetailComponent?: Component
@@ -216,13 +227,27 @@ export interface BuiltinGameRecords {
   ) => string | undefined
 }
 
-export interface BuiltinGameDefinition<
-  Key extends BuiltinArcadeGameKey = BuiltinArcadeGameKey,
+export interface GamePluginMetadata {
+  version: string
+  author: string
+  license: string
+  directory: string
+}
+
+export interface GameRegistration<
+  Key extends ArcadeGameKey = ArcadeGameKey,
 > {
   key: Key
+  source: GameSource
+  availability: GameAvailability
+  plugin?: GamePluginMetadata
   catalog: BuiltinGameCatalogMetadata
   capabilities: BuiltinGameCapabilities
   presentation: BuiltinGamePresentation
   rules: BuiltinGameRules
   records?: BuiltinGameRecords
 }
+
+export type BuiltinGameDefinition<
+  Key extends BuiltinArcadeGameKey = BuiltinArcadeGameKey,
+> = Omit<GameRegistration<Key>, 'source' | 'availability' | 'plugin'>

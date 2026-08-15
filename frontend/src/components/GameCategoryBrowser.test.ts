@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils'
 import { GAME_CATALOG } from '../gameCatalog'
 import GameCategoryBrowser from './GameCategoryBrowser.vue'
 
-const officialGames = GAME_CATALOG.filter((game) => !game.key.startsWith('plugin-'))
+const officialGames = GAME_CATALOG.filter((game) => game.source === 'official')
 
 describe('GameCategoryBrowser', () => {
   it('shows category modules before revealing the games in a category', async () => {

@@ -3,14 +3,14 @@ from __future__ import annotations
 from backend.app.games.definition import (
     GameCapabilities,
     GameCatalogMetadata,
-    GameDefinition,
+    GameRegistration,
     GameRecords,
 )
 
 from .engine import ReactionEngine
 
 
-REACTION_GAME = GameDefinition(
+REACTION_GAME = GameRegistration(
     key="reaction",
     engine_factory=ReactionEngine,
     catalog=GameCatalogMetadata(
@@ -23,6 +23,7 @@ REACTION_GAME = GameDefinition(
     capabilities=GameCapabilities(
         guests=False,
         spectators=True,
+        spectator_frames=True,
         first_player=False,
     ),
     records=GameRecords(score_kind="time_trial"),

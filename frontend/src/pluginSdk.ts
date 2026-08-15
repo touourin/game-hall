@@ -8,5 +8,6 @@ export function usePluginGameActions() {
     action: arcade.actionWithResult,
     rapidAction: arcade.rapidAction,
     restart: arcade.restartGame,
+    publishSpectatorFrame: arcade.publishSpectatorFrame,
   }
 }

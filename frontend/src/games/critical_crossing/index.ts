@@ -23,7 +23,7 @@ export const criticalCrossingGame = defineBuiltinGame({
       light: criticalCrossingArtworkLight,
     },
   },
-  capabilities: soloGameCapabilities(),
+  capabilities: soloGameCapabilities({ spectatorFrames: true }),
   presentation: {
     component: defineAsyncComponent(() => import('./CriticalCrossingGame.vue')),
     roomLayout: 'standard',

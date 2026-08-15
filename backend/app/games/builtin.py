@@ -7,7 +7,7 @@ from backend.app.games.deep_shaft.definition import DEEP_SHAFT_GAME
 from backend.app.games.departed_suspicion.definition import (
     DEPARTED_SUSPICION_GAME,
 )
-from backend.app.games.definition import GameDefinition
+from backend.app.games.definition import GameRegistration
 from backend.app.games.doudizhu.definition import DOUDIZHU_GAME
 from backend.app.games.go.definition import GO_GAME
 from backend.app.games.gomoku.definition import GOMOKU_GAME
@@ -26,7 +26,7 @@ from backend.app.games.tetris.definition import TETRIS_GAME
 from backend.app.games.xiangqi.definition import XIANGQI_GAME
 
 
-BUILTIN_GAME_DEFINITIONS: tuple[GameDefinition, ...] = (
+BUILTIN_GAME_REGISTRATIONS: tuple[GameRegistration, ...] = (
     AVALON_GAME,
     DEPARTED_SUSPICION_GAME,
     ONE_NIGHT_WEREWOLF_GAME,
@@ -47,30 +47,13 @@ BUILTIN_GAME_DEFINITIONS: tuple[GameDefinition, ...] = (
     TETRIS_GAME,
     MONOPOLY_GAME,
 )
-BUILTIN_GAME_DEFINITION_BY_KEY = {
-    definition.key: definition for definition in BUILTIN_GAME_DEFINITIONS
-}
-
-if len(BUILTIN_GAME_DEFINITION_BY_KEY) != len(BUILTIN_GAME_DEFINITIONS):
+if len({definition.key for definition in BUILTIN_GAME_REGISTRATIONS}) != len(
+    BUILTIN_GAME_REGISTRATIONS
+):
     raise ValueError("官方游戏模块存在重复 key")
 
 _catalog_orders = [
-    definition.catalog.order for definition in BUILTIN_GAME_DEFINITIONS
+    definition.catalog.order for definition in BUILTIN_GAME_REGISTRATIONS
 ]
 if len(set(_catalog_orders)) != len(_catalog_orders):
     raise ValueError("官方游戏目录存在重复排序")
-
-BUILTIN_GAME_CATALOG: tuple[dict[str, str], ...] = tuple(
-    definition.catalog_entry
-    for definition in sorted(
-        BUILTIN_GAME_DEFINITIONS,
-        key=lambda item: item.catalog.order,
-    )
-)
-BUILTIN_GAME_NAMES = {
-    game["key"]: game["name"] for game in BUILTIN_GAME_CATALOG
-}
-
-
-def builtin_game_definition(game_key: str) -> GameDefinition | None:
-    return BUILTIN_GAME_DEFINITION_BY_KEY.get(game_key)
