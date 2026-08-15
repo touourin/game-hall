@@ -284,7 +284,9 @@ try {
     'pixel_push',
     'plugin-cheat-poker',
     'plugin-crazy-futures',
+    'plugin-number-vault',
     'plugin-pyramid-solitaire',
+    'plugin-star-stones',
   ]) {
     if (!catalogKeys.has(gameKey)) throw new Error(`游戏目录缺少 ${gameKey}`)
   }

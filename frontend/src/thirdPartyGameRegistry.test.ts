@@ -2,14 +2,26 @@ import { gameRegistration } from './game-platform/registry'
 import { THIRD_PARTY_GAME_REGISTRATIONS } from './thirdPartyGameRegistry'
 
 describe('third-party game registrations', () => {
-  it('publishes only the three production games from registry.json', () => {
+  it('publishes every enabled game from registry.json in registry order', () => {
     expect(THIRD_PARTY_GAME_REGISTRATIONS.map(({ key }) => key)).toEqual([
       'plugin-cheat-poker',
       'plugin-crazy-futures',
       'plugin-pyramid-solitaire',
+      'plugin-number-vault',
+      'plugin-star-stones',
     ])
-    expect(gameRegistration('plugin-number-vault')).toBeNull()
-    expect(gameRegistration('plugin-star-stones')).toBeNull()
+    expect(gameRegistration('plugin-number-vault')).toMatchObject({
+      source: 'third_party',
+      availability: 'enabled',
+      catalog: { name: '数字密匣' },
+      records: { scoreKind: 'outcome' },
+    })
+    expect(gameRegistration('plugin-star-stones')).toMatchObject({
+      source: 'third_party',
+      availability: 'enabled',
+      catalog: { name: '星石争夺' },
+      records: { scoreKind: 'outcome' },
+    })
   })
 
   it('adapts plugin metadata to the shared game registration contract', () => {

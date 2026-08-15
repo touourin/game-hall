@@ -230,7 +230,9 @@ def test_release_validation_accepts_the_current_plugin_repository() -> None:
     assert {plugin.engine.key for plugin in plugins} == {
         "plugin-cheat-poker",
         "plugin-crazy-futures",
+        "plugin-number-vault",
         "plugin-pyramid-solitaire",
+        "plugin-star-stones",
     }
 
 
@@ -299,11 +301,19 @@ def test_plugin_match_is_registered_and_visible_in_stats(tmp_path) -> None:
 
 def test_plugins_share_capabilities_and_records_with_official_games() -> None:
     cheat_poker = game_registration("plugin-cheat-poker")
+    number_vault = game_registration("plugin-number-vault")
     pyramid = game_registration("plugin-pyramid-solitaire")
+    star_stones = game_registration("plugin-star-stones")
 
     assert cheat_poker is not None
     assert cheat_poker.source == "third_party"
     assert cheat_poker.capabilities.guests is True
     assert cheat_poker.capabilities.spectators is True
+    assert number_vault is not None
+    assert number_vault.catalog.name == "数字密匣"
+    assert number_vault.records.score_kind == "outcome"
     assert pyramid is not None
     assert pyramid.records.score_kind == "time_trial"
+    assert star_stones is not None
+    assert star_stones.catalog.name == "星石争夺"
+    assert star_stones.records.score_kind == "outcome"

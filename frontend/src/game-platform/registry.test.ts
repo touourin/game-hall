@@ -35,11 +35,11 @@ describe('built-in game registry', () => {
     })
   })
 
-  it('owns each migrated board game and ignores third-party ids', () => {
+  it('owns each migrated board game and resolves third-party ids', () => {
     expect(gameRegistration('gomoku')?.presentation.skinKind).toBe('board')
     expect(gameRegistration('junqi')?.presentation.roomLayout).toBe('wide')
     expect(gameRegistration('junqi')?.records?.matchDetailComponent).toBeUndefined()
-    expect(gameRegistration('plugin-number-vault')).toBeNull()
+    expect(gameRegistration('plugin-number-vault')?.source).toBe('third_party')
   })
 
   it('requires every official game to provide both material variants', () => {
