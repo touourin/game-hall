@@ -4,7 +4,6 @@ import {
   BarChart3,
   ChevronRight,
   Gamepad2,
-  Grid3X3,
   History,
   LogOut,
   Radio,
@@ -21,8 +20,7 @@ import type { ArcadeLobbyRoom, GameCatalogItem } from '../types/arcade'
 import { useArcadeStore } from '../stores/arcade'
 import AvatarImage from '../components/AvatarImage.vue'
 import GameCardArtwork from '../components/GameCardArtwork.vue'
-import GameCategoriesModal from '../components/GameCategoriesModal.vue'
-import GameLibraryCard from '../components/GameLibraryCard.vue'
+import GameCategoryBrowser from '../components/GameCategoryBrowser.vue'
 import LobbyRoomPanel from '../components/LobbyRoomPanel.vue'
 import StatsModal from '../components/StatsModal.vue'
 import ThirdPartyGamesModal from '../components/ThirdPartyGamesModal.vue'
@@ -43,8 +41,8 @@ const emit = defineEmits<{
 const arcade = useArcadeStore()
 const showStats = ref(false)
 const showThirdPartyGames = ref(false)
-const showGameCategories = ref(false)
 const gamesSection = ref<HTMLElement | null>(null)
+const categoryBrowser = ref<InstanceType<typeof GameCategoryBrowser> | null>(null)
 const roomsSection = ref<HTMLElement | null>(null)
 
 const games = GAME_CATALOG.filter((game) => !game.key.startsWith('plugin-')) as GameCatalogEntry[]
@@ -112,11 +110,6 @@ function selectThirdPartyGame(game: GameCatalogItem) {
   emit('select', game)
 }
 
-function selectCategorizedGame(game: GameCatalogEntry) {
-  showGameCategories.value = false
-  emit('select', game)
-}
-
 function openRoom(room: ArcadeLobbyRoom) {
   emit('openRoom', { gameKey: room.gameKey, roomCode: room.roomCode })
 }
@@ -134,7 +127,12 @@ function openHub() {
 }
 
 function scrollTo(section: HTMLElement | null) {
-  section?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  section?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+}
+
+function openGameCategories() {
+  categoryBrowser.value?.showOverview()
+  scrollTo(gamesSection.value)
 }
 </script>
 
@@ -142,11 +140,8 @@ function scrollTo(section: HTMLElement | null) {
   <main class="game-hall page-container adaptive-layout-root">
     <aside class="hall-sidebar surface" aria-label="大厅导航">
       <span class="hall-sidebar-mark" aria-hidden="true">竞</span>
-      <button type="button" aria-label="按分类浏览游戏" @click="showGameCategories = true">
+      <button type="button" aria-label="查看游戏分类" @click="openGameCategories">
         <Shapes :size="19" /><span>游戏分类</span>
-      </button>
-      <button type="button" aria-label="查看全部游戏" @click="scrollTo(gamesSection)">
-        <Grid3X3 :size="19" /><span>全部游戏</span>
       </button>
       <button type="button" aria-label="查看实时房间" @click="scrollTo(roomsSection)">
         <Radio :size="19" /><span>房间</span>
@@ -246,31 +241,13 @@ function scrollTo(section: HTMLElement | null) {
         </div>
       </section>
 
-      <section ref="gamesSection" class="hall-all-games" aria-labelledby="all-games-title">
-        <header class="hall-section-heading hall-all-heading">
-          <span>
-            <small>游戏库</small>
-            <strong id="all-games-title">全部游戏</strong>
-            <em>统一入口，规则和玩法保持各自独立</em>
-          </span>
-          <div class="hall-all-heading-actions">
-            <button type="button" aria-label="打开游戏分类" @click="showGameCategories = true">
-              <Shapes :size="14" />按分类浏览
-            </button>
-            <span>{{ games.length }} 款可用</span>
-          </div>
-        </header>
-
-        <div class="game-grid" aria-label="选择游戏">
-          <GameLibraryCard
-            v-for="(game, index) in games"
-            :key="game.key"
-            :game="game"
-            :index="index"
-            :room-count="roomCountByGame[game.key]"
-            @select="emit('select', game)"
-          />
-        </div>
+      <section ref="gamesSection" class="hall-game-categories" aria-label="游戏分类">
+        <GameCategoryBrowser
+          ref="categoryBrowser"
+          :games="games"
+          :room-counts="roomCountByGame"
+          @select="emit('select', $event)"
+        />
       </section>
 
       <button type="button" class="third-party-entry surface" aria-label="打开第三方游戏入口" @click="showThirdPartyGames = true">
@@ -287,22 +264,13 @@ function scrollTo(section: HTMLElement | null) {
     </div>
 
     <nav class="hall-mobile-dock surface" aria-label="手机端大厅导航">
-      <button type="button" aria-label="手机端：游戏分类" @click="showGameCategories = true">
-        <Shapes :size="21" /><span>分类</span>
-      </button>
-      <button type="button" aria-label="手机端：全部游戏" @click="scrollTo(gamesSection)"><Grid3X3 :size="21" /><span>全部游戏</span></button>
+      <button type="button" aria-label="手机端：游戏分类" @click="openGameCategories"><Shapes :size="21" /><span>游戏分类</span></button>
       <button type="button" aria-label="手机端：实时房间" @click="scrollTo(roomsSection)"><Radio :size="21" /><span>房间</span></button>
       <button v-if="!account.isGuest" type="button" aria-label="手机端：查看战绩" @click="showStats = true"><BarChart3 :size="21" /><span>战绩</span></button>
       <button type="button" aria-label="手机端：打开设置" @click="emit('settings')"><Settings :size="21" /><span>设置</span></button>
     </nav>
 
     <StatsModal v-if="showStats && !account.isGuest" @close="showStats = false" />
-    <GameCategoriesModal
-      v-if="showGameCategories"
-      :games="games"
-      @close="showGameCategories = false"
-      @select="selectCategorizedGame"
-    />
     <ThirdPartyGamesModal
       v-if="showThirdPartyGames"
       :games="thirdPartyGames"
@@ -780,39 +748,8 @@ function scrollTo(section: HTMLElement | null) {
   cursor: default;
 }
 
-.hall-all-games {
-  margin-top: 34px;
+.hall-game-categories {
   scroll-margin-top: 20px;
-}
-
-.hall-all-heading {
-  border-bottom: 1px solid var(--instrument-line);
-  margin-bottom: 14px;
-  padding-bottom: 16px;
-}
-
-.hall-all-heading-actions button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 8px 11px;
-  color: var(--text-soft);
-  background: var(--control-surface), var(--surface-inset);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 45%, transparent);
-  font-size: 9px;
-  cursor: pointer;
-}
-
-.hall-all-heading-actions > span {
-  white-space: nowrap;
-}
-
-.game-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
 }
 
 .third-party-entry {
@@ -902,7 +839,6 @@ function scrollTo(section: HTMLElement | null) {
   }
 
   .hall-sidebar button:hover,
-  .hall-all-heading-actions button:hover,
   .hall-personal-card:hover,
   .third-party-entry:hover {
     border-color: var(--line-strong);
@@ -927,9 +863,6 @@ function scrollTo(section: HTMLElement | null) {
     grid-template-columns: minmax(0, .85fr) minmax(240px, 1fr);
   }
 
-  .game-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 880px) {
@@ -985,10 +918,6 @@ function scrollTo(section: HTMLElement | null) {
 
   .hall-personal-card > em {
     grid-column: 1 / -1;
-  }
-
-  .game-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .hall-mobile-dock {
@@ -1078,11 +1007,6 @@ function scrollTo(section: HTMLElement | null) {
     min-height: 0;
   }
 
-  .game-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-
   .third-party-entry {
     grid-template-columns: auto minmax(0, 1fr) auto;
   }
@@ -1097,8 +1021,5 @@ function scrollTo(section: HTMLElement | null) {
     display: none;
   }
 
-  .game-grid {
-    grid-template-columns: 1fr;
-  }
 }
 </style>

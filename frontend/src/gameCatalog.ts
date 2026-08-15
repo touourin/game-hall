@@ -8,26 +8,6 @@ export interface GameCatalogEntry extends GameCatalogItem {
   category: string
 }
 
-export interface GameCatalogCategory {
-  name: string
-  games: readonly GameCatalogEntry[]
-}
-
-export function groupGamesByCategory(
-  games: readonly GameCatalogEntry[],
-): readonly GameCatalogCategory[] {
-  const groups = new Map<string, GameCatalogEntry[]>()
-  games.forEach((game) => {
-    const categoryGames = groups.get(game.category) ?? []
-    categoryGames.push(game)
-    groups.set(game.category, categoryGames)
-  })
-  return [...groups].map(([name, categoryGames]) => ({
-    name,
-    games: categoryGames,
-  }))
-}
-
 const BUILTIN_GAME_CATALOG: readonly GameCatalogEntry[] = [
   ...BUILTIN_GAME_DEFINITIONS.map((definition) => ({
     order: definition.catalog.order,
