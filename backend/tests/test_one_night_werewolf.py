@@ -102,7 +102,7 @@ def finish_simple_night(engine: OneNightWerewolfEngine, room: ArcadeRoom) -> Non
             engine.act(room, player, "night_action", payload)
 
 
-def test_room_options_force_private_spectating() -> None:
+def test_room_options_leave_spectating_to_the_shared_room_platform() -> None:
     engine = OneNightWerewolfEngine()
     options = engine.room_options({
         "rolePreset": "chaos",
@@ -113,7 +113,6 @@ def test_room_options_force_private_spectating() -> None:
     assert options == {
         "rolePreset": "chaos",
         "listed": False,
-        "allowSpectators": False,
     }
 
 

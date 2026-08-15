@@ -414,11 +414,11 @@ describe('GameRuleSettings', () => {
 
     expect(defaultGameRules('critical_crossing')).toEqual({
       difficulty: '5s',
-      allowSpectators: false,
+      allowSpectators: true,
     })
     expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toEqual({
       difficulty: '10s',
-      allowSpectators: false,
+      allowSpectators: true,
     })
     expect(gameRuleLabels('critical_crossing', { difficulty: '10s' })).toEqual([
       '临界',
@@ -426,7 +426,7 @@ describe('GameRuleSettings', () => {
       '10 轮脉冲',
     ])
     expect(wrapper.text()).not.toContain('首局先手')
-    expect(wrapper.text()).not.toContain('第一人称观战')
+    expect(wrapper.text()).toContain('第一人称观战')
   })
 
   it('offers timed and endless Tetris challenges', async () => {
@@ -438,7 +438,7 @@ describe('GameRuleSettings', () => {
     expect(rules).toEqual({
       challengeMode: 'timed',
       durationSeconds: 180,
-      allowSpectators: false,
+      allowSpectators: true,
     })
     expect(wrapper.text()).toContain('1 分钟')
     expect(wrapper.text()).toContain('3 分钟')
@@ -453,6 +453,6 @@ describe('GameRuleSettings', () => {
     expect(updated).toMatchObject({ challengeMode: 'endless' })
     expect(gameRuleLabels('tetris', updated)[0]).toBe('无限挑战')
     expect(wrapper.text()).not.toContain('首局先手')
-    expect(wrapper.text()).not.toContain('第一人称观战')
+    expect(wrapper.text()).toContain('第一人称观战')
   })
 })

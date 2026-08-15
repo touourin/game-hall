@@ -1,10 +1,15 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ArcadeRealtimeFrame, ArcadeSnapshot } from '../types/arcade'
+import type {
+  ArcadeRealtimeFrame,
+  ArcadeSnapshot,
+  ArcadeSpectatorFrame,
+} from '../types/arcade'
 
 const socketMocks = vi.hoisted(() => ({
   emitWithAck: vi.fn(),
   socket: {
+    emit: vi.fn(),
     on: vi.fn(),
   },
 }))
@@ -256,6 +261,69 @@ describe('arcade room store', () => {
       sequence: 42,
       input_mask: 24,
     })
+  })
+
+  it('publishes and accepts fixed-target local game spectator frames', () => {
+    const arcade = useArcadeStore()
+    arcade.snapshot = {
+      roomCode: 'LOCAL',
+      gameKey: 'reaction',
+      revision: 4,
+      roundNumber: 2,
+      phase: 'playing',
+      self: { id: 'player-1', name: '测试者', seat: 0 },
+      viewer: {
+        mode: 'player',
+        id: 'player-1',
+        name: '测试者',
+        targetPlayerId: 'player-1',
+      },
+      spectators: [{
+        id: 'watcher-1',
+        name: '观众',
+        targetPlayerId: 'player-1',
+        targetPlayerName: '测试者',
+      }],
+    } as ArcadeSnapshot
+
+    expect(arcade.publishSpectatorFrame(3, { stage: 'ready' })).toBe(true)
+    expect(socketMocks.socket.emit).toHaveBeenCalledWith(
+      'arcade:spectator:frame',
+      { sequence: 3, state: { stage: 'ready' } },
+    )
+
+    arcade.snapshot = {
+      ...arcade.snapshot,
+      viewer: {
+        mode: 'spectator',
+        id: 'watcher-1',
+        name: '观众',
+        targetPlayerId: 'player-1',
+      },
+    } as ArcadeSnapshot
+    arcade.init()
+    const receiveFrame = socketHandler<ArcadeSpectatorFrame>(
+      'arcade:spectator:frame',
+    )
+    receiveFrame?.({
+      roomCode: 'LOCAL',
+      gameKey: 'reaction',
+      roundNumber: 2,
+      targetPlayerId: 'player-1',
+      sequence: 4,
+      state: { stage: 'waiting' },
+    })
+    receiveFrame?.({
+      roomCode: 'LOCAL',
+      gameKey: 'reaction',
+      roundNumber: 2,
+      targetPlayerId: 'other-player',
+      sequence: 5,
+      state: { stage: 'finished' },
+    })
+
+    expect(arcade.spectatorFrame?.state).toEqual({ stage: 'waiting' })
+    expect(arcade.publishSpectatorFrame(6, { stage: 'ready' })).toBe(false)
   })
 
   it('enters a fixed first-person watch session and blocks game actions', async () => {

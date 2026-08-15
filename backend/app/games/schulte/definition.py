@@ -22,7 +22,7 @@ SCHULTE_GAME = GameDefinition(
     ),
     capabilities=GameCapabilities(
         guests=False,
-        spectators=False,
+        spectators=True,
         first_player=False,
     ),
     records=GameRecords(score_kind="time_trial"),

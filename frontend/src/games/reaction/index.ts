@@ -29,7 +29,7 @@ export const reactionGame = defineBuiltinGame({
     solo: reactionSoloPresentation,
   },
   rules: {
-    defaults: { allowSpectators: false },
+    defaults: { allowSpectators: true },
     labels: () => ['三轮测试'],
   },
   records: {

@@ -173,6 +173,15 @@ export interface ArcadeRealtimeFrame extends Record<string, unknown> {
   tick: number
 }
 
+export interface ArcadeSpectatorFrame {
+  roomCode: string
+  gameKey: ArcadeGameKey
+  roundNumber: number
+  targetPlayerId: string
+  sequence: number
+  state: Record<string, unknown>
+}
+
 export type ArcadePhase =
   | 'lobby'
   | 'setup'

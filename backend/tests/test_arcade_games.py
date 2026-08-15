@@ -145,10 +145,7 @@ def test_social_table_games_preserve_their_shared_capability_contract() -> None:
         "monopoly": GameCapabilities(),
         "pixel_push": GameCapabilities(first_player=False),
         "poker": GameCapabilities(first_player=False),
-        "one_night_werewolf": GameCapabilities(
-            spectators=False,
-            first_player=False,
-        ),
+        "one_night_werewolf": GameCapabilities(first_player=False),
         "avalon": GameCapabilities(
             first_player=False,
             replay=True,
@@ -215,7 +212,7 @@ def test_builtin_capabilities_drive_shared_room_options() -> None:
     assert "firstPlayer" not in poker_room.options
     assert poker_room.options["allowSpectators"] is True
     assert doudizhu_room.options["firstPlayer"] == "host"
-    assert reaction_room.options["allowSpectators"] is False
+    assert reaction_room.options["allowSpectators"] is True
 
 
 def test_every_enabled_game_can_render_an_exact_player_spectator_view() -> None:

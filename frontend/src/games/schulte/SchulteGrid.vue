@@ -24,6 +24,7 @@ interface SchulteView {
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
+const isSpectating = computed(() => props.snapshot.viewer?.mode === 'spectator')
 const localNext = ref(1)
 const wrongValue = ref<number | null>(null)
 const lastCorrectValue = ref<number | null>(null)
@@ -72,12 +73,12 @@ function formatTime(milliseconds: number): string {
 }
 
 async function beginChallenge() {
-  if (arcade.busy || props.snapshot.phase !== 'playing') return
+  if (isSpectating.value || arcade.busy || props.snapshot.phase !== 'playing') return
   await arcade.action('begin')
 }
 
 async function resetChallenge() {
-  if (arcade.busy || props.snapshot.phase !== 'playing') return
+  if (isSpectating.value || arcade.busy || props.snapshot.phase !== 'playing') return
   await arcade.action('reset')
   if (!arcade.error) {
     localNext.value = 1
@@ -87,6 +88,7 @@ async function resetChallenge() {
 }
 
 async function restartChallenge() {
+  if (isSpectating.value) return
   if (await arcade.restartGame()) {
     localNext.value = 1
     wrongValue.value = null
@@ -116,7 +118,11 @@ function sendTap(value: number): Promise<boolean> {
 }
 
 function activateCell(value: number) {
-  if (!game.value.started || props.snapshot.phase !== 'playing') return
+  if (
+    isSpectating.value
+    || !game.value.started
+    || props.snapshot.phase !== 'playing'
+  ) return
   if (value !== localNext.value) {
     showWrong(value)
     void sendTap(value)
@@ -183,7 +189,7 @@ onBeforeUnmount(() => {
       <div class="schulte-preview" aria-hidden="true">
         <i v-for="number in 25" :key="number">{{ number % 4 === 0 ? number : '·' }}</i>
       </div>
-      <UiButton variant="primary" :disabled="arcade.busy" @click="beginChallenge">
+      <UiButton variant="primary" :disabled="isSpectating || arcade.busy" @click="beginChallenge">
         <ScanSearch :size="19" />开始挑战
       </UiButton>
     </section>
@@ -201,7 +207,7 @@ onBeforeUnmount(() => {
             v-if="snapshot.phase === 'playing'"
             type="button"
             class="schulte-reset-button"
-            :disabled="arcade.busy"
+            :disabled="isSpectating || arcade.busy"
             @click="resetChallenge"
           ><RotateCcw :size="16" />重置</button>
         </header>
@@ -225,7 +231,7 @@ onBeforeUnmount(() => {
               wrong: wrongValue === value,
               latest: lastCorrectValue === value,
             }"
-            :disabled="snapshot.phase !== 'playing'"
+            :disabled="isSpectating || snapshot.phase !== 'playing'"
             :aria-label="`数字 ${value}${value < localNext ? '，已完成' : ''}`"
             @pointerdown="onPointerDown($event, value)"
             @click="onAccessibleClick($event, value)"

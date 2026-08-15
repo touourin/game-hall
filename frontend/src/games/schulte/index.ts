@@ -29,7 +29,7 @@ export const schulteGame = defineBuiltinGame({
     solo: schulteSoloPresentation,
   },
   rules: {
-    defaults: { allowSpectators: false },
+    defaults: { allowSpectators: true },
     labels: () => ['5×5 标准挑战', '服务端计时'],
   },
   records: {

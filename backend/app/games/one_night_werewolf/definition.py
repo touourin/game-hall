@@ -20,7 +20,6 @@ ONE_NIGHT_WEREWOLF_GAME = GameDefinition(
         description="一晚行动、晨间推理与一次终局投票",
     ),
     capabilities=social_table_capabilities(
-        spectators=False,
         first_player=False,
     ),
 )

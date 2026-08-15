@@ -115,7 +115,6 @@ describe('built-in game registry', () => {
     })
     expect(builtinGameDefinition('one_night_werewolf')?.capabilities).toEqual({
       ...shared,
-      spectators: false,
       firstPlayer: false,
     })
     expect(builtinGameDefinition('avalon')?.capabilities).toEqual({
@@ -159,15 +158,12 @@ describe('built-in game registry', () => {
         undo: false,
         draw: false,
         guests: false,
+        spectators: true,
         firstPlayer: false,
         replay: false,
         ai: false,
       })
     }
-
-    expect(builtinGameDefinition('hanoi')?.capabilities.spectators).toBe(true)
-    expect(builtinGameDefinition('minesweeper')?.capabilities.spectators).toBe(true)
-    expect(builtinGameDefinition('reaction')?.capabilities.spectators).toBe(false)
 
     expect(
       builtinGameDefinition('critical_crossing')?.records?.modeFromRules?.({

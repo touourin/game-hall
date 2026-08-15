@@ -29,6 +29,7 @@ const {
   holdPiece,
   holdUsed,
   isPlaying,
+  isSpectating,
   isTimed,
   lastClear,
   level,
@@ -97,7 +98,7 @@ onMounted(() => {
         <div v-for="(piece, previewIndex) in nextPieces" :key="`${piece}-${previewIndex}`" class="next-piece">
           <TetrisPiecePreview :piece="piece" />
         </div>
-        <button class="pause-button" type="button" :disabled="!isPlaying" @click="togglePause">
+        <button class="pause-button" type="button" :disabled="!isPlaying || isSpectating" @click="togglePause">
           <CirclePlay v-if="paused" :size="16" /><CirclePause v-else :size="16" />{{ paused ? '继续' : '暂停' }}
         </button>
       </aside>

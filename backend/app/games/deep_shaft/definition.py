@@ -22,7 +22,7 @@ DEEP_SHAFT_GAME = GameDefinition(
     ),
     capabilities=GameCapabilities(
         guests=False,
-        spectators=False,
+        spectators=True,
         first_player=False,
     ),
     records=GameRecords(score_kind="high_score"),

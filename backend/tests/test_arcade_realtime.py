@@ -267,3 +267,64 @@ async def test_first_person_spectator_is_visible_fixed_and_read_only() -> None:
     left = await realtime.unwatch_room("spectator-sid")
     assert left["ok"] is True
     assert realtime._room_spectators(room.code) == []
+
+
+async def test_local_game_frame_is_forwarded_only_to_its_fixed_spectators() -> None:
+    realtime = ArcadeRealtime()
+    server = FakeSocketServer()
+    realtime.sio = server  # type: ignore[assignment]
+    room, player, _ = realtime.rooms.create_room(
+        "reaction",
+        "测试者",
+        "player-account",
+        {"allowSpectators": True},
+    )
+    realtime.rooms.start(room, player.id)
+    server.sessions["player-sid"] = {
+        "account_id": player.account_id,
+        "arcade_room_code": room.code,
+        "arcade_player_id": player.id,
+        "arcade_role": "player",
+    }
+    server.sessions["spectator-sid"] = {
+        "account_id": "spectator-account",
+        "player_name": "观众甲",
+        "is_guest": False,
+    }
+    watched = await realtime.watch_room(
+        "spectator-sid",
+        {
+            "game_key": "reaction",
+            "room_code": room.code,
+            "target_id": player.id,
+        },
+    )
+    assert watched["ok"] is True
+    server.emissions.clear()
+
+    response = await realtime.spectator_frame(
+        "player-sid",
+        {
+            "sequence": 7,
+            "state": {"stage": "ready", "localResult": None},
+        },
+    )
+
+    assert response == {"ok": True, "sequence": 7}
+    event, frame, kwargs = server.emissions[-1]
+    assert event == "arcade:spectator:frame"
+    assert frame == {
+        "roomCode": room.code,
+        "gameKey": "reaction",
+        "roundNumber": room.round_number,
+        "targetPlayerId": player.id,
+        "sequence": 7,
+        "state": {"stage": "ready", "localResult": None},
+    }
+    assert kwargs["room"].startswith("arcade-spectator:")
+
+    rejected = await realtime.spectator_frame(
+        "spectator-sid",
+        {"sequence": 8, "state": {"stage": "finished"}},
+    )
+    assert rejected["ok"] is False

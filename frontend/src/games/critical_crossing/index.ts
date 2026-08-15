@@ -50,7 +50,7 @@ export const criticalCrossingGame = defineBuiltinGame({
     }],
     defaults: {
       difficulty: '5s',
-      allowSpectators: false,
+      allowSpectators: true,
     },
     labels: options => {
       if (options.difficulty === '10s') return ['临界', '10 秒目标', '10 轮脉冲']

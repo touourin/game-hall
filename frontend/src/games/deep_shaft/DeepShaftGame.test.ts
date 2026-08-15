@@ -1,5 +1,6 @@
 import { createPinia } from 'pinia'
 import { mount } from '@vue/test-utils'
+import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
 import DeepShaftGame from './DeepShaftGame.vue'
 
@@ -79,6 +80,60 @@ describe('DeepShaftGame', () => {
     expect(wrapper.get('.pause-button').text()).toContain('暂停')
     await wrapper.get('.pause-button').trigger('click')
     expect(wrapper.get('.shaft-overlay').text()).toContain('探测暂停')
+    wrapper.unmount()
+  })
+
+  it('renders the watched player local simulation as a read-only view', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const watched = snapshot()
+    watched.viewer = {
+      mode: 'spectator',
+      id: 'watcher-1',
+      name: '观众',
+      targetPlayerId: 'p1',
+    }
+    watched.actions.canAct = false
+    const wrapper = mount(DeepShaftGame, {
+      props: { snapshot: watched },
+      global: { plugins: [pinia] },
+    })
+
+    arcade.spectatorFrame = {
+      roomCode: 'DOWN',
+      gameKey: 'deep_shaft',
+      roundNumber: 1,
+      targetPlayerId: 'p1',
+      sequence: 1,
+      state: {
+        phase: 'playing',
+        countdown: 1,
+        shaftState: {
+          seed: 42,
+          tick: 600,
+          playerX: 5_000,
+          playerY: 12_000,
+          velocityX: 0,
+          velocityY: 12,
+          cameraY: 10_000,
+          health: 7,
+          deepestFloor: 42,
+          groundedFloor: null,
+          endReason: null,
+          visitedFloors: [0, 42],
+          crumbleDue: [],
+          brokenFloors: [],
+          ceilingCooldown: 0,
+          lastLandedFloor: 42,
+          lastLandedKind: 'normal',
+        },
+      },
+    }
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('.depth-instrument').text()).toContain('42')
+    expect(wrapper.get('.pause-button').attributes()).toHaveProperty('disabled')
+    expect(wrapper.find('.ready-overlay').exists()).toBe(false)
     wrapper.unmount()
   })
 })

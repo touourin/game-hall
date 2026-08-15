@@ -295,7 +295,7 @@ describe('ArcadeHome', () => {
   })
 
   it.each([
-    ['reaction', false],
+    ['reaction', true],
     ['hanoi', true],
   ] as const)(
     'uses the %s module capability to decide whether spectating is available',

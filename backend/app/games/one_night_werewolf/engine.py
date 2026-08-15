@@ -129,8 +129,6 @@ class OneNightWerewolfEngine:
         return {
             "rolePreset": preset,
             "listed": listed,
-            # First-person spectating would expose the target's private role.
-            "allowSpectators": False,
         }
 
     def start(self, room: ArcadeRoom) -> None:

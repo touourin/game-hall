@@ -6,6 +6,7 @@ import type {
   ArcadeLobbyRoom,
   ArcadeRealtimeFrame,
   ArcadeSnapshot,
+  ArcadeSpectatorFrame,
 } from '../types/arcade'
 
 interface StoredArcadeSession {
@@ -55,6 +56,7 @@ function readSession(): StoredArcadeSession | null {
 export const useArcadeStore = defineStore('arcade', () => {
   const snapshot = ref<ArcadeSnapshot | null>(null)
   const realtimeFrame = ref<ArcadeRealtimeFrame | null>(null)
+  const spectatorFrame = ref<ArcadeSpectatorFrame | null>(null)
   const availableRooms = ref<ArcadeLobbyRoom[]>([])
   const connected = ref(false)
   const busy = ref(false)
@@ -97,7 +99,10 @@ export const useArcadeStore = defineStore('arcade', () => {
         if (
           snapshot.value?.roomCode !== next.roomCode
           || next.phase !== 'playing'
-        ) realtimeFrame.value = null
+        ) {
+          realtimeFrame.value = null
+          spectatorFrame.value = null
+        }
         snapshot.value = next
       }
     })
@@ -107,6 +112,22 @@ export const useArcadeStore = defineStore('arcade', () => {
         !realtimeFrame.value
         || next.tick >= realtimeFrame.value.tick
       ) realtimeFrame.value = next
+    })
+    socket.on('arcade:spectator:frame', (next: ArcadeSpectatorFrame) => {
+      const current = snapshot.value
+      if (
+        !current
+        || current.viewer?.mode !== 'spectator'
+        || current.roomCode !== next.roomCode
+        || current.gameKey !== next.gameKey
+        || current.roundNumber !== next.roundNumber
+        || current.self.id !== next.targetPlayerId
+      ) return
+      if (
+        !spectatorFrame.value
+        || spectatorFrame.value.roundNumber !== next.roundNumber
+        || next.sequence >= spectatorFrame.value.sequence
+      ) spectatorFrame.value = next
     })
     socket.on('arcade:kicked', (payload: RoomClosurePayload) => {
       handleRoomClosure(payload, '你已被移出房间')
@@ -234,6 +255,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     if (!resumed) {
       snapshot.value = null
       realtimeFrame.value = null
+      spectatorFrame.value = null
       clearSession()
       error.value = null
     }
@@ -245,6 +267,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     if (response) {
       snapshot.value = null
       realtimeFrame.value = null
+      spectatorFrame.value = null
       clearSession()
     }
     return Boolean(response)
@@ -259,6 +282,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     if (!response) {
       snapshot.value = null
       realtimeFrame.value = null
+      spectatorFrame.value = null
       clearSession()
       error.value = null
       return false
@@ -292,6 +316,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     if (response) {
       snapshot.value = null
       realtimeFrame.value = null
+      spectatorFrame.value = null
     }
     return Boolean(response)
   }
@@ -302,6 +327,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     if (response) {
       snapshot.value = null
       realtimeFrame.value = null
+      spectatorFrame.value = null
       clearSession()
     }
     return Boolean(response)
@@ -313,6 +339,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     if (response) {
       snapshot.value = null
       realtimeFrame.value = null
+      spectatorFrame.value = null
       clearSession()
     }
     return Boolean(response)
@@ -325,6 +352,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     if (response && session.value?.roomCode === roomCode) {
       snapshot.value = null
       realtimeFrame.value = null
+      spectatorFrame.value = null
       clearSession()
     }
     return Boolean(response)
@@ -392,6 +420,23 @@ export const useArcadeStore = defineStore('arcade', () => {
       error.value = caught instanceof Error ? caught.message : '网络连接异常'
       return false
     }
+  }
+
+  function publishSpectatorFrame(
+    sequence: number,
+    state: Record<string, unknown>,
+  ): boolean {
+    const current = snapshot.value
+    if (
+      !current
+      || current.viewer?.mode === 'spectator'
+      || current.phase !== 'playing'
+      || !current.spectators?.some(
+        spectator => spectator.targetPlayerId === current.self.id,
+      )
+    ) return false
+    socket.emit('arcade:spectator:frame', { sequence, state })
+    return true
   }
 
   async function restartGame() {
@@ -472,6 +517,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     ) return
     snapshot.value = null
     realtimeFrame.value = null
+    spectatorFrame.value = null
     clearSession()
     error.value = payload.silent ? null : (payload.message ?? fallbackMessage)
   }
@@ -479,6 +525,7 @@ export const useArcadeStore = defineStore('arcade', () => {
   function resetForLogout() {
     snapshot.value = null
     realtimeFrame.value = null
+    spectatorFrame.value = null
     connected.value = false
     busy.value = false
     error.value = null
@@ -488,6 +535,7 @@ export const useArcadeStore = defineStore('arcade', () => {
   return {
     snapshot,
     realtimeFrame,
+    spectatorFrame,
     availableRooms,
     connected,
     busy,
@@ -513,6 +561,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     actionWithResult,
     rapidAction,
     realtimeInput,
+    publishSpectatorFrame,
     restartGame,
     kickPlayer,
     dissolveRoom,

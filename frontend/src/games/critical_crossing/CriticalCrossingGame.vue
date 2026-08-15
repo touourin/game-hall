@@ -64,6 +64,7 @@ interface ServerGame {
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
+const isSpectating = computed(() => props.snapshot.viewer?.mode === 'spectator')
 const canvas = ref<HTMLCanvasElement | null>(null)
 const phase = ref<'ready' | 'playing' | 'submitting' | 'finished'>(
   props.snapshot.phase === 'finished' ? 'finished' : 'ready',
@@ -80,8 +81,13 @@ let animationFrame: number | null = null
 let previousFrame = 0
 let accumulator = 0
 let submitted = false
+let spectatorSequence = 0
+let lastPublishedTick = -1
 
 const game = computed(() => props.snapshot.game as unknown as ServerGame)
+const hasTargetSpectators = computed(() => props.snapshot.spectators?.some(
+  spectator => spectator.targetPlayerId === props.snapshot.self.id,
+) ?? false)
 const durationSeconds = computed(() => Math.round(game.value.durationMs / 1_000))
 const targetTicks = computed(() => durationSeconds.value * TICK_RATE)
 const remainingMs = computed(() => Math.max(
@@ -120,6 +126,43 @@ const collisionLabel = computed(() => (
     : '脉冲拦截'
 ))
 
+function publishSpectatorState(force = false) {
+  if (isSpectating.value || !hasTargetSpectators.value) return
+  if (!force && crossingState.value.tick - lastPublishedTick < 6) return
+  lastPublishedTick = crossingState.value.tick
+  spectatorSequence += 1
+  arcade.publishSpectatorFrame(spectatorSequence, {
+    phase: phase.value,
+    readyCount: readyCount.value,
+    localElapsedMs: localElapsedMs.value,
+    crossingState: { ...crossingState.value },
+  })
+}
+
+function applySpectatorState(raw: Record<string, unknown>) {
+  const nextPhase = raw.phase
+  const nextState = raw.crossingState
+  if (
+    !['ready', 'playing', 'submitting', 'finished'].includes(String(nextPhase))
+    || !nextState
+    || typeof nextState !== 'object'
+  ) return
+  const candidate = nextState as Record<string, unknown>
+  if (
+    typeof candidate.tick !== 'number'
+    || typeof candidate.playerX !== 'number'
+    || typeof candidate.playerY !== 'number'
+  ) return
+  clearLoop()
+  phase.value = nextPhase as typeof phase.value
+  readyCount.value = typeof raw.readyCount === 'number' ? raw.readyCount : 3
+  localElapsedMs.value = typeof raw.localElapsedMs === 'number'
+    ? raw.localElapsedMs
+    : 0
+  crossingState.value = candidate as unknown as CrossingState
+  nextTick(drawArena)
+}
+
 function clearLoop() {
   if (readyTimer !== null) window.clearTimeout(readyTimer)
   if (animationFrame !== null) window.cancelAnimationFrame(animationFrame)
@@ -128,6 +171,7 @@ function clearLoop() {
 }
 
 function beginReadySequence() {
+  if (isSpectating.value) return
   clearLoop()
   phase.value = 'ready'
   readyCount.value = 3
@@ -139,6 +183,7 @@ function beginReadySequence() {
   submitted = false
   activePointers.clear()
   drawArena()
+  publishSpectatorState(true)
 
   const countDown = () => {
     if (readyCount.value <= 1) {
@@ -146,9 +191,11 @@ function beginReadySequence() {
       previousFrame = performance.now()
       accumulator = 0
       animationFrame = window.requestAnimationFrame(frame)
+      publishSpectatorState(true)
       return
     }
     readyCount.value -= 1
+    publishSpectatorState(true)
     readyTimer = window.setTimeout(countDown, 420)
   }
   readyTimer = window.setTimeout(countDown, 420)
@@ -181,6 +228,7 @@ function frame(timestamp: number) {
       void submitRun()
     }
   }
+  publishSpectatorState()
   drawArena()
   if (phase.value === 'playing') {
     animationFrame = window.requestAnimationFrame(frame)
@@ -188,12 +236,13 @@ function frame(timestamp: number) {
 }
 
 async function submitRun() {
-  if (submitted) return
+  if (isSpectating.value || submitted) return
   submitted = true
   phase.value = 'submitting'
   if (animationFrame !== null) window.cancelAnimationFrame(animationFrame)
   animationFrame = null
   drawArena()
+  publishSpectatorState(true)
   const successful = await arcade.actionWithResult('finish', {
     inputs: inputs.value,
   })
@@ -204,6 +253,7 @@ async function submitRun() {
 }
 
 function retrySubmission() {
+  if (isSpectating.value) return
   if (!submitted) void submitRun()
 }
 
@@ -216,6 +266,7 @@ function keyboardMask(code: string): number {
 }
 
 function onKeydown(event: KeyboardEvent) {
+  if (isSpectating.value) return
   const mask = keyboardMask(event.code)
   if (!mask) return
   event.preventDefault()
@@ -223,6 +274,7 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 function onKeyup(event: KeyboardEvent) {
+  if (isSpectating.value) return
   const mask = keyboardMask(event.code)
   if (!mask) return
   event.preventDefault()
@@ -230,6 +282,7 @@ function onKeyup(event: KeyboardEvent) {
 }
 
 function onControlDown(event: PointerEvent, mask: number) {
+  if (isSpectating.value) return
   event.preventDefault()
   activePointers.set(event.pointerId, mask)
   ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
@@ -480,8 +533,18 @@ function drawArena() {
 }
 
 async function restartChallenge() {
+  if (isSpectating.value) return
   await arcade.restartGame()
 }
+
+watch(
+  () => arcade.spectatorFrame,
+  (frame) => {
+    if (isSpectating.value && frame) applySpectatorState(frame.state)
+  },
+)
+
+watch(hasTargetSpectators, () => publishSpectatorState(true))
 
 watch(
   () => [props.snapshot.phase, game.value.seed] as const,
@@ -497,7 +560,7 @@ watch(
       && (previousPhase === 'finished' || game.value.seed !== previousSeed)
     ) {
       await nextTick()
-      beginReadySequence()
+      if (!isSpectating.value) beginReadySequence()
     }
   },
 )
@@ -505,13 +568,15 @@ watch(
 watch(currentTheme, () => drawArena())
 
 onMounted(() => {
-  window.addEventListener('keydown', onKeydown, { passive: false })
-  window.addEventListener('keyup', onKeyup, { passive: false })
-  window.addEventListener('blur', clearInput)
+  if (!isSpectating.value) {
+    window.addEventListener('keydown', onKeydown, { passive: false })
+    window.addEventListener('keyup', onKeyup, { passive: false })
+    window.addEventListener('blur', clearInput)
+  }
   window.addEventListener('resize', resizeCanvas)
   nextTick(() => {
     resizeCanvas()
-    if (props.snapshot.phase === 'playing') beginReadySequence()
+    if (props.snapshot.phase === 'playing' && !isSpectating.value) beginReadySequence()
   })
 })
 
@@ -611,6 +676,7 @@ onBeforeUnmount(() => {
       <button
         class="control-up"
         type="button"
+        :disabled="isSpectating"
         aria-label="向上移动"
         @pointerdown="onControlDown($event, INPUT_UP)"
         @pointerup="onControlUp"
@@ -620,6 +686,7 @@ onBeforeUnmount(() => {
       <button
         class="control-left"
         type="button"
+        :disabled="isSpectating"
         aria-label="向左移动"
         @pointerdown="onControlDown($event, INPUT_LEFT)"
         @pointerup="onControlUp"
@@ -630,6 +697,7 @@ onBeforeUnmount(() => {
       <button
         class="control-right"
         type="button"
+        :disabled="isSpectating"
         aria-label="向右移动"
         @pointerdown="onControlDown($event, INPUT_RIGHT)"
         @pointerup="onControlUp"
@@ -639,6 +707,7 @@ onBeforeUnmount(() => {
       <button
         class="control-down"
         type="button"
+        :disabled="isSpectating"
         aria-label="向下移动"
         @pointerdown="onControlDown($event, INPUT_DOWN)"
         @pointerup="onControlUp"

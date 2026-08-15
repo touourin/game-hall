@@ -17,12 +17,14 @@ type TestStage =
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
+const isSpectating = computed(() => props.snapshot.viewer?.mode === 'spectator')
 const stage = ref<TestStage>(props.snapshot.phase === 'finished' ? 'finished' : 'intro')
 const localResult = ref<number | null>(null)
 const signalStartedAt = ref(0)
 let signalTimer: ReturnType<typeof setTimeout> | null = null
 let advanceTimer: ReturnType<typeof setTimeout> | null = null
 let signalFrame: number | null = null
+let spectatorSequence = 0
 
 const game = computed(() => props.snapshot.game as {
   roundsRequired: number
@@ -32,6 +34,9 @@ const game = computed(() => props.snapshot.game as {
   averageMs: number | null
 })
 const completedRounds = computed(() => game.value.resultsMs.length)
+const hasTargetSpectators = computed(() => props.snapshot.spectators?.some(
+  spectator => spectator.targetPlayerId === props.snapshot.self.id,
+) ?? false)
 const progressLabel = computed(() =>
   props.snapshot.phase === 'finished'
     ? '三轮完成'
@@ -72,7 +77,7 @@ function randomDelay(): number {
 }
 
 function beginRound() {
-  if (props.snapshot.phase !== 'playing' || arcade.busy) return
+  if (isSpectating.value || props.snapshot.phase !== 'playing' || arcade.busy) return
   clearTimers()
   localResult.value = null
   stage.value = 'waiting'
@@ -87,6 +92,7 @@ function beginRound() {
 }
 
 async function falseStart() {
+  if (isSpectating.value) return
   clearTimers()
   stage.value = 'false-start'
   await arcade.action('false_start')
@@ -105,6 +111,7 @@ function normalizedInputTimestamp(timestamp: number): number {
 }
 
 async function recordReaction(inputTimestamp: number) {
+  if (isSpectating.value) return
   const elapsedMs = Math.max(1, Math.round(inputTimestamp - signalStartedAt.value))
   localResult.value = elapsedMs
   stage.value = 'saving'
@@ -123,6 +130,7 @@ async function recordReaction(inputTimestamp: number) {
 }
 
 function activate(inputTimestamp = performance.now()) {
+  if (isSpectating.value) return
   if (stage.value === 'intro') {
     beginRound()
     return
@@ -145,15 +153,48 @@ function onAccessibleClick(event: MouseEvent) {
 }
 
 async function restartTest() {
+  if (isSpectating.value) return
   await arcade.restartGame()
 }
 
 function onKeydown(event: KeyboardEvent) {
+  if (isSpectating.value) return
   if (event.code !== 'Space' || event.repeat) return
   if (!['intro', 'waiting', 'ready'].includes(stage.value)) return
   event.preventDefault()
   activate(normalizedInputTimestamp(event.timeStamp))
 }
+
+function publishSpectatorState() {
+  if (isSpectating.value || !hasTargetSpectators.value) return
+  spectatorSequence += 1
+  arcade.publishSpectatorFrame(spectatorSequence, {
+    stage: stage.value,
+    localResult: localResult.value,
+  })
+}
+
+watch(
+  () => arcade.spectatorFrame,
+  (frame) => {
+    if (!isSpectating.value || !frame) return
+    const nextStage = frame.state.stage
+    if (![
+      'intro', 'waiting', 'ready', 'saving', 'result', 'false-start', 'finished',
+    ].includes(String(nextStage))) return
+    clearTimers()
+    stage.value = nextStage as TestStage
+    localResult.value = typeof frame.state.localResult === 'number'
+      ? frame.state.localResult
+      : null
+  },
+)
+
+watch(
+  [stage, localResult, hasTargetSpectators],
+  publishSpectatorState,
+  { flush: 'post' },
+)
 
 watch(
   () => props.snapshot.phase,
@@ -168,7 +209,10 @@ watch(
   },
 )
 
-onMounted(() => window.addEventListener('keydown', onKeydown))
+onMounted(() => {
+  if (!isSpectating.value) window.addEventListener('keydown', onKeydown)
+  publishSpectatorState()
+})
 onBeforeUnmount(() => {
   clearTimers()
   window.removeEventListener('keydown', onKeydown)
@@ -204,10 +248,10 @@ onBeforeUnmount(() => {
 
       <div
         role="button"
-        tabindex="0"
+        :tabindex="isSpectating ? -1 : 0"
         class="reaction-trigger"
         :class="[stage, { inactive: ['saving', 'result', 'false-start', 'finished'].includes(stage) }]"
-        :aria-disabled="['saving', 'result', 'false-start', 'finished'].includes(stage)"
+        :aria-disabled="isSpectating || ['saving', 'result', 'false-start', 'finished'].includes(stage)"
         :aria-label="buttonLabel"
         @pointerdown="onPointerDown"
         @click="onAccessibleClick"

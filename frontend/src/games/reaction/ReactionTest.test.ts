@@ -136,4 +136,38 @@ describe('ReactionTest', () => {
     expect(restart).toHaveBeenCalledOnce()
     wrapper.unmount()
   })
+
+  it('mirrors the watched player signal without starting a local test', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const action = vi.spyOn(arcade, 'action').mockResolvedValue()
+    const watched = snapshot()
+    watched.viewer = {
+      mode: 'spectator',
+      id: 'watcher-1',
+      name: '观众',
+      targetPlayerId: 'p1',
+    }
+    watched.actions.canAct = false
+    const wrapper = mount(ReactionTest, {
+      props: { snapshot: watched },
+      global: { plugins: [pinia] },
+    })
+
+    arcade.spectatorFrame = {
+      roomCode: 'SOLO',
+      gameKey: 'reaction',
+      roundNumber: 1,
+      targetPlayerId: 'p1',
+      sequence: 1,
+      state: { stage: 'ready', localResult: null },
+    }
+    await nextTick()
+
+    expect(wrapper.get('.reaction-trigger').classes()).toContain('ready')
+    expect(wrapper.get('.reaction-trigger').attributes('tabindex')).toBe('-1')
+    await wrapper.get('.reaction-trigger').trigger('pointerdown')
+    expect(action).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
 })

@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import inspect
+import json
 import logging
 import secrets
 from collections import defaultdict, deque
@@ -50,6 +51,11 @@ INFO_SOCKET_EVENTS = {
     "arcade:unwatch",
     "arcade:watch",
 }
+SPECTATOR_FRAME_GAME_KEYS = frozenset(
+    {"reaction", "deep_shaft", "critical_crossing", "tetris"}
+)
+MAX_SPECTATOR_FRAME_BYTES = 64 * 1024
+MAX_SPECTATOR_FRAMES_PER_SECOND = 20
 
 
 class CreatePayload(BaseModel):
@@ -90,6 +96,11 @@ class ActionPayload(BaseModel):
 class RealtimeInputPayload(BaseModel):
     sequence: int = Field(ge=0, le=2_147_483_647)
     input_mask: int = Field(ge=0, le=2_147_483_647)
+
+
+class SpectatorFramePayload(BaseModel):
+    sequence: int = Field(ge=0, le=2_147_483_647)
+    state: dict[str, Any] = Field(default_factory=dict)
 
 
 class TargetPayload(BaseModel):
@@ -157,6 +168,9 @@ class ArcadeRealtime:
         self.realtime_input_times: dict[
             tuple[str, str], deque[float]
         ] = defaultdict(deque)
+        self.spectator_frame_times: dict[
+            tuple[str, str], deque[float]
+        ] = defaultdict(deque)
         self.closing = False
 
     def bind(self, sio: socketio.AsyncServer) -> None:
@@ -174,6 +188,9 @@ class ArcadeRealtime:
         self._bind_event(sio, "arcade:start", self.start_game)
         self._bind_event(sio, "arcade:action", self.game_action)
         self._bind_event(sio, "arcade:input", self.realtime_input)
+        self._bind_event(
+            sio, "arcade:spectator:frame", self.spectator_frame
+        )
         self._bind_event(sio, "arcade:restart", self.restart_game)
         self._bind_event(sio, "arcade:kick", self.kick_player)
         self._bind_event(sio, "arcade:dissolve", self.dissolve_room)
@@ -671,6 +688,47 @@ class ArcadeRealtime:
         except (ValidationError, *ACTION_ERRORS) as error:
             return error_response(error)
 
+    async def spectator_frame(
+        self, sid: str, raw_data: Any
+    ) -> dict[str, Any]:
+        try:
+            payload = SpectatorFramePayload.model_validate(raw_data or {})
+            room, player = await self._context(sid)
+            if room.game_key not in SPECTATOR_FRAME_GAME_KEYS:
+                raise ArcadeRoomError("这个游戏不接收观战画面同步")
+            if room.phase != "playing":
+                raise ArcadeRoomError("当前对局不接收观战画面同步")
+            if len(
+                json.dumps(
+                    payload.state,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ) > MAX_SPECTATOR_FRAME_BYTES:
+                raise ArcadeRoomError("观战画面数据过大")
+            self._check_spectator_frame_rate(room.code, player.id)
+            frame = {
+                "roomCode": room.code,
+                "gameKey": room.game_key,
+                "roundNumber": room.round_number,
+                "targetPlayerId": player.id,
+                "sequence": payload.sequence,
+                "state": payload.state,
+            }
+            for spectator in self._room_spectators(room.code):
+                if spectator.target_player_id != player.id:
+                    continue
+                await self._server.emit(
+                    "arcade:spectator:frame",
+                    frame,
+                    room=self._spectator_channel(
+                        room.code, spectator.account_id
+                    ),
+                )
+            return {"ok": True, "sequence": payload.sequence}
+        except (ValidationError, *ACTION_ERRORS) as error:
+            return error_response(error)
+
     async def restart_game(
         self, sid: str, raw_data: Any = None
     ) -> dict[str, Any]:
@@ -1043,6 +1101,19 @@ class ArcadeRealtime:
             timestamps.popleft()
         if len(timestamps) >= 90:
             raise ArcadeRoomError("操作过于频繁，请稍后再试")
+        timestamps.append(now)
+
+    def _check_spectator_frame_rate(
+        self,
+        room_code: str,
+        player_id: str,
+    ) -> None:
+        now = asyncio.get_running_loop().time()
+        timestamps = self.spectator_frame_times[(room_code, player_id)]
+        while timestamps and now - timestamps[0] >= 1:
+            timestamps.popleft()
+        if len(timestamps) >= MAX_SPECTATOR_FRAMES_PER_SECOND:
+            raise ArcadeRoomError("观战画面同步过于频繁")
         timestamps.append(now)
 
     def lobby_view(self) -> list[dict[str, Any]]:

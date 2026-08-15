@@ -208,4 +208,53 @@ describe('TetrisGame', () => {
     expect(wrapper.find('.mobile-tetris-controls').exists()).toBe(false)
     wrapper.unmount()
   })
+
+  it('mirrors the watched board and keeps every control disabled', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const watched = snapshot()
+    watched.viewer = {
+      mode: 'spectator',
+      id: 'watcher-1',
+      name: '观众',
+      targetPlayerId: 'p1',
+    }
+    watched.actions.canAct = false
+    const wrapper = mount(TetrisGame, {
+      props: { snapshot: watched },
+      global: { plugins: [pinia] },
+    })
+    const board = Array.from({ length: 20 }, () => Array(10).fill(null))
+    board[19][0] = 'I'
+
+    arcade.spectatorFrame = {
+      roomCode: 'DROP',
+      gameKey: 'tetris',
+      roundNumber: 1,
+      targetPlayerId: 'p1',
+      sequence: 1,
+      state: {
+        board,
+        active: { type: 'T', rotation: 0, x: 3, y: 2 },
+        queue: ['I', 'J', 'L', 'O', 'S', 'T', 'Z'],
+        held: null,
+        holdUsed: false,
+        score: 860,
+        lines: 3,
+        pieces: 12,
+        elapsedMs: 15_000,
+        paused: false,
+        lastClear: 0,
+        ended: false,
+        endReason: 'topped_out',
+      },
+    }
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[aria-label="落块挑战状态"]').text()).toContain('860')
+    expect(wrapper.get('[aria-label="向左移动"]').attributes()).toHaveProperty('disabled')
+    expect(wrapper.get('.pause-button').attributes()).toHaveProperty('disabled')
+    expect(wrapper.findAll('.tetris-cell.active')).toHaveLength(4)
+    wrapper.unmount()
+  })
 })

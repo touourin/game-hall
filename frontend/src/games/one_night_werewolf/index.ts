@@ -18,7 +18,6 @@ export const oneNightWerewolfGame = defineBuiltinGame({
     artwork: { dark: artworkDark, light: artworkLight },
   },
   capabilities: socialTableCapabilities({
-    spectators: false,
     firstPlayer: false,
   }),
   presentation: {
@@ -47,7 +46,7 @@ export const oneNightWerewolfGame = defineBuiltinGame({
       },
       {
         key: 'listed', title: '房间发现', control: 'cards',
-        description: '进行中固定关闭观战，避免第一人称视角泄露私密身份',
+        description: '公开房间会显示在大厅，私密房间只能通过房间码进入',
         options: [
           [true, '公开房间', '等待阶段可以在大厅中被发现'],
           [false, '私密房间', '只有拿到房间码或邀请链接的玩家可加入'],
@@ -58,7 +57,7 @@ export const oneNightWerewolfGame = defineBuiltinGame({
       rolePreset: 'standard',
       listed: true,
       allowGuests: true,
-      allowSpectators: false,
+      allowSpectators: true,
     },
     labels: (options) => {
       const preset = options.rolePreset === 'beginner'

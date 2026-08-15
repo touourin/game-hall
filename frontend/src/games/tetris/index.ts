@@ -53,7 +53,7 @@ export const tetrisGame = defineBuiltinGame({
     defaults: {
       challengeMode: 'timed',
       durationSeconds: 180,
-      allowSpectators: false,
+      allowSpectators: true,
     },
     labels: (options) => [
       options.challengeMode === 'timed'

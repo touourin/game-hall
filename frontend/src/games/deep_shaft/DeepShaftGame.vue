@@ -64,6 +64,7 @@ const PLATFORM_COPY: Record<PlatformKind, { label: string; detail: string }> = {
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
+const isSpectating = computed(() => props.snapshot.viewer?.mode === 'spectator')
 const canvas = ref<HTMLCanvasElement | null>(null)
 const phase = ref<LocalPhase>(
   props.snapshot.phase === 'finished' ? 'finished' : 'ready',
@@ -79,8 +80,13 @@ let animationFrame: number | null = null
 let previousFrame = 0
 let accumulator = 0
 let submitted = false
+let spectatorSequence = 0
+let lastPublishedTick = -1
 
 const game = computed(() => props.snapshot.game as unknown as ServerGame)
+const hasTargetSpectators = computed(() => props.snapshot.spectators?.some(
+  spectator => spectator.targetPlayerId === props.snapshot.self.id,
+) ?? false)
 const platforms = computed(() => generatePlatforms(game.value.seed))
 const elapsedMs = computed(() => Math.round(state.value.tick * 1_000 / TICK_RATE))
 const elapsedLabel = computed(() => {
@@ -101,7 +107,58 @@ const ceilingPressure = computed(() => {
   return Math.round(Math.max(0, Math.min(1, 1 - (playerTop - ceiling) / 900)) * 100)
 })
 const pressureCritical = computed(() => ceilingPressure.value >= 58)
-const canUseControls = computed(() => ['ready', 'countdown', 'playing'].includes(phase.value))
+const canUseControls = computed(() => (
+  !isSpectating.value && ['ready', 'countdown', 'playing'].includes(phase.value)
+))
+
+function publishSpectatorState(force = false) {
+  if (isSpectating.value || !hasTargetSpectators.value) return
+  if (!force && state.value.tick - lastPublishedTick < 6) return
+  lastPublishedTick = state.value.tick
+  spectatorSequence += 1
+  const current = state.value
+  arcade.publishSpectatorFrame(spectatorSequence, {
+    phase: phase.value,
+    countdown: countdown.value,
+    shaftState: {
+      ...current,
+      visitedFloors: [...current.visitedFloors],
+      crumbleDue: [...current.crumbleDue.entries()],
+      brokenFloors: [...current.brokenFloors],
+    },
+  })
+}
+
+function applySpectatorState(raw: Record<string, unknown>) {
+  const nextPhase = raw.phase
+  const nextState = raw.shaftState
+  if (
+    !['ready', 'countdown', 'playing', 'paused', 'submitting', 'finished']
+      .includes(String(nextPhase))
+    || !nextState
+    || typeof nextState !== 'object'
+  ) return
+  const candidate = nextState as Record<string, unknown>
+  if (candidate.seed !== game.value.seed || typeof candidate.tick !== 'number') return
+  stopLoops()
+  phase.value = nextPhase as LocalPhase
+  countdown.value = typeof raw.countdown === 'number' ? raw.countdown : 3
+  state.value = {
+    ...(candidate as unknown as ShaftState),
+    visitedFloors: new Set(
+      Array.isArray(candidate.visitedFloors) ? candidate.visitedFloors as number[] : [],
+    ),
+    crumbleDue: new Map(
+      Array.isArray(candidate.crumbleDue)
+        ? candidate.crumbleDue as [number, number][]
+        : [],
+    ),
+    brokenFloors: new Set(
+      Array.isArray(candidate.brokenFloors) ? candidate.brokenFloors as number[] : [],
+    ),
+  }
+  nextTick(draw)
+}
 
 function stopFrame() {
   if (animationFrame !== null) window.cancelAnimationFrame(animationFrame)
@@ -130,6 +187,7 @@ function draw() {
 }
 
 function freshRun() {
+  if (isSpectating.value) return
   stopLoops()
   state.value = createShaftState(game.value.seed)
   inputs.value = []
@@ -140,30 +198,36 @@ function freshRun() {
   countdown.value = 3
   phase.value = 'ready'
   draw()
+  publishSpectatorState(true)
 }
 
 function beginPlaying() {
+  if (isSpectating.value) return
   stopCountdown()
   phase.value = 'playing'
   previousFrame = performance.now()
   accumulator = 0
   animationFrame = window.requestAnimationFrame(frame)
+  publishSpectatorState(true)
 }
 
 function stepCountdown() {
+  if (isSpectating.value) return
   if (phase.value !== 'countdown') return
   if (countdown.value <= 1) {
     beginPlaying()
     return
   }
   countdown.value -= 1
+  publishSpectatorState(true)
   countdownTimer = window.setTimeout(stepCountdown, COUNTDOWN_STEP_MS)
 }
 
 function startRun() {
-  if (phase.value !== 'ready') return
+  if (isSpectating.value || phase.value !== 'ready') return
   phase.value = 'countdown'
   countdown.value = 3
+  publishSpectatorState(true)
   countdownTimer = window.setTimeout(stepCountdown, COUNTDOWN_STEP_MS)
 }
 
@@ -180,17 +244,19 @@ function frame(timestamp: number) {
     state.value = advanceShaftState(state.value, input, platforms.value)
     if (state.value.endReason || state.value.tick >= MAX_TICKS) void submitRun()
   }
+  publishSpectatorState()
   draw()
   if (phase.value === 'playing') animationFrame = window.requestAnimationFrame(frame)
 }
 
 async function submitRun() {
-  if (submitted) return
+  if (isSpectating.value || submitted) return
   submitted = true
   phase.value = 'submitting'
   stopLoops()
   heldMask.value = 0
   draw()
+  publishSpectatorState(true)
   const successful = await arcade.actionWithResult('finish', { inputs: inputs.value })
   if (!successful) {
     submitError.value = arcade.error ?? '轨迹校验失败，请重新提交'
@@ -199,15 +265,18 @@ async function submitRun() {
 }
 
 function togglePause() {
+  if (isSpectating.value) return
   if (phase.value === 'playing') {
     phase.value = 'paused'
     heldMask.value = 0
     stopFrame()
     draw()
+    publishSpectatorState(true)
   } else if (phase.value === 'paused') {
     phase.value = 'playing'
     previousFrame = performance.now()
     animationFrame = window.requestAnimationFrame(frame)
+    publishSpectatorState(true)
   }
 }
 
@@ -218,6 +287,7 @@ function keyboardMask(code: string): number {
 }
 
 function onKeydown(event: KeyboardEvent) {
+  if (isSpectating.value) return
   if (event.code === 'Space' || event.code === 'KeyP' || event.code === 'Escape') {
     if (event.repeat) return
     event.preventDefault()
@@ -233,6 +303,7 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 function onKeyup(event: KeyboardEvent) {
+  if (isSpectating.value) return
   const mask = keyboardMask(event.code)
   if (!mask) return
   event.preventDefault()
@@ -240,6 +311,7 @@ function onKeyup(event: KeyboardEvent) {
 }
 
 function onControlDown(direction: -1 | 1, event: PointerEvent) {
+  if (isSpectating.value) return
   event.preventDefault()
   if (phase.value === 'ready') startRun()
   const mask = direction < 0 ? INPUT_LEFT : INPUT_RIGHT
@@ -272,8 +344,18 @@ function resizeCanvas() {
 }
 
 async function restartChallenge() {
+  if (isSpectating.value) return
   await arcade.restartGame()
 }
+
+watch(
+  () => arcade.spectatorFrame,
+  (frame) => {
+    if (isSpectating.value && frame) applySpectatorState(frame.state)
+  },
+)
+
+watch(hasTargetSpectators, () => publishSpectatorState(true))
 
 watch(
   () => [props.snapshot.phase, game.value.seed] as const,
@@ -288,7 +370,7 @@ watch(
       && (previousPhase === 'finished' || game.value.seed !== previousSeed)
     ) {
       await nextTick()
-      freshRun()
+      if (!isSpectating.value) freshRun()
     }
   },
 )
@@ -296,13 +378,15 @@ watch(
 watch(currentTheme, draw)
 
 onMounted(() => {
-  window.addEventListener('keydown', onKeydown, { passive: false })
-  window.addEventListener('keyup', onKeyup, { passive: false })
-  window.addEventListener('blur', clearInput)
+  if (!isSpectating.value) {
+    window.addEventListener('keydown', onKeydown, { passive: false })
+    window.addEventListener('keyup', onKeyup, { passive: false })
+    window.addEventListener('blur', clearInput)
+  }
   window.addEventListener('resize', resizeCanvas)
   state.value = createShaftState(game.value.seed)
   resizeCanvas()
-  if (props.snapshot.phase === 'playing') freshRun()
+  if (props.snapshot.phase === 'playing' && !isSpectating.value) freshRun()
 })
 
 onBeforeUnmount(() => {
@@ -343,6 +427,7 @@ onBeforeUnmount(() => {
             v-if="['playing', 'paused'].includes(phase)"
             class="pause-button"
             type="button"
+            :disabled="isSpectating"
             @click="togglePause"
           >
             <CirclePlay v-if="phase === 'paused'" :size="16" />
@@ -382,7 +467,7 @@ onBeforeUnmount(() => {
             <span><Heart :size="15" /><small>稳定平台恢复生命</small></span>
             <span><ShieldAlert :size="15" /><small>远离顶部压力区</small></span>
           </div>
-          <button type="button" @click="startRun">启动探测舱</button>
+          <button type="button" :disabled="isSpectating" @click="startRun">启动探测舱</button>
         </div>
 
         <div v-else-if="phase === 'countdown'" class="shaft-overlay countdown-overlay" aria-live="assertive">
@@ -395,7 +480,7 @@ onBeforeUnmount(() => {
           <CirclePause :size="34" />
           <strong>探测暂停</strong>
           <span>继续后井道压力与平台运动将同步恢复</span>
-          <button type="button" @click="togglePause">继续下潜</button>
+          <button type="button" :disabled="isSpectating" @click="togglePause">继续下潜</button>
         </div>
 
         <div v-else-if="phase === 'submitting'" class="shaft-overlay compact-overlay">

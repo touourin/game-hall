@@ -46,12 +46,15 @@ interface SavedRun {
   lines: number
   pieces: number
   elapsedMs: number
+  paused?: boolean
+  lastClear?: number
   ended?: boolean
   endReason?: 'topped_out' | 'timeout'
 }
 
 export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
   const arcade = useArcadeStore()
+  const isSpectating = computed(() => snapshot.value.viewer?.mode === 'spectator')
   const board = ref<Board>(createBoard())
   const queue = ref<PieceType[]>([])
   const active = ref<ActivePiece>(spawnPiece('T'))
@@ -74,9 +77,14 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
   let dropAccumulator = 0
   let elapsedAccumulator = 0
   let saveAccumulator = 0
+  let streamAccumulator = 0
+  let spectatorSequence = 0
 
   const storageKey = computed(() => `game-hall:tetris:${snapshot.value.roomCode}`)
   const serverGame = computed(() => snapshot.value.game as unknown as TetrisView)
+  const hasTargetSpectators = computed(() => snapshot.value.spectators?.some(
+    spectator => spectator.targetPlayerId === snapshot.value.self.id,
+  ) ?? false)
   const isTimed = computed(() => snapshot.value.options.challengeMode !== 'endless')
   const durationMs = computed(() => {
     const seconds = Number(snapshot.value.options.durationSeconds ?? 180)
@@ -88,7 +96,9 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
   const isPlaying = computed(() => (
     snapshot.value.phase === 'playing' && !submitting.value && !runEnded.value
   ))
-  const canControl = computed(() => isPlaying.value && !paused.value)
+  const canControl = computed(() => (
+    isPlaying.value && !paused.value && !isSpectating.value
+  ))
   const formattedTime = computed(() => {
     const milliseconds = isTimed.value
       ? Math.max(0, durationMs.value - elapsedMs.value)
@@ -117,6 +127,59 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
     return cells
   })
 
+  function spectatorState(): SavedRun {
+    return {
+      board: board.value,
+      active: active.value,
+      queue: queue.value,
+      held: held.value,
+      holdUsed: holdUsed.value,
+      score: score.value,
+      lines: lines.value,
+      pieces: pieces.value,
+      elapsedMs: Math.round(elapsedMs.value),
+      paused: paused.value,
+      lastClear: lastClear.value,
+      ended: runEnded.value,
+      endReason: endReason.value,
+    }
+  }
+
+  function publishSpectatorState() {
+    if (isSpectating.value || !hasTargetSpectators.value) return
+    spectatorSequence += 1
+    arcade.publishSpectatorFrame(
+      spectatorSequence,
+      spectatorState() as unknown as Record<string, unknown>,
+    )
+  }
+
+  function applySpectatorState(raw: Record<string, unknown>) {
+    const saved = raw as unknown as SavedRun
+    if (
+      !Array.isArray(saved.board)
+      || saved.board.length !== BOARD_HEIGHT
+      || saved.board.some(row => !Array.isArray(row) || row.length !== BOARD_WIDTH)
+      || !saved.active
+      || !Array.isArray(saved.queue)
+    ) return
+    board.value = saved.board
+    active.value = saved.active
+    queue.value = saved.queue
+    held.value = saved.held
+    holdUsed.value = Boolean(saved.holdUsed)
+    score.value = Number(saved.score) || 0
+    lines.value = Number(saved.lines) || 0
+    pieces.value = Number(saved.pieces) || 0
+    elapsedMs.value = Number(saved.elapsedMs) || 0
+    paused.value = Boolean(saved.paused)
+    lastClear.value = Number(saved.lastClear) || 0
+    runEnded.value = Boolean(saved.ended)
+    endReason.value = saved.endReason === 'timeout' ? 'timeout' : 'topped_out'
+    submitting.value = false
+    submissionError.value = null
+  }
+
   function ensureQueue() {
     while (queue.value.length < 7) queue.value.push(...shuffledBag())
   }
@@ -127,6 +190,7 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
   }
 
   function freshRun() {
+    if (isSpectating.value) return
     board.value = createBoard()
     queue.value = []
     held.value = null
@@ -148,6 +212,7 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
     dropAccumulator = 0
     elapsedAccumulator = 0
     saveAccumulator = 0
+    streamAccumulator = 0
     lastFrameAt = performance.now()
     saveRun()
   }
@@ -219,7 +284,7 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
   }
 
   async function endRun(reason: 'topped_out' | 'timeout') {
-    if (runEnded.value || snapshot.value.phase !== 'playing') return
+    if (isSpectating.value || runEnded.value || snapshot.value.phase !== 'playing') return
     runEnded.value = true
     endReason.value = reason
     paused.value = false
@@ -227,11 +292,17 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
       ? durationMs.value
       : Math.max(1_000, Math.round(elapsedMs.value))
     saveRun()
+    publishSpectatorState()
     await submitFinalScore()
   }
 
   async function submitFinalScore() {
-    if (submitting.value || !runEnded.value || snapshot.value.phase !== 'playing') return
+    if (
+      isSpectating.value
+      || submitting.value
+      || !runEnded.value
+      || snapshot.value.phase !== 'playing'
+    ) return
     submitting.value = true
     submissionError.value = null
     const succeeded = await arcade.actionWithResult('finish', {
@@ -253,18 +324,26 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
   }
 
   function togglePause() {
-    if (!isPlaying.value) return
+    if (isSpectating.value || !isPlaying.value) return
     paused.value = !paused.value
     autoPaused.value = false
     dropAccumulator = 0
     lastFrameAt = performance.now()
     saveRun()
+    publishSpectatorState()
   }
 
   function tick(timestamp: number) {
     const elapsedDelta = Math.max(0, timestamp - lastFrameAt)
     const gravityDelta = Math.min(50, elapsedDelta)
     lastFrameAt = timestamp
+    if (!isSpectating.value && hasTargetSpectators.value) {
+      streamAccumulator += elapsedDelta
+      if (streamAccumulator >= 100) {
+        streamAccumulator = 0
+        publishSpectatorState()
+      }
+    }
     if (canControl.value) {
       dropAccumulator += gravityDelta
       elapsedAccumulator += elapsedDelta
@@ -325,20 +404,8 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
   }
 
   function saveRun() {
-    if (snapshot.value.phase !== 'playing' || submitted.value) return
-    const saved: SavedRun = {
-      board: board.value,
-      active: active.value,
-      queue: queue.value,
-      held: held.value,
-      holdUsed: holdUsed.value,
-      score: score.value,
-      lines: lines.value,
-      pieces: pieces.value,
-      elapsedMs: Math.round(elapsedMs.value),
-      ended: runEnded.value,
-      endReason: endReason.value,
-    }
+    if (isSpectating.value || snapshot.value.phase !== 'playing' || submitted.value) return
+    const saved = spectatorState()
     sessionStorage.setItem(storageKey.value, JSON.stringify(saved))
   }
 
@@ -367,10 +434,12 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
   }
 
   async function restartChallenge() {
+    if (isSpectating.value) return
     if (await arcade.restartGame()) freshRun()
   }
 
   function onVisibilityChange() {
+    if (isSpectating.value) return
     if (document.hidden && isPlaying.value && !paused.value) {
       paused.value = true
       autoPaused.value = true
@@ -394,15 +463,29 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
     },
   )
 
+  watch(
+    () => arcade.spectatorFrame,
+    (spectatorFrame) => {
+      if (isSpectating.value && spectatorFrame) {
+        applySpectatorState(spectatorFrame.state)
+      }
+    },
+    { immediate: true },
+  )
+
+  watch(hasTargetSpectators, () => publishSpectatorState())
+
   onMounted(() => {
-    if (snapshot.value.phase === 'playing') {
+    if (snapshot.value.phase === 'playing' && !isSpectating.value) {
       if (!restoreRun()) freshRun()
       else if (isTimed.value && !runEnded.value && elapsedMs.value >= durationMs.value) {
         void endRun('timeout')
       }
     }
-    window.addEventListener('keydown', onKeydown, { passive: false })
-    document.addEventListener('visibilitychange', onVisibilityChange)
+    if (!isSpectating.value) {
+      window.addEventListener('keydown', onKeydown, { passive: false })
+      document.addEventListener('visibilitychange', onVisibilityChange)
+    }
     frame = window.requestAnimationFrame(tick)
   })
 
@@ -426,6 +509,7 @@ export function useTetrisGame(snapshot: Ref<ArcadeSnapshot>) {
     holdPiece,
     holdUsed,
     isPlaying,
+    isSpectating,
     isTimed,
     lastClear,
     level,

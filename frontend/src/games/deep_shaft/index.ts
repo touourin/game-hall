@@ -29,7 +29,7 @@ export const deepShaftGame = defineBuiltinGame({
     solo: deepShaftSoloPresentation,
   },
   rules: {
-    defaults: { allowSpectators: false },
+    defaults: { allowSpectators: true },
     labels: () => ['100 层挑战', '左右移动', '服务端轨迹重放'],
   },
   records: {

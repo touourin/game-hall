@@ -14,7 +14,7 @@ const soloGameDefaults: BuiltinGameCapabilities = {
   undo: false,
   draw: false,
   guests: false,
-  spectators: false,
+  spectators: true,
   firstPlayer: false,
   replay: false,
   ai: false,
