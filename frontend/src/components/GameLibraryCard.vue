@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ChevronRight } from '@lucide/vue'
 import type { GameCatalogEntry } from '../gameCatalog'
+import { gameCatalogToneColor } from '../gameCatalogPresentation'
 import GameCardArtwork from './GameCardArtwork.vue'
 
 defineProps<{
@@ -18,7 +19,7 @@ defineEmits<{
   <button
     type="button"
     class="game-card game-library-card"
-    :class="`tone-${game.tone}`"
+    :style="{ '--module-tone': gameCatalogToneColor(game.tone) }"
     :aria-label="`打开${game.name}`"
     @click="$emit('select')"
   >
@@ -155,23 +156,6 @@ defineEmits<{
   background: var(--surface-inset);
   font-style: normal;
 }
-
-.tone-red { --module-tone: #b36f69; }
-.tone-chess { --module-tone: #9b8b72; }
-.tone-jade { --module-tone: #6f9b88; }
-.tone-blue { --module-tone: #748faa; }
-.tone-ink { --module-tone: #88969c; }
-.tone-army { --module-tone: #8f9872; }
-.tone-pulse { --module-tone: #66a499; }
-.tone-focus { --module-tone: #738fa3; }
-.tone-barrage { --module-tone: #c96678; }
-.tone-mine { --module-tone: #a77689; }
-.tone-tower { --module-tone: #8d7da3; }
-.tone-blocks { --module-tone: #7299a1; }
-.tone-poker { --module-tone: #aa7074; }
-.tone-fortune { --module-tone: #a58a61; }
-.tone-suspicion { --module-tone: #9d7961; }
-.tone-moon { --module-tone: #7f89a5; }
 
 :global(:root[data-theme="emerald"] .game-library-card) {
   border-color: color-mix(in srgb, var(--module-tone) 21%, var(--line-strong));

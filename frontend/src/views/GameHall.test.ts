@@ -27,6 +27,8 @@ describe('GameHall', () => {
     expect(wrapper.find('.hall-hub .art-go').exists()).toBe(true)
     expect(wrapper.find('.lobby-room-panel').exists()).toBe(true)
     expect(wrapper.find('.hall-mobile-dock').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="按分类浏览游戏"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="手机端：游戏分类"]').exists()).toBe(true)
     expect(wrapper.findAll('.account-bar-actions button')).toHaveLength(3)
     expect(wrapper.get('.account-bar-actions [aria-label="查看全部战绩"]').text()).toContain('全部战绩')
     expect(wrapper.get('[aria-label="退出登录"]').text()).toContain('退出')
@@ -37,6 +39,12 @@ describe('GameHall', () => {
     )
     await wrapper.get('.account-bar-actions [aria-label="打开设置"]').trigger('click')
     expect(wrapper.emitted('settings')).toHaveLength(1)
+    await wrapper.get('[aria-label="打开游戏分类"]').trigger('click')
+    expect(wrapper.find('[role="dialog"][aria-label="游戏分类"]').exists()).toBe(true)
+    expect(wrapper.findAll('.category-section')).toHaveLength(6)
+    await wrapper.get('[aria-label="从棋类竞技打开国际象棋"]').trigger('click')
+    expect(wrapper.emitted('select')?.[0]?.[0]).toMatchObject({ key: 'chess' })
+    expect(wrapper.find('[role="dialog"][aria-label="游戏分类"]').exists()).toBe(false)
     await wrapper.get('[aria-label="打开第三方游戏入口"]').trigger('click')
     expect(wrapper.find('[role="dialog"][aria-label="第三方游戏"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('数字密匣')
@@ -72,7 +80,7 @@ describe('GameHall', () => {
     expect(gomoku).toBeDefined()
     await gomoku!.trigger('click')
 
-    expect(wrapper.emitted('select')?.[0]?.[0]).toMatchObject({
+    expect(wrapper.emitted('select')?.at(-1)?.[0]).toMatchObject({
       key: 'gomoku',
       name: '五子棋',
     })

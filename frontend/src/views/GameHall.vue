@@ -10,6 +10,7 @@ import {
   Radio,
   RotateCcw,
   Settings,
+  Shapes,
   ShieldCheck,
   Signal,
   UserRound,
@@ -20,6 +21,7 @@ import type { ArcadeLobbyRoom, GameCatalogItem } from '../types/arcade'
 import { useArcadeStore } from '../stores/arcade'
 import AvatarImage from '../components/AvatarImage.vue'
 import GameCardArtwork from '../components/GameCardArtwork.vue'
+import GameCategoriesModal from '../components/GameCategoriesModal.vue'
 import GameLibraryCard from '../components/GameLibraryCard.vue'
 import LobbyRoomPanel from '../components/LobbyRoomPanel.vue'
 import StatsModal from '../components/StatsModal.vue'
@@ -41,6 +43,7 @@ const emit = defineEmits<{
 const arcade = useArcadeStore()
 const showStats = ref(false)
 const showThirdPartyGames = ref(false)
+const showGameCategories = ref(false)
 const gamesSection = ref<HTMLElement | null>(null)
 const roomsSection = ref<HTMLElement | null>(null)
 
@@ -109,6 +112,11 @@ function selectThirdPartyGame(game: GameCatalogItem) {
   emit('select', game)
 }
 
+function selectCategorizedGame(game: GameCatalogEntry) {
+  showGameCategories.value = false
+  emit('select', game)
+}
+
 function openRoom(room: ArcadeLobbyRoom) {
   emit('openRoom', { gameKey: room.gameKey, roomCode: room.roomCode })
 }
@@ -134,6 +142,9 @@ function scrollTo(section: HTMLElement | null) {
   <main class="game-hall page-container adaptive-layout-root">
     <aside class="hall-sidebar surface" aria-label="大厅导航">
       <span class="hall-sidebar-mark" aria-hidden="true">竞</span>
+      <button type="button" aria-label="按分类浏览游戏" @click="showGameCategories = true">
+        <Shapes :size="19" /><span>游戏分类</span>
+      </button>
       <button type="button" aria-label="查看全部游戏" @click="scrollTo(gamesSection)">
         <Grid3X3 :size="19" /><span>全部游戏</span>
       </button>
@@ -242,7 +253,12 @@ function scrollTo(section: HTMLElement | null) {
             <strong id="all-games-title">全部游戏</strong>
             <em>统一入口，规则和玩法保持各自独立</em>
           </span>
-          <div>{{ games.length }} 款可用</div>
+          <div class="hall-all-heading-actions">
+            <button type="button" aria-label="打开游戏分类" @click="showGameCategories = true">
+              <Shapes :size="14" />按分类浏览
+            </button>
+            <span>{{ games.length }} 款可用</span>
+          </div>
         </header>
 
         <div class="game-grid" aria-label="选择游戏">
@@ -271,6 +287,9 @@ function scrollTo(section: HTMLElement | null) {
     </div>
 
     <nav class="hall-mobile-dock surface" aria-label="手机端大厅导航">
+      <button type="button" aria-label="手机端：游戏分类" @click="showGameCategories = true">
+        <Shapes :size="21" /><span>分类</span>
+      </button>
       <button type="button" aria-label="手机端：全部游戏" @click="scrollTo(gamesSection)"><Grid3X3 :size="21" /><span>全部游戏</span></button>
       <button type="button" aria-label="手机端：实时房间" @click="scrollTo(roomsSection)"><Radio :size="21" /><span>房间</span></button>
       <button v-if="!account.isGuest" type="button" aria-label="手机端：查看战绩" @click="showStats = true"><BarChart3 :size="21" /><span>战绩</span></button>
@@ -278,6 +297,12 @@ function scrollTo(section: HTMLElement | null) {
     </nav>
 
     <StatsModal v-if="showStats && !account.isGuest" @close="showStats = false" />
+    <GameCategoriesModal
+      v-if="showGameCategories"
+      :games="games"
+      @close="showGameCategories = false"
+      @select="selectCategorizedGame"
+    />
     <ThirdPartyGamesModal
       v-if="showThirdPartyGames"
       :games="thirdPartyGames"
@@ -766,6 +791,24 @@ function scrollTo(section: HTMLElement | null) {
   padding-bottom: 16px;
 }
 
+.hall-all-heading-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 11px;
+  color: var(--text-soft);
+  background: var(--control-surface), var(--surface-inset);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 45%, transparent);
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.hall-all-heading-actions > span {
+  white-space: nowrap;
+}
+
 .game-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -859,6 +902,7 @@ function scrollTo(section: HTMLElement | null) {
   }
 
   .hall-sidebar button:hover,
+  .hall-all-heading-actions button:hover,
   .hall-personal-card:hover,
   .third-party-entry:hover {
     border-color: var(--line-strong);
