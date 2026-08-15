@@ -41,6 +41,10 @@ import {
   type BoundarySide,
   type CrossingState,
 } from './crossingEngine'
+import {
+  criticalCrossingPalette,
+  type CriticalCrossingPalette,
+} from './criticalCrossingPalette'
 
 interface ServerGame {
   difficulty: '5s' | '8s' | '10s'
@@ -56,21 +60,6 @@ interface ServerGame {
   crossed: boolean | null
   collisionTick: number | null
   collisionKind: 'pulse' | 'boundary' | null
-}
-
-interface ArenaPalette {
-  center: string
-  edge: string
-  grid: string
-  pulse: string
-  pulseGlow: string
-  gate: string
-  gateGlow: string
-  boundary: string
-  boundaryCritical: string
-  core: string
-  coreEdge: string
-  coreCenter: string
 }
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
@@ -130,55 +119,6 @@ const collisionLabel = computed(() => (
     ? '边界封锁'
     : '脉冲拦截'
 ))
-
-function arenaPalette(): ArenaPalette {
-  if (currentTheme.value === 'royal') {
-    return {
-      center: '#f5f7f8',
-      edge: '#cbd3d8',
-      grid: 'rgba(54, 75, 86, .13)',
-      pulse: 'rgba(174, 85, 99, .82)',
-      pulseGlow: '#c06b79',
-      gate: 'rgba(48, 137, 143, .94)',
-      gateGlow: '#70c7c9',
-      boundary: 'rgba(183, 134, 70, .17)',
-      boundaryCritical: 'rgba(174, 67, 79, .58)',
-      core: 'rgba(255, 255, 255, .9)',
-      coreEdge: '#378f97',
-      coreCenter: '#1f656d',
-    }
-  }
-  if (currentTheme.value === 'emerald') {
-    return {
-      center: '#242521',
-      edge: '#0f1210',
-      grid: 'rgba(195, 182, 157, .09)',
-      pulse: 'rgba(190, 103, 106, .76)',
-      pulseGlow: '#bb6d70',
-      gate: 'rgba(119, 181, 165, .9)',
-      gateGlow: '#79ad9f',
-      boundary: 'rgba(198, 153, 91, .12)',
-      boundaryCritical: 'rgba(168, 69, 72, .48)',
-      core: 'rgba(200, 209, 199, .25)',
-      coreEdge: '#84b5a5',
-      coreCenter: '#d5e4dd',
-    }
-  }
-  return {
-    center: '#12283a',
-    edge: '#030a11',
-    grid: 'rgba(111, 164, 195, .1)',
-    pulse: 'rgba(211, 92, 116, .78)',
-    pulseGlow: '#d85c75',
-    gate: 'rgba(103, 209, 204, .92)',
-    gateGlow: '#66d8d2',
-    boundary: 'rgba(218, 161, 73, .12)',
-    boundaryCritical: 'rgba(218, 65, 86, .52)',
-    core: 'rgba(105, 205, 207, .24)',
-    coreEdge: '#75d8d4',
-    coreCenter: '#e7ffff',
-  }
-}
 
 function clearLoop() {
   if (readyTimer !== null) window.clearTimeout(readyTimer)
@@ -333,7 +273,7 @@ function drawPulseWarning(
   height: number,
   scaleX: number,
   scaleY: number,
-  palette: ArenaPalette,
+  palette: CriticalCrossingPalette,
 ) {
   if (!isPulseWarning.value || phase.value !== 'playing') return
   const pulse = .5 + .2 * Math.sin(crossingState.value.tick * .65)
@@ -370,7 +310,7 @@ function drawPulseFronts(
   height: number,
   scaleX: number,
   scaleY: number,
-  palette: ArenaPalette,
+  palette: CriticalCrossingPalette,
 ) {
   context.lineCap = 'round'
   for (const { side, position, gate } of pulseFronts(
@@ -423,7 +363,7 @@ function drawBoundaryPressure(
   height: number,
   scaleX: number,
   scaleY: number,
-  palette: ArenaPalette,
+  palette: CriticalCrossingPalette,
 ) {
   for (const side of BOUNDARY_SIDES) {
     const pressure = crossingState.value.boundaryPressure[side]
@@ -458,7 +398,7 @@ function drawNavigationCore(
   context: CanvasRenderingContext2D,
   scaleX: number,
   scaleY: number,
-  palette: ArenaPalette,
+  palette: CriticalCrossingPalette,
 ) {
   const x = crossingState.value.playerX * scaleX
   const y = crossingState.value.playerY * scaleY
@@ -501,7 +441,7 @@ function drawArena() {
   const height = element.height
   const scaleX = width / BOARD_WIDTH
   const scaleY = height / BOARD_HEIGHT
-  const palette = arenaPalette()
+  const palette = criticalCrossingPalette(currentTheme.value)
   context.clearRect(0, 0, width, height)
 
   const background = context.createRadialGradient(
@@ -735,7 +675,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .crossing-game {
-  --cross-accent: #72d2cd;
+  --cross-accent: var(--gold);
   width: min(100%, 920px);
   display: grid;
   gap: 14px;
@@ -834,7 +774,7 @@ onBeforeUnmount(() => {
 }
 .ready-overlay span { color: var(--text-soft); font-weight: 850; letter-spacing: .12em; }
 .result-overlay svg,
-.finished-overlay svg { color: #d66e7d; filter: drop-shadow(0 0 14px #b9506377); }
+.finished-overlay svg { color: var(--red); filter: drop-shadow(0 0 14px color-mix(in srgb, var(--red) 48%, transparent)); }
 .result-overlay strong,
 .finished-overlay strong { color: var(--text); font-size: clamp(30px, 6vw, 52px); }
 .result-overlay span,
@@ -842,11 +782,11 @@ onBeforeUnmount(() => {
 .result-overlay button {
   min-width: 112px;
   margin-top: 7px;
-  border: 1px solid color-mix(in srgb, #d66e7d 48%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--red) 48%, var(--line));
   border-radius: 11px;
   padding: 10px 15px;
   color: var(--text);
-  background: color-mix(in srgb, #d66e7d 12%, var(--surface-elevated));
+  background: color-mix(in srgb, var(--red) 12%, var(--surface-elevated));
   font-weight: 850;
   cursor: pointer;
 }
@@ -868,7 +808,7 @@ onBeforeUnmount(() => {
   transform: translateX(-50%);
   backdrop-filter: blur(9px);
 }
-.arena-timer small { color: #d97482; font-size: 7px; font-weight: 950; letter-spacing: .18em; }
+.arena-timer small { color: var(--red); font-size: 7px; font-weight: 950; letter-spacing: .18em; }
 .arena-timer strong { font-size: 18px; font-variant-numeric: tabular-nums; }
 
 .pulse-warning {
@@ -898,11 +838,11 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 4px 8px;
-  border: 1px solid color-mix(in srgb, #c59657 48%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--gold) 48%, var(--line));
   border-radius: 11px;
   padding: 8px 10px;
-  color: color-mix(in srgb, #c59657 72%, var(--text));
-  background: color-mix(in srgb, #8d5c22 12%, var(--surface-primary));
+  color: color-mix(in srgb, var(--gold) 72%, var(--text));
+  background: color-mix(in srgb, var(--gold) 10%, var(--surface-primary));
   backdrop-filter: blur(9px);
 }
 .boundary-pressure small { align-self: end; font-size: 8px; font-weight: 900; }
@@ -914,13 +854,13 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: color-mix(in srgb, var(--muted) 22%, transparent);
 }
-.boundary-pressure i span { display: block; height: 100%; border-radius: inherit; background: #c59657; }
+.boundary-pressure i span { display: block; height: 100%; border-radius: inherit; background: var(--gold); }
 .boundary-pressure.critical {
-  border-color: color-mix(in srgb, #d55f72 70%, var(--line));
-  color: #d55f72;
-  background: color-mix(in srgb, #b33d54 13%, var(--surface-primary));
+  border-color: color-mix(in srgb, var(--red) 70%, var(--line));
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 13%, var(--surface-primary));
 }
-.boundary-pressure.critical i span { background: #d55f72; }
+.boundary-pressure.critical i span { background: var(--red); }
 
 .crossing-controls {
   width: min(100%, 330px);
@@ -945,7 +885,7 @@ onBeforeUnmount(() => {
 }
 .crossing-controls button:active {
   border-color: var(--cross-accent);
-  color: var(--surface-primary);
+  color: var(--accent-contrast);
   background: var(--cross-accent);
   transform: scale(.95);
 }
@@ -984,9 +924,6 @@ onBeforeUnmount(() => {
   font: inherit;
   font-weight: 900;
 }
-
-:global(:root[data-theme="royal"] .crossing-game) { --cross-accent: #347e84; }
-:global(:root[data-theme="emerald"] .crossing-game) { --cross-accent: #87aa9c; }
 
 @media (min-width: 760px) and (hover: hover) and (pointer: fine) {
   .crossing-controls { display: none; }

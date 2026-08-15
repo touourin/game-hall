@@ -20,7 +20,7 @@ export const deepShaftGame = defineBuiltinGame({
   capabilities: soloGameCapabilities(),
   presentation: {
     component: defineAsyncComponent(() => import('./DeepShaftGame.vue')),
-    roomLayout: 'standard',
+    roomLayout: 'wide',
     skinKind: null,
     roomShell: {
       headerEyebrowSuffix: () => ' · 百层平台生存',

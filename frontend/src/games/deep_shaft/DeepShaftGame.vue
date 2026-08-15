@@ -1,29 +1,36 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { CirclePause, CirclePlay, Heart, MapPin, ShieldAlert, Trophy } from '@lucide/vue'
+import {
+  Activity,
+  CirclePause,
+  CirclePlay,
+  Clock3,
+  Heart,
+  Layers3,
+  MapPin,
+  ShieldAlert,
+  Trophy,
+} from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
+import { currentTheme } from '../../theme'
 import type { ArcadeSnapshot } from '../../types/arcade'
-import SoloMetricGrid from '../shared/solo/SoloMetricGrid.vue'
 import SoloResultCard from '../shared/solo/SoloResultCard.vue'
 import DeepShaftControls from './DeepShaftControls.vue'
 import {
   CEILING_DEPTH,
-  CRUMBLE_DELAY_TICKS,
   INPUT_LEFT,
   INPUT_RIGHT,
   MAX_TICKS,
   PLAYER_HALF_HEIGHT,
-  PLAYER_HALF_WIDTH,
   TARGET_FLOOR,
   TICK_RATE,
-  VIEW_HEIGHT,
-  WORLD_WIDTH,
   advanceShaftState,
   createShaftState,
   generatePlatforms,
-  type ShaftPlatform,
+  type PlatformKind,
   type ShaftState,
 } from './deepShaftEngine'
+import { deepShaftProgress, renderDeepShaft } from './deepShaftRenderer'
 
 interface ServerGame {
   seed: number
@@ -36,17 +43,38 @@ interface ServerGame {
   endReason: 'completed' | 'fell' | 'health' | 'timeout' | null
 }
 
+type LocalPhase =
+  | 'ready'
+  | 'countdown'
+  | 'playing'
+  | 'paused'
+  | 'submitting'
+  | 'finished'
+
+const COUNTDOWN_STEP_MS = 900
+
+const PLATFORM_COPY: Record<PlatformKind, { label: string; detail: string }> = {
+  normal: { label: '稳定平台', detail: '落地恢复 1 点生命' },
+  spikes: { label: '尖刺平台', detail: '首次落地损失 3 点生命' },
+  crumble: { label: '碎裂平台', detail: '落地后即将崩解' },
+  conveyor_left: { label: '左向传送带', detail: '持续牵引探测舱向左' },
+  conveyor_right: { label: '右向传送带', detail: '持续牵引探测舱向右' },
+  spring: { label: '弹簧平台', detail: '强制向上弹射' },
+}
+
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
 const canvas = ref<HTMLCanvasElement | null>(null)
-const phase = ref<'ready' | 'playing' | 'paused' | 'submitting' | 'finished'>(
+const phase = ref<LocalPhase>(
   props.snapshot.phase === 'finished' ? 'finished' : 'ready',
 )
+const countdown = ref(3)
 const state = ref<ShaftState>(createShaftState(1))
 const inputs = ref<number[]>([])
 const heldMask = ref(0)
 const submitError = ref<string | null>(null)
 const activePointers = new Map<number, number>()
+let countdownTimer: number | null = null
 let animationFrame: number | null = null
 let previousFrame = 0
 let accumulator = 0
@@ -59,40 +87,84 @@ const elapsedLabel = computed(() => {
   const total = Math.floor(elapsedMs.value / 1_000)
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
 })
-const healthTone = computed(() => state.value.health <= 3 ? 'danger' : state.value.health <= 6 ? 'warning' : 'success')
-const progress = computed(() => Math.min(100, state.value.deepestFloor))
-
-const platformKindLabel = computed(() => {
-  if (state.value.lastLandedKind === 'spikes') return '尖刺'
-  if (state.value.lastLandedKind === 'crumble') return '碎裂'
-  if (state.value.lastLandedKind === 'spring') return '弹簧'
-  if (state.value.lastLandedKind.startsWith('conveyor')) return '传送带'
-  return '普通'
+const progress = computed(() => deepShaftProgress(state.value.deepestFloor))
+const platformCopy = computed(() => PLATFORM_COPY[state.value.lastLandedKind])
+const depthZone = computed(() => {
+  if (state.value.deepestFloor >= 75) return '核心深层'
+  if (state.value.deepestFloor >= 50) return '高压井段'
+  if (state.value.deepestFloor >= 25) return '深层井段'
+  return '浅层井段'
 })
+const ceilingPressure = computed(() => {
+  const playerTop = state.value.playerY - PLAYER_HALF_HEIGHT
+  const ceiling = state.value.cameraY + CEILING_DEPTH
+  return Math.round(Math.max(0, Math.min(1, 1 - (playerTop - ceiling) / 900)) * 100)
+})
+const pressureCritical = computed(() => ceilingPressure.value >= 58)
+const canUseControls = computed(() => ['ready', 'countdown', 'playing'].includes(phase.value))
 
 function stopFrame() {
   if (animationFrame !== null) window.cancelAnimationFrame(animationFrame)
   animationFrame = null
 }
 
-function freshRun() {
+function stopCountdown() {
+  if (countdownTimer !== null) window.clearTimeout(countdownTimer)
+  countdownTimer = null
+}
+
+function stopLoops() {
   stopFrame()
+  stopCountdown()
+}
+
+function draw() {
+  const element = canvas.value
+  if (!element) return
+  renderDeepShaft(element, {
+    state: state.value,
+    platforms: platforms.value,
+    theme: currentTheme.value,
+    reducedMotion: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
+  })
+}
+
+function freshRun() {
+  stopLoops()
   state.value = createShaftState(game.value.seed)
   inputs.value = []
   heldMask.value = 0
   submitError.value = null
   submitted = false
   activePointers.clear()
+  countdown.value = 3
   phase.value = 'ready'
   draw()
 }
 
-function startRun() {
-  if (phase.value !== 'ready') return
+function beginPlaying() {
+  stopCountdown()
   phase.value = 'playing'
   previousFrame = performance.now()
   accumulator = 0
   animationFrame = window.requestAnimationFrame(frame)
+}
+
+function stepCountdown() {
+  if (phase.value !== 'countdown') return
+  if (countdown.value <= 1) {
+    beginPlaying()
+    return
+  }
+  countdown.value -= 1
+  countdownTimer = window.setTimeout(stepCountdown, COUNTDOWN_STEP_MS)
+}
+
+function startRun() {
+  if (phase.value !== 'ready') return
+  phase.value = 'countdown'
+  countdown.value = 3
+  countdownTimer = window.setTimeout(stepCountdown, COUNTDOWN_STEP_MS)
 }
 
 function frame(timestamp: number) {
@@ -116,7 +188,7 @@ async function submitRun() {
   if (submitted) return
   submitted = true
   phase.value = 'submitting'
-  stopFrame()
+  stopLoops()
   heldMask.value = 0
   draw()
   const successful = await arcade.actionWithResult('finish', { inputs: inputs.value })
@@ -150,7 +222,7 @@ function onKeydown(event: KeyboardEvent) {
     if (event.repeat) return
     event.preventDefault()
     if (phase.value === 'ready') startRun()
-    else togglePause()
+    else if (phase.value === 'playing' || phase.value === 'paused') togglePause()
     return
   }
   const mask = keyboardMask(event.code)
@@ -199,132 +271,6 @@ function resizeCanvas() {
   draw()
 }
 
-function platformColor(platform: ShaftPlatform): string {
-  if (platform.kind === 'spikes') return '#d96b62'
-  if (platform.kind === 'crumble') return '#c6945e'
-  if (platform.kind === 'spring') return '#9a78d0'
-  if (platform.kind.startsWith('conveyor')) return '#5a9caa'
-  return '#708f88'
-}
-
-function drawPlatform(context: CanvasRenderingContext2D, platform: ShaftPlatform, scale: number, offsetX: number) {
-  if (state.value.brokenFloors.has(platform.floor)) return
-  const y = (platform.y - state.value.cameraY) * scale
-  if (y < -120 || y > context.canvas.height + 120) return
-  const x = offsetX + platform.x * scale
-  const width = platform.width * scale
-  const height = Math.max(11, 125 * scale)
-  context.fillStyle = platformColor(platform)
-  context.shadowColor = platformColor(platform)
-  context.shadowBlur = 8 * scale
-  context.fillRect(x, y, width, height)
-  context.shadowBlur = 0
-  context.fillStyle = 'rgba(255,255,255,.18)'
-  context.fillRect(x, y, width, Math.max(2, 18 * scale))
-  context.strokeStyle = 'rgba(5,13,16,.68)'
-  context.lineWidth = Math.max(1, 15 * scale)
-  context.strokeRect(x, y, width, height)
-
-  if (platform.kind === 'spikes') {
-    const spikeWidth = Math.max(8, 170 * scale)
-    for (let spikeX = x + spikeWidth * .15; spikeX < x + width - spikeWidth; spikeX += spikeWidth) {
-      context.beginPath()
-      context.moveTo(spikeX, y)
-      context.lineTo(spikeX + spikeWidth / 2, y - 135 * scale)
-      context.lineTo(spikeX + spikeWidth, y)
-      context.fillStyle = '#ff9a7d'
-      context.fill()
-    }
-  } else if (platform.kind === 'crumble') {
-    const remaining = state.value.crumbleDue.get(platform.floor)
-    const alpha = remaining === undefined
-      ? .45
-      : Math.max(.08, (remaining - state.value.tick) / CRUMBLE_DELAY_TICKS)
-    context.strokeStyle = `rgba(44,24,12,${alpha})`
-    context.beginPath()
-    context.moveTo(x + width * .28, y)
-    context.lineTo(x + width * .42, y + height)
-    context.moveTo(x + width * .68, y)
-    context.lineTo(x + width * .57, y + height)
-    context.stroke()
-  } else if (platform.kind === 'spring') {
-    context.strokeStyle = '#d8c0ff'
-    context.lineWidth = Math.max(2, 25 * scale)
-    context.beginPath()
-    for (let index = 0; index <= 8; index += 1) {
-      const springX = x + width * .38 + index * width * .03
-      const springY = y - (index % 2 ? 80 : 15) * scale
-      if (index === 0) context.moveTo(springX, springY)
-      else context.lineTo(springX, springY)
-    }
-    context.stroke()
-  } else if (platform.kind.startsWith('conveyor')) {
-    context.fillStyle = '#b9eef0'
-    const direction = platform.kind === 'conveyor_left' ? -1 : 1
-    for (let marker = x + 80 * scale; marker < x + width - 80 * scale; marker += 290 * scale) {
-      context.beginPath()
-      context.moveTo(marker, y + height * .5)
-      context.lineTo(marker + direction * 90 * scale, y + height * .2)
-      context.lineTo(marker + direction * 90 * scale, y + height * .8)
-      context.fill()
-    }
-  }
-  context.fillStyle = 'rgba(231,245,241,.8)'
-  context.font = `800 ${Math.max(8, 105 * scale)}px system-ui`
-  context.fillText(String(platform.floor), x + 18 * scale, y + height + 120 * scale)
-}
-
-function draw() {
-  const element = canvas.value
-  const context = element?.getContext('2d')
-  if (!element || !context) return
-  const width = element.width
-  const height = element.height
-  const scale = Math.min(width / WORLD_WIDTH, height / VIEW_HEIGHT)
-  const offsetX = (width - WORLD_WIDTH * scale) / 2
-  const background = context.createLinearGradient(0, 0, 0, height)
-  background.addColorStop(0, '#07181d')
-  background.addColorStop(.55, '#09262c')
-  background.addColorStop(1, '#041015')
-  context.fillStyle = background
-  context.fillRect(0, 0, width, height)
-
-  context.strokeStyle = 'rgba(104,190,190,.07)'
-  context.lineWidth = 1
-  for (let x = offsetX; x <= width - offsetX; x += 850 * scale) {
-    context.beginPath(); context.moveTo(x, 0); context.lineTo(x, height); context.stroke()
-  }
-  for (const platform of platforms.value) drawPlatform(context, platform, scale, offsetX)
-
-  const ceilingHeight = CEILING_DEPTH * scale
-  context.fillStyle = '#7b3033'
-  for (let x = offsetX; x < width - offsetX; x += 260 * scale) {
-    context.beginPath()
-    context.moveTo(x, 0)
-    context.lineTo(x + 130 * scale, ceilingHeight)
-    context.lineTo(x + 260 * scale, 0)
-    context.fill()
-  }
-  const playerX = offsetX + state.value.playerX * scale
-  const playerY = (state.value.playerY - state.value.cameraY) * scale
-  const halfWidth = Math.max(7, PLAYER_HALF_WIDTH * scale)
-  const halfHeight = Math.max(9, PLAYER_HALF_HEIGHT * scale)
-  context.save()
-  context.translate(playerX, playerY)
-  context.shadowColor = '#6de3da'
-  context.shadowBlur = halfWidth * 1.4
-  context.fillStyle = state.value.health <= 3 ? '#ff8279' : '#73ddd3'
-  context.beginPath()
-  context.roundRect(-halfWidth, -halfHeight, halfWidth * 2, halfHeight * 2, halfWidth * .55)
-  context.fill()
-  context.shadowBlur = 0
-  context.fillStyle = '#d9ffff'
-  context.beginPath()
-  context.arc(halfWidth * .28, -halfHeight * .25, halfWidth * .22, 0, Math.PI * 2)
-  context.fill()
-  context.restore()
-}
-
 async function restartChallenge() {
   await arcade.restartGame()
 }
@@ -333,16 +279,21 @@ watch(
   () => [props.snapshot.phase, game.value.seed] as const,
   async ([snapshotPhase], [previousPhase, previousSeed]) => {
     if (snapshotPhase === 'finished') {
-      stopFrame()
+      stopLoops()
       phase.value = 'finished'
       return
     }
-    if (snapshotPhase === 'playing' && (previousPhase === 'finished' || game.value.seed !== previousSeed)) {
+    if (
+      snapshotPhase === 'playing'
+      && (previousPhase === 'finished' || game.value.seed !== previousSeed)
+    ) {
       await nextTick()
       freshRun()
     }
   },
 )
+
+watch(currentTheme, draw)
 
 onMounted(() => {
   window.addEventListener('keydown', onKeydown, { passive: false })
@@ -355,7 +306,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  stopFrame()
+  stopLoops()
   window.removeEventListener('keydown', onKeydown)
   window.removeEventListener('keyup', onKeyup)
   window.removeEventListener('blur', clearInput)
@@ -365,49 +316,143 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="deep-shaft-game">
-    <SoloMetricGrid
-      aria-label="深井挑战状态"
-      :columns="4"
-      :items="[
-        { label: '最深层数', value: `${state.deepestFloor} / ${TARGET_FLOOR}`, tone: 'success' },
-        { label: '生命值', value: `${state.health} / ${game.maxHealth}`, tone: healthTone },
-        { label: '挑战用时', value: elapsedLabel },
-        { label: '当前平台', value: platformKindLabel },
-      ]"
-    />
+    <section class="shaft-station surface">
+      <div class="shaft-console" :class="[`phase-${phase}`, { 'pressure-critical': pressureCritical }]">
+        <canvas ref="canvas" aria-label="百层深井垂直探测区域" />
 
-    <section class="shaft-console surface" :class="`phase-${phase}`">
-      <canvas ref="canvas" aria-label="百层深井游戏区域" />
-      <div class="shaft-progress" aria-hidden="true"><i :style="{ height: `${progress}%` }" /><span>{{ state.deepestFloor }}F</span></div>
-      <button v-if="['playing', 'paused'].includes(phase)" class="pause-button" type="button" @click="togglePause">
-        <CirclePlay v-if="phase === 'paused'" :size="17" /><CirclePause v-else :size="17" />{{ phase === 'paused' ? '继续' : '暂停' }}
-      </button>
-      <div v-if="phase === 'ready'" class="shaft-overlay ready-overlay">
-        <MapPin :size="34" />
-        <strong>准备深入百层</strong>
-        <span>方向键 / A D 控制左右，手机按住屏幕下方按钮</span>
-        <button type="button" @click="startRun">开始下降</button>
+        <header class="shaft-viewport-hud">
+          <div class="shaft-location">
+            <MapPin :size="15" />
+            <span><small>DEEP SHAFT</small><strong>{{ depthZone }}</strong></span>
+          </div>
+          <div
+            class="shaft-health"
+            :class="{ danger: state.health <= 3, warning: state.health > 3 && state.health <= 6 }"
+            :aria-label="`生命值 ${state.health} / ${game.maxHealth}`"
+          >
+            <Heart :size="14" />
+            <span>
+              <i
+                v-for="heart in game.maxHealth"
+                :key="heart"
+                :class="{ active: heart <= state.health }"
+              />
+            </span>
+          </div>
+          <button
+            v-if="['playing', 'paused'].includes(phase)"
+            class="pause-button"
+            type="button"
+            @click="togglePause"
+          >
+            <CirclePlay v-if="phase === 'paused'" :size="16" />
+            <CirclePause v-else :size="16" />
+            <span>{{ phase === 'paused' ? '继续' : '暂停' }}</span>
+          </button>
+        </header>
+
+        <div v-if="pressureCritical && phase === 'playing'" class="ceiling-warning" role="status">
+          <ShieldAlert :size="14" />
+          <span><small>顶部压力</small><strong>{{ ceilingPressure }}%</strong></span>
+        </div>
+
+        <div
+          class="shaft-depth-ruler"
+          :style="{ '--shaft-progress': `${progress}%` }"
+          aria-hidden="true"
+        >
+          <strong>{{ state.deepestFloor }}F</strong>
+          <div class="depth-track"><i /><span v-for="mark in [0, 25, 50, 75, 100]" :key="mark">{{ mark }}</span></div>
+        </div>
+
+        <DeepShaftControls
+          v-if="snapshot.phase === 'playing'"
+          :disabled="!canUseControls"
+          @press="onControlDown"
+          @release="onControlUp"
+        />
+
+        <div v-if="phase === 'ready'" class="shaft-overlay ready-overlay">
+          <span class="overlay-kicker">VERTICAL OBSERVATION</span>
+          <span class="overlay-mark"><Layers3 :size="28" /></span>
+          <strong>准备下潜</strong>
+          <p>校准左右落点，穿越五种机械平台并抵达第 100 层。</p>
+          <div class="ready-instructions">
+            <span><kbd>←</kbd><kbd>→</kbd><small>控制方向</small></span>
+            <span><Heart :size="15" /><small>稳定平台恢复生命</small></span>
+            <span><ShieldAlert :size="15" /><small>远离顶部压力区</small></span>
+          </div>
+          <button type="button" @click="startRun">启动探测舱</button>
+        </div>
+
+        <div v-else-if="phase === 'countdown'" class="shaft-overlay countdown-overlay" aria-live="assertive">
+          <span>DESCENT SEQUENCE</span>
+          <strong>{{ countdown }}</strong>
+          <small>保持视线，准备控制落点</small>
+        </div>
+
+        <div v-else-if="phase === 'paused'" class="shaft-overlay compact-overlay">
+          <CirclePause :size="34" />
+          <strong>探测暂停</strong>
+          <span>继续后井道压力与平台运动将同步恢复</span>
+          <button type="button" @click="togglePause">继续下潜</button>
+        </div>
+
+        <div v-else-if="phase === 'submitting'" class="shaft-overlay compact-overlay">
+          <ShieldAlert :size="34" />
+          <strong>{{ state.endReason === 'completed' ? '百层抵达' : '本轮结束' }}</strong>
+          <span>{{ submitError || `正在校验 ${inputs.length.toLocaleString()} 帧左右输入…` }}</span>
+          <button v-if="submitError" type="button" @click="submitRun">重新校验</button>
+        </div>
+
+        <div v-else-if="phase === 'finished'" class="shaft-overlay compact-overlay finished-overlay">
+          <Trophy v-if="game.endReason === 'completed'" :size="38" />
+          <Heart v-else :size="38" />
+          <strong>{{ game.endReason === 'completed' ? '百层通关' : `最深 ${game.deepestFloor} 层` }}</strong>
+          <span>{{ snapshot.winReason }}</span>
+        </div>
       </div>
-      <div v-else-if="phase === 'paused'" class="shaft-overlay">
-        <CirclePause :size="34" /><strong>挑战暂停</strong><span>继续后镜头才会恢复下压</span><button type="button" @click="togglePause">继续挑战</button>
-      </div>
-      <div v-else-if="phase === 'submitting'" class="shaft-overlay">
-        <ShieldAlert :size="34" /><strong>{{ state.endReason === 'completed' ? '百层抵达' : '本轮结束' }}</strong><span>{{ submitError || `正在校验 ${inputs.length.toLocaleString()} 帧左右输入…` }}</span><button v-if="submitError" type="button" @click="submitRun">重新校验</button>
-      </div>
-      <div v-else-if="phase === 'finished'" class="shaft-overlay finished-overlay">
-        <Trophy v-if="game.endReason === 'completed'" :size="38" /><Heart v-else :size="38" />
-        <strong>{{ game.endReason === 'completed' ? '百层通关' : `最深 ${game.deepestFloor} 层` }}</strong>
-        <span>{{ snapshot.winReason }}</span>
-      </div>
+
+      <aside class="shaft-instruments" aria-label="深井观测仪表">
+        <header>
+          <span>OBSERVATION DECK</span>
+          <strong>垂直观测仪</strong>
+        </header>
+
+        <section class="depth-instrument">
+          <small>当前深度</small>
+          <strong>{{ String(state.deepestFloor).padStart(2, '0') }}</strong>
+          <span>/ {{ TARGET_FLOOR }} 层</span>
+          <i><b :style="{ width: `${progress}%` }" /></i>
+        </section>
+
+        <dl class="shaft-readouts">
+          <div><dt><Clock3 :size="14" />运行时间</dt><dd>{{ elapsedLabel }}</dd></div>
+          <div><dt><Activity :size="14" />顶部压力</dt><dd :class="{ critical: pressureCritical }">{{ ceilingPressure }}%</dd></div>
+        </dl>
+
+        <section class="platform-readout">
+          <small>接触平台</small>
+          <strong>{{ platformCopy.label }}</strong>
+          <span>{{ platformCopy.detail }}</span>
+        </section>
+
+        <section class="platform-legend">
+          <small>平台识别</small>
+          <ul>
+            <li class="normal"><i />稳定</li>
+            <li class="spikes"><i />尖刺</li>
+            <li class="crumble"><i />碎裂</li>
+            <li class="conveyor"><i />传送</li>
+            <li class="spring"><i />弹簧</li>
+          </ul>
+        </section>
+
+        <p class="shaft-keyboard-hint"><kbd>A</kbd><kbd>D</kbd><span>或方向键控制</span><kbd>Space</kbd><span>暂停</span></p>
+      </aside>
     </section>
 
-    <DeepShaftControls
-      v-if="snapshot.phase === 'playing'"
-      :disabled="!['ready', 'playing'].includes(phase)"
-      @press="onControlDown"
-      @release="onControlUp"
-    />
-    <p class="shaft-hint"><kbd>←</kbd><kbd>→</kbd> 或 <kbd>A</kbd><kbd>D</kbd> 移动 · 普通平台回血 · 尖刺扣血 · 不要被顶部追上，也别掉出底部</p>
+    <p class="shaft-mobile-hint">按住左右控制区调整落点 · 稳定平台回血 · 不要被顶部追上</p>
 
     <SoloResultCard
       v-if="snapshot.phase === 'finished'"
@@ -431,14 +476,366 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.deep-shaft-game { width: min(100%, 760px); margin: 0 auto; display: grid; gap: 14px; }
-.shaft-console { position: relative; width: min(100%, 610px); aspect-ratio: 10 / 12; margin: 0 auto; overflow: hidden; border-color: color-mix(in srgb, #65d8d0 34%, var(--line)); background: #041015; box-shadow: var(--shadow-raised), inset 0 0 90px #000a; }
+.deep-shaft-game {
+  --shaft-accent: var(--gold);
+  --shaft-danger: var(--red);
+  width: min(100%, 980px);
+  display: grid;
+  gap: 14px;
+  margin: 0 auto;
+}
+
+.shaft-station {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 244px;
+  gap: 14px;
+  padding: 14px;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--shaft-accent) 24%, var(--line));
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--shaft-accent) 3%, transparent), transparent 44%),
+    var(--material-pattern),
+    var(--surface);
+}
+
+.shaft-console {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--shaft-accent) 40%, var(--line));
+  border-radius: calc(var(--radius-panel) - 4px);
+  background: var(--surface-inset);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, white 9%, transparent),
+    inset 0 0 70px color-mix(in srgb, var(--bg) 42%, transparent),
+    var(--shadow-contact);
+  isolation: isolate;
+}
+.shaft-console::after {
+  position: absolute;
+  z-index: 6;
+  inset: 7px;
+  border: 1px solid color-mix(in srgb, var(--shaft-accent) 14%, transparent);
+  border-radius: calc(var(--radius-panel) - 10px);
+  content: '';
+  pointer-events: none;
+}
 .shaft-console canvas { width: 100%; height: 100%; display: block; }
-.shaft-progress { position: absolute; z-index: 2; top: 58px; right: 13px; bottom: 18px; width: 7px; overflow: hidden; border-radius: 999px; background: #ffffff17; }.shaft-progress i { position: absolute; right: 0; bottom: 0; left: 0; border-radius: inherit; background: linear-gradient(#e9a968,#5dd5cc); }.shaft-progress span { position: absolute; top: -25px; right: -4px; color: #bdeee8; font-size: 8px; font-weight: 900; white-space: nowrap; }
-.pause-button { position: absolute; z-index: 3; top: 13px; right: 13px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #ffffff21; border-radius: 999px; padding: 7px 11px; color: #d6f5f0; background: #051418a8; backdrop-filter: blur(8px); }
-.shaft-overlay { position: absolute; z-index: 4; inset: 0; display: grid; place-items: center; align-content: center; gap: 9px; padding: 24px; color: #daf6f2; background: #031216ce; text-align: center; backdrop-filter: blur(5px); }.shaft-overlay svg { color: #69d9d0; filter: drop-shadow(0 0 14px #54cbbf77); }.shaft-overlay strong { font-size: clamp(25px,6vw,42px); }.shaft-overlay span { max-width: 420px; color: #a9c8c4; line-height: 1.6; }.shaft-overlay button { margin-top: 7px; border: 1px solid #65d8d066; border-radius: 11px; padding: 10px 16px; color: #c9f8f2; background: #65d8d018; font-weight: 850; }.finished-overlay svg { color: #efa861; }
-.shaft-hint { margin: -3px 0 0; color: var(--muted); font-size: 9px; text-align: center; line-height: 1.7; }.shaft-hint kbd { margin: 0 1px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 2px 5px; color: var(--text); background: var(--surface-inset); font: inherit; font-weight: 900; }
-@media (max-width: 600px) { .shaft-console { width: min(100%, 480px); aspect-ratio: 4 / 5; }.deep-shaft-game { gap: 10px; } }
-@media (orientation: landscape) and (max-height: 580px) { .deep-shaft-game { width: min(100%, 940px); grid-template-columns: minmax(300px, 1fr) 260px; align-items: center; }.deep-shaft-game > :first-child { grid-column: 1 / -1; }.shaft-console { grid-column: 1; height: min(66vh, 440px); width: auto; }.shaft-controls { grid-column: 2; }.shaft-hint { display: none; } }
-@media (prefers-reduced-motion: reduce) { .shaft-overlay { backdrop-filter: none; } }
+
+.shaft-viewport-hud {
+  position: absolute;
+  z-index: 3;
+  top: 14px;
+  right: 14px;
+  left: 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 9px;
+  pointer-events: none;
+}
+.shaft-viewport-hud > * {
+  border: 1px solid color-mix(in srgb, var(--shaft-accent) 22%, var(--line));
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-primary) 76%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 12%, transparent);
+  backdrop-filter: blur(11px) saturate(1.08);
+}
+.shaft-location {
+  min-width: 0;
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 7px 10px;
+  color: var(--shaft-accent);
+}
+.shaft-location span { min-width: 0; display: grid; gap: 1px; }
+.shaft-location small { color: var(--shaft-accent); font-size: 6px; font-weight: 950; letter-spacing: .14em; }
+.shaft-location strong { overflow: hidden; color: var(--text); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+
+.shaft-health {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 8px 10px;
+  color: var(--shaft-danger);
+}
+.shaft-health span { display: flex; gap: 3px; }
+.shaft-health i { width: 4px; height: 10px; border-radius: 4px; background: color-mix(in srgb, var(--muted) 23%, transparent); }
+.shaft-health i.active { background: var(--shaft-accent); box-shadow: 0 0 8px color-mix(in srgb, var(--shaft-accent) 55%, transparent); }
+.shaft-health.warning i.active { background: var(--gold); box-shadow: 0 0 8px color-mix(in srgb, var(--gold) 42%, transparent); }
+.shaft-health.danger i.active { background: var(--shaft-danger); box-shadow: 0 0 8px color-mix(in srgb, var(--shaft-danger) 55%, transparent); }
+
+.pause-button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 0 11px;
+  font-size: 9px;
+  font-weight: 850;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.ceiling-warning {
+  position: absolute;
+  z-index: 3;
+  top: 66px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid color-mix(in srgb, var(--shaft-danger) 55%, var(--line));
+  border-radius: 11px;
+  padding: 7px 9px;
+  color: var(--shaft-danger);
+  background: color-mix(in srgb, var(--shaft-danger) 10%, var(--surface-primary));
+  box-shadow: 0 0 20px color-mix(in srgb, var(--shaft-danger) 14%, transparent);
+  backdrop-filter: blur(10px);
+}
+.ceiling-warning span { display: grid; }
+.ceiling-warning small { font-size: 6px; font-weight: 900; letter-spacing: .1em; }
+.ceiling-warning strong { font-size: 10px; }
+
+.shaft-depth-ruler {
+  position: absolute;
+  z-index: 3;
+  top: 78px;
+  right: 16px;
+  bottom: 78px;
+  width: 28px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  justify-items: center;
+  gap: 5px;
+  color: var(--shaft-accent);
+  pointer-events: none;
+}
+.shaft-depth-ruler > strong {
+  border: 1px solid color-mix(in srgb, var(--shaft-accent) 24%, var(--line));
+  border-radius: 999px;
+  padding: 4px 6px;
+  background: color-mix(in srgb, var(--surface-primary) 76%, transparent);
+  font-size: 8px;
+  backdrop-filter: blur(9px);
+}
+.depth-track { position: relative; width: 4px; height: 100%; border-radius: 999px; background: color-mix(in srgb, var(--text) 14%, transparent); }
+.depth-track::before {
+  position: absolute;
+  inset: 0;
+  height: var(--shaft-progress);
+  border-radius: inherit;
+  background: linear-gradient(var(--shaft-accent), color-mix(in srgb, var(--shaft-accent) 42%, var(--accent-secondary)));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--shaft-accent) 44%, transparent);
+  content: '';
+}
+.depth-track i {
+  position: absolute;
+  z-index: 1;
+  top: var(--shaft-progress);
+  left: 50%;
+  width: 9px;
+  aspect-ratio: 1;
+  border: 2px solid color-mix(in srgb, var(--surface-primary) 82%, transparent);
+  border-radius: 50%;
+  background: var(--shaft-accent);
+  box-shadow: 0 0 12px var(--shaft-accent);
+  transform: translate(-50%, -50%);
+}
+.depth-track span { position: absolute; left: -18px; color: color-mix(in srgb, var(--text) 62%, transparent); font-size: 6px; transform: translateY(-50%); }
+.depth-track span:nth-of-type(1) { top: 0; }
+.depth-track span:nth-of-type(2) { top: 25%; }
+.depth-track span:nth-of-type(3) { top: 50%; }
+.depth-track span:nth-of-type(4) { top: 75%; }
+.depth-track span:nth-of-type(5) { top: 100%; }
+
+.shaft-overlay {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 9px;
+  padding: clamp(24px, 6vw, 48px);
+  color: var(--text);
+  background:
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--shaft-accent) 12%, transparent), transparent 34%),
+    color-mix(in srgb, var(--surface-primary) 74%, transparent);
+  text-align: center;
+  backdrop-filter: blur(8px) saturate(.86);
+}
+.shaft-overlay > strong { font-family: "Songti SC", "STSong", serif; }
+.shaft-overlay button {
+  min-height: 44px;
+  margin-top: 6px;
+  border: 1px solid color-mix(in srgb, var(--shaft-accent) 56%, var(--line));
+  border-radius: 12px;
+  padding: 0 18px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--shaft-accent) 13%, var(--surface-elevated));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 24%, transparent), var(--shadow-contact);
+  font-weight: 850;
+  cursor: pointer;
+}
+.overlay-kicker { color: var(--shaft-accent); font-size: 7px; font-weight: 950; letter-spacing: .18em; }
+.overlay-mark {
+  width: 64px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  margin: 7px 0 3px;
+  border: 1px solid color-mix(in srgb, var(--shaft-accent) 48%, var(--line));
+  border-radius: 22px;
+  color: var(--shaft-accent);
+  background: color-mix(in srgb, var(--shaft-accent) 10%, var(--surface-elevated));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 22%, transparent), 0 0 30px color-mix(in srgb, var(--shaft-accent) 15%, transparent);
+}
+.ready-overlay > strong { font-size: clamp(32px, 6vw, 52px); }
+.ready-overlay > p { max-width: 430px; margin: 0; color: var(--text-soft); font-size: 11px; line-height: 1.65; }
+.ready-instructions { width: min(100%, 450px); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin: 8px 0 2px; }
+.ready-instructions > span {
+  min-width: 0;
+  min-height: 54px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  align-content: center;
+  gap: 4px;
+  border: 1px solid color-mix(in srgb, var(--shaft-accent) 18%, var(--line));
+  border-radius: 11px;
+  padding: 7px;
+  color: var(--shaft-accent);
+  background: color-mix(in srgb, var(--surface-elevated) 48%, transparent);
+}
+.ready-instructions small { flex-basis: 100%; color: var(--muted); font-size: 7px; }
+.ready-instructions kbd,
+.shaft-keyboard-hint kbd {
+  border: 1px solid color-mix(in srgb, var(--shaft-accent) 24%, var(--line));
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 2px 5px;
+  color: var(--text);
+  background: var(--surface-inset);
+  font: inherit;
+  font-weight: 900;
+}
+
+.countdown-overlay { background: radial-gradient(circle, color-mix(in srgb, var(--shaft-accent) 17%, transparent), transparent 34%); backdrop-filter: none; }
+.countdown-overlay > span { color: var(--shaft-accent); font-size: 8px; font-weight: 950; letter-spacing: .18em; }
+.countdown-overlay > strong {
+  color: var(--shaft-accent);
+  font-size: clamp(104px, 24vw, 172px);
+  line-height: .88;
+  text-shadow: 0 0 42px color-mix(in srgb, var(--shaft-accent) 48%, transparent);
+}
+.countdown-overlay > small { color: var(--text-soft); font-weight: 800; letter-spacing: .08em; }
+
+.compact-overlay > svg { color: var(--shaft-accent); filter: drop-shadow(0 0 14px color-mix(in srgb, var(--shaft-accent) 58%, transparent)); }
+.compact-overlay > strong { font-size: clamp(28px, 6vw, 48px); }
+.compact-overlay > span { max-width: 430px; color: var(--text-soft); font-size: 11px; line-height: 1.65; }
+.finished-overlay > svg { color: var(--gold); }
+
+.shaft-instruments {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto auto auto auto 1fr auto;
+  align-content: start;
+  gap: 10px;
+}
+.shaft-instruments > header { padding: 4px 2px 7px; border-bottom: 1px solid var(--line); }
+.shaft-instruments > header span,
+.shaft-instruments > header strong { display: block; }
+.shaft-instruments > header span { color: var(--shaft-accent); font-size: 7px; font-weight: 950; letter-spacing: .16em; }
+.shaft-instruments > header strong { margin-top: 4px; font-size: 16px; }
+.shaft-instruments section,
+.shaft-readouts > div {
+  border: 1px solid color-mix(in srgb, var(--shaft-accent) 14%, var(--line));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--surface-elevated) 70%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 10%, transparent);
+}
+.depth-instrument { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 2px 7px; padding: 13px; }
+.depth-instrument small { grid-column: 1 / -1; color: var(--muted); font-size: 8px; }
+.depth-instrument strong { color: var(--shaft-accent); font-size: 42px; font-variant-numeric: tabular-nums; line-height: 1; }
+.depth-instrument span { padding-bottom: 4px; color: var(--muted); font-size: 9px; }
+.depth-instrument i { grid-column: 1 / -1; height: 4px; margin-top: 8px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--muted) 20%, transparent); }
+.depth-instrument b { display: block; height: 100%; border-radius: inherit; background: var(--shaft-accent); box-shadow: 0 0 11px color-mix(in srgb, var(--shaft-accent) 50%, transparent); }
+
+.shaft-readouts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0; }
+.shaft-readouts > div { min-width: 0; padding: 10px; }
+.shaft-readouts dt { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 7px; }
+.shaft-readouts dd { margin: 6px 0 0; color: var(--text); font-size: 14px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.shaft-readouts dd.critical { color: var(--shaft-danger); }
+
+.platform-readout { display: grid; gap: 4px; padding: 11px 12px; }
+.platform-readout small,
+.platform-legend > small { color: var(--shaft-accent); font-size: 7px; font-weight: 900; letter-spacing: .1em; }
+.platform-readout strong { font-size: 13px; }
+.platform-readout span { color: var(--muted); font-size: 8px; line-height: 1.5; }
+
+.platform-legend { align-self: stretch; padding: 11px 12px; }
+.platform-legend ul { display: grid; gap: 8px; margin: 10px 0 0; padding: 0; list-style: none; }
+.platform-legend li { display: grid; grid-template-columns: 22px 1fr; align-items: center; gap: 7px; color: var(--text-soft); font-size: 8px; }
+.platform-legend i { height: 7px; border: 1px solid color-mix(in srgb, white 25%, transparent); border-radius: 3px; background: #73949e; box-shadow: inset 0 1px 0 #fff4; }
+.platform-legend .spikes i { background: #b26a71; }
+.platform-legend .crumble i { background: #a48262; }
+.platform-legend .conveyor i { background: #629b9d; }
+.platform-legend .spring i { background: #8174a2; }
+
+.shaft-keyboard-hint { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 5px; margin: 0; color: var(--muted); font-size: 7px; }
+.shaft-keyboard-hint kbd:nth-of-type(3) { grid-column: 1 / 3; text-align: center; }
+.shaft-mobile-hint { display: none; margin: 0; color: var(--muted); font-size: 8px; text-align: center; line-height: 1.6; }
+
+@media (max-width: 720px) {
+  .deep-shaft-game { gap: 9px; }
+  .shaft-station { display: block; padding: 6px; border-radius: 18px; }
+  .shaft-console { aspect-ratio: 3 / 4; border-radius: 14px; }
+  .shaft-console::after { inset: 5px; border-radius: 10px; }
+  .shaft-instruments { display: none; }
+  .shaft-mobile-hint { display: block; }
+  .shaft-viewport-hud { top: 10px; right: 10px; left: 10px; gap: 6px; }
+  .shaft-location { padding: 6px 8px; }
+  .shaft-location svg { display: none; }
+  .shaft-health { padding: 7px 8px; }
+  .shaft-health i { width: 3px; height: 8px; }
+  .pause-button { width: 34px; padding: 0; }
+  .pause-button span { display: none; }
+  .ceiling-warning { top: 56px; left: 10px; }
+  .shaft-depth-ruler { top: 66px; right: 10px; bottom: 82px; }
+  .shaft-overlay { padding: 20px; }
+  .overlay-mark { width: 52px; border-radius: 18px; }
+  .ready-overlay > strong { font-size: 31px; }
+  .ready-overlay > p { max-width: 310px; font-size: 9px; }
+  .ready-instructions { max-width: 330px; gap: 5px; }
+  .ready-instructions > span { min-height: 47px; padding: 5px; }
+  .ready-instructions small { font-size: 6px; }
+}
+
+@media (max-width: 380px) {
+  .ready-instructions { grid-template-columns: 1fr 1fr; }
+  .ready-instructions > span:last-child { grid-column: 1 / -1; min-height: 40px; }
+  .overlay-mark { margin: 2px 0 0; }
+}
+
+@media (orientation: landscape) and (max-height: 600px) {
+  .shaft-station { grid-template-columns: minmax(0, 1fr) 214px; }
+  .shaft-console { width: auto; height: min(76dvh, 520px); aspect-ratio: 4 / 3; justify-self: center; }
+  .shaft-instruments { display: grid; }
+  .platform-legend { display: none; }
+  .shaft-mobile-hint { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shaft-overlay { backdrop-filter: none; }
+}
 </style>

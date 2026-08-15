@@ -51,16 +51,16 @@ defineEmits<{ resume: []; retry: [] }>()
 </template>
 
 <style scoped>
-.tetris-board-wrap { position: relative; min-width: 0; border: 1px solid color-mix(in srgb, #62d8f0 36%, var(--line)); border-radius: 10px; padding: 6px; background: #031012; box-shadow: inset 0 0 24px #0009, 0 14px 34px #0005; }
-.tetris-board { display: grid; grid-template-columns: repeat(10, 1fr); aspect-ratio: 1 / 2; background: linear-gradient(#0b2528, #061719); }
-.tetris-cell { position: relative; min-width: 0; border: 1px solid #bdeaf006; background: #ffffff02; }
-.tetris-cell[class*="piece-"] { z-index: 1; border-color: color-mix(in srgb, var(--cell-color) 65%, #fff); border-radius: 2px; background: linear-gradient(145deg, color-mix(in srgb, var(--cell-color) 70%, #fff), var(--cell-color) 44%, color-mix(in srgb, var(--cell-color) 72%, #071416)); box-shadow: inset 1px 1px 0 #ffffff66, inset -2px -2px 0 #0003; }
-.tetris-cell[class*="piece-"] i { position: absolute; inset: 16%; border: 1px solid #ffffff28; border-radius: 2px; }
+.tetris-board-wrap { position: relative; min-width: 0; border: 1px solid color-mix(in srgb, var(--gold) 36%, var(--line)); border-radius: 10px; padding: 6px; background: color-mix(in srgb, var(--surface-inset) 78%, var(--bg)); box-shadow: inset 0 0 24px color-mix(in srgb, var(--panel-shadow) 58%, transparent), var(--shadow-contact); }
+.tetris-board { display: grid; grid-template-columns: repeat(10, 1fr); aspect-ratio: 1 / 2; background: linear-gradient(var(--surface-strong), color-mix(in srgb, var(--surface-inset) 84%, var(--bg))); }
+.tetris-cell { position: relative; min-width: 0; border: 1px solid color-mix(in srgb, var(--line) 24%, transparent); background: color-mix(in srgb, var(--panel-highlight) 4%, transparent); }
+.tetris-cell[class*="piece-"] { z-index: 1; border-color: color-mix(in srgb, var(--cell-color) 65%, var(--panel-highlight)); border-radius: 2px; background: linear-gradient(145deg, color-mix(in srgb, var(--cell-color) 70%, white), var(--cell-color) 44%, color-mix(in srgb, var(--cell-color) 72%, var(--bg))); box-shadow: inset 1px 1px 0 color-mix(in srgb, white 42%, transparent), inset -2px -2px 0 color-mix(in srgb, black 18%, transparent); }
+.tetris-cell[class*="piece-"] i { position: absolute; inset: 16%; border: 1px solid color-mix(in srgb, white 16%, transparent); border-radius: 2px; }
 .tetris-cell.ghost { z-index: 0; opacity: .24; background: transparent; box-shadow: inset 0 0 0 2px var(--cell-color); }
 .tetris-cell.active { filter: brightness(1.12); }
 .piece-I { --cell-color: var(--piece-I); }.piece-J { --cell-color: var(--piece-J); }.piece-L { --cell-color: var(--piece-L); }.piece-O { --cell-color: var(--piece-O); }.piece-S { --cell-color: var(--piece-S); }.piece-T { --cell-color: var(--piece-T); }.piece-Z { --cell-color: var(--piece-Z); }
-.tetris-overlay { position: absolute; z-index: 5; inset: 6px; display: grid; place-items: center; align-content: center; gap: 8px; padding: 20px; color: #bdeef4; background: #031316e8; text-align: center; backdrop-filter: blur(5px); }
+.tetris-overlay { position: absolute; z-index: 5; inset: 6px; display: grid; place-items: center; align-content: center; gap: 8px; padding: 20px; color: var(--text); background: color-mix(in srgb, var(--surface-elevated) 94%, transparent); text-align: center; backdrop-filter: blur(5px); }
 .tetris-overlay strong { font-size: 20px; }
 .tetris-overlay small { max-width: 260px; color: var(--muted); line-height: 1.45; }
-.tetris-overlay button { margin-top: 8px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid #62d8f066; border-radius: 10px; padding: 10px 14px; color: #bdeef4; background: #62d8f015; font-weight: 850; cursor: pointer; }
+.tetris-overlay button { margin-top: 8px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid color-mix(in srgb, var(--gold) 42%, var(--line)); border-radius: 10px; padding: 10px 14px; color: var(--text); background: color-mix(in srgb, var(--gold) 10%, var(--surface-elevated)); font-weight: 850; cursor: pointer; }
 </style>

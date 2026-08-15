@@ -511,11 +511,11 @@ function historyText(entry: HistoryEntry): string {
   border-radius: 999px;
   padding: 2px 7px;
   color: var(--muted);
-  background: rgba(0,0,0,.16);
+  background: var(--surface-inset);
   font-size: 10px;
 }
 .player-identity small.landlord,
-.self-seat small.landlord { color: #ffe2a0; background: rgba(150, 93, 24, .28); }
+.self-seat small.landlord { color: color-mix(in srgb, var(--gold) 78%, var(--text)); background: color-mix(in srgb, var(--gold) 16%, var(--surface-inset)); }
 .opponent-card-stack { position: relative; width: 29px; height: 42px; }
 .opponent-card-stack i {
   position: absolute;
@@ -531,7 +531,7 @@ function historyText(entry: HistoryEntry): string {
 .card-count small { display: block; color: var(--muted); font-size: 9px; }
 .opponent > em {
   grid-column: 2 / 4;
-  color: #8cf1cb;
+  color: var(--green);
   font-size: 11px;
   font-style: normal;
   font-weight: 800;
@@ -547,7 +547,7 @@ function historyText(entry: HistoryEntry): string {
   border: 1px solid color-mix(in srgb, var(--gold) 24%, transparent);
   border-radius: 10px;
   padding: 5px 7px;
-  background: rgba(0, 0, 0, .2);
+  background: color-mix(in srgb, var(--surface-inset) 82%, transparent);
   transform: translateX(-50%);
 }
 .bottom-cards > span:not(.playing-card) { margin-right: 2px; color: var(--muted); font-size: 10px; }
@@ -574,7 +574,7 @@ function historyText(entry: HistoryEntry): string {
   border-radius: 999px;
   padding: 4px 9px;
   color: var(--muted);
-  background: rgba(0,0,0,.18);
+  background: var(--surface-inset);
   font-size: 10px;
   font-style: normal;
 }
@@ -629,7 +629,7 @@ function historyText(entry: HistoryEntry): string {
 .bid-panel button.primary,
 .play-actions .primary {
   border-color: color-mix(in srgb, var(--green) 72%, white);
-  color: #06231c;
+  color: var(--accent-contrast);
   background: linear-gradient(135deg, color-mix(in srgb, var(--green) 82%, white), var(--green));
   box-shadow: 0 7px 18px color-mix(in srgb, var(--green) 22%, transparent);
 }
@@ -643,7 +643,7 @@ function historyText(entry: HistoryEntry): string {
   border-radius: 22px;
   padding: 13px 15px 15px;
   background: color-mix(in srgb, var(--surface) 72%, transparent);
-  box-shadow: 0 14px 34px rgba(0,0,0,.2);
+  box-shadow: var(--shadow-contact);
   transition: border-color .18s, box-shadow .18s;
 }
 .hand-zone.active {
@@ -657,11 +657,11 @@ function historyText(entry: HistoryEntry): string {
   border-radius: 999px;
   padding: 6px 10px;
   color: var(--muted);
-  background: rgba(0,0,0,.13);
+  background: var(--surface-inset);
   font-size: 11px;
   font-weight: 800;
 }
-.self-hand-header > span.active { color: #06231c; background: var(--green); }
+.self-hand-header > span.active { color: var(--accent-contrast); background: var(--green); }
 .selection-feedback {
   min-height: 33px;
   display: flex;
@@ -671,12 +671,12 @@ function historyText(entry: HistoryEntry): string {
   border-radius: 10px;
   padding: 6px 10px;
   color: var(--muted);
-  background: rgba(0,0,0,.1);
+  background: var(--surface-inset);
   text-align: center;
   font-size: 11px;
 }
 .selection-feedback.ready { color: var(--text); background: color-mix(in srgb, var(--gold) 8%, transparent); }
-.selection-feedback b { border-radius: 999px; padding: 3px 7px; color: #37270b; background: var(--gold); }
+.selection-feedback b { border-radius: 999px; padding: 3px 7px; color: var(--accent-contrast); background: var(--gold); }
 .hand {
   --hand-count: 1;
   width: 100%;
@@ -696,7 +696,7 @@ function historyText(entry: HistoryEntry): string {
   margin-left: 4px;
   border-radius: 999px;
   color: var(--green);
-  background: #06231c;
+  background: var(--surface-inset);
 }
 .settlement-card { width: min(100%, 620px); display: grid; gap: 10px; border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--line)); border-radius: 16px; padding: 15px; background: var(--surface); }
 .settlement-card header,
@@ -705,7 +705,7 @@ function historyText(entry: HistoryEntry): string {
 .settlement-card b { color: var(--red); }
 .settlement-card b.gain { color: var(--green); }
 .landlord-tools { width: 100%; display: grid; grid-template-columns: 1fr; gap: 10px; }
-.landlord-tools details { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: rgba(0,0,0,.1); }
+.landlord-tools details { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--surface-inset); }
 .landlord-tools summary { display: flex; align-items: center; gap: 7px; cursor: pointer; color: var(--gold); font-weight: 800; }
 .history-panel { --game-history-max-height: 260px; }
 @media (max-width: 700px) {

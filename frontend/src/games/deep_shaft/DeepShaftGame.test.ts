@@ -48,28 +48,37 @@ function snapshot(): ArcadeSnapshot {
 
 describe('DeepShaftGame', () => {
   beforeEach(() => {
+    vi.useFakeTimers()
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
     vi.spyOn(window, 'requestAnimationFrame').mockReturnValue(1)
     vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined)
   })
 
-  afterEach(() => vi.restoreAllMocks())
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
 
-  it('提供键盘启动、暂停和双拇指左右控制', async () => {
+  it('提供倒计时、键盘暂停和视口内双拇指控制', async () => {
     const wrapper = mount(DeepShaftGame, {
       props: { snapshot: snapshot() },
       global: { plugins: [createPinia()] },
     })
 
-    expect(wrapper.get('.ready-overlay').text()).toContain('方向键 / A D')
-    expect(wrapper.findAll('.shaft-controls button')).toHaveLength(2)
+    expect(wrapper.get('.ready-overlay').text()).toContain('准备下潜')
+    expect(wrapper.findAll('.shaft-console .shaft-controls button')).toHaveLength(2)
+    expect(wrapper.get('.shaft-instruments').text()).toContain('垂直观测仪')
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowLeft' }))
     await wrapper.vm.$nextTick()
 
     expect(wrapper.find('.ready-overlay').exists()).toBe(false)
+    expect(wrapper.get('.countdown-overlay').text()).toContain('3')
+    await vi.advanceTimersByTimeAsync(2_700)
+    await wrapper.vm.$nextTick()
+
     expect(wrapper.get('.pause-button').text()).toContain('暂停')
     await wrapper.get('.pause-button').trigger('click')
-    expect(wrapper.get('.shaft-overlay').text()).toContain('挑战暂停')
+    expect(wrapper.get('.shaft-overlay').text()).toContain('探测暂停')
     wrapper.unmount()
   })
 })

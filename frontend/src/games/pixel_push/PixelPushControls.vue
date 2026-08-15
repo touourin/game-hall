@@ -46,7 +46,11 @@ function keyboardBit(code: string): number {
   if (code === 'ArrowLeft' || code === 'KeyA') return INPUT_LEFT
   if (code === 'ArrowRight' || code === 'KeyD') return INPUT_RIGHT
   if (code === 'Space' || code === 'KeyJ') return INPUT_DASH
-  if (code === 'ShiftLeft' || code === 'ShiftRight' || code === 'KeyK') return INPUT_BRACE
+  if (
+    code === 'ShiftLeft'
+    || code === 'ShiftRight'
+    || code === 'KeyK'
+  ) return INPUT_BRACE
   return 0
 }
 
@@ -219,20 +223,117 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.pixel-push-touch-controls { display: none; grid-template-columns: 1fr 1fr; align-items: end; gap: 24px; width: 100%; padding: 8px max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); user-select: none; -webkit-user-select: none; touch-action: none; }
+.pixel-push-touch-controls {
+  width: 100%;
+  display: none;
+  grid-template-columns: 1fr 1fr;
+  align-items: end;
+  gap: 24px;
+  padding:
+    8px
+    max(8px, env(safe-area-inset-right))
+    max(8px, env(safe-area-inset-bottom))
+    max(8px, env(safe-area-inset-left));
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
 .pixel-push-touch-controls.disabled { opacity: .48; }
-.pixel-push-joystick { position: relative; width: clamp(116px, 34vw, 154px); aspect-ratio: 1; border: 2px solid #78dce477; border-radius: 50%; background: radial-gradient(circle, #12333edb 0 42%, #071923e8 44% 100%); box-shadow: inset 0 0 0 8px #ffffff06, 0 12px 32px #0006; touch-action: none; }
-.joystick-cross { position: absolute; inset: 50% 18% auto; height: 2px; background: #83ced42b; transform: translateY(-1px); }
-.joystick-cross.vertical { inset: 18% auto 18% 50%; width: 2px; height: auto; transform: translateX(-1px); }
-.joystick-stick { position: absolute; left: calc(50% - 25px); top: calc(50% - 25px); width: 50px; height: 50px; border: 2px solid #b6f7f7aa; border-radius: 50%; background: linear-gradient(145deg, #4bc0c9, #176a77); box-shadow: inset 0 3px 0 #ffffff40, 0 8px 18px #0008; pointer-events: none; }
-.pixel-push-action-buttons { display: flex; align-items: end; justify-content: flex-end; gap: 12px; }
-.pixel-push-action-buttons button { display: grid; place-content: center; width: clamp(76px, 22vw, 96px); aspect-ratio: 1; border: 2px solid; border-radius: 50%; color: #efffff; box-shadow: inset 0 4px 0 #ffffff22, 0 10px 24px #0007; touch-action: none; }
+
+.pixel-push-joystick {
+  position: relative;
+  width: clamp(116px, 34vw, 154px);
+  aspect-ratio: 1;
+  border: 2px solid color-mix(in srgb, var(--push-accent) 52%, var(--line));
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--push-accent) 16%, var(--surface-inset)) 0 42%,
+    var(--surface-inset) 44% 100%
+  );
+  box-shadow:
+    inset 0 0 0 8px color-mix(in srgb, var(--metal-edge) 18%, transparent),
+    var(--shadow-contact);
+  touch-action: none;
+}
+.joystick-cross {
+  position: absolute;
+  inset: 50% 18% auto;
+  height: 2px;
+  background: color-mix(in srgb, var(--push-accent) 25%, transparent);
+  transform: translateY(-1px);
+}
+.joystick-cross.vertical {
+  inset: 18% auto 18% 50%;
+  width: 2px;
+  height: auto;
+  transform: translateX(-1px);
+}
+.joystick-stick {
+  position: absolute;
+  top: calc(50% - 25px);
+  left: calc(50% - 25px);
+  width: 50px;
+  height: 50px;
+  border: 2px solid color-mix(in srgb, var(--push-accent) 74%, var(--line-bright));
+  border-radius: 50%;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--push-accent) 74%, var(--accent-highlight)),
+    color-mix(in srgb, var(--push-accent) 76%, var(--gold-deep))
+  );
+  box-shadow:
+    inset 0 3px 0 color-mix(in srgb, white 32%, transparent),
+    var(--shadow-contact);
+  pointer-events: none;
+}
+
+.pixel-push-action-buttons {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.pixel-push-action-buttons button {
+  width: clamp(76px, 22vw, 96px);
+  display: grid;
+  place-content: center;
+  aspect-ratio: 1;
+  border: 2px solid;
+  border-radius: 50%;
+  color: var(--text);
+  box-shadow:
+    inset 0 4px 0 color-mix(in srgb, white 18%, transparent),
+    var(--shadow-contact);
+  touch-action: none;
+}
 .pixel-push-action-buttons strong { font-size: 17px; line-height: 1; }
-.pixel-push-action-buttons small { margin-top: 5px; color: #ffffffb5; font-size: 10px; }
-.brace-button { border-color: #9bc7ff88 !important; background: linear-gradient(145deg, #3c668a, #1d344f); }
-.dash-button { width: clamp(88px, 25vw, 108px) !important; border-color: #ffe17caa !important; background: linear-gradient(145deg, #e68d35, #a3432e); }
+.pixel-push-action-buttons small {
+  margin-top: 5px;
+  color: var(--text-soft);
+  font-size: 10px;
+}
+.brace-button {
+  border-color: color-mix(in srgb, var(--accent-secondary) 58%, var(--line)) !important;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--accent-secondary) 26%, var(--surface-elevated)),
+    var(--surface-inset)
+  );
+}
+.dash-button {
+  width: clamp(88px, 25vw, 108px) !important;
+  border-color: color-mix(in srgb, var(--push-warning) 64%, var(--line)) !important;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--push-warning) 27%, var(--surface-elevated)),
+    color-mix(in srgb, var(--push-danger) 16%, var(--surface-inset))
+  );
+}
 .dash-button.cooling { filter: saturate(.35); }
-.pixel-push-action-buttons button:active { transform: translateY(2px) scale(.97); }
+.pixel-push-action-buttons button:active {
+  transform: translateY(2px) scale(.97);
+}
 @media (hover: none), (pointer: coarse), (max-width: 720px) {
   .pixel-push-touch-controls { display: grid; }
 }

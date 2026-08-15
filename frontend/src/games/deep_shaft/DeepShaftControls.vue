@@ -32,10 +32,60 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
-.shaft-controls { width: min(100%, 520px); margin: 0 auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; user-select: none; touch-action: none; }
-.shaft-controls button { min-height: 82px; display: grid; grid-template-columns: auto auto; place-content: center; align-items: center; gap: 1px 9px; border: 1px solid color-mix(in srgb, #368f89 38%, var(--line)); border-radius: 16px; color: color-mix(in srgb, #15766f 74%, var(--text)); background: linear-gradient(145deg, #65d8d012, transparent), var(--surface-inset); box-shadow: inset 0 1px 0 #ffffff12; touch-action: none; }
-.shaft-controls button svg { grid-row: 1 / 3; }.shaft-controls strong,.shaft-controls small { text-align: left; }.shaft-controls strong { font-size: 14px; }.shaft-controls small { color: var(--muted); font-size: 8px; }
-.shaft-controls button:active { border-color: #3ca69e; color: color-mix(in srgb, #0d625c 82%, var(--text)); background: #65d8d02b; transform: scale(.97); }.shaft-controls button:disabled { opacity: .58; transform: none; }
+.shaft-controls {
+  position: absolute;
+  z-index: 4;
+  right: 16px;
+  bottom: 15px;
+  left: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(54px, 22vw, 118px);
+  user-select: none;
+  touch-action: none;
+  pointer-events: none;
+}
+.shaft-controls button {
+  min-width: 0;
+  min-height: 62px;
+  display: grid;
+  grid-template-columns: auto minmax(0, auto);
+  place-content: center;
+  align-items: center;
+  gap: 1px 8px;
+  border: 1px solid color-mix(in srgb, var(--shaft-accent) 46%, var(--line));
+  border-radius: 19px;
+  padding: 8px 12px;
+  color: color-mix(in srgb, var(--shaft-accent) 76%, var(--text));
+  background:
+    linear-gradient(145deg, color-mix(in srgb, white 12%, transparent), transparent 38%),
+    color-mix(in srgb, var(--surface-primary) 78%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 18%, transparent),
+    0 9px 24px color-mix(in srgb, var(--bg) 38%, transparent);
+  backdrop-filter: blur(13px) saturate(1.08);
+  touch-action: none;
+  pointer-events: auto;
+}
+.shaft-controls button svg { grid-row: 1 / 3; }
+.shaft-controls strong,
+.shaft-controls small { overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.shaft-controls strong { color: var(--text); font-size: 11px; }
+.shaft-controls small { color: var(--muted); font-size: 6px; }
+.shaft-controls button:active {
+  border-color: var(--shaft-accent);
+  color: var(--accent-contrast);
+  background: var(--shaft-accent);
+  transform: translateY(1px) scale(.96);
+}
+.shaft-controls button:active strong,
+.shaft-controls button:active small { color: var(--accent-contrast); }
+.shaft-controls button:disabled { opacity: .46; transform: none; }
 @media (min-width: 760px) and (hover: hover) and (pointer: fine) { .shaft-controls { display: none; } }
-@media (max-height: 700px) { .shaft-controls button { min-height: 66px; } }
+@media (max-width: 380px) {
+  .shaft-controls { right: 12px; bottom: 11px; left: 12px; gap: 46px; }
+  .shaft-controls button { min-height: 56px; padding: 7px 9px; }
+  .shaft-controls button svg { width: 27px; }
+}
+@media (max-height: 700px) { .shaft-controls button { min-height: 54px; } }
 </style>

@@ -58,11 +58,11 @@ watch(() => props.disabled, (disabled) => {
 .move-controls button { min-height: 72px; }
 .action-controls { display: grid; grid-template-columns: .8fr 1.2fr; grid-template-rows: 1fr 1fr; gap: 7px; }
 .action-controls .rotate-main { grid-row: 1 / 3; grid-column: 2; }
-.action-controls button,.move-controls button,.hard-drop { display: grid; place-items: center; align-content: center; gap: 3px; border: 1px solid color-mix(in srgb, #62d8f0 25%, var(--line)); border-radius: 14px; color: var(--text); background: linear-gradient(145deg, #62d8f00b, transparent), var(--surface-inset); box-shadow: inset 0 1px 0 #ffffff0a; touch-action: none; }
-.action-controls button:active,.move-controls button:active,.hard-drop:active { border-color: #8be7f4; background: #62d8f020; transform: scale(.96); }
+.action-controls button,.move-controls button,.hard-drop { display: grid; place-items: center; align-content: center; gap: 3px; border: 1px solid color-mix(in srgb, var(--gold) 25%, var(--line)); border-radius: 14px; color: var(--text); background: linear-gradient(145deg, color-mix(in srgb, var(--gold) 5%, transparent), transparent), var(--surface-inset); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 32%, transparent); touch-action: none; }
+.action-controls button:active,.move-controls button:active,.hard-drop:active { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, var(--surface-inset)); transform: scale(.96); }
 .action-controls button:disabled,.move-controls button:disabled,.hard-drop:disabled,.mobile-tetris-controls header button:disabled { opacity: .48; cursor: not-allowed; transform: none; }
 .action-controls small,.hard-drop small { color: var(--muted); font-size: 8px; }
-.hard-drop { min-height: 100%; border-color: #eab46366; color: #f2cc86; background: linear-gradient(145deg, #eab46322, #4a301120), var(--surface-inset); }
+.hard-drop { min-height: 100%; border-color: color-mix(in srgb, var(--gold) 46%, var(--line)); color: var(--gold); background: linear-gradient(145deg, color-mix(in srgb, var(--gold) 13%, transparent), color-mix(in srgb, var(--gold-deep) 8%, transparent)), var(--surface-inset); }
 .hard-drop strong { font-size: 14px; }
 @media (max-width: 700px), (hover: none) and (pointer: coarse) { .mobile-tetris-controls { display: block; } }
 @media (max-width: 430px) {

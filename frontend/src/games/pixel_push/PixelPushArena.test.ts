@@ -2,6 +2,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { mount } from '@vue/test-utils'
 import type { ArcadeSnapshot } from '../../types/arcade'
 import { useArcadeStore } from '../../stores/arcade'
+import { applyTheme } from '../../theme'
 import PixelPushArena from './PixelPushArena.vue'
 import PixelPushControls from './PixelPushControls.vue'
 
@@ -169,6 +170,24 @@ describe('PixelPushArena', () => {
     finished.phase = 'finished'
     const wrapper = mount(PixelPushArena, { props: { snapshot: finished } })
 
+    expect(sendInput).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('switches all three visual themes without resetting the live match', async () => {
+    applyTheme('emerald')
+    const arcade = useArcadeStore()
+    const sendInput = vi.spyOn(arcade, 'realtimeInput').mockResolvedValue(true)
+    const wrapper = mount(PixelPushArena, { props: { snapshot: snapshot() } })
+    sendInput.mockClear()
+
+    applyTheme('midnight')
+    await wrapper.vm.$nextTick()
+    applyTheme('royal')
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('.pixel-push-match-header').text()).toContain('月台零号')
+    expect(wrapper.findAll('.pixel-push-scoreboard article')).toHaveLength(2)
     expect(sendInput).not.toHaveBeenCalled()
     wrapper.unmount()
   })

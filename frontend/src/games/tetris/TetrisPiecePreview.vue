@@ -19,6 +19,6 @@ const occupiedCells = computed(() => props.piece ? previewCells(props.piece) : n
 <style scoped>
 .mini-grid { width: 100%; max-width: var(--tetris-preview-size, 88px); aspect-ratio: 1; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); padding: 2px; }
 .mini-grid i { min-width: 0; aspect-ratio: 1; border: 1px solid transparent; }
-.mini-grid i[class*="piece-"] { border-color: color-mix(in srgb, var(--cell-color) 72%, white); border-radius: 2px; background: var(--cell-color); box-shadow: inset 1px 1px 0 #ffffff55; }
+.mini-grid i[class*="piece-"] { border-color: color-mix(in srgb, var(--cell-color) 72%, white); border-radius: 2px; background: var(--cell-color); box-shadow: inset 1px 1px 0 color-mix(in srgb, white 34%, transparent); }
 .piece-I { --cell-color: var(--piece-I); }.piece-J { --cell-color: var(--piece-J); }.piece-L { --cell-color: var(--piece-L); }.piece-O { --cell-color: var(--piece-O); }.piece-S { --cell-color: var(--piece-S); }.piece-T { --cell-color: var(--piece-T); }.piece-Z { --cell-color: var(--piece-Z); }
 </style>
