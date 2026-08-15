@@ -12,7 +12,7 @@ export type BuiltinArcadeGameKey =
   | 'reaction'
   | 'deep_shaft'
   | 'schulte'
-  | 'survive_three_seconds'
+  | 'critical_crossing'
   | 'minesweeper'
   | 'hanoi'
   | 'tetris'

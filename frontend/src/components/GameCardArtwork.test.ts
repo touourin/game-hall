@@ -18,7 +18,7 @@ const artworkSlugs: Record<BuiltinArcadeGameKey, string> = {
   reaction: 'reaction',
   deep_shaft: 'deep-shaft',
   schulte: 'schulte',
-  survive_three_seconds: 'survive-three-seconds',
+  critical_crossing: 'critical-crossing',
   minesweeper: 'minesweeper',
   hanoi: 'hanoi',
   tetris: 'tetris',

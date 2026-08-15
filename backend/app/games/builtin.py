@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from backend.app.games.avalon.definition import AVALON_GAME
 from backend.app.games.chess.definition import CHESS_GAME
+from backend.app.games.critical_crossing.definition import CRITICAL_CROSSING_GAME
 from backend.app.games.deep_shaft.definition import DEEP_SHAFT_GAME
 from backend.app.games.departed_suspicion.definition import (
     DEPARTED_SUSPICION_GAME,
@@ -20,7 +21,6 @@ from backend.app.games.one_night_werewolf.definition import (
 from backend.app.games.poker.definition import POKER_GAME
 from backend.app.games.reaction.definition import REACTION_GAME
 from backend.app.games.schulte.definition import SCHULTE_GAME
-from backend.app.games.survive_three_seconds.definition import SURVIVE_THREE_SECONDS_GAME
 from backend.app.games.tetris.definition import TETRIS_GAME
 from backend.app.games.xiangqi.definition import XIANGQI_GAME
 
@@ -39,7 +39,7 @@ BUILTIN_GAME_DEFINITIONS: tuple[GameDefinition, ...] = (
     REACTION_GAME,
     DEEP_SHAFT_GAME,
     SCHULTE_GAME,
-    SURVIVE_THREE_SECONDS_GAME,
+    CRITICAL_CROSSING_GAME,
     MINESWEEPER_GAME,
     HANOI_GAME,
     TETRIS_GAME,

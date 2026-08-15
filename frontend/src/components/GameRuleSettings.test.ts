@@ -399,6 +399,36 @@ describe('GameRuleSettings', () => {
     expect(wrapper.text()).not.toContain('首局先手')
   })
 
+  it('offers the three Critical Crossing durations without multiplayer settings', async () => {
+    const wrapper = mount(GameRuleSettings, {
+      props: {
+        gameKey: 'critical_crossing',
+        modelValue: defaultGameRules('critical_crossing'),
+      },
+    })
+    const critical = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('10 秒 · 10 轮'))
+
+    await critical?.trigger('click')
+
+    expect(defaultGameRules('critical_crossing')).toEqual({
+      difficulty: '5s',
+      allowSpectators: false,
+    })
+    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toEqual({
+      difficulty: '10s',
+      allowSpectators: false,
+    })
+    expect(gameRuleLabels('critical_crossing', { difficulty: '10s' })).toEqual([
+      '临界',
+      '10 秒目标',
+      '10 轮脉冲',
+    ])
+    expect(wrapper.text()).not.toContain('首局先手')
+    expect(wrapper.text()).not.toContain('第一人称观战')
+  })
+
   it('offers timed and endless Tetris challenges', async () => {
     const rules = defaultGameRules('tetris')
     const wrapper = mount(GameRuleSettings, {

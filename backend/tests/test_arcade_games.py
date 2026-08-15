@@ -62,6 +62,7 @@ def test_all_registered_builtin_game_definitions_validate_their_engines() -> Non
 
 def test_scored_games_own_their_record_contract() -> None:
     reaction = builtin_game_definition("reaction")
+    critical_crossing = builtin_game_definition("critical_crossing")
     deep_shaft = builtin_game_definition("deep_shaft")
     minesweeper = builtin_game_definition("minesweeper")
     tetris = builtin_game_definition("tetris")
@@ -69,6 +70,11 @@ def test_scored_games_own_their_record_contract() -> None:
 
     assert reaction is not None
     assert reaction.records.score_kind == "time_trial"
+    assert critical_crossing is not None
+    assert critical_crossing.records.score_kind == "outcome"
+    assert critical_crossing.records.match_mode(
+        {"state": {"difficulty": "10s"}}
+    ) == "10s"
     assert deep_shaft is not None
     assert deep_shaft.records.score_kind == "high_score"
     assert minesweeper is not None
@@ -87,6 +93,7 @@ def test_scored_games_own_their_record_contract() -> None:
 def test_filtered_records_own_their_query_contract() -> None:
     avalon = builtin_game_definition("avalon")
     minesweeper = builtin_game_definition("minesweeper")
+    critical_crossing = builtin_game_definition("critical_crossing")
     tetris = builtin_game_definition("tetris")
     chess = builtin_game_definition("chess")
 
@@ -100,6 +107,11 @@ def test_filtered_records_own_their_query_contract() -> None:
     minesweeper.records.validate_query("expert", None)
     with pytest.raises(GameRecordQueryError, match="游戏模式或难度不正确"):
         minesweeper.records.validate_query("timed_60", None)
+
+    assert critical_crossing is not None
+    critical_crossing.records.validate_query("8s", None)
+    with pytest.raises(GameRecordQueryError, match="游戏模式或难度不正确"):
+        critical_crossing.records.validate_query("3s", None)
 
     assert tetris is not None
     tetris.records.validate_query("timed_300", None)

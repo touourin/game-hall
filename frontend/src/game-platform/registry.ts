@@ -1,5 +1,6 @@
 import avalonGame from '../games/avalon'
 import chessGame from '../games/chess'
+import criticalCrossingGame from '../games/critical_crossing'
 import deepShaftGame from '../games/deep_shaft'
 import departedSuspicionGame from '../games/departed_suspicion'
 import doudizhuGame from '../games/doudizhu'
@@ -13,7 +14,6 @@ import oneNightWerewolfGame from '../games/one_night_werewolf'
 import pokerGame from '../games/poker'
 import reactionGame from '../games/reaction'
 import schulteGame from '../games/schulte'
-import surviveThreeSecondsGame from '../games/survive_three_seconds'
 import tetrisGame from '../games/tetris'
 import xiangqiGame from '../games/xiangqi'
 import type { BuiltinArcadeGameKey } from '../types/arcade'
@@ -33,7 +33,7 @@ export const BUILTIN_GAME_DEFINITIONS = [
   reactionGame,
   deepShaftGame,
   schulteGame,
-  surviveThreeSecondsGame,
+  criticalCrossingGame,
   minesweeperGame,
   hanoiGame,
   tetrisGame,

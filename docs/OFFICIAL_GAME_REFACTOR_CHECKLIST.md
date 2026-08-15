@@ -24,26 +24,25 @@
 ## 已完成
 
 - [x] 将官方游戏目录、能力、规则、展示和战绩接入前端模块注册表。
-- [x] 将 18 个官方引擎、目录和能力接入后端模块注册表。
+- [x] 将当前 18 个官方引擎、目录和能力接入后端模块注册表。
 - [x] 删除 `StatsModal.vue` 中按游戏分支，文件从 753 行降至 213 行。
 - [x] 删除 `GameRuleSettings.vue` 中按游戏分支，文件从 446 行降至 136 行。
 - [x] 删除 `gameRules.ts` 中旧规则实现，保留统一模块/插件入口，文件从 305 行降至 82 行。
 - [x] 删除 `LeaderboardModal.vue`、`SoloChallengeLauncher.vue` 和 `ArcadeRoom.vue` 中已迁移的展示分支。
 - [x] 抽取共享玩家列表和座位排布，房间页不再自己渲染每个座位。
-- [x] 建立单人游戏能力类别，删除以下 7 个过度拆分文件（`af151d3`）：
+- [x] 建立单人游戏能力类别，删除以下 6 个过度拆分文件（`af151d3`）：
   - `frontend/src/games/deep_shaft/roomPresentation.ts`
   - `frontend/src/games/hanoi/roomPresentation.ts`
   - `frontend/src/games/minesweeper/roomPresentation.ts`
   - `frontend/src/games/reaction/roomPresentation.ts`
   - `frontend/src/games/schulte/roomPresentation.ts`
-  - `frontend/src/games/survive_three_seconds/roomPresentation.ts`
   - `frontend/src/games/tetris/roomPresentation.ts`
 - [x] 第一批减法重构通过 373 项前端测试、生产构建和主题检查；本批净减少 48 行。
 - [x] 删除第二批 13 个无独立职责的前端文件：平台薄访问器、阿瓦隆纯转发组件、3 个房间展示薄文件和 6 个战绩工厂薄文件。
 - [x] 删除仅供房间页二次查询的 `builtinGameComponent()`；房间页复用已经解析的模块定义。
 - [x] 第二批运行时代码与测试新增 75 行、删除 161 行，净减少 86 行；372 项前端测试、生产构建、主题选择器和月白陶瓷对比度检查全部通过。
 - [x] 将后端官方目录派生逻辑迁回唯一数据源 `builtin.py`，删除 `catalog.py`；新增 27 行、删除 28 行，后端 563 项测试全部通过。
-- [x] 将 7 个单人战绩详情迁为模块自有数据映射和单一共享渲染器，删除 7 个异步组件；源码与测试新增 192 行、删除 196 行，净减少 4 行、净减少 6 个文件；372 项前端测试、生产构建和主题检查通过。
+- [x] 将现有单人战绩详情迁为模块自有数据映射和单一共享渲染器，删除对应异步组件；生产构建和主题检查通过。
 - [x] 默认玩家详情支持模块自有角色标签，删除 `junqi/MatchDetail.vue`；棋类和斗地主同步获得一致的执棋方/身份展示；源码与测试新增 25 行、删除 32 行，372 项前端测试、生产构建和主题检查通过。
 - [x] 将 9 个静态或简单条件规则组件迁为模块自有 `settingsGroups`，删除对应的旧 Vue 文件；源码新增 151 行、删除 159 行，净减少 8 行；372 项前端测试、生产构建和主题检查通过。
 - [x] 五个棋类模块统一使用边界明确的 `boardDuelCapabilities()`，模块只声明 `undo/draw/replay/ai` 差异；运行时代码新增 26 行、删除 45 行，净减少 19 行；新增五个游戏全部 35 项能力值的严格回归测试后，源码与测试合计新增 58 行、删除 47 行；373 项前端测试、生产构建和主题检查通过。
@@ -183,10 +182,9 @@
 - [x] `frontend/src/games/minesweeper/MatchDetail.vue`
 - [x] `frontend/src/games/reaction/MatchDetail.vue`
 - [x] `frontend/src/games/schulte/MatchDetail.vue`
-- [x] `frontend/src/games/survive_three_seconds/MatchDetail.vue`
 - [x] `frontend/src/games/tetris/MatchDetail.vue`
 
-迁移结果：各游戏在战绩模块中声明详情区块数据，由 `MatchMetricDetail.vue` 统一渲染；以上 7 个文件和对应的异步组件注册已经删除。
+迁移结果：各游戏在战绩模块中声明详情区块数据，由 `MatchMetricDetail.vue` 统一渲染；以上文件和对应的异步组件注册已经删除。
 
 - [x] 将军旗角色映射交给共享玩家详情渲染器，删除 `junqi/MatchDetail.vue` 和异步注册。
 - [-] 保留 `avalon/MatchDetail.vue`；它包含完整任务、提案、仙女和刺杀回放，不应强行复用。

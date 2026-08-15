@@ -127,6 +127,7 @@ export interface MatchDetail {
       disc_count?: number
       moves?: number
       elapsed_ms?: number
+      duration_ms?: number
       mistakes?: number
       difficulty?: string
       rows?: number
@@ -142,6 +143,8 @@ export interface MatchDetail {
       deepest_floor?: number
       health?: number
       input_count?: number
+      pulse_count?: number
+      collision_kind?: string | null
     }
   }
 }

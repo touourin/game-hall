@@ -5,7 +5,7 @@ import { useArcadeStore } from '../stores/arcade'
 import GameHall from './GameHall.vue'
 
 describe('GameHall', () => {
-  it('shows eighteen games and selects the requested game', async () => {
+  it('shows every registered game and selects the requested game', async () => {
     const wrapper = mount(GameHall, {
       props: {
         account: {
@@ -67,7 +67,7 @@ describe('GameHall', () => {
     expect(wrapper.text()).toContain('反应挑战')
     expect(wrapper.text()).toContain('百层深井')
     expect(wrapper.text()).toContain('舒尔特方格')
-    expect(wrapper.text()).toContain('坚持三秒')
+    expect(wrapper.text()).toContain('临界穿越')
     expect(wrapper.text()).toContain('扫雷')
     expect(wrapper.text()).toContain('汉诺塔')
     expect(wrapper.text()).toContain('大富翁')

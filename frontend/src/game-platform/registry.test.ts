@@ -165,6 +165,11 @@ describe('built-in game registry', () => {
     expect(builtinGameDefinition('reaction')?.capabilities.spectators).toBe(false)
 
     expect(
+      builtinGameDefinition('critical_crossing')?.records?.modeFromRules?.({
+        difficulty: '10s',
+      }),
+    ).toBe('10s')
+    expect(
       builtinGameDefinition('minesweeper')?.records?.modeFromRules?.({
         difficulty: 'expert',
       }),

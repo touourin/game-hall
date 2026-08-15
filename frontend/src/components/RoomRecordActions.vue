@@ -68,7 +68,7 @@ const showLeaderboard = ref(false)
 
 @media (max-width: 680px) {
   .room-record-action {
-    flex: 1 1 calc(50% - 4px);
+    flex: 1 1 auto;
     min-width: 0;
   }
 }
