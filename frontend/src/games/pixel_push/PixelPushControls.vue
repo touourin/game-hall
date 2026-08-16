@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   INPUT_BRACE,
   INPUT_DASH,
@@ -12,10 +12,16 @@ import {
 const props = defineProps<{
   disabled?: boolean
   dashReady?: boolean
+  dashing?: boolean
 }>()
 const emit = defineEmits<{
   mask: [value: number]
 }>()
+
+const dashStatus = computed(() => {
+  if (props.dashing) return '反推刹停'
+  return props.dashReady ? '可用' : '冷却'
+})
 
 const joystick = ref<HTMLElement | null>(null)
 const stickX = ref(0)
@@ -216,7 +222,7 @@ onBeforeUnmount(() => {
         @pointerup="onActionUp"
         @pointercancel="onActionUp"
       >
-        <strong>冲刺</strong><small>{{ dashReady ? '可用' : '冷却' }}</small>
+        <strong>冲刺</strong><small>{{ dashStatus }}</small>
       </button>
     </div>
   </div>

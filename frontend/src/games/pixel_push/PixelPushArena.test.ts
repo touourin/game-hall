@@ -111,6 +111,7 @@ describe('PixelPushArena', () => {
     expect(wrapper.findAll('.pixel-push-scoreboard article')).toHaveLength(2)
     expect(wrapper.get('.arena-overlay').text()).toContain('3')
     expect(wrapper.get('.desktop-control-legend').text()).toContain('稳住')
+    expect(wrapper.get('.desktop-control-legend').text()).toContain('反向输入可刹停冲刺')
 
     wrapper.getComponent(PixelPushControls).vm.$emit('mask', 8)
     await wrapper.vm.$nextTick()
@@ -211,6 +212,17 @@ describe('PixelPushControls', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.emitted('mask')?.at(-1)).toEqual([0])
+    wrapper.unmount()
+  })
+
+  it('shows the reverse-brake hint while dashing', async () => {
+    const wrapper = mount(PixelPushControls, {
+      props: { disabled: false, dashReady: false, dashing: false },
+    })
+
+    await wrapper.setProps({ dashing: true })
+
+    expect(wrapper.get('.dash-button small').text()).toBe('反推刹停')
     wrapper.unmount()
   })
 })

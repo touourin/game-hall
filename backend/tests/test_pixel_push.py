@@ -11,9 +11,13 @@ from backend.app.games.base import GameRuleError
 from backend.app.games.pixel_push.engine import (
     ACTIVE_ROUND_TICKS,
     COUNTDOWN_TICKS,
+    DASH_COOLDOWN_TICKS,
+    DASH_SPEED,
+    DASH_TICKS,
     DISCONNECT_KO_TICKS,
     INPUT_BRACE,
     INPUT_DASH,
+    INPUT_LEFT,
     INPUT_RIGHT,
     MAP_CROSS_BRIDGE,
     MAP_MOON_STATION,
@@ -127,10 +131,129 @@ def test_dash_collision_adds_balance_and_knockback() -> None:
 
     engine.tick(room)
 
-    assert target.balance > 0
+    assert target.balance == 34
     assert target.velocity_x > 0
     assert target.last_hit_by == attacker.player_id
     assert any(event.kind == "hit" for event in room.state.events)
+
+
+def test_dash_moves_for_six_ticks_and_can_hit_on_the_final_tick() -> None:
+    engine = PixelPushEngine(FixedRng())
+    room = make_room(engine)
+    activate(room)
+    attacker = room.state.players["p0"]
+    starting_x = attacker.x
+
+    engine.apply_input(
+        room,
+        room.players[0],
+        1,
+        INPUT_RIGHT | INPUT_DASH,
+    )
+    for _ in range(DASH_TICKS):
+        engine.tick(room)
+
+    assert DASH_TICKS == 6
+    assert attacker.x == starting_x + DASH_SPEED * DASH_TICKS
+    assert attacker.dash_ticks == 0
+
+    final_tick_room = make_room(engine)
+    activate(final_tick_room)
+    attacker = final_tick_room.state.players["p0"]
+    target = final_tick_room.state.players["p1"]
+    attacker.x = 4_200
+    attacker.y = 3_500
+    target.x = 5_000
+    target.y = 3_500
+    attacker.dash_direction_x = 1_000
+    attacker.dash_direction_y = 0
+    attacker.dash_ticks = 1
+
+    engine.tick(final_tick_room)
+
+    assert attacker.dash_ticks == 0
+    assert target.balance == 34
+    assert any(event.kind == "hit" for event in final_tick_room.state.events)
+
+
+def test_reverse_input_cancels_dash_without_refunding_cooldown() -> None:
+    engine = PixelPushEngine(FixedRng())
+    room = make_room(engine)
+    activate(room)
+    attacker = room.state.players["p0"]
+
+    engine.apply_input(
+        room,
+        room.players[0],
+        1,
+        INPUT_RIGHT | INPUT_DASH,
+    )
+    engine.tick(room)
+    x_before_cancel = attacker.x
+    assert attacker.velocity_x == DASH_SPEED
+
+    engine.apply_input(
+        room,
+        room.players[0],
+        2,
+        INPUT_LEFT | INPUT_BRACE,
+    )
+    engine.tick(room)
+
+    assert attacker.dash_ticks == 0
+    assert 0 < attacker.velocity_x < DASH_SPEED
+    assert attacker.x - x_before_cancel < DASH_SPEED // 4
+    assert attacker.dash_cooldown_ticks == DASH_COOLDOWN_TICKS - 1
+    assert engine.realtime_frame(room)["players"][0]["bracing"] is False
+
+    engine.tick(room)
+
+    assert engine.realtime_frame(room)["players"][0]["bracing"] is True
+
+
+def test_three_unbraced_front_hits_reach_maximum_balance() -> None:
+    engine = PixelPushEngine(FixedRng())
+    room = make_room(engine)
+    activate(room)
+    attacker = room.state.players["p0"]
+    target = room.state.players["p1"]
+
+    for expected_balance in (34, 68, 100):
+        attacker.x = 4_200
+        attacker.y = 3_500
+        attacker.velocity_x = attacker.velocity_y = 0
+        attacker.facing_x = attacker.dash_direction_x = 1_000
+        attacker.facing_y = attacker.dash_direction_y = 0
+        attacker.dash_ticks = 2
+        attacker.dash_hit_ids.clear()
+        target.x = 4_810
+        target.y = 3_500
+        target.velocity_x = target.velocity_y = 0
+
+        engine.tick(room)
+
+        assert target.balance == expected_balance
+
+
+def test_side_hit_builds_more_balance_than_front_hit() -> None:
+    engine = PixelPushEngine(FixedRng())
+    room = make_room(engine)
+    activate(room)
+    attacker = room.state.players["p0"]
+    target = room.state.players["p1"]
+    attacker.x = 4_200
+    attacker.y = 3_500
+    target.x = 4_810
+    target.y = 3_500
+    attacker.dash_direction_x = 1_000
+    attacker.dash_direction_y = 0
+    attacker.dash_ticks = 2
+    target.facing_x = 0
+    target.facing_y = -1_000
+
+    engine.tick(room)
+
+    assert target.balance == 42
 
 
 def test_front_brace_reduces_knockback_and_stops_the_dash() -> None:
@@ -159,6 +282,8 @@ def test_front_brace_reduces_knockback_and_stops_the_dash() -> None:
     unbraced_speed = unbraced_room.state.players["p1"].velocity_x
     braced_speed = braced_room.state.players["p1"].velocity_x
     assert 0 < braced_speed < unbraced_speed
+    assert unbraced_room.state.players["p1"].balance == 34
+    assert braced_room.state.players["p1"].balance == 17
     assert braced_room.state.players["p0"].dash_ticks == 0
     assert any(event.kind == "braced" for event in braced_room.state.events)
 

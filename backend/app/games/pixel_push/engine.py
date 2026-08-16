@@ -23,17 +23,19 @@ MOVE_MAX_SPEED = 112
 BRACE_MAX_SPEED = 42
 BRACE_FRICTION = 28
 DASH_SPEED = 270
-DASH_TICKS = 8
+DASH_TICKS = 6
 DASH_COOLDOWN_TICKS = 42
-DASH_BALANCE_GAIN = 16
+DASH_CANCEL_MOMENTUM_PERCENT = 25
+DASH_BALANCE_GAIN = 34
 DASH_BASE_KNOCKBACK = 126
 DASH_BALANCE_KNOCKBACK = 3
 MAX_KNOCKBACK_SPEED = 640
 MAX_SIMULATION_SUBSTEPS = 8
 BRACE_FRONT_FACTOR = 30
 BRACE_REAR_FACTOR = 66
+BRACE_FRONT_BALANCE_PERCENT = 50
 BRACE_RECOIL = 82
-SIDE_HIT_BONUS = 5
+SIDE_HIT_BONUS = 8
 BALANCE_MAX = 100
 BALANCE_RECOVERY_DELAY_TICKS = 48
 BALANCE_RECOVERY_INTERVAL_TICKS = 6
@@ -92,6 +94,7 @@ class PixelPushPlayerState:
     dash_direction_x: int = 1_000
     dash_direction_y: int = 0
     dash_hit_ids: set[str] = field(default_factory=set)
+    brace_lock_ticks: int = 0
     balance: int = 0
     balance_recovery_ticks: int = 0
     alive: bool = True
@@ -152,6 +155,11 @@ def _approach(value: int, target: int, amount: int) -> int:
     return value
 
 
+def _scale_toward_zero(value: int, percent: int) -> int:
+    magnitude = abs(value) * percent // 100
+    return magnitude if value >= 0 else -magnitude
+
+
 def _normalized_direction(x: int, y: int) -> tuple[int, int]:
     if x == 0 and y == 0:
         return 0, 0
@@ -166,6 +174,23 @@ def _input_direction(mask: int) -> tuple[int, int]:
     horizontal = int(bool(mask & INPUT_RIGHT)) - int(bool(mask & INPUT_LEFT))
     vertical = int(bool(mask & INPUT_DOWN)) - int(bool(mask & INPUT_UP))
     return _normalized_direction(horizontal, vertical)
+
+
+def _directions_oppose(
+    first_x: int,
+    first_y: int,
+    second_x: int,
+    second_y: int,
+) -> bool:
+    return first_x * second_x + first_y * second_y < 0
+
+
+def _is_bracing(actor: PixelPushPlayerState) -> bool:
+    return bool(
+        actor.input_mask & INPUT_BRACE
+        and actor.dash_ticks == 0
+        and getattr(actor, "brace_lock_ticks", 0) == 0
+    )
 
 
 def _inside_rounded_rectangle(
@@ -450,6 +475,8 @@ class PixelPushEngine:
                     - actor.velocity_y * substep // substeps
                 )
             self._resolve_player_collisions(state, actors)
+        for actor in actors:
+            self._finish_dash_tick(actor)
         self._resolve_ring_outs(state, room_players)
 
         alive = [actor for actor in state.players.values() if actor.alive]
@@ -461,6 +488,10 @@ class PixelPushEngine:
     def _advance_player(self, actor: PixelPushPlayerState) -> None:
         if actor.dash_cooldown_ticks > 0:
             actor.dash_cooldown_ticks -= 1
+        actor.brace_lock_ticks = max(
+            0,
+            getattr(actor, "brace_lock_ticks", 0) - 1,
+        )
         if actor.balance_recovery_ticks > 0:
             actor.balance_recovery_ticks -= 1
         elif actor.balance > 0 and actor.dash_ticks == 0:
@@ -468,7 +499,28 @@ class PixelPushEngine:
             actor.balance_recovery_ticks = BALANCE_RECOVERY_INTERVAL_TICKS
 
         direction_x, direction_y = _input_direction(actor.input_mask)
-        bracing = bool(actor.input_mask & INPUT_BRACE)
+        if (
+            actor.dash_ticks > 0
+            and (direction_x or direction_y)
+            and _directions_oppose(
+                direction_x,
+                direction_y,
+                actor.dash_direction_x,
+                actor.dash_direction_y,
+            )
+        ):
+            actor.dash_ticks = 0
+            actor.dash_hit_ids.clear()
+            actor.brace_lock_ticks = 1
+            actor.velocity_x = _scale_toward_zero(
+                actor.velocity_x,
+                DASH_CANCEL_MOMENTUM_PERCENT,
+            )
+            actor.velocity_y = _scale_toward_zero(
+                actor.velocity_y,
+                DASH_CANCEL_MOMENTUM_PERCENT,
+            )
+        bracing = _is_bracing(actor)
         if direction_x or direction_y:
             actor.facing_x, actor.facing_y = direction_x, direction_y
         if (
@@ -489,9 +541,6 @@ class PixelPushEngine:
         if actor.dash_ticks > 0:
             actor.velocity_x = actor.dash_direction_x * DASH_SPEED // 1_000
             actor.velocity_y = actor.dash_direction_y * DASH_SPEED // 1_000
-            actor.dash_ticks -= 1
-            if actor.dash_ticks == 0:
-                actor.dash_hit_ids.clear()
         elif direction_x or direction_y:
             max_speed = BRACE_MAX_SPEED if bracing else MOVE_MAX_SPEED
             actor.velocity_x = _approach(
@@ -508,6 +557,14 @@ class PixelPushEngine:
             friction = BRACE_FRICTION if bracing else MOVE_FRICTION
             actor.velocity_x = _approach_zero(actor.velocity_x, friction)
             actor.velocity_y = _approach_zero(actor.velocity_y, friction)
+
+    @staticmethod
+    def _finish_dash_tick(actor: PixelPushPlayerState) -> None:
+        if actor.dash_ticks <= 0:
+            return
+        actor.dash_ticks -= 1
+        if actor.dash_ticks == 0:
+            actor.dash_hit_ids.clear()
 
     def _resolve_player_collisions(
         self,
@@ -585,7 +642,7 @@ class PixelPushEngine:
             return
         attacker.dash_hit_ids.add(target.player_id)
 
-        target_bracing = bool(target.input_mask & INPUT_BRACE)
+        target_bracing = _is_bracing(target)
         target_to_attacker_x = -normal_x
         target_to_attacker_y = -normal_y
         frontal = (
@@ -595,6 +652,10 @@ class PixelPushEngine:
         balance_gain = DASH_BALANCE_GAIN
         if not frontal:
             balance_gain += SIDE_HIT_BONUS
+        elif target_bracing:
+            balance_gain = (
+                balance_gain * BRACE_FRONT_BALANCE_PERCENT // 100
+            )
         target.balance = _clamp(
             target.balance + balance_gain,
             0,
@@ -812,6 +873,7 @@ class PixelPushEngine:
             actor.dash_ticks = 0
             actor.dash_cooldown_ticks = 0
             actor.dash_hit_ids.clear()
+            actor.brace_lock_ticks = 0
             actor.balance = 0
             actor.balance_recovery_ticks = 0
             actor.alive = True
@@ -878,6 +940,7 @@ class PixelPushEngine:
         for actor in state.players.values():
             actor.input_mask = 0
             actor.dash_requested = False
+            actor.brace_lock_ticks = 0
             actor.last_input_sequence = max(-1, actor.last_input_sequence)
 
     def view(self, room: ArcadeRoom, viewer: ArcadePlayer) -> dict[str, Any]:
@@ -960,7 +1023,7 @@ class PixelPushEngine:
                     "balance": actor.balance,
                     "alive": actor.alive,
                     "dashing": actor.dash_ticks > 0,
-                    "bracing": bool(actor.input_mask & INPUT_BRACE),
+                    "bracing": _is_bracing(actor),
                     "dashCooldownTicks": actor.dash_cooldown_ticks,
                     "disconnectTicks": actor.disconnected_ticks,
                     "lastInputSequence": actor.last_input_sequence,
@@ -1003,7 +1066,7 @@ class PixelPushEngine:
             "balance": actor.balance,
             "alive": actor.alive,
             "dashing": actor.dash_ticks > 0,
-            "bracing": bool(actor.input_mask & INPUT_BRACE),
+            "bracing": _is_bracing(actor),
             "dashCooldownTicks": actor.dash_cooldown_ticks,
             "disconnectTicks": actor.disconnected_ticks,
             "roundWins": state.round_wins.get(actor.player_id, 0),

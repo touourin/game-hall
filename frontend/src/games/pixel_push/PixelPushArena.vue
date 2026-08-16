@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Gauge, Shield, Sparkles, Trophy } from '@lucide/vue'
+import { Gauge, RotateCcw, Shield, Sparkles, Trophy } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import { currentTheme } from '../../theme'
 import type { ArcadeSnapshot } from '../../types/arcade'
@@ -297,6 +297,7 @@ onBeforeUnmount(() => {
       <span><kbd>WASD</kbd><kbd>方向键</kbd>移动</span>
       <span><kbd>空格</kbd><kbd>J</kbd>冲刺</span>
       <span><kbd>Shift</kbd><kbd>K</kbd>稳住</span>
+      <span><RotateCcw :size="15" />反向输入可刹停冲刺，冷却仍保留</span>
       <span><Shield :size="15" />迎着冲刺稳住，能让对手反弹</span>
       <span><Sparkles :size="15" />侧后方撞击会增加更多失衡</span>
     </div>
@@ -305,6 +306,7 @@ onBeforeUnmount(() => {
       v-if="!isSpectating"
       :disabled="controlsDisabled"
       :dash-ready="dashReady"
+      :dashing="Boolean(selfPlayer?.dashing)"
       @mask="sendInput"
     />
   </section>
