@@ -239,7 +239,10 @@ def test_email_send_limits_apply_per_account_and_server(tmp_path):
             now=started_at + timedelta(seconds=index * 2),
         )
 
-    with pytest.raises(AccountError, match="邮件发送额度"):
+    with pytest.raises(
+        AccountError,
+        match="今日验证码邮件发送额度已用完，请明天再试",
+    ):
         store.begin_email_binding(
             accounts[6].id,
             "server-limit@example.com",

@@ -1059,7 +1059,9 @@ class AccountStore:
                         f"每个{identity_label}每天最多发送 "
                         f"{limit} 封验证码邮件"
                     )
-                raise AccountError("今天的邮件发送额度已经用完")
+                raise AccountError(
+                    "今日验证码邮件发送额度已用完，请明天再试"
+                )
 
     def _consume_email_challenge(
         self,
