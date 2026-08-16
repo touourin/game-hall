@@ -2,11 +2,28 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import shutil
 from collections import deque
 from collections.abc import Sequence
+from pathlib import Path
 
 
 logger = logging.getLogger(__name__)
+
+
+def resolve_executable(path: str | None) -> str | None:
+    """Return an executable path only when it is usable on this host."""
+    if not path:
+        return None
+    return shutil.which(path)
+
+
+def resolve_file(path: str | None) -> str | None:
+    """Return a configured asset path only when it is a regular file."""
+    if not path:
+        return None
+    candidate = Path(path).expanduser()
+    return str(candidate) if candidate.is_file() else None
 
 
 class EngineNotConfigured(RuntimeError):

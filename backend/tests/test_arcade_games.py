@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -2026,6 +2027,7 @@ def test_ai_immediately_accepts_undo_and_rewinds_its_reply_too(
     game_key: str,
 ) -> None:
     engine = XiangqiEngine() if game_key == "xiangqi" else GoEngine()
+    engine.bot_strategy.client = SimpleNamespace(configured=True)
     manager = ArcadeRoomManager({engine.key: engine})
     room, host, _ = manager.create_room(
         engine.key,
@@ -2071,6 +2073,7 @@ def test_ai_immediately_accepts_undo_and_rewinds_its_reply_too(
 
 def test_ai_undo_while_thinking_rewinds_the_human_move() -> None:
     engine = XiangqiEngine()
+    engine.bot_strategy.client = SimpleNamespace(configured=True)
     manager = ArcadeRoomManager({engine.key: engine})
     room, host, _ = manager.create_room(
         engine.key,

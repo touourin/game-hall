@@ -2,9 +2,12 @@
 
 `restart.py` 使用 Docker Compose 重新构建并重启游戏大厅。它会根据脚本自身的位置寻找仓库根目录，不依赖固定目录名；推荐把仓库放在本机的 `game-hall` 目录和服务器的 `/opt/game-hall`。
 
-仓库已固定保存一套完整的 DouZero WP 三角色模型。启用
-`INSTALL_DOUZERO_AI=1` 时，构建会校验并把模型放入应用镜像；新部署不需要手工
-准备权重，运行容器也不需要额外挂载权重目录。
+三套模型 AI 使用一致的构建开关：`ENABLE_PIKAFISH_AI`、`ENABLE_KATAGO_AI` 和
+`ENABLE_DOUZERO_AI`，取值只能是 `0` 或 `1`，默认全部启用。关闭一项会跳过对应
+下载、编译或运行依赖，并从最终应用镜像中省略该引擎和模型。
+
+仓库已固定保存一套完整的 DouZero WP 三角色模型。启用 DouZero 时，构建会校验并
+把模型放入应用镜像；新部署不需要手工准备权重，运行容器也不需要额外挂载权重目录。
 
 每次运行都会先以 `--ff-only` 更新主仓库的 `main` 分支，再把所有 Git
 Submodule 更新到各自配置的远端分支（`third_party_games` 为 `origin/main`）。

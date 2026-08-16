@@ -159,9 +159,12 @@ def test_failed_plugin_validation_keeps_current_application_running(
     assert ["docker", "compose", "up", "-d", "--no-build", "app"] not in commands
 
 
-def test_douzero_models_are_versioned_and_embedded_without_a_runtime_mount() -> None:
+def test_ai_engines_use_uniform_optional_build_bundles() -> None:
     dockerfile = (PROJECT_ROOT / "Dockerfile").read_text(encoding="utf-8")
     compose = (PROJECT_ROOT / "compose.yaml").read_text(encoding="utf-8")
+    environment_example = (PROJECT_ROOT / ".env.example").read_text(
+        encoding="utf-8"
+    )
     model_paths = require_model_paths(PROJECT_ROOT / "ai" / "douzero")
 
     assert {path.name for path in model_paths.values()} == {
@@ -169,9 +172,19 @@ def test_douzero_models_are_versioned_and_embedded_without_a_runtime_mount() -> 
         "landlord_up.ckpt",
         "landlord_down.ckpt",
     }
-    assert "FROM runtime-${INSTALL_DOUZERO_AI} AS runtime" in dockerfile
+    for engine in ("PIKAFISH", "KATAGO", "DOUZERO"):
+        setting = f"ENABLE_{engine}_AI"
+        assert f"ARG {setting}=1" in dockerfile
+        assert f"{setting}: ${{{setting}:-1}}" in compose
+        assert f"{setting}=1" in environment_example
+    assert "FROM pikafish-bundle-${ENABLE_PIKAFISH_AI}" in dockerfile
+    assert "FROM katago-bundle-${ENABLE_KATAGO_AI}" in dockerfile
+    assert "FROM douzero-runtime-${ENABLE_DOUZERO_AI} AS runtime" in dockerfile
+    assert "COPY --from=pikafish-bundle /bundle/ /" in dockerfile
+    assert "COPY --from=katago-bundle /bundle/ /" in dockerfile
     assert "/tmp/douzero-models --output /bundle" in dockerfile
     assert "COPY --from=douzero-model-bundle" in dockerfile
     assert "/bundle/ /opt/game-hall/ai/douzero/" in dockerfile
     assert "--model-dir /opt/game-hall/ai/douzero --threads 1 --check" in dockerfile
+    assert "INSTALL_DOUZERO_AI" not in dockerfile + compose + environment_example
     assert "DOUZERO_MODEL_HOST_DIR" not in compose

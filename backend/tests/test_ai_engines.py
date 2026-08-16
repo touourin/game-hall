@@ -207,6 +207,59 @@ async def test_go_bot_passes_and_confirms_the_scoring_phase() -> None:
     assert room.state.score_confirmed_player_ids == [bot.id]
 
 
+@pytest.mark.parametrize(
+    ("engine_type", "environment_names", "message"),
+    [
+        (
+            XiangqiEngine,
+            ("PIKAFISH_PATH", "PIKAFISH_EVAL_FILE"),
+            "请先启用 Pikafish AI 引擎",
+        ),
+        (
+            GoEngine,
+            ("KATAGO_PATH", "KATAGO_MODEL_PATH", "KATAGO_CONFIG_PATH"),
+            "请先启用 KataGo AI 引擎",
+        ),
+    ],
+)
+def test_disabled_model_engine_hides_and_rejects_ai_seat(
+    monkeypatch,
+    engine_type,
+    environment_names: tuple[str, ...],
+    message: str,
+) -> None:
+    for name in environment_names:
+        monkeypatch.setenv(name, "/missing/ai-asset")
+    engine = engine_type()
+    manager = ArcadeRoomManager({engine.key: engine})
+    room, host, _ = manager.create_room(
+        engine.key,
+        "房主",
+        "account-host",
+        {},
+    )
+
+    view = build_room_view(room, host, engine)
+
+    assert engine.bot_strategy.client.configured is False
+    assert view["actions"]["canAddAiPlayer"] is False
+    with pytest.raises(ArcadeRoomError, match=message):
+        manager.add_ai_player(room, host.id)
+
+
+def test_pikafish_requires_its_network_file(tmp_path) -> None:
+    executable = tmp_path / "pikafish"
+    executable.write_text("#!/bin/sh\n", encoding="utf-8")
+    executable.chmod(0o755)
+
+    client = PikafishClient(
+        executable=str(executable),
+        eval_file=str(tmp_path / "missing.nnue"),
+    )
+
+    assert client.configured is False
+
+
 async def test_doudizhu_adapter_builds_a_role_infoset_and_uses_model_move() -> None:
     engine = DoudizhuEngine()
     fake = FakeDouZero()
@@ -269,7 +322,7 @@ def test_doudizhu_douzero_seat_is_available_for_standard_rules(
 @pytest.mark.parametrize(
     ("variant", "message"),
     [
-        ("classic", "请先配置完整的 DouZero 模型"),
+        ("classic", "请先启用并正确配置 DouZero AI 引擎"),
         ("laizi", "癞子玩法暂不支持 DouZero"),
     ],
 )
@@ -380,7 +433,12 @@ async def test_doudizhu_douzero_bots_finish_supported_variants(
 
 async def test_missing_external_engine_falls_back_to_legal_move() -> None:
     engine = XiangqiEngine()
+    engine.bot_strategy.client = FakePikafish()
     manager, room, host, bot = _human_vs_bot(engine)
+    engine.bot_strategy.client = PikafishClient(
+        executable="/missing/pikafish",
+        eval_file="/missing/pikafish.nnue",
+    )
     manager.act(
         room,
         host.id,
@@ -689,11 +747,18 @@ for line in sys.stdin:
     await client.close()
 
 
-async def test_katago_warm_up_uses_one_visit() -> None:
+async def test_katago_warm_up_uses_one_visit(tmp_path) -> None:
+    executable = tmp_path / "katago"
+    executable.write_text("#!/bin/sh\n", encoding="utf-8")
+    executable.chmod(0o755)
+    model = tmp_path / "model.bin.gz"
+    model.write_bytes(b"model")
+    config = tmp_path / "analysis.cfg"
+    config.write_text("config", encoding="utf-8")
     client = KataGoAnalysisClient(
-        executable="/fake/katago",
-        model="/fake/model.bin.gz",
-        config="/fake/analysis.cfg",
+        executable=str(executable),
+        model=str(model),
+        config=str(config),
     )
     client.analyze = AsyncMock(return_value={"moveInfos": [{"move": "pass"}]})
 

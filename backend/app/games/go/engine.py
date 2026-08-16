@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from backend.app.arcade.bots import BotAvailability
 from backend.app.arcade.models import ArcadePlayer, ArcadeRoom, undo_entry_state
 from backend.app.games.base import GameRuleError
 from backend.app.games.handicap import (
@@ -67,6 +68,11 @@ class GoEngine:
 
     def fallback_bot_action(self, room: ArcadeRoom):
         return self.bot_strategy.fallback_action(room)
+
+    def bot_availability(self, room: ArcadeRoom) -> BotAvailability:
+        if not getattr(self.bot_strategy.client, "configured", True):
+            return BotAvailability(False, "请先启用 KataGo AI 引擎")
+        return BotAvailability(True)
 
     async def close(self) -> None:
         await self.bot_strategy.close()

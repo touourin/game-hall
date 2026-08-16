@@ -82,7 +82,9 @@ services:
       args:
         PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
         PYTORCH_CPU_INDEX_URL: ${PYTORCH_CPU_INDEX_URL:-https://download.pytorch.org/whl/cpu}
-        INSTALL_DOUZERO_AI: ${INSTALL_DOUZERO_AI:-0}
+        ENABLE_PIKAFISH_AI: ${ENABLE_PIKAFISH_AI:-1}
+        ENABLE_KATAGO_AI: ${ENABLE_KATAGO_AI:-1}
+        ENABLE_DOUZERO_AI: ${ENABLE_DOUZERO_AI:-1}
     container_name: game-hall-app
     restart: unless-stopped
     logging: *default-logging

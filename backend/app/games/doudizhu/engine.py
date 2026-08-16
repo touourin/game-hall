@@ -355,7 +355,7 @@ class DoudizhuEngine:
         ):
             return BotAvailability(
                 False,
-                "请先配置完整的 DouZero 模型后再添加 AI 玩家",
+                "请先启用并正确配置 DouZero AI 引擎",
             )
         return BotAvailability(True)
 

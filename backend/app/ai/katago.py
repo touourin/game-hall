@@ -7,7 +7,7 @@ import secrets
 from contextlib import suppress
 from typing import Any
 
-from .process import ManagedLineProcess
+from .process import ManagedLineProcess, resolve_executable, resolve_file
 
 
 DEFAULT_VISITS = {
@@ -37,9 +37,9 @@ class KataGoAnalysisClient:
     ) -> None:
         if max_concurrent < 1 or max_queued < 0:
             raise ValueError("KataGo 并发配置无效")
-        path = executable or os.getenv("KATAGO_PATH")
-        self.model = model or os.getenv("KATAGO_MODEL_PATH")
-        self.config = config or os.getenv("KATAGO_CONFIG_PATH")
+        path = resolve_executable(executable or os.getenv("KATAGO_PATH"))
+        self.model = resolve_file(model or os.getenv("KATAGO_MODEL_PATH"))
+        self.config = resolve_file(config or os.getenv("KATAGO_CONFIG_PATH"))
         command = None
         if path and self.model and self.config:
             command = (

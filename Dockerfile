@@ -1,7 +1,9 @@
 ARG DEBIAN_MIRROR=http://mirrors.aliyun.com/debian
 ARG DEBIAN_SECURITY_MIRROR=http://mirrors.aliyun.com/debian-security
 ARG GITHUB_DOWNLOAD_PREFIX=https://ghfast.top/
-ARG INSTALL_DOUZERO_AI=0
+ARG ENABLE_PIKAFISH_AI=1
+ARG ENABLE_KATAGO_AI=1
+ARG ENABLE_DOUZERO_AI=1
 
 FROM node:24-alpine AS web-builder
 
@@ -138,7 +140,51 @@ WORKDIR /app
 COPY backend/ ./backend/
 
 
-FROM runtime-base AS runtime-0
+FROM runtime-base AS empty-ai-bundle
+
+RUN mkdir /bundle
+
+
+FROM empty-ai-bundle AS pikafish-bundle-0
+
+
+FROM pikafish-builder AS pikafish-bundle-1
+
+RUN install -D -m 0755 /out/pikafish \
+      /bundle/opt/game-hall/ai/pikafish \
+    && install -D -m 0644 /out/pikafish.nnue \
+      /bundle/opt/game-hall/ai/pikafish.nnue \
+    && mkdir -p /bundle/usr/share/game-hall/source \
+    && cp -a /src/Pikafish \
+      /bundle/usr/share/game-hall/source/pikafish \
+    && install -D -m 0644 /src/Pikafish/Copying.txt \
+      /bundle/usr/share/game-hall/licenses/PIKAFISH-GPL-3.0.txt \
+    && install -D -m 0644 /out/PIKAFISH-NNUE-LICENSE.md \
+      /bundle/usr/share/game-hall/licenses/PIKAFISH-NNUE-LICENSE.md
+
+
+FROM pikafish-bundle-${ENABLE_PIKAFISH_AI} AS pikafish-bundle
+
+
+FROM empty-ai-bundle AS katago-bundle-0
+
+
+FROM katago-builder AS katago-bundle-1
+
+COPY backend/app/ai/katago-analysis.cfg \
+  /bundle/opt/game-hall/ai/katago-analysis.cfg
+RUN install -D -m 0755 /src/KataGo/build/katago \
+      /bundle/opt/game-hall/ai/katago \
+    && install -D -m 0644 /src/katago-model.bin.gz \
+      /bundle/opt/game-hall/ai/katago-model.bin.gz \
+    && install -D -m 0644 /src/KataGo/LICENSE \
+      /bundle/usr/share/game-hall/licenses/KATAGO.txt
+
+
+FROM katago-bundle-${ENABLE_KATAGO_AI} AS katago-bundle
+
+
+FROM runtime-base AS douzero-runtime-0
 
 RUN pip install --no-cache-dir --index-url "$PIP_INDEX_URL" ./backend
 
@@ -150,7 +196,7 @@ RUN python backend/app/ai/douzero_models.py \
       /tmp/douzero-models --output /bundle
 
 
-FROM runtime-base AS runtime-1
+FROM runtime-base AS douzero-runtime-1
 
 COPY --from=douzero-model-bundle \
   /bundle/ /opt/game-hall/ai/douzero/
@@ -162,19 +208,19 @@ RUN pip install --no-cache-dir --index-url "$PYTORCH_CPU_INDEX_URL" \
       --model-dir /opt/game-hall/ai/douzero --threads 1 --check
 
 
-FROM runtime-${INSTALL_DOUZERO_AI} AS runtime
+FROM douzero-runtime-${ENABLE_DOUZERO_AI} AS runtime
+
+ARG ENABLE_PIKAFISH_AI
+ARG ENABLE_KATAGO_AI
+ARG ENABLE_DOUZERO_AI
+ENV ENABLE_PIKAFISH_AI=${ENABLE_PIKAFISH_AI} \
+    ENABLE_KATAGO_AI=${ENABLE_KATAGO_AI} \
+    ENABLE_DOUZERO_AI=${ENABLE_DOUZERO_AI}
 
 COPY third_party_games/ ./third_party_games/
 COPY --from=web-builder /build/frontend/dist ./frontend/dist
-COPY --from=pikafish-builder /out/pikafish /opt/game-hall/ai/pikafish
-COPY --from=pikafish-builder /out/pikafish.nnue /opt/game-hall/ai/pikafish.nnue
-COPY --from=pikafish-builder /src/Pikafish /usr/share/game-hall/source/pikafish
-COPY --from=katago-builder /src/KataGo/build/katago /opt/game-hall/ai/katago
-COPY --from=katago-builder /src/katago-model.bin.gz /opt/game-hall/ai/katago-model.bin.gz
-COPY backend/app/ai/katago-analysis.cfg /opt/game-hall/ai/katago-analysis.cfg
-COPY --from=pikafish-builder /src/Pikafish/Copying.txt /usr/share/game-hall/licenses/PIKAFISH-GPL-3.0.txt
-COPY --from=pikafish-builder /out/PIKAFISH-NNUE-LICENSE.md /usr/share/game-hall/licenses/PIKAFISH-NNUE-LICENSE.md
-COPY --from=katago-builder /src/KataGo/LICENSE /usr/share/game-hall/licenses/KATAGO.txt
+COPY --from=pikafish-bundle /bundle/ /
+COPY --from=katago-bundle /bundle/ /
 
 EXPOSE 8000
 
