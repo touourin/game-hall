@@ -5,7 +5,6 @@ export interface AccountProfile {
   id: string
   username: string
   playerName: string
-  nextRenameAt: string | null
   avatarType?: 'preset' | 'custom'
   avatarPreset?: AvatarPresetId
   avatarUrl?: string

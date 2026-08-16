@@ -29,7 +29,6 @@ from .database import (
     matches,
     metadata,
     normalize_database_url,
-    player_name_claims,
     registration_email_challenges,
     users,
 )
@@ -46,7 +45,6 @@ from .games.registry import GAME_NAMES, GAME_REGISTRY, game_registration
 
 logger = logging.getLogger(__name__)
 SESSION_LIFETIME = timedelta(days=30)
-PLAYER_NAME_CHANGE_INTERVAL = timedelta(days=30)
 USERNAME_MIN_LENGTH = 2
 USERNAME_MAX_LENGTH = 50
 EMAIL_MAX_LENGTH = 254
@@ -82,7 +80,6 @@ class Account:
     id: str
     username: str
     player_name: str
-    player_name_changed_at: str | None
     avatar_preset: str
     avatar_token: str | None
     email: str | None
@@ -100,17 +97,10 @@ class Account:
         return f"/avatars/{self.avatar_preset}.webp"
 
     def as_dict(self) -> dict[str, str | bool | None]:
-        next_rename_at = None
-        if self.player_name_changed_at is not None:
-            changed_at = datetime.fromisoformat(self.player_name_changed_at)
-            next_rename_at = AccountStore._iso_datetime(
-                changed_at + PLAYER_NAME_CHANGE_INTERVAL
-            )
         return {
             "id": self.id,
             "username": self.username,
             "playerName": self.player_name,
-            "nextRenameAt": next_rename_at,
             "avatarType": self.avatar_type,
             "avatarPreset": self.avatar_preset,
             "avatarUrl": self.avatar_url,
@@ -257,7 +247,6 @@ class AccountStore:
             id=secrets.token_urlsafe(12),
             username=normalized_username,
             player_name=normalized_name,
-            player_name_changed_at=None,
             avatar_preset=avatar_preset,
             avatar_token=None,
             email=normalized_email,
@@ -295,9 +284,9 @@ class AccountStore:
                             username=account.username,
                             username_key=username_key,
                             player_name=account.player_name,
+                            player_name_key=name_key,
                             password_salt=salt,
                             password_hash=password_hash,
-                            player_name_changed_at=None,
                             avatar_preset=avatar_preset,
                             avatar_token=None,
                             avatar_mime=None,
@@ -310,13 +299,6 @@ class AccountStore:
                                 else None
                             ),
                             created_at=created_at,
-                        )
-                    )
-                    connection.execute(
-                        insert(player_name_claims).values(
-                            name_key=name_key,
-                            account_id=account.id,
-                            claimed_at=created_at,
                         )
                     )
         except IntegrityError as exc:
@@ -341,7 +323,6 @@ class AccountStore:
                         users.c.id,
                         users.c.username,
                         users.c.player_name,
-                        users.c.player_name_changed_at,
                         users.c.avatar_preset,
                         users.c.avatar_token,
                         users.c.email,
@@ -380,7 +361,6 @@ class AccountStore:
                         users.c.id,
                         users.c.username,
                         users.c.player_name,
-                        users.c.player_name_changed_at,
                         users.c.avatar_preset,
                         users.c.avatar_token,
                         users.c.email,
@@ -412,7 +392,6 @@ class AccountStore:
                         users.c.id,
                         users.c.username,
                         users.c.player_name,
-                        users.c.player_name_changed_at,
                         users.c.avatar_preset,
                         users.c.avatar_token,
                         users.c.email,
@@ -428,7 +407,6 @@ class AccountStore:
     def rename_player(self, account_id: str, player_name: str) -> Account:
         normalized_name, name_key = self._normalize_player_name(player_name)
         self.initialize()
-        now = self._now()
         try:
             with self.engine.begin() as connection:
                 row = (
@@ -437,7 +415,6 @@ class AccountStore:
                             users.c.id,
                             users.c.username,
                             users.c.player_name,
-                            users.c.player_name_changed_at,
                             users.c.avatar_preset,
                             users.c.avatar_token,
                             users.c.email,
@@ -455,45 +432,18 @@ class AccountStore:
                 )[1]
                 if current_name_key == name_key:
                     return self._account_from_row(row)
-                changed_at = row["player_name_changed_at"]
-                if (
-                    changed_at is not None
-                    and changed_at + PLAYER_NAME_CHANGE_INTERVAL > now
-                ):
-                    available_at = self._iso_datetime(
-                        changed_at + PLAYER_NAME_CHANGE_INTERVAL
-                    )
-                    raise AccountError(
-                        f"每 30 天只能改名一次，下次可改名时间：{available_at}"
-                    )
-                owner_id = connection.execute(
-                    select(player_name_claims.c.account_id).where(
-                        player_name_claims.c.name_key == name_key
-                    )
-                ).scalar_one_or_none()
-                if owner_id is not None and owner_id != account_id:
-                    raise AccountError("这个游戏昵称已归其他账号所有")
                 connection.execute(
                     update(users)
                     .where(users.c.id == account_id)
                     .values(
                         player_name=normalized_name,
-                        player_name_changed_at=now,
+                        player_name_key=name_key,
                     )
                 )
-                if owner_id is None:
-                    connection.execute(
-                        insert(player_name_claims).values(
-                            name_key=name_key,
-                            account_id=account_id,
-                            claimed_at=now,
-                        )
-                    )
                 return Account(
                     id=account_id,
                     username=row["username"],
                     player_name=normalized_name,
-                    player_name_changed_at=self._iso_datetime(now),
                     avatar_preset=row["avatar_preset"],
                     avatar_token=row["avatar_token"],
                     email=row["email"],
@@ -1213,7 +1163,6 @@ class AccountStore:
                 users.c.id,
                 users.c.username,
                 users.c.player_name,
-                users.c.player_name_changed_at,
                 users.c.avatar_preset,
                 users.c.avatar_token,
                 users.c.email,
@@ -2039,11 +1988,6 @@ class AccountStore:
             id=row["id"],
             username=row["username"],
             player_name=row["player_name"],
-            player_name_changed_at=(
-                cls._iso_datetime(row["player_name_changed_at"])
-                if row["player_name_changed_at"] is not None
-                else None
-            ),
             avatar_preset=row["avatar_preset"],
             avatar_token=row["avatar_token"],
             email=row.get("email"),

@@ -41,9 +41,9 @@ users = Table(
     Column("username", String(64), nullable=False),
     Column("username_key", String(192), nullable=False, unique=True),
     Column("player_name", String(12), nullable=False),
+    Column("player_name_key", String(24), nullable=False, unique=True),
     Column("password_salt", LargeBinary(32), nullable=False),
     Column("password_hash", LargeBinary(64), nullable=False),
-    Column("player_name_changed_at", DateTime(), nullable=True),
     Column(
         "avatar_preset",
         String(32),
@@ -63,20 +63,6 @@ users = Table(
     Column("created_at", DateTime(), nullable=False),
 )
 Index("ux_users_email_key", users.c.email_key, unique=True)
-
-player_name_claims = Table(
-    "player_name_claims",
-    metadata,
-    Column("name_key", String(24), primary_key=True),
-    Column(
-        "account_id",
-        String(32),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-    ),
-    Column("claimed_at", DateTime(), nullable=False),
-)
-Index("ix_player_name_claims_account_id", player_name_claims.c.account_id)
 
 account_sessions = Table(
     "account_sessions",

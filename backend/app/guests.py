@@ -38,7 +38,6 @@ class GuestIdentity:
             "id": self.id,
             "username": "",
             "playerName": self.player_name,
-            "nextRenameAt": None,
             "avatarType": "preset",
             "avatarPreset": self.avatar_preset,
             "avatarUrl": self.avatar_url,

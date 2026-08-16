@@ -379,25 +379,37 @@ def test_account_rejects_unknown_avatar_preset(tmp_path):
         store.set_avatar_preset(account.id, "not-a-real-avatar")
 
 
-def test_old_game_nickname_remains_reserved_for_its_account(tmp_path):
-    store = AccountStore(tmp_path / "reserved-name.sqlite3")
+def test_old_game_nickname_is_released_for_other_accounts(tmp_path):
+    store = AccountStore(tmp_path / "released-name.sqlite3")
     first, _ = store.register("account_one", "secret123", "张三玩家")
     second, _ = store.register("account_two", "secret123", "李四玩家")
 
     store.rename_player(first.id, "王五玩家")
+    renamed = store.rename_player(second.id, "张三玩家")
 
-    with pytest.raises(AccountError, match="归其他账号所有"):
-        store.rename_player(second.id, "张三玩家")
+    assert renamed.player_name == "张三玩家"
+    assert store.account_for_id(first.id).player_name == "王五玩家"
 
 
-def test_game_nickname_can_only_change_once_every_thirty_days(tmp_path):
-    store = AccountStore(tmp_path / "rename-limit.sqlite3")
+def test_current_game_nickname_cannot_be_used_by_another_account(tmp_path):
+    store = AccountStore(tmp_path / "current-name.sqlite3")
+    first, _ = store.register("account_one", "secret123", "当前昵称")
+    second, _ = store.register("account_two", "secret123", "另一昵称")
+
+    with pytest.raises(AccountError, match="游戏昵称已经被使用"):
+        store.rename_player(second.id, first.player_name)
+
+
+def test_game_nickname_can_be_changed_repeatedly(tmp_path):
+    store = AccountStore(tmp_path / "repeated-renames.sqlite3")
     account, _ = store.register("rename_user", "secret123", "初始昵称")
 
     store.rename_player(account.id, "第一次改名")
+    renamed = store.rename_player(account.id, "第二次改名")
 
-    with pytest.raises(AccountError, match="每 30 天只能改名一次"):
-        store.rename_player(account.id, "第二次改名")
+    assert renamed.player_name == "第二次改名"
+    assert "nextRenameAt" not in renamed.as_dict()
+    assert store.account_for_id(account.id).player_name == "第二次改名"
 
 
 def completed_room_with_accounts(

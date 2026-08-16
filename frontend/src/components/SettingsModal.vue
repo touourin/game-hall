@@ -100,19 +100,9 @@ const themes: Array<{
   },
 ]
 
-const nextRenameDate = computed(() => {
-  if (!props.account.nextRenameAt) return null
-  return new Date(props.account.nextRenameAt)
-})
-
-const renameLocked = computed(() =>
-  nextRenameDate.value !== null && nextRenameDate.value.getTime() > Date.now(),
-)
-
 const canRename = computed(() => {
   const normalized = playerName.value.trim()
-  return !renameLocked.value
-    && normalized.length >= 1
+  return normalized.length >= 1
     && normalized.length <= 12
     && normalized !== props.account.playerName
 })
@@ -171,15 +161,6 @@ const avatarDraftDescription = computed(() => {
   if (draft.kind === 'upload') return `已完成裁剪：${draft.file.name}`
   const preset = AVATAR_PRESETS.find((item) => item.id === draft.preset)
   return `已选择“${preset?.name ?? '内置头像'}”，尚未保存`
-})
-
-const nextRenameLabel = computed(() => {
-  if (!nextRenameDate.value) return ''
-  return new Intl.DateTimeFormat('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(nextRenameDate.value)
 })
 
 watch(
@@ -497,15 +478,8 @@ onBeforeUnmount(clearAvatarDraft)
               minlength="1"
               maxlength="12"
               autocomplete="username"
-              :disabled="renameLocked"
             />
           </label>
-          <small v-if="renameLocked" class="settings-hint">
-            每 30 天只能改名一次，下次可改名日期：{{ nextRenameLabel }}
-          </small>
-          <small v-else class="settings-hint">
-            旧游戏昵称仍归你的账号保留，其他玩家不能使用。
-          </small>
           <p v-if="error" class="account-error" role="alert">{{ error }}</p>
           <p v-if="savedMessage" class="settings-success" role="status">{{ savedMessage }}</p>
           <UiButton variant="primary" block type="submit" :disabled="busy || !canRename">

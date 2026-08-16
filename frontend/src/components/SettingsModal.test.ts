@@ -14,7 +14,6 @@ const defaultAccount: AccountProfile = {
   id: 'account-1',
   username: 'login_account',
   playerName: '当前昵称',
-  nextRenameAt: null,
   avatarType: 'preset',
   avatarPreset: 'moon-fox',
   avatarUrl: '/avatars/moon-fox.webp',
@@ -65,15 +64,6 @@ describe('SettingsModal', () => {
     await wrapper.get('form').trigger('submit')
 
     expect(wrapper.emitted('rename')).toEqual([['新昵称']])
-  })
-
-  it('disables nickname changes until the cooldown expires', () => {
-    const wrapper = mountSettings({ nextRenameAt: '2099-01-01T00:00:00Z' })
-
-    expect(wrapper.text()).toContain('每 30 天只能改名一次')
-    expect(
-      wrapper.findAll('.settings-section form input')[1]!.attributes('disabled'),
-    ).toBeDefined()
   })
 
   it('requests and verifies a binding email without losing the target address', async () => {
