@@ -7,14 +7,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .douzero_models import find_model_paths
 from .process import ManagedLineProcess
-
-
-MODEL_FILENAMES = {
-    "landlord": "landlord.ckpt",
-    "landlord_up": "landlord_up.ckpt",
-    "landlord_down": "landlord_down.ckpt",
-}
 
 
 class DouZeroClient:
@@ -45,12 +39,8 @@ class DouZeroClient:
                 or sys.executable,
                 "-m",
                 "backend.app.ai.douzero_worker",
-                "--landlord",
-                str(self.model_paths["landlord"]),
-                "--landlord-up",
-                str(self.model_paths["landlord_up"]),
-                "--landlord-down",
-                str(self.model_paths["landlord_down"]),
+                "--model-dir",
+                str(self.model_paths["landlord"].parent),
                 "--threads",
                 str(self.threads),
             )
@@ -125,14 +115,7 @@ class DouZeroClient:
 
     @staticmethod
     def _model_paths(model_dir: str | None) -> dict[str, Path] | None:
-        if not model_dir:
-            return None
-        directory = Path(model_dir).expanduser()
-        paths = {
-            position: directory / filename
-            for position, filename in MODEL_FILENAMES.items()
-        }
-        return paths if all(path.is_file() for path in paths.values()) else None
+        return find_model_paths(model_dir)
 
     @staticmethod
     def _decode_response(line: str) -> dict[str, Any]:

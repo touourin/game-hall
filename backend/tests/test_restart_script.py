@@ -155,3 +155,15 @@ def test_failed_plugin_validation_keeps_current_application_running(
         restart.deploy_application()
 
     assert ["docker", "compose", "up", "-d", "--no-build", "app"] not in commands
+
+
+def test_douzero_models_are_embedded_without_a_runtime_mount() -> None:
+    dockerfile = (PROJECT_ROOT / "Dockerfile").read_text(encoding="utf-8")
+    compose = (PROJECT_ROOT / "compose.yaml").read_text(encoding="utf-8")
+
+    assert "FROM runtime-${INSTALL_DOUZERO_AI} AS runtime" in dockerfile
+    assert "/tmp/douzero-models --output /bundle" in dockerfile
+    assert "COPY --from=douzero-model-bundle" in dockerfile
+    assert "/bundle/ /opt/game-hall/ai/douzero/" in dockerfile
+    assert "--model-dir /opt/game-hall/ai/douzero --threads 1 --check" in dockerfile
+    assert "DOUZERO_MODEL_HOST_DIR" not in compose

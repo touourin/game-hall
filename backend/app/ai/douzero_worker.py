@@ -9,8 +9,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-
-POSITIONS = ("landlord", "landlord_up", "landlord_down")
+from .douzero_models import POSITIONS, require_model_paths
 
 
 class DouZeroRuntime:
@@ -181,10 +180,13 @@ def _position_counts(value: object) -> dict[str, int]:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Game Hall DouZero worker")
-    parser.add_argument("--landlord", type=Path, required=True)
-    parser.add_argument("--landlord-up", type=Path, required=True)
-    parser.add_argument("--landlord-down", type=Path, required=True)
+    parser.add_argument("--model-dir", type=Path, required=True)
     parser.add_argument("--threads", type=int, default=1)
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="load every model and exit without starting the worker protocol",
+    )
     return parser
 
 
@@ -192,14 +194,10 @@ def main() -> int:
     args = _parser().parse_args()
     if args.threads < 1:
         raise ValueError("DouZero CPU 线程数必须大于零")
-    runtime = DouZeroRuntime(
-        {
-            "landlord": args.landlord,
-            "landlord_up": args.landlord_up,
-            "landlord_down": args.landlord_down,
-        },
-        args.threads,
-    )
+    runtime = DouZeroRuntime(require_model_paths(args.model_dir), args.threads)
+    if args.check:
+        print("DouZero models loaded successfully.")
+        return 0
     for line in sys.stdin:
         try:
             request = json.loads(line)

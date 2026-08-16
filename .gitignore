@@ -32,4 +32,5 @@ logs/
 /output/
 
 # Optional local AI weights
-/ai/douzero/
+/ai/douzero/*
+!/ai/douzero/README.md

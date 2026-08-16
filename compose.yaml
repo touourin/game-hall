@@ -108,7 +108,6 @@ services:
       - "${GAME_HALL_PORT:-${AVALON_PORT:-10618}}:8000"
     volumes:
       - ./logs:/var/log/game-hall
-      - ${DOUZERO_MODEL_HOST_DIR:-./ai/douzero}:/opt/game-hall/ai/douzero:ro
 
 volumes:
   mysql-data:

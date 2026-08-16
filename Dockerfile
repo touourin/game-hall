@@ -1,6 +1,7 @@
 ARG DEBIAN_MIRROR=http://mirrors.aliyun.com/debian
 ARG DEBIAN_SECURITY_MIRROR=http://mirrors.aliyun.com/debian-security
 ARG GITHUB_DOWNLOAD_PREFIX=https://ghfast.top/
+ARG INSTALL_DOUZERO_AI=0
 
 FROM node:24-alpine AS web-builder
 
@@ -107,13 +108,12 @@ RUN download_verified() { \
       "https://github.com/lightvector/KataGo/releases/download/v${KATAGO_MODEL_VERSION}/b10c384h6nbttflrs.bin.gz"
 
 
-FROM python:3.13-slim AS runtime
+FROM python:3.13-slim AS runtime-base
 
 ARG DEBIAN_MIRROR
 ARG DEBIAN_SECURITY_MIRROR
 ARG PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple
 ARG PYTORCH_CPU_INDEX_URL=https://download.pytorch.org/whl/cpu
-ARG INSTALL_DOUZERO_AI=0
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -136,14 +136,34 @@ RUN sed -i \
 
 WORKDIR /app
 COPY backend/ ./backend/
-RUN if [ "$INSTALL_DOUZERO_AI" = "1" ]; then \
-      pip install --no-cache-dir --index-url "$PYTORCH_CPU_INDEX_URL" \
-        --extra-index-url "$PIP_INDEX_URL" 'torch>=2.6,<3'; \
-      pip install --no-cache-dir --index-url "$PIP_INDEX_URL" \
-        './backend[doudizhu-ai]'; \
-    else \
-      pip install --no-cache-dir --index-url "$PIP_INDEX_URL" ./backend; \
-    fi
+
+
+FROM runtime-base AS runtime-0
+
+RUN pip install --no-cache-dir --index-url "$PIP_INDEX_URL" ./backend
+
+
+FROM runtime-base AS douzero-model-bundle
+
+COPY ai/douzero/ /tmp/douzero-models/
+RUN python backend/app/ai/douzero_models.py \
+      /tmp/douzero-models --output /bundle
+
+
+FROM runtime-base AS runtime-1
+
+COPY --from=douzero-model-bundle \
+  /bundle/ /opt/game-hall/ai/douzero/
+RUN pip install --no-cache-dir --index-url "$PYTORCH_CPU_INDEX_URL" \
+      --extra-index-url "$PIP_INDEX_URL" 'torch>=2.6,<3' \
+    && pip install --no-cache-dir --index-url "$PIP_INDEX_URL" \
+      './backend[doudizhu-ai]' \
+    && python -m backend.app.ai.douzero_worker \
+      --model-dir /opt/game-hall/ai/douzero --threads 1 --check
+
+
+FROM runtime-${INSTALL_DOUZERO_AI} AS runtime
+
 COPY third_party_games/ ./third_party_games/
 COPY --from=web-builder /build/frontend/dist ./frontend/dist
 COPY --from=pikafish-builder /out/pikafish /opt/game-hall/ai/pikafish

@@ -8,6 +8,12 @@ from unittest.mock import AsyncMock
 import pytest
 
 from backend.app.ai.douzero import DouZeroClient
+from backend.app.ai.douzero_models import (
+    DouZeroModelError,
+    require_model_paths,
+    stage_model_bundle,
+    write_checksum_manifest,
+)
 from backend.app.ai.katago import (
     DEFAULT_VISITS,
     KataGoAnalysisClient,
@@ -468,6 +474,34 @@ def test_douzero_requires_all_three_role_models(tmp_path) -> None:
 
     with pytest.raises(ValueError, match="必须大于零"):
         DouZeroClient(model_dir=str(tmp_path), threads=0)
+
+
+def test_douzero_model_manifest_detects_changed_weights(tmp_path) -> None:
+    filenames = ("landlord.ckpt", "landlord_up.ckpt", "landlord_down.ckpt")
+    for index, filename in enumerate(filenames):
+        (tmp_path / filename).write_bytes(f"model-{index}".encode())
+
+    manifest = write_checksum_manifest(tmp_path)
+
+    assert manifest.name == "SHA256SUMS"
+    assert set(require_model_paths(tmp_path)) == {
+        "landlord",
+        "landlord_up",
+        "landlord_down",
+    }
+    output = tmp_path / "bundle"
+    stage_model_bundle(tmp_path, output)
+    assert {path.name for path in output.iterdir()} == {
+        "landlord.ckpt",
+        "landlord_up.ckpt",
+        "landlord_down.ckpt",
+        "SHA256SUMS",
+    }
+
+    (tmp_path / "landlord.ckpt").write_bytes(b"changed")
+    with pytest.raises(DouZeroModelError, match="landlord.ckpt"):
+        require_model_paths(tmp_path)
+    assert DouZeroClient(model_dir=str(tmp_path)).configured is False
 
 
 async def test_katago_json_process_is_reused(tmp_path) -> None:
