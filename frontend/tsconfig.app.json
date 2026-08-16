@@ -9,7 +9,7 @@
     "moduleResolution": "Bundler",
     "baseUrl": ".",
     "paths": {
-      "@game-hall/plugin-sdk": ["src/pluginSdk.ts"],
+      "@game-hall/plugin-sdk": ["src/plugin-sdk/index.ts"],
       "@lucide/vue": ["node_modules/@lucide/vue"],
       "vue": ["node_modules/vue"]
     },
