@@ -8,6 +8,8 @@ from unittest.mock import Mock
 
 import pytest
 
+from backend.app.ai.douzero_models import require_model_paths
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -157,10 +159,16 @@ def test_failed_plugin_validation_keeps_current_application_running(
     assert ["docker", "compose", "up", "-d", "--no-build", "app"] not in commands
 
 
-def test_douzero_models_are_embedded_without_a_runtime_mount() -> None:
+def test_douzero_models_are_versioned_and_embedded_without_a_runtime_mount() -> None:
     dockerfile = (PROJECT_ROOT / "Dockerfile").read_text(encoding="utf-8")
     compose = (PROJECT_ROOT / "compose.yaml").read_text(encoding="utf-8")
+    model_paths = require_model_paths(PROJECT_ROOT / "ai" / "douzero")
 
+    assert {path.name for path in model_paths.values()} == {
+        "landlord.ckpt",
+        "landlord_up.ckpt",
+        "landlord_down.ckpt",
+    }
     assert "FROM runtime-${INSTALL_DOUZERO_AI} AS runtime" in dockerfile
     assert "/tmp/douzero-models --output /bundle" in dockerfile
     assert "COPY --from=douzero-model-bundle" in dockerfile
