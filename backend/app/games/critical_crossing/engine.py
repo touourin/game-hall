@@ -29,7 +29,6 @@ BOUNDARY_SIDES = ("top", "right", "bottom", "left")
 
 MIN_SUCCESS_SLACK_SECONDS = 0.3
 UINT32_MASK = 0xFFFFFFFF
-PULSE_KIND_SALT = 0xA341316C
 GATE_LANE_SALT = 0xC8013EA4
 GATE_OFFSET_SALT = 0xAD90777D
 AXIS_Y_SALT = 0x7E95761E
@@ -42,30 +41,19 @@ VALID_INPUT_MASK = UP | DOWN | LEFT | RIGHT
 
 BoundarySide = Literal["top", "right", "bottom", "left"]
 CollisionKind = Literal["pulse", "boundary"]
-PulseKind = Literal["horizontal", "vertical", "cross"]
 Axis = Literal["x", "y"]
-PulseWeights = tuple[int, int, int]
-
-PULSE_KINDS: tuple[PulseKind, ...] = (
-    "horizontal",
-    "vertical",
-    "cross",
-)
 
 
 @dataclass(frozen=True)
 class DifficultyConfig:
     label: str
     duration_seconds: int
-    pulse_weights: PulseWeights
     pulse_warning_ticks: int
     pulse_front_speed: int
     safe_gate_radius: int
     boundary_pressure_limit: int
 
     def __post_init__(self) -> None:
-        if sum(weight > 0 for weight in self.pulse_weights) < 2:
-            raise ValueError("At least two pulse kinds need positive weights")
         if min(
             self.duration_seconds,
             self.pulse_warning_ticks,
@@ -84,7 +72,6 @@ DIFFICULTIES: dict[str, DifficultyConfig] = {
     "5s": DifficultyConfig(
         label="校准",
         duration_seconds=5,
-        pulse_weights=(48, 48, 4),
         pulse_warning_ticks=28,
         pulse_front_speed=180,
         safe_gate_radius=1_050,
@@ -93,7 +80,6 @@ DIFFICULTIES: dict[str, DifficultyConfig] = {
     "8s": DifficultyConfig(
         label="过载",
         duration_seconds=8,
-        pulse_weights=(38, 38, 24),
         pulse_warning_ticks=23,
         pulse_front_speed=175,
         safe_gate_radius=920,
@@ -102,7 +88,6 @@ DIFFICULTIES: dict[str, DifficultyConfig] = {
     "10s": DifficultyConfig(
         label="临界",
         duration_seconds=10,
-        pulse_weights=(25, 25, 50),
         pulse_warning_ticks=18,
         pulse_front_speed=170,
         safe_gate_radius=820,
@@ -121,7 +106,6 @@ class PulseFront:
 
 @dataclass(frozen=True)
 class PulsePlanEntry:
-    kind: PulseKind
     x_gate: int
     y_gate: int
 
@@ -190,54 +174,17 @@ def pulse_safe_gate(seed: int, pulse_index: int, axis: Axis) -> int:
     return minimum + offset
 
 
-def pulse_sequence(
-    seed: int,
-    config: DifficultyConfig,
-) -> tuple[PulseKind, ...]:
-    """Build a weighted sequence without adjacent pulse-kind repeats."""
-
-    sequence: list[PulseKind] = []
-    for pulse_index in range(config.pulse_count):
-        previous = sequence[-1] if sequence else None
-        choices = tuple(
-            (kind, weight)
-            for kind, weight in zip(
-                PULSE_KINDS,
-                config.pulse_weights,
-                strict=True,
-            )
-            if kind != previous and weight > 0
-        )
-        total_weight = sum(weight for _, weight in choices)
-        roll = _random_word(seed, pulse_index, PULSE_KIND_SALT) % total_weight
-        for kind, weight in choices:
-            if roll < weight:
-                sequence.append(kind)
-                break
-            roll -= weight
-    return tuple(sequence)
-
-
 def build_pulse_plan(
     seed: int,
     config: DifficultyConfig,
 ) -> tuple[PulsePlanEntry, ...]:
     return tuple(
         PulsePlanEntry(
-            kind=kind,
             x_gate=pulse_safe_gate(seed, pulse_index, "x"),
             y_gate=pulse_safe_gate(seed, pulse_index, "y"),
         )
-        for pulse_index, kind in enumerate(pulse_sequence(seed, config))
+        for pulse_index in range(config.pulse_count)
     )
-
-
-def pulse_sides(kind: PulseKind) -> tuple[BoundarySide, ...]:
-    if kind == "horizontal":
-        return ("left", "right")
-    if kind == "vertical":
-        return ("top", "bottom")
-    return BOUNDARY_SIDES
 
 
 def pulse_fronts(
@@ -255,7 +202,7 @@ def pulse_fronts(
         if elapsed < 0:
             continue
         distance = (elapsed + 1) * config.pulse_front_speed
-        for side in pulse_sides(pulse.kind):
+        for side in BOUNDARY_SIDES:
             vertical_edge = side in {"left", "right"}
             gate = pulse.y_gate if vertical_edge else pulse.x_gate
             if side == "left":
@@ -463,12 +410,8 @@ def build_safe_route(seed: int, config: DifficultyConfig) -> list[int]:
     for tick in range(target_ticks):
         pulse_index = min(tick // PULSE_INTERVAL_TICKS, len(plan) - 1)
         pulse = plan[pulse_index]
-        target_x = player_x
-        target_y = player_y
-        if pulse.kind in {"vertical", "cross"}:
-            target_x = pulse.x_gate
-        if pulse.kind in {"horizontal", "cross"}:
-            target_y = pulse.y_gate
+        target_x = pulse.x_gate
+        target_y = pulse.y_gate
 
         horizontal = 0
         vertical = 0
@@ -626,14 +569,6 @@ class CriticalCrossingEngine:
                 config.boundary_pressure_limit * 1_000 / TICKS_PER_SECOND
             ),
             "profile": {
-                "pulseWeights": {
-                    kind: weight
-                    for kind, weight in zip(
-                        PULSE_KINDS,
-                        config.pulse_weights,
-                        strict=True,
-                    )
-                },
                 "pulseWarningTicks": config.pulse_warning_ticks,
                 "pulseFrontSpeed": config.pulse_front_speed,
                 "safeGateRadius": config.safe_gate_radius,
@@ -670,8 +605,8 @@ class CriticalCrossingEngine:
         config: DifficultyConfig,
         previous_seed: int | None,
     ) -> int:
-        previous_sequence = (
-            pulse_sequence(previous_seed, config)
+        previous_plan = (
+            build_pulse_plan(previous_seed, config)
             if previous_seed is not None
             else None
         )
@@ -682,7 +617,7 @@ class CriticalCrossingEngine:
             ) or 1
             if seed == previous_seed:
                 continue
-            if pulse_sequence(seed, config) == previous_sequence:
+            if build_pulse_plan(seed, config) == previous_plan:
                 continue
             if simulate_run(seed, build_safe_route(seed, config), config).crossed:
                 return seed

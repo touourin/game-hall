@@ -34,7 +34,6 @@ import {
   buildPulsePlan,
   createCrossingState,
   pulseFronts,
-  pulseSides,
   type BoundarySide,
   type CrossingProfile,
   type CrossingState,
@@ -92,7 +91,6 @@ const targetTicks = computed(() => durationSeconds.value * TICK_RATE)
 const pulsePlan = computed(() => buildPulsePlan(
   game.value.seed,
   game.value.pulseCount,
-  game.value.profile,
 ))
 const remainingMs = computed(() => Math.max(
   0,
@@ -111,11 +109,6 @@ const currentPulse = computed(() => pulsePlan.value[pulseIndex.value]!)
 const isPulseWarning = computed(() => (
   pulseTick.value < game.value.profile.pulseWarningTicks
 ))
-const pulseName = computed(() => {
-  if (currentPulse.value.kind === 'horizontal') return '横向脉冲'
-  if (currentPulse.value.kind === 'vertical') return '纵向脉冲'
-  return '交叉脉冲'
-})
 const peakBoundaryPressure = computed(() => Math.max(
   ...Object.values(crossingState.value.boundaryPressure),
 ))
@@ -131,7 +124,7 @@ const fieldStatus = computed(() => {
   if (peakBoundaryPressure.value > 0) {
     return `边界 ${boundaryPressurePercent.value}%`
   }
-  return isPulseWarning.value ? '缺口标定' : pulseName.value
+  return isPulseWarning.value ? '缺口标定' : '交叉脉冲'
 })
 const collisionLabel = computed(() => (
   crossingState.value.collisionKind === 'boundary'
@@ -341,7 +334,7 @@ function drawPulseWarning(
   const pulse = .5 + .2 * Math.sin(crossingState.value.tick * .65)
   const railWidth = Math.max(8, Math.min(width, height) * .022)
 
-  for (const side of pulseSides(currentPulse.value.kind)) {
+  for (const side of BOUNDARY_SIDES) {
     const verticalEdge = side === 'left' || side === 'right'
     const scale = verticalEdge ? scaleY : scaleX
     const span = verticalEdge ? height : width
@@ -670,7 +663,7 @@ onBeforeUnmount(() => {
         aria-live="polite"
       >
         <small>序列 {{ String(pulseIndex + 1).padStart(2, '0') }}</small>
-        <strong>{{ pulseName }}标定中</strong>
+        <strong>交叉脉冲标定中</strong>
         <span>青色边缘标记安全缺口</span>
       </div>
 

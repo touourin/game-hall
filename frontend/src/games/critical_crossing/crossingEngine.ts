@@ -20,14 +20,12 @@ export const INPUT_DOWN = 2
 export const INPUT_LEFT = 4
 export const INPUT_RIGHT = 8
 
-const PULSE_KIND_SALT = 0xA341316C
 const GATE_LANE_SALT = 0xC8013EA4
 const GATE_OFFSET_SALT = 0xAD90777D
 const AXIS_Y_SALT = 0x7E95761E
 
 export type BoundarySide = 'top' | 'right' | 'bottom' | 'left'
 export type CollisionKind = 'pulse' | 'boundary'
-export type PulseKind = 'horizontal' | 'vertical' | 'cross'
 
 export const BOUNDARY_SIDES: readonly BoundarySide[] = [
   'top',
@@ -36,16 +34,7 @@ export const BOUNDARY_SIDES: readonly BoundarySide[] = [
   'left',
 ]
 
-export const PULSE_KINDS: readonly PulseKind[] = [
-  'horizontal',
-  'vertical',
-  'cross',
-]
-
-export type PulseWeights = Record<PulseKind, number>
-
 export interface CrossingProfile {
-  pulseWeights: PulseWeights
   pulseWarningTicks: number
   pulseFrontSpeed: number
   safeGateRadius: number
@@ -53,7 +42,6 @@ export interface CrossingProfile {
 }
 
 export interface PulsePlanEntry {
-  kind: PulseKind
   xGate: number
   yGate: number
 }
@@ -112,48 +100,14 @@ export function pulseSafeGate(
   return minimum + offset
 }
 
-export function pulseSequence(
-  seed: number,
-  pulseCount: number,
-  weights: PulseWeights,
-): PulseKind[] {
-  const sequence: PulseKind[] = []
-  for (let pulseIndex = 0; pulseIndex < pulseCount; pulseIndex += 1) {
-    const previous = sequence.at(-1)
-    const choices = PULSE_KINDS
-      .filter(kind => kind !== previous && weights[kind] > 0)
-      .map(kind => [kind, weights[kind]] as const)
-    const totalWeight = choices.reduce((total, [, weight]) => total + weight, 0)
-    let roll = randomWord(seed, pulseIndex, PULSE_KIND_SALT) % totalWeight
-    for (const [kind, weight] of choices) {
-      if (roll < weight) {
-        sequence.push(kind)
-        break
-      }
-      roll -= weight
-    }
-  }
-  return sequence
-}
-
 export function buildPulsePlan(
   seed: number,
   pulseCount: number,
-  profile: CrossingProfile,
 ): PulsePlanEntry[] {
-  return pulseSequence(seed, pulseCount, profile.pulseWeights).map(
-    (kind, pulseIndex) => ({
-      kind,
-      xGate: pulseSafeGate(seed, pulseIndex, 'x'),
-      yGate: pulseSafeGate(seed, pulseIndex, 'y'),
-    }),
-  )
-}
-
-export function pulseSides(kind: PulseKind): readonly BoundarySide[] {
-  if (kind === 'horizontal') return ['left', 'right']
-  if (kind === 'vertical') return ['top', 'bottom']
-  return BOUNDARY_SIDES
+  return Array.from({ length: pulseCount }, (_, pulseIndex) => ({
+    xGate: pulseSafeGate(seed, pulseIndex, 'x'),
+    yGate: pulseSafeGate(seed, pulseIndex, 'y'),
+  }))
 }
 
 export function pulseFronts(
@@ -172,7 +126,7 @@ export function pulseFronts(
       - (pulseIndex * PULSE_INTERVAL_TICKS + profile.pulseWarningTicks)
     if (elapsed < 0) continue
     const distance = (elapsed + 1) * profile.pulseFrontSpeed
-    for (const side of pulseSides(pulse.kind)) {
+    for (const side of BOUNDARY_SIDES) {
       const verticalEdge = side === 'left' || side === 'right'
       const gate = verticalEdge ? pulse.yGate : pulse.xGate
       const position = side === 'left'
@@ -339,7 +293,7 @@ export function replayCrossingRun(
 ): CrossingState {
   let state = createCrossingState()
   const targetTicks = durationTicks(durationSeconds)
-  const plan = buildPulsePlan(seed, durationSeconds, profile)
+  const plan = buildPulsePlan(seed, durationSeconds)
   for (const input of inputs.slice(0, targetTicks)) {
     state = advanceCrossingState(state, input, plan, profile)
     if (state.collisionTick !== null) break
@@ -355,7 +309,7 @@ export function buildSafeRoute(
   let playerX = BOARD_WIDTH / 2
   let playerY = BOARD_HEIGHT / 2
   const inputs: number[] = []
-  const plan = buildPulsePlan(seed, durationSeconds, profile)
+  const plan = buildPulsePlan(seed, durationSeconds)
 
   for (let tick = 0; tick < durationTicks(durationSeconds); tick += 1) {
     const pulseIndex = Math.min(
@@ -363,12 +317,8 @@ export function buildSafeRoute(
       plan.length - 1,
     )
     const pulse = plan[pulseIndex]!
-    const targetX = pulse.kind === 'vertical' || pulse.kind === 'cross'
-      ? pulse.xGate
-      : playerX
-    const targetY = pulse.kind === 'horizontal' || pulse.kind === 'cross'
-      ? pulse.yGate
-      : playerY
+    const targetX = pulse.xGate
+    const targetY = pulse.yGate
     const horizontal = playerX < targetX - PLAYER_SPEED / 2
       ? INPUT_RIGHT
       : playerX > targetX + PLAYER_SPEED / 2 ? INPUT_LEFT : 0

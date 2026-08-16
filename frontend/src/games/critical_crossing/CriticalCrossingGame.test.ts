@@ -57,7 +57,6 @@ function spectatorSnapshot(): ArcadeSnapshot {
       pulseWarningMs: 467,
       boundaryPressureMs: 600,
       profile: {
-        pulseWeights: { horizontal: 48, vertical: 48, cross: 4 },
         pulseWarningTicks: 28,
         pulseFrontSpeed: 180,
         safeGateRadius: 1_050,

@@ -14,12 +14,13 @@ from backend.app.games.critical_crossing.engine import (
     RIGHT,
     UP,
     CriticalCrossingEngine,
+    boundary_collision,
     build_pulse_plan,
     build_safe_route,
     duration_ticks,
     pulse_fronts,
-    pulse_sequence,
     simulate_run,
+    update_boundary_pressure,
 )
 
 
@@ -116,24 +117,20 @@ def test_engine_does_not_accept_an_instant_success() -> None:
 def test_fixed_plan_vector_matches_the_browser_engine() -> None:
     plan = build_pulse_plan(3_000_000_005, DIFFICULTIES["5s"])
 
-    assert [
-        (pulse.kind, pulse.x_gate, pulse.y_gate) for pulse in plan
-    ] == [
-        ("cross", 6_728, 4_303),
-        ("horizontal", 3_106, 4_276),
-        ("vertical", 6_748, 2_295),
-        ("horizontal", 6_704, 2_147),
-        ("vertical", 6_540, 4_350),
+    assert [(pulse.x_gate, pulse.y_gate) for pulse in plan] == [
+        (6_728, 4_303),
+        (3_106, 4_276),
+        (6_748, 2_295),
+        (6_704, 2_147),
+        (6_540, 4_350),
     ]
 
 
-def test_profiles_raise_cross_pressure_and_reduce_reaction_margin() -> None:
+def test_profiles_reduce_reaction_and_boundary_margins() -> None:
     calibration = DIFFICULTIES["5s"]
     overload = DIFFICULTIES["8s"]
     critical = DIFFICULTIES["10s"]
 
-    assert calibration.pulse_weights[2] < overload.pulse_weights[2]
-    assert overload.pulse_weights[2] < critical.pulse_weights[2]
     assert (
         calibration.pulse_warning_ticks
         > overload.pulse_warning_ticks
@@ -151,30 +148,16 @@ def test_profiles_raise_cross_pressure_and_reduce_reaction_margin() -> None:
     )
 
 
-def test_weighted_sequences_never_repeat_adjacent_pulse_kinds() -> None:
-    for config in DIFFICULTIES.values():
-        for seed in range(1, 1_025):
-            sequence = pulse_sequence(seed, config)
-            assert len(sequence) == config.pulse_count
-            assert all(
-                current != previous
-                for previous, current in zip(sequence, sequence[1:])
-            )
+def test_seeded_intersections_use_all_four_board_quadrants() -> None:
+    config = DIFFICULTIES["10s"]
+    quadrant_counts = {(x, y): 0 for x in range(2) for y in range(2)}
+    for seed in range(1, 4_097):
+        for pulse in build_pulse_plan(seed, config):
+            quadrant = (int(pulse.x_gate > 5_000), int(pulse.y_gate > 3_250))
+            quadrant_counts[quadrant] += 1
 
-
-def test_difficulty_profiles_produce_distinct_cross_pulse_ratios() -> None:
-    cross_ratios: dict[str, float] = {}
-    for difficulty, config in DIFFICULTIES.items():
-        sequences = (
-            pulse_sequence(seed, config)
-            for seed in range(1, 4_097)
-        )
-        kinds = [kind for sequence in sequences for kind in sequence]
-        cross_ratios[difficulty] = kinds.count("cross") / len(kinds)
-
-    assert cross_ratios["5s"] < 0.10
-    assert 0.20 < cross_ratios["8s"] < 0.35
-    assert 0.35 < cross_ratios["10s"] < 0.48
+    total = sum(quadrant_counts.values())
+    assert all(0.23 < count / total < 0.27 for count in quadrant_counts.values())
 
 
 @pytest.mark.parametrize("difficulty", DIFFICULTIES)
@@ -188,16 +171,16 @@ def test_one_thousand_seeds_per_difficulty_have_a_verified_route(
         assert result.collision_kind is None
 
 
-def test_restart_changes_both_seed_and_pulse_sequence() -> None:
+def test_restart_changes_both_seed_and_intersection_route() -> None:
     config = DIFFICULTIES["5s"]
     engine, room, _, _ = make_room("5s")
     previous_seed = room.state.seed
-    previous_sequence = pulse_sequence(previous_seed, config)
+    previous_plan = build_pulse_plan(previous_seed, config)
 
     engine.start(room)
 
     assert room.state.seed != previous_seed
-    assert pulse_sequence(room.state.seed, config) != previous_sequence
+    assert build_pulse_plan(room.state.seed, config) != previous_plan
 
 
 def test_first_pulse_waits_for_its_profile_warning() -> None:
@@ -206,25 +189,35 @@ def test_first_pulse_waits_for_its_profile_warning() -> None:
     assert pulse_fronts(plan, config.pulse_warning_ticks - 1, config) == []
 
     fronts = pulse_fronts(plan, config.pulse_warning_ticks, config)
-    assert {front.side for front in fronts} == {"top", "bottom"}
-    assert all(front.gate == plan[0].x_gate for front in fronts)
-    assert all(
-        abs(front.position - edge) == config.pulse_front_speed
-        for front, edge in zip(fronts, (585, 5_915), strict=True)
-    )
+    assert [front.side for front in fronts] == [
+        "top",
+        "right",
+        "bottom",
+        "left",
+    ]
+    assert [front.gate for front in fronts] == [
+        plan[0].x_gate,
+        plan[0].y_gate,
+        plan[0].x_gate,
+        plan[0].y_gate,
+    ]
+    assert [front.position for front in fronts] == [
+        585 + config.pulse_front_speed,
+        9_100 - config.pulse_front_speed,
+        5_915 - config.pulse_front_speed,
+        900 + config.pulse_front_speed,
+    ]
 
 
 def test_boundary_camping_triggers_the_tuned_lock() -> None:
     config = DIFFICULTIES["5s"]
-    result = simulate_run(
-        162_944_417,
-        [UP] * duration_ticks(config.duration_seconds),
-        config,
-    )
-    assert not result.crossed
-    assert result.collision_kind == "boundary"
-    assert result.collision_tick is not None
-    assert result.collision_tick >= config.boundary_pressure_limit
+    pressure = {side: 0 for side in ("top", "right", "bottom", "left")}
+    for _ in range(config.boundary_pressure_limit):
+        pressure = update_boundary_pressure(pressure, 105, 3_250, config)
+    assert not boundary_collision(105, 3_250, pressure, config)
+
+    pressure = update_boundary_pressure(pressure, 105, 3_250, config)
+    assert boundary_collision(105, 3_250, pressure, config)
 
 
 def test_static_center_is_interrupted_without_boundary_pressure() -> None:
