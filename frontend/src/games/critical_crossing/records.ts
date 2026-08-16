@@ -18,7 +18,7 @@ export function crossingDifficultyLabel(mode: unknown): string {
 
 export const criticalCrossingLeaderboard: BuiltinGameLeaderboardPresentation = {
   defaultMode: '5s',
-  titleSuffix: mode => crossingDifficultyLabel(mode),
+  titleSuffix: mode => ` · ${crossingDifficultyLabel(mode)}`,
   description: '三档目标时间独立排名，按成功穿越次数与完成率排序。',
   filters,
   entryDetail: entry => `${entry.games} 次挑战 · ${entry.wins} 次穿越`,
@@ -28,7 +28,7 @@ export const criticalCrossingLeaderboard: BuiltinGameLeaderboardPresentation = {
 
 export const criticalCrossingStats: BuiltinGameStatsPresentation = {
   defaultMode: '5s',
-  titleSuffix: mode => crossingDifficultyLabel(mode),
+  titleSuffix: mode => ` · ${crossingDifficultyLabel(mode)}`,
   description: '分别记录 5、8、10 秒挑战的穿越与碰撞结果。',
   filters,
   summaryItems: summary => [

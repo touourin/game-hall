@@ -1,4 +1,7 @@
-import { formatMatchDuration } from '../../game-platform/recordFormatting'
+import {
+  formatMatchDuration,
+  formatRecordNumber,
+} from '../../game-platform/recordFormatting'
 import type {
   BuiltinGameLeaderboardPresentation,
   BuiltinGameStatsPresentation,
@@ -7,8 +10,8 @@ import type {
 export const deepShaftLeaderboard: BuiltinGameLeaderboardPresentation = {
   description: '按个人历史最深层数排序，抵达层数越深排名越前。',
   entryDetail: (entry) =>
-    `${entry.games} 次挑战 · 平均 ${entry.averageScore?.toLocaleString()} 层`,
-  entryScore: (entry) => `${entry.bestScore?.toLocaleString()} 层`,
+    `${entry.games} 次挑战 · 平均 ${formatRecordNumber(entry.averageScore, '层')}`,
+  entryScore: (entry) => formatRecordNumber(entry.bestScore, '层'),
   note: '服务器会根据随机种子重放全部左右输入，再保存实际抵达的最深层数。',
 }
 
@@ -16,11 +19,11 @@ export const deepShaftStats: BuiltinGameStatsPresentation = {
   description: '记录每次深井探索的最深层数、剩余生命和挑战用时。',
   summaryItems: (summary) => [
     { value: summary.games, label: '挑战次数' },
-    { value: summary.bestScore?.toLocaleString() ?? '—', label: '历史最深层数' },
-    { value: summary.averageScore?.toLocaleString() ?? '—', label: '平均抵达层数' },
+    { value: formatRecordNumber(summary.bestScore), label: '历史最深层数' },
+    { value: formatRecordNumber(summary.averageScore), label: '平均抵达层数' },
   ],
   historyOutcome: () => '层',
-  historyTitle: (match) => `最深抵达 · ${match.scoreValue?.toLocaleString()} 层`,
+  historyTitle: (match) => `最深抵达 · ${formatRecordNumber(match.scoreValue, '层')}`,
   historyMeta: (match, date) => `${date} · ${match.reason}`,
   detailSection: (match) => {
     const state = match.details.state

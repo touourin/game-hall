@@ -250,6 +250,12 @@ describe('StatsModal', () => {
 
     expect(loadPersonalStats).toHaveBeenCalledWith('tetris', 'timed_300', undefined)
     expect(wrapper.get('h2').text()).toContain('5 分钟限时')
+    expect(wrapper.findAll('.stats-mode-tabs button')).toHaveLength(4)
+
+    await wrapper.findAll('.stats-mode-tabs button')[3]!.trigger('click')
+    await flushPromises()
+    expect(loadPersonalStats).toHaveBeenLastCalledWith('tetris', 'standard', undefined)
+    expect(wrapper.get('h2').text()).toContain('无限挑战')
   })
 
   it('formats mixed all-game history with each record module', async () => {

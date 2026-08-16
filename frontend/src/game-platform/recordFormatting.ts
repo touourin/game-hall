@@ -9,14 +9,14 @@ import type {
 } from './types'
 
 export function formatRecordDuration(milliseconds: number | null | undefined): string {
-  if (milliseconds === null || milliseconds === undefined) return '—'
+  if (!isValidMetric(milliseconds)) return '—'
   const seconds = Math.floor(milliseconds / 1000)
   const tenths = Math.floor(milliseconds % 1000 / 100)
   return `${seconds}.${tenths} 秒`
 }
 
 export function formatMatchDuration(milliseconds: number | null | undefined): string {
-  if (milliseconds === null || milliseconds === undefined) return '—'
+  if (!isValidMetric(milliseconds)) return '—'
   const totalSeconds = Math.floor(milliseconds / 1000)
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
@@ -25,16 +25,38 @@ export function formatMatchDuration(milliseconds: number | null | undefined): st
     : `${seconds}.${Math.floor(milliseconds % 1000 / 100)} 秒`
 }
 
+function isValidMetric(value: number | null | undefined): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+}
+
+export function formatRecordNumber(
+  value: number | null | undefined,
+  unit = '',
+  maximumFractionDigits = 0,
+): string {
+  if (!isValidMetric(value)) return '—'
+  const fractionDigits = Number.isFinite(maximumFractionDigits)
+    ? Math.min(20, Math.max(0, Math.trunc(maximumFractionDigits)))
+    : 0
+  const formatted = value.toLocaleString('zh-CN', {
+    maximumFractionDigits: fractionDigits,
+  })
+  return unit ? `${formatted} ${unit}` : formatted
+}
+
 export function difficultyRecordLabel(value: string | undefined): string {
   if (value === 'expert') return '高级'
   if (value === 'intermediate') return '中级'
-  if (value === 'beginner') return '初级'
-  return ''
+  return '初级'
 }
 
 export function tetrisRecordModeLabel(value: string | undefined): string {
   if (value?.startsWith('timed_')) {
-    return `${Number(value.slice(6)) / 60} 分钟限时`
+    const durationSeconds = Number(value.slice(6))
+    if ([60, 180, 300].includes(durationSeconds)) {
+      return `${durationSeconds / 60} 分钟限时`
+    }
+    return '未知限时模式'
   }
   return '无限挑战'
 }
@@ -119,21 +141,21 @@ export function createScoredGameRecords(
     leaderboard: {
       description: '按个人历史最高分排序，分数越高排名越前。',
       entryDetail: (entry) => (
-        `${entry.games} 次挑战 · 平均 ${entry.averageScore?.toLocaleString() ?? '—'} 分`
+        `${entry.games} 次挑战 · 平均 ${formatRecordNumber(entry.averageScore, '分')}`
       ),
-      entryScore: (entry) => `${entry.bestScore?.toLocaleString() ?? '—'} 分`,
+      entryScore: (entry) => formatRecordNumber(entry.bestScore, '分'),
       note: '只有完整结束并通过服务端校验的挑战才会记录分数。',
     },
     stats: {
       description: `记录每次${gameName}挑战的服务端结算分数。`,
       summaryItems: (summary) => [
         { value: summary.games, label: '挑战次数' },
-        { value: summary.bestScore?.toLocaleString() ?? '—', label: '历史最高' },
-        { value: summary.averageScore?.toLocaleString() ?? '—', label: '平均分数' },
+        { value: formatRecordNumber(summary.bestScore), label: '历史最高' },
+        { value: formatRecordNumber(summary.averageScore), label: '平均分数' },
       ],
       historyOutcome: () => '分',
       historyTitle: (match) => (
-        `${gameName} · ${match.scoreValue?.toLocaleString() ?? '—'} 分`
+        `${gameName} · ${formatRecordNumber(match.scoreValue, '分')}`
       ),
       historyMeta: (_match, date) => `${date} · 高分挑战`,
       detailWinnerLabel: () => `${gameName}挑战结束`,

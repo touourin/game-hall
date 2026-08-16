@@ -10,6 +10,7 @@ describe('RoomRecordActions', () => {
         accountId: 'account-1',
         gameKey: 'avalon',
         gameName: '阿瓦隆',
+        gameMode: 'standard',
       },
     })
 
@@ -17,6 +18,8 @@ describe('RoomRecordActions', () => {
     expect(wrapper.getComponent(StatsModal).props()).toMatchObject({
       gameKey: 'avalon',
       gameName: '阿瓦隆',
+      gameMode: 'standard',
+      fixedGameMode: true,
     })
     await wrapper.getComponent(StatsModal).vm.$emit('close')
     expect(wrapper.findComponent(StatsModal).exists()).toBe(false)
@@ -26,6 +29,8 @@ describe('RoomRecordActions', () => {
       accountId: 'account-1',
       gameKey: 'avalon',
       gameName: '阿瓦隆',
+      gameMode: 'standard',
+      fixedGameMode: true,
     })
     await wrapper.getComponent(LeaderboardModal).vm.$emit('close')
     expect(wrapper.findComponent(LeaderboardModal).exists()).toBe(false)

@@ -158,10 +158,32 @@ export interface LeaderboardEntry {
   wins: number
   draws: number
   winRate: number
-  bestMs?: number
-  averageMs?: number
-  bestScore?: number
-  averageScore?: number
+  bestMs: number | null
+  averageMs: number | null
+  bestScore: number | null
+  averageScore: number | null
+}
+
+type LeaderboardEntryPayload = Omit<
+  LeaderboardEntry,
+  'bestMs' | 'averageMs' | 'bestScore' | 'averageScore'
+> & Partial<Pick<
+  LeaderboardEntry,
+  'bestMs' | 'averageMs' | 'bestScore' | 'averageScore'
+>>
+
+function finiteNumberOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function normalizeLeaderboardEntry(entry: LeaderboardEntryPayload): LeaderboardEntry {
+  return {
+    ...entry,
+    bestMs: finiteNumberOrNull(entry.bestMs),
+    averageMs: finiteNumberOrNull(entry.averageMs),
+    bestScore: finiteNumberOrNull(entry.bestScore),
+    averageScore: finiteNumberOrNull(entry.averageScore),
+  }
 }
 
 async function statsRequest<T>(path: string): Promise<T> {
@@ -229,11 +251,11 @@ export async function loadLeaderboard(
 ): Promise<LeaderboardEntry[]> {
   const response = await statsRequest<{
     ok: boolean
-    players: LeaderboardEntry[]
+    players: LeaderboardEntryPayload[]
   }>(`/api/leaderboard?${new URLSearchParams({
     game: gameKey,
     ...(gameMode ? { mode: gameMode } : {}),
     ...(gameVariant ? { variant: gameVariant } : {}),
   }).toString()}`)
-  return response.players
+  return response.players.map(normalizeLeaderboardEntry)
 }

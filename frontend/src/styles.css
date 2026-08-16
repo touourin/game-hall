@@ -2482,7 +2482,7 @@ button:disabled {
 
 .stats-mode-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(var(--stats-mode-columns, 3), minmax(0, 1fr));
   gap: 6px;
   margin: 12px 0;
   border-radius: 12px;
@@ -2505,6 +2505,12 @@ button:disabled {
   color: var(--text);
   background: var(--surface-elevated);
   box-shadow: var(--shadow-contact), inset 0 1px 0 var(--metal-edge);
+}
+
+@media (max-width: 420px) {
+  .stats-mode-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .court-balance-summary {

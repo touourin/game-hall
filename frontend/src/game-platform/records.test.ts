@@ -1,4 +1,9 @@
 import { leaderboardPresentation, statsPresentation } from './records'
+import {
+  formatMatchDuration,
+  formatRecordNumber,
+  tetrisRecordModeLabel,
+} from './recordFormatting'
 
 const entry = {
   rank: 1,
@@ -25,10 +30,39 @@ describe('built-in game record presentations', () => {
   it('uses module-owned score formatting for solo games', () => {
     const reaction = leaderboardPresentation('reaction')
     const tetris = leaderboardPresentation('tetris')
+    const deepShaft = leaderboardPresentation('deep_shaft')
 
     expect(reaction.entryScore(entry)).toBe('284 ms')
     expect(tetris.entryScore(entry)).toBe('18,600 分')
     expect(tetris.titleSuffix?.('timed_180', undefined)).toBe(' · 3 分钟限时')
+    expect(tetris.defaultMode).toBe('timed_180')
+    expect(tetris.filters).toHaveLength(4)
+
+    const missingScores = {
+      ...entry,
+      bestMs: null,
+      averageMs: null,
+      bestScore: null,
+      averageScore: null,
+    }
+    expect(tetris.entryScore(missingScores)).toBe('—')
+    expect(tetris.entryDetail(missingScores)).not.toContain('undefined')
+    expect(deepShaft.entryScore(missingScores)).toBe('—')
+    expect(reaction.entryScore(missingScores)).toBe('—')
+  })
+
+  it('keeps record formatting safe for invalid external data', () => {
+    expect(formatRecordNumber(Number.NaN, '分')).toBe('—')
+    expect(formatRecordNumber(-1, '分')).toBe('—')
+    expect(formatMatchDuration(Number.POSITIVE_INFINITY)).toBe('—')
+    expect(tetrisRecordModeLabel('timed_invalid')).toBe('未知限时模式')
+  })
+
+  it('provides filters for every official game with independent score modes', () => {
+    expect(leaderboardPresentation('minesweeper').filters).toHaveLength(3)
+    expect(statsPresentation('minesweeper').defaultMode).toBe('beginner')
+    expect(leaderboardPresentation('critical_crossing').titleSuffix?.('8s', undefined))
+      .toBe(' · 8 秒过载')
   })
 
   it('keeps Avalon mode filters inside the Avalon module', () => {

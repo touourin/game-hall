@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { History, LoaderCircle } from '@lucide/vue'
+import { useLatestAsyncResource } from '../composables/useLatestAsyncResource'
 import { gameRegistration } from '../game-platform/registry'
 import { statsPresentation } from '../game-platform/records'
 import BackNavigationButton from './BackNavigationButton.vue'
@@ -15,20 +16,35 @@ import {
   type StatsSummary,
 } from '../stats'
 
-const props = defineProps<{ gameKey?: string; gameName?: string; gameMode?: string }>()
+const props = withDefaults(defineProps<{
+  gameKey?: string
+  gameName?: string
+  gameMode?: string
+  fixedGameMode?: boolean
+}>(), {
+  fixedGameMode: false,
+})
 defineEmits<{ close: [] }>()
 
-const summary = ref<StatsSummary | null>(null)
-const history = ref<MatchHistoryItem[]>([])
-const selectedMatch = ref<MatchDetail | null>(null)
-const loading = ref(true)
-const detailLoading = ref(false)
-const error = ref<string | null>(null)
 const presentation = statsPresentation(props.gameKey)
 const activeGameMode = ref<string | undefined>(props.gameMode ?? presentation.defaultMode)
 const activeGameVariant = ref<string | undefined>(
   presentation.defaultVariant?.(activeGameMode.value),
 )
+const statsResource = useLatestAsyncResource<{
+  summary: StatsSummary | null
+  history: MatchHistoryItem[]
+}>(() => ({ summary: null, history: [] }), '读取战绩失败')
+const matchResource = useLatestAsyncResource<MatchDetail | null>(
+  () => null,
+  '读取对局详情失败',
+)
+const summary = computed(() => statsResource.data.value.summary)
+const history = computed(() => statsResource.data.value.history)
+const selectedMatch = matchResource.data
+const loading = statsResource.loading
+const detailLoading = matchResource.loading
+const error = computed(() => matchResource.error.value ?? statsResource.error.value)
 const selectedMatchPresentation = computed(() =>
   statsPresentation(selectedMatch.value?.gameKey ?? props.gameKey),
 )
@@ -48,47 +64,32 @@ function historyPresentation(match: MatchHistoryItem) {
 }
 
 function formatDate(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '时间未知'
   return new Intl.DateTimeFormat('zh-CN', {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(value))
+  }).format(date)
 }
 
 function selectFilter(mode: string, variant?: string) {
+  matchResource.reset()
   activeGameMode.value = mode
   activeGameVariant.value = variant
 }
 
 async function openMatch(matchId: string) {
-  detailLoading.value = true
-  error.value = null
-  try {
-    selectedMatch.value = await loadMatchDetail(matchId)
-  } catch (caught) {
-    error.value = caught instanceof Error ? caught.message : '读取战绩失败'
-  } finally {
-    detailLoading.value = false
-  }
+  await matchResource.execute(() => loadMatchDetail(matchId))
 }
 
 async function loadStats() {
-  loading.value = true
-  error.value = null
-  try {
-    const data = await loadPersonalStats(
-      props.gameKey,
-      activeGameMode.value,
-      activeGameVariant.value,
-    )
-    summary.value = data.summary
-    history.value = data.history
-  } catch (caught) {
-    error.value = caught instanceof Error ? caught.message : '读取战绩失败'
-  } finally {
-    loading.value = false
-  }
+  await statsResource.execute(() => loadPersonalStats(
+    props.gameKey,
+    activeGameMode.value,
+    activeGameVariant.value,
+  ))
 }
 
 onMounted(loadStats)
@@ -104,12 +105,11 @@ watch([activeGameMode, activeGameVariant], loadStats)
     inline
     @close="$emit('close')"
   >
-
       <template v-if="selectedMatch">
         <BackNavigationButton
           class="stats-back"
           label="返回战绩列表"
-          @click="selectedMatch = null"
+          @click="matchResource.reset()"
         />
         <span class="modal-icon"><History :size="24" /></span>
         <h2>{{ selectedMatch.gameName }} · 房间 {{ selectedMatch.roomCode }}</h2>
@@ -161,10 +161,11 @@ watch([activeGameMode, activeGameVariant], loadStats)
         <p>{{ presentation.description }}</p>
 
         <div
-          v-if="presentation.filters?.length && !props.gameMode"
+          v-if="presentation.filters?.length && !props.fixedGameMode"
           class="stats-mode-tabs"
           role="group"
           :aria-label="`筛选${props.gameName ?? '游戏'}模式战绩`"
+          :style="{ '--stats-mode-columns': Math.min(presentation.filters.length, 4) }"
         >
           <button
             v-for="filter in presentation.filters"
@@ -222,7 +223,9 @@ watch([activeGameMode, activeGameVariant], loadStats)
           <div v-else class="stats-empty">还没有完成的对局</div>
         </template>
 
-        <p v-if="detailLoading" class="stats-loading"><LoaderCircle :size="17" /> 正在打开记录…</p>
+        <p v-if="detailLoading" class="stats-loading">
+          <LoaderCircle :size="17" /> 正在打开记录…
+        </p>
       </template>
 
       <p v-if="error" class="account-error" role="alert">{{ error }}</p>

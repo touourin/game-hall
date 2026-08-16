@@ -43,6 +43,7 @@ const showLeaderboard = ref(false)
     :game-key="props.gameKey"
     :game-name="props.gameName"
     :game-mode="props.gameMode"
+    fixed-game-mode
     @close="showStats = false"
   />
   <LeaderboardModal
@@ -51,6 +52,7 @@ const showLeaderboard = ref(false)
     :game-key="props.gameKey"
     :game-name="props.gameName"
     :game-mode="props.gameMode"
+    fixed-game-mode
     @close="showLeaderboard = false"
   />
 </template>

@@ -86,6 +86,9 @@ describe('third-party game registrations', () => {
       draws: 0,
       winRate: 100,
       bestMs: 65_400,
+      averageMs: 65_400,
+      bestScore: null,
+      averageScore: null,
     })).toBe('1 分 5 秒')
   })
 })
