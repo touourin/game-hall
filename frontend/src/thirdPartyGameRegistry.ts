@@ -1,5 +1,6 @@
 import { defineAsyncComponent, h, type Component } from 'vue'
 import type {
+  BuiltinGameArtwork,
   GameAvailability,
   GameRegistration,
 } from './game-platform/types'
@@ -46,6 +47,7 @@ export interface GeneratedPluginModule {
   directory: string
   status: GameAvailability
   order: number
+  artwork?: BuiltinGameArtwork
   manifest: ThirdPartyGameManifest
   loadView: () => Promise<PluginViewModule>
 }
@@ -86,7 +88,7 @@ function ruleLabels(
 export function buildThirdPartyGameRegistration(
   generated: GeneratedPluginModule,
 ): GameRegistration<PluginArcadeGameKey> {
-  const { directory, manifest, order, status } = generated
+  const { artwork, directory, manifest, order, status } = generated
   const component = defineAsyncComponent({
     loader: async () => (await generated.loadView()).default,
     errorComponent: {
@@ -117,6 +119,7 @@ export function buildThirdPartyGameRegistration(
       description: manifest.description,
       tone: manifest.tone,
       category: manifest.category,
+      artwork: artwork ? Object.freeze({ ...artwork }) : undefined,
     }),
     capabilities: Object.freeze({
       undo: manifest.capabilities.undoActions.length > 0,

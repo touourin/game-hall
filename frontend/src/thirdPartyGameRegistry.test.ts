@@ -50,6 +50,10 @@ describe('third-party game registrations', () => {
       directory: 'plugin-test-game',
       status: 'enabled',
       order: 100,
+      artwork: {
+        dark: '/plugin-test-game/catalog-dark.webp',
+        light: '/plugin-test-game/catalog-light.webp',
+      },
       manifest,
       loadView: async () => ({ default: defineComponent({ template: '<main />' }) }),
     }
@@ -63,6 +67,10 @@ describe('third-party game registrations', () => {
       catalog: {
         name: '测试插件',
         players: { min: 1, max: 1 },
+        artwork: {
+          dark: '/plugin-test-game/catalog-dark.webp',
+          light: '/plugin-test-game/catalog-light.webp',
+        },
       },
       capabilities: {
         guests: false,

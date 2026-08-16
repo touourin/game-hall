@@ -68,4 +68,12 @@ describe('GameCardArtwork', () => {
     expect(wrapper.find('img').exists()).toBe(false)
     expect(wrapper.find('.game-card-art-fallback').exists()).toBe(true)
   })
+
+  it('provides a compact artwork size for plugin lists', () => {
+    const wrapper = mount(GameCardArtwork, {
+      props: { gameKey: 'plugin-example', compact: true },
+    })
+
+    expect(wrapper.classes()).toContain('game-card-art--compact')
+  })
 })

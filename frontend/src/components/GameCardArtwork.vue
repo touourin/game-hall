@@ -4,7 +4,10 @@ import type { GameCatalogItem } from '../types/arcade'
 import { gameRegistration } from '../game-platform/registry'
 import { currentTheme, isLightTheme } from '../theme'
 
-const props = defineProps<{ gameKey: GameCatalogItem['key'] }>()
+const props = withDefaults(defineProps<{
+  gameKey: GameCatalogItem['key']
+  compact?: boolean
+}>(), { compact: false })
 
 const artwork = computed(() => {
   const variants = gameRegistration(props.gameKey)?.catalog.artwork
@@ -15,7 +18,11 @@ const artwork = computed(() => {
 </script>
 
 <template>
-  <span class="game-card-art" :class="`art-${gameKey}`" aria-hidden="true">
+  <span
+    class="game-card-art"
+    :class="[`art-${gameKey}`, { 'game-card-art--compact': props.compact }]"
+    aria-hidden="true"
+  >
     <img
       v-if="artwork"
       :src="artwork"
@@ -74,6 +81,16 @@ const artwork = computed(() => {
   box-shadow: 0 0 24px color-mix(in srgb, var(--card-tone) 24%, transparent);
 }
 
+.game-card-art--compact {
+  width: 64px;
+  min-height: 64px;
+  flex: 0 0 64px;
+}
+
+.game-card-art--compact .game-card-art-fallback {
+  width: 25px;
+}
+
 :global(:root[data-theme="midnight"] .game-card-art) {
   box-shadow: inset 0 0 30px rgba(4, 2, 16, .5), 0 0 18px color-mix(in srgb, var(--card-tone) 7%, transparent);
 }
@@ -98,6 +115,11 @@ const artwork = computed(() => {
 
 @media (max-width: 680px) {
   .game-card-art { min-height: 92px; }
+  .game-card-art--compact {
+    width: 56px;
+    min-height: 56px;
+    flex-basis: 56px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

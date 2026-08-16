@@ -8,6 +8,7 @@ import {
 } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { verifyGameIconBuffer } from './game-icon-utils.mjs'
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const projectRoot = resolve(scriptDirectory, '../..')
@@ -52,6 +53,10 @@ const capabilityFields = new Set([
 const recordFields = new Set(['scoreKind'])
 const registryStatuses = new Set(['enabled', 'deprecated', 'disabled'])
 const scoreKinds = new Set(['outcome', 'time_trial', 'high_score'])
+const pluginArtworkFiles = Object.freeze({
+  dark: 'catalog-dark.webp',
+  light: 'catalog-light.webp',
+})
 
 function readJson(path, label) {
   try {
@@ -139,6 +144,71 @@ function pluginRepositoryAvailable() {
     throw new Error('第三方仓库缺少 registry.json')
   }
   return false
+}
+
+function artworkIdentifier(entry, variant) {
+  const pluginName = entry.id.replace(/-([a-z0-9])/g, (_, letter) => (
+    letter.toUpperCase()
+  ))
+  return `${pluginName}Artwork${variant[0].toUpperCase()}${variant.slice(1)}`
+}
+
+function discoverPluginArtwork(entry) {
+  const assetDirectory = join(entry.directory, 'frontend/assets')
+  const files = Object.fromEntries(Object.entries(pluginArtworkFiles).map(
+    ([variant, filename]) => [variant, join(assetDirectory, filename)],
+  ))
+  const existingVariants = Object.entries(files)
+    .filter(([, path]) => existsSync(path))
+    .map(([variant]) => variant)
+
+  if (!existingVariants.length) return null
+  if (existingVariants.length !== Object.keys(files).length) {
+    const missing = Object.keys(files).filter(
+      (variant) => !existingVariants.includes(variant),
+    )
+    throw new Error(
+      `${entry.id}: 插件大厅图标必须成对提供，缺少 ${missing.join('、')} 版本`,
+    )
+  }
+
+  for (const [variant, path] of Object.entries(files)) {
+    verifyGameIconBuffer(
+      readFileSync(path),
+      `${entry.id}/frontend/assets/${pluginArtworkFiles[variant]}`,
+    )
+  }
+  return Object.fromEntries(Object.keys(files).map((variant) => [
+    variant,
+    artworkIdentifier(entry, variant),
+  ]))
+}
+
+function artworkImportPath(entry, variant) {
+  return `../../../third_party_games/${entry.path}/frontend/assets/${pluginArtworkFiles[variant]}`
+}
+
+function renderArtworkImports({ entry, artwork }) {
+  if (!artwork) return []
+  return Object.entries(artwork).map(([variant, identifier]) => (
+    `import ${identifier} from ${JSON.stringify(artworkImportPath(entry, variant))}`
+  ))
+}
+
+function renderModuleEntry({ entry, manifest, artwork }) {
+  const lines = [
+    `    directory: ${JSON.stringify(entry.path)},`,
+    `    status: ${JSON.stringify(entry.status)},`,
+    `    order: ${entry.order},`,
+  ]
+  if (artwork) {
+    lines.push(`    artwork: { dark: ${artwork.dark}, light: ${artwork.light} },`)
+  }
+  lines.push(
+    `    manifest: ${JSON.stringify(manifest, null, 2).split('\n').join('\n    ')},`,
+    `    loadView: () => import(${JSON.stringify(`../../../third_party_games/${entry.path}/frontend/GameView.vue`)}),`,
+  )
+  return `  {\n${lines.join('\n')}\n  }`
 }
 
 function validateManifest(candidate, entry) {
@@ -260,18 +330,17 @@ if (pluginRepositoryAvailable()) {
         throw new Error(`${entry.id}: 缺少 ${required}`)
       }
     }
-    modules.push({ entry, manifest })
+    modules.push({
+      entry,
+      manifest,
+      artwork: discoverPluginArtwork(entry),
+    })
   }
 }
 
-const entries = modules.map(({ entry, manifest }) => `  {
-    directory: ${JSON.stringify(entry.path)},
-    status: ${JSON.stringify(entry.status)},
-    order: ${entry.order},
-    manifest: ${JSON.stringify(manifest, null, 2).split('\n').join('\n    ')},
-    loadView: () => import(${JSON.stringify(`../../../third_party_games/${entry.path}/frontend/GameView.vue`)}),
-  }`)
-const source = `// 此文件由 scripts/generate-plugin-registry.mjs 自动生成，请勿手动修改。\nexport const GENERATED_THIRD_PARTY_GAME_MODULES = [\n${entries.join(',\n')}\n] as const\n`
+const artworkImports = modules.flatMap(renderArtworkImports).join('\n')
+const entries = modules.map(renderModuleEntry)
+const source = `// 此文件由 scripts/generate-plugin-registry.mjs 自动生成，请勿手动修改。\n${artworkImports ? `${artworkImports}\n\n` : ''}export const GENERATED_THIRD_PARTY_GAME_MODULES = [\n${entries.join(',\n')}\n] as const\n`
 
 mkdirSync(dirname(output), { recursive: true })
 if (!existsSync(output) || readFileSync(output, 'utf8') !== source) {

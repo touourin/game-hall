@@ -1,4 +1,5 @@
 import { mount } from '@vue/test-utils'
+import GameCardArtwork from './GameCardArtwork.vue'
 import ThirdPartyGamesModal from './ThirdPartyGamesModal.vue'
 import type { GameCatalogItem } from '../types/arcade'
 
@@ -17,6 +18,10 @@ describe('ThirdPartyGamesModal', () => {
 
     expect(wrapper.text()).toContain('计数挑战')
     expect(wrapper.text()).toContain('1–4 人')
+    expect(wrapper.getComponent(GameCardArtwork).props()).toMatchObject({
+      gameKey: 'plugin-counter-demo',
+      compact: true,
+    })
     await wrapper.get('.third-party-game-option').trigger('click')
 
     expect(wrapper.emitted('select')?.[0]?.[0]).toEqual(pluginGame)
