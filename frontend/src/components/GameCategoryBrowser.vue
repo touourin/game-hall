@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { ArrowLeft, Compass, Layers3, Radio } from '@lucide/vue'
+import { ArrowLeft, Compass, Layers3, PackageOpen, Radio } from '@lucide/vue'
 import type { GameCatalogEntry } from '../gameCatalog'
 import {
-  buildOfficialGameCategories,
-  type OfficialGameCategory,
-  type OfficialGameCategoryId,
+  buildGameCategories,
+  type GameCategory,
+  type GameCategoryId,
 } from '../gameCategories'
 import GameCategoryCard from './GameCategoryCard.vue'
 import GameLibraryCard from './GameLibraryCard.vue'
@@ -19,8 +19,8 @@ const emit = defineEmits<{
   select: [game: GameCatalogEntry]
 }>()
 
-const activeCategoryId = ref<OfficialGameCategoryId | null>(null)
-const categories = computed(() => buildOfficialGameCategories(props.games))
+const activeCategoryId = ref<GameCategoryId | null>(null)
+const categories = computed(() => buildGameCategories(props.games))
 const activeCategory = computed(() => (
   categories.value.find((category) => category.id === activeCategoryId.value) ?? null
 ))
@@ -29,14 +29,14 @@ const totalRoomCount = computed(() => Object.values(props.roomCounts).reduce(
   0,
 ))
 
-function categoryRoomCount(category: OfficialGameCategory): number {
+function categoryRoomCount(category: GameCategory): number {
   return category.games.reduce(
     (total, game) => total + (props.roomCounts[game.key] ?? 0),
     0,
   )
 }
 
-function showCategory(category: OfficialGameCategory) {
+function showCategory(category: GameCategory) {
   activeCategoryId.value = category.id
 }
 
@@ -54,7 +54,7 @@ defineExpose({ showOverview })
         <header class="category-browser-header">
           <span class="category-heading-symbol"><Compass :size="24" /></span>
           <span class="category-heading-copy">
-            <small>官方游戏库 · GAME CATEGORIES</small>
+            <small>游戏分类 · GAME CATEGORIES</small>
             <strong>选择游戏分类</strong>
             <em>先选择玩法方向，再进入具体游戏</em>
           </span>
@@ -71,7 +71,6 @@ defineExpose({ showOverview })
             :key="category.id"
             :category="category"
             :room-count="categoryRoomCount(category)"
-            :class="`category-span-${category.layout}`"
             @select="showCategory(category)"
           />
         </div>
@@ -83,7 +82,7 @@ defineExpose({ showOverview })
             <ArrowLeft :size="20" />
           </button>
           <span>
-            <small>{{ activeCategory.eyebrow }} · CATEGORY</small>
+            <small>{{ activeCategory.eyebrow }} · {{ activeCategory.kind === 'community' ? 'COMMUNITY' : 'CATEGORY' }}</small>
             <strong>{{ activeCategory.name }}</strong>
             <em>{{ activeCategory.description }}</em>
           </span>
@@ -96,7 +95,7 @@ defineExpose({ showOverview })
           </aside>
         </header>
 
-        <div class="category-game-grid" :aria-label="`${activeCategory.name}游戏`">
+        <div v-if="activeCategory.games.length" class="category-game-grid" :aria-label="`${activeCategory.name}游戏`">
           <GameLibraryCard
             v-for="(game, index) in activeCategory.games"
             :key="game.key"
@@ -105,6 +104,12 @@ defineExpose({ showOverview })
             :room-count="roomCounts[game.key]"
             @select="emit('select', game)"
           />
+        </div>
+
+        <div v-else class="category-empty-state" role="status">
+          <PackageOpen :size="31" />
+          <strong>社区作品正在准备中</strong>
+          <span>新的社区游戏通过校验后，会自动出现在这里。</span>
         </div>
       </div>
     </Transition>
@@ -200,12 +205,9 @@ defineExpose({ showOverview })
 
 .category-card-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
-
-.category-span-wide { grid-column: span 3; }
-.category-span-standard { grid-column: span 2; }
 
 .category-detail-header {
   position: relative;
@@ -279,6 +281,23 @@ defineExpose({ showOverview })
   gap: 10px;
 }
 
+.category-empty-state {
+  min-height: 250px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 32%, var(--line));
+  border-radius: var(--radius-card);
+  color: var(--muted);
+  background: color-mix(in srgb, var(--accent) 3%, var(--surface-inset));
+  text-align: center;
+}
+
+.category-empty-state > svg { color: var(--accent); }
+.category-empty-state > strong { color: var(--text); font-size: 15px; }
+.category-empty-state > span { font-size: 10px; }
+
 .category-view-enter-active,
 .category-view-leave-active {
   transition: opacity .2s ease, transform .2s ease;
@@ -289,8 +308,6 @@ defineExpose({ showOverview })
 
 @media (max-width: 1180px) {
   .category-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .category-span-wide,
-  .category-span-standard { grid-column: span 1; }
   .category-game-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 

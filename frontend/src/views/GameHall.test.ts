@@ -18,9 +18,9 @@ describe('GameHall', () => {
       global: { plugins: [createPinia()] },
     })
 
-    expect(wrapper.findAll('.game-category-card')).toHaveLength(5)
+    expect(wrapper.findAll('.game-category-card')).toHaveLength(6)
     expect(wrapper.findAll('.game-library-card')).toHaveLength(0)
-    expect(wrapper.findAll('.category-card-art')).toHaveLength(5)
+    expect(wrapper.findAll('.category-card-art')).toHaveLength(6)
     expect(wrapper.find('.hall-hub').exists()).toBe(true)
     expect(wrapper.find('.hall-hub .art-go').exists()).toBe(true)
     expect(wrapper.find('.lobby-room-panel').exists()).toBe(true)
@@ -31,24 +31,21 @@ describe('GameHall', () => {
     expect(wrapper.get('.account-bar-actions [aria-label="查看全部战绩"]').text()).toContain('全部战绩')
     expect(wrapper.get('[aria-label="退出登录"]').text()).toContain('退出')
     expect(wrapper.get('[aria-label="打开设置"]').attributes('aria-label')).toBe('打开设置')
-    expect(wrapper.get('[aria-label="打开第三方游戏入口"]').text()).toContain('第三方游戏')
-    if (THIRD_PARTY_GAME_REGISTRATIONS.length) {
-      expect(wrapper.get('[aria-label="打开第三方游戏入口"]').text()).toContain(
-        `${THIRD_PARTY_GAME_REGISTRATIONS.length} 款已启用`,
-      )
-    }
+    expect(wrapper.get('[aria-label="查看社区游戏分类"]').text()).toContain('社区游戏')
+    expect(wrapper.get('[aria-label="查看社区游戏分类"]').text()).toContain(
+      `${THIRD_PARTY_GAME_REGISTRATIONS.length} 款游戏`,
+    )
     await wrapper.get('.account-bar-actions [aria-label="打开设置"]').trigger('click')
     expect(wrapper.emitted('settings')).toHaveLength(1)
-    await wrapper.get('[aria-label="打开第三方游戏入口"]').trigger('click')
-    expect(wrapper.find('[role="dialog"][aria-label="第三方游戏"]').exists()).toBe(true)
+    await wrapper.get('[aria-label="查看社区游戏分类"]').trigger('click')
+    expect(wrapper.findAll('.game-library-card')).toHaveLength(THIRD_PARTY_GAME_REGISTRATIONS.length)
     for (const registration of THIRD_PARTY_GAME_REGISTRATIONS) {
       expect(wrapper.text()).toContain(registration.catalog.name)
     }
     if (!THIRD_PARTY_GAME_REGISTRATIONS.length) {
-      expect(wrapper.get('[role="status"]').text()).toContain('暂未启用第三方游戏')
+      expect(wrapper.get('[role="status"]').text()).toContain('社区作品正在准备中')
     }
-    await wrapper.get('[aria-label="关闭第三方游戏"]').trigger('click')
-    expect(wrapper.find('[role="dialog"][aria-label="第三方游戏"]').exists()).toBe(false)
+    await wrapper.get('[aria-label="返回游戏分类"]').trigger('click')
     expect(wrapper.get('.account-identity-copy').text()).toContain('玩家账号 · tester')
     expect(wrapper.get('.hall-title-block').text()).toContain('竞技大厅')
     expect(wrapper.get('.hall-system-metrics').text()).toContain('0 个房间')
@@ -70,7 +67,7 @@ describe('GameHall', () => {
     expect(wrapper.text()).toContain('秘密布阵，沿铁路突袭敌旗')
 
     await wrapper.get('[aria-label="查看游戏分类"]').trigger('click')
-    expect(wrapper.findAll('.game-category-card')).toHaveLength(5)
+    expect(wrapper.findAll('.game-category-card')).toHaveLength(6)
     expect(wrapper.findAll('.game-library-card')).toHaveLength(0)
     await wrapper.get('[aria-label="查看棋类竞技分类"]').trigger('click')
 

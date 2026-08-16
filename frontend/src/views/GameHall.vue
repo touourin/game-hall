@@ -23,7 +23,6 @@ import GameCardArtwork from '../components/GameCardArtwork.vue'
 import GameCategoryBrowser from '../components/GameCategoryBrowser.vue'
 import LobbyRoomPanel from '../components/LobbyRoomPanel.vue'
 import StatsModal from '../components/StatsModal.vue'
-import ThirdPartyGamesModal from '../components/ThirdPartyGamesModal.vue'
 import UiButton from '../components/ui/UiButton.vue'
 
 defineProps<{
@@ -40,13 +39,12 @@ const emit = defineEmits<{
 
 const arcade = useArcadeStore()
 const showStats = ref(false)
-const showThirdPartyGames = ref(false)
 const gamesSection = ref<HTMLElement | null>(null)
 const categoryBrowser = ref<InstanceType<typeof GameCategoryBrowser> | null>(null)
 const roomsSection = ref<HTMLElement | null>(null)
 
-const games = GAME_CATALOG.filter((game) => game.source === 'official')
-const thirdPartyGames = GAME_CATALOG.filter((game) => game.source === 'third_party')
+const games = GAME_CATALOG
+const officialGames = GAME_CATALOG.filter((game) => game.source === 'official')
 const builtInRooms = computed(() => arcade.availableRooms.filter(
   (room) => (
     gameCatalogItem(room.gameKey)?.source === 'official'
@@ -64,13 +62,15 @@ const livePlayerCount = computed(() => builtInRooms.value.reduce(
   (total, room) => total + room.playerCount,
   0,
 ))
-const roomCountByGame = computed(() => builtInRooms.value.reduce<Record<string, number>>(
-  (counts, room) => {
-    counts[room.gameKey] = (counts[room.gameKey] ?? 0) + 1
-    return counts
-  },
-  {},
-))
+const roomCountByGame = computed(() => arcade.availableRooms
+  .filter((room) => !room.cleanupAvailable)
+  .reduce<Record<string, number>>(
+    (counts, room) => {
+      counts[room.gameKey] = (counts[room.gameKey] ?? 0) + 1
+      return counts
+    },
+    {},
+  ))
 
 const hubRoom = computed(() => liveRooms.value[0] ?? null)
 const hubGame = computed(() => {
@@ -82,7 +82,7 @@ const hubGame = computed(() => {
     const live = gameCatalogItem(hubRoom.value.gameKey)
     if (live?.source === 'official') return live
   }
-  return games.find((game) => game.key === 'go') ?? games[0]!
+  return officialGames.find((game) => game.key === 'go') ?? officialGames[0]!
 })
 const hubMode = computed<'resume' | 'room' | 'discover'>(() => {
   if (arcade.resumableGame && arcade.resumableRoomCode) return 'resume'
@@ -107,11 +107,6 @@ const hubActionLabel = computed(() => {
   if (hubMode.value === 'room') return '查看房间'
   return '开始游戏'
 })
-
-function selectThirdPartyGame(game: GameCatalogItem) {
-  showThirdPartyGames.value = false
-  emit('select', game)
-}
 
 function openRoom(room: ArcadeLobbyRoom) {
   emit('openRoom', { gameKey: room.gameKey, roomCode: room.roomCode })
@@ -253,13 +248,6 @@ function openGameCategories() {
         />
       </section>
 
-      <button type="button" class="third-party-entry surface" aria-label="打开第三方游戏入口" @click="showThirdPartyGames = true">
-        <span class="third-party-entry-icon"><Gamepad2 :size="20" /></span>
-        <span class="third-party-entry-copy"><small>独立插件</small><strong>第三方游戏</strong></span>
-        <em>{{ thirdPartyGames.length ? `${thirdPartyGames.length} 款已启用` : '独立插件入口' }}</em>
-        <ChevronRight :size="18" />
-      </button>
-
       <footer class="hall-system-footer">
         <span><ShieldCheck :size="14" />安全会话已启用</span>
         <span><Radio :size="14" />大厅信号实时同步</span>
@@ -274,12 +262,6 @@ function openGameCategories() {
     </nav>
 
     <StatsModal v-if="showStats && !account.isGuest" @close="showStats = false" />
-    <ThirdPartyGamesModal
-      v-if="showThirdPartyGames"
-      :games="thirdPartyGames"
-      @close="showThirdPartyGames = false"
-      @select="selectThirdPartyGame"
-    />
   </main>
 </template>
 
@@ -755,51 +737,6 @@ function openGameCategories() {
   scroll-margin-top: 20px;
 }
 
-.third-party-entry {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 13px;
-  width: 100%;
-  min-height: 78px;
-  margin-top: 22px;
-  padding: 12px 16px;
-  color: var(--text);
-  text-align: left;
-  cursor: pointer;
-}
-
-.third-party-entry-icon {
-  display: grid;
-  place-items: center;
-  width: 43px;
-  aspect-ratio: 1;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-  color: var(--accent-secondary);
-  background: var(--surface-inset);
-}
-
-.third-party-entry-copy {
-  display: grid;
-  gap: 3px;
-}
-
-.third-party-entry-copy small,
-.third-party-entry > em {
-  color: var(--muted);
-  font-size: 9px;
-  font-style: normal;
-}
-
-.third-party-entry-copy strong {
-  font-size: 14px;
-}
-
-.third-party-entry > svg {
-  color: var(--muted);
-}
-
 .hall-system-footer {
   display: flex;
   gap: 18px;
@@ -822,8 +759,7 @@ function openGameCategories() {
 :global(:root[data-theme="emerald"] .hall-sidebar),
 :global(:root[data-theme="emerald"] .hall-topbar),
 :global(:root[data-theme="emerald"] .hall-hub),
-:global(:root[data-theme="emerald"] .hall-personal-card),
-:global(:root[data-theme="emerald"] .third-party-entry) {
+:global(:root[data-theme="emerald"] .hall-personal-card) {
   background:
     var(--panel-sheen),
     linear-gradient(160deg, rgba(17, 38, 58, .8), rgba(3, 11, 20, .94));
@@ -842,8 +778,7 @@ function openGameCategories() {
   }
 
   .hall-sidebar button:hover,
-  .hall-personal-card:hover,
-  .third-party-entry:hover {
+  .hall-personal-card:hover {
     border-color: var(--line-strong);
     transform: translateY(-2px);
   }
@@ -1010,13 +945,6 @@ function openGameCategories() {
     min-height: 0;
   }
 
-  .third-party-entry {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-  }
-
-  .third-party-entry > em {
-    display: none;
-  }
 }
 
 @media (max-width: 380px) {
