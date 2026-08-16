@@ -109,11 +109,12 @@ http://192.168.1.20:10618
 在 QQ 邮箱的“账号与安全”中开启 IMAP/SMTP 服务并生成授权码，然后只在服务器 `.env` 中填写：
 
 ```dotenv
-SMTP_USER=orangeplay@qq.com
+SMTP_USER=QQ主账号@qq.com
 SMTP_PASS=这里填写QQ邮箱授权码
+SMTP_FROM_EMAIL=orangeplay@qq.com
 ```
 
-`SMTP_PASS` 不是 QQ 登录密码，不能提交到 Git。其他 SMTP 地址、发件名称、超时、每日限额、60 秒发送冷却、10 分钟验证码有效期和 5 次验证尝试上限均可参考 `.env.example` 调整。
+`SMTP_USER` 必须填写能够通过 SMTP 认证的 QQ 主账号，英文邮箱别名放在 `SMTP_FROM_EMAIL`；`SMTP_PASS` 不是 QQ 登录密码，不能提交到 Git。其他 SMTP 地址、发件名称、超时、每日限额、60 秒发送冷却、10 分钟验证码有效期和 5 次验证尝试上限均可参考 `.env.example` 调整。
 
 账号、正式战绩和排行榜保存在 MySQL 命名卷 `mysql-data` 中；游客不会写入用户表，包含游客的休闲局也不会写入战绩表。Redis 数据保存在 `redis-data` 中。普通的重新构建和重启不会清空这些数据；不要使用 `docker compose down -v`，除非确定要删除全部持久化数据。
 

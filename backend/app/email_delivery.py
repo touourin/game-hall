@@ -75,6 +75,7 @@ class SmtpSettings:
     username: str
     password: str
     from_name: str
+    from_email: str
     timeout_seconds: int
 
 
@@ -85,6 +86,12 @@ def smtp_settings() -> SmtpSettings:
         raise EmailDeliveryUnavailable(
             "邮件服务尚未配置，请设置 SMTP_USER 和 SMTP_PASS"
         )
+    from_email = os.environ.get("SMTP_FROM_EMAIL", "").strip() or username
+    if (
+        from_email.count("@") != 1
+        or any(character.isspace() for character in from_email)
+    ):
+        raise EmailDeliveryUnavailable("SMTP_FROM_EMAIL 必须是有效邮箱地址")
     return SmtpSettings(
         host=os.environ.get("SMTP_HOST", "smtp.qq.com").strip()
         or "smtp.qq.com",
@@ -95,6 +102,7 @@ def smtp_settings() -> SmtpSettings:
         password=password,
         from_name=os.environ.get("SMTP_FROM_NAME", "Orange Play").strip()
         or "Orange Play",
+        from_email=from_email,
         timeout_seconds=_positive_int(
             "SMTP_TIMEOUT_SECONDS", 12, maximum=60
         ),
@@ -118,13 +126,13 @@ def send_verification_email(
     message = EmailMessage()
     message["From"] = Address(
         display_name=settings.from_name,
-        addr_spec=settings.username,
+        addr_spec=settings.from_email,
     )
     message["To"] = Address(addr_spec=recipient)
     message["Subject"] = subject
     message["Date"] = formatdate(localtime=False)
     message["Message-ID"] = make_msgid(
-        domain=settings.username.rpartition("@")[2]
+        domain=settings.from_email.rpartition("@")[2]
     )
     message["Auto-Submitted"] = "auto-generated"
     message.set_content(
@@ -170,7 +178,7 @@ def send_verification_email(
                 context=context,
             ) as client:
                 client.login(settings.username, settings.password)
-                client.send_message(message)
+                client.send_message(message, from_addr=settings.username)
         else:
             with smtplib.SMTP(
                 settings.host,
@@ -181,6 +189,6 @@ def send_verification_email(
                 client.starttls(context=context)
                 client.ehlo()
                 client.login(settings.username, settings.password)
-                client.send_message(message)
+                client.send_message(message, from_addr=settings.username)
     except (OSError, smtplib.SMTPException) as error:
         raise EmailDeliveryError("邮件发送失败，请稍后再试") from error

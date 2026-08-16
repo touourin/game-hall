@@ -16,9 +16,10 @@ def smtp_environment(monkeypatch) -> None:
     monkeypatch.setenv("SMTP_HOST", "smtp.qq.com")
     monkeypatch.setenv("SMTP_PORT", "465")
     monkeypatch.setenv("SMTP_SECURE", "true")
-    monkeypatch.setenv("SMTP_USER", "orangeplay@qq.com")
+    monkeypatch.setenv("SMTP_USER", "2955693049@qq.com")
     monkeypatch.setenv("SMTP_PASS", "authorization-code")
     monkeypatch.setenv("SMTP_FROM_NAME", "Orange Play")
+    monkeypatch.setenv("SMTP_FROM_EMAIL", "orangeplay@qq.com")
 
 
 def test_sends_a_multipart_verification_email_over_smtp_ssl(monkeypatch) -> None:
@@ -38,8 +39,9 @@ def test_sends_a_multipart_verification_email_over_smtp_ssl(monkeypatch) -> None
         def login(self, username, password):
             captured.update(username=username, password=password)
 
-        def send_message(self, message):
+        def send_message(self, message, *, from_addr):
             captured["message"] = message
+            captured["envelope_from"] = from_addr
 
     monkeypatch.setattr("backend.app.email_delivery.smtplib.SMTP_SSL", FakeSmtp)
 
@@ -53,7 +55,8 @@ def test_sends_a_multipart_verification_email_over_smtp_ssl(monkeypatch) -> None
     message = captured["message"]
     assert captured["host"] == "smtp.qq.com"
     assert captured["port"] == 465
-    assert captured["username"] == "orangeplay@qq.com"
+    assert captured["username"] == "2955693049@qq.com"
+    assert captured["envelope_from"] == "2955693049@qq.com"
     assert message["To"] == "player@example.com"
     assert "Orange Play" in str(message["From"])
     assert "绑定邮箱验证码" in str(message["Subject"])
@@ -64,7 +67,7 @@ def test_sends_a_multipart_verification_email_over_smtp_ssl(monkeypatch) -> None
 def test_requires_a_qq_authorization_code_instead_of_the_login_password(
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("SMTP_USER", "orangeplay@qq.com")
+    monkeypatch.setenv("SMTP_USER", "2955693049@qq.com")
     monkeypatch.delenv("SMTP_PASS", raising=False)
 
     with pytest.raises(EmailDeliveryUnavailable, match="SMTP_PASS"):
