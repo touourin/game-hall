@@ -60,8 +60,10 @@ def test_sends_a_multipart_verification_email_over_smtp_ssl(monkeypatch) -> None
     assert message["To"] == "player@example.com"
     assert "Orange Play" in str(message["From"])
     assert "绑定邮箱验证码" in str(message["Subject"])
+    assert "Orange Play" in str(message["Subject"])
+    assert "蜜橘游戏" not in message.as_string()
     assert "123456" in message.get_body(preferencelist=("plain",)).get_content()
-    assert "ORANGE PLAY" in message.get_body(preferencelist=("html",)).get_content()
+    assert "Orange Play" in message.get_body(preferencelist=("html",)).get_content()
 
 
 def test_requires_a_qq_authorization_code_instead_of_the_login_password(

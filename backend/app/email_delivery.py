@@ -122,7 +122,7 @@ def send_verification_email(
         if purpose == BIND_EMAIL_PURPOSE
         else "重置密码"
     )
-    subject = f"【蜜橘游戏】{purpose_label}验证码"
+    subject = f"【Orange Play】{purpose_label}验证码"
     message = EmailMessage()
     message["From"] = Address(
         display_name=settings.from_name,
@@ -153,8 +153,8 @@ def send_verification_email(
     <div style="max-width:520px;margin:0 auto;padding:40px 18px;">
       <div style="overflow:hidden;border:1px solid #e1d8c8;border-radius:18px;background:#fff;box-shadow:0 16px 40px rgba(75,59,32,.10);">
         <div style="padding:24px 28px;background:linear-gradient(135deg,#ff9d45,#f46b35);color:#fff;">
-          <div style="font-size:13px;font-weight:700;letter-spacing:.12em;opacity:.9;">ORANGE PLAY</div>
-          <h1 style="margin:8px 0 0;font-size:24px;">蜜橘游戏</h1>
+          <div style="font-size:13px;font-weight:700;letter-spacing:.12em;opacity:.9;">ACCOUNT SECURITY</div>
+          <h1 style="margin:8px 0 0;font-size:24px;">Orange Play</h1>
         </div>
         <div style="padding:30px 28px 32px;">
           <p style="margin:0 0 18px;font-size:15px;line-height:1.8;">你正在进行<strong>{purpose_label}</strong>操作，请输入下面的验证码：</p>
