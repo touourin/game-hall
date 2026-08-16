@@ -19,5 +19,5 @@ DOUDIZHU_GAME = GameRegistration(
         max_players=3,
         description="叫抢地主、三种玩法与倍数结算",
     ),
-    capabilities=social_table_capabilities(),
+    capabilities=social_table_capabilities(ai=True),
 )

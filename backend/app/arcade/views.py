@@ -142,7 +142,9 @@ def build_room_view(
         "easy": "简单",
         "normal": "普通",
         "hard": "困难",
+        "douzero": "DouZero",
     }
+    bot_availability = ArcadeBotService.availability(room, engine)
     return {
         "revision": room.revision,
         "roomCode": room.code,
@@ -236,7 +238,7 @@ def build_room_view(
                 room.phase == "lobby"
                 and viewer.id == room.host_id
                 and len(room.players) < engine.max_players
-                and ArcadeBotService.supports(engine)
+                and bot_availability.available
             ),
             "canKickPlayers": room.phase == "lobby" and viewer.id == room.host_id,
             "canDissolve": room.phase == "lobby" and viewer.id == room.host_id,

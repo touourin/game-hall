@@ -364,6 +364,14 @@ class ArcadeRoomManager:
             raise ArcadeRoomError("房间中已有游客，不能关闭游客准入")
         if room.phase == "finished":
             self._prepare_lobby(room)
+        if any(player.is_bot for player in room.players):
+            candidate = copy.copy(room)
+            candidate.options = normalized
+            availability = self.bots.availability(candidate, engine)
+            if not availability.available:
+                raise ArcadeRoomError(
+                    availability.reason or "当前规则不支持 AI 玩家"
+                )
         room.options = normalized
         room.listed = normalized.get(
             "listed", getattr(engine, "public_rooms", True)
@@ -376,6 +384,12 @@ class ArcadeRoomManager:
             raise ArcadeRoomError("只有房主可以开始游戏")
         if room.phase != "lobby":
             raise ArcadeRoomError("当前不能开始游戏")
+        if any(player.is_bot for player in room.players):
+            availability = self.bots.availability(room, engine)
+            if not availability.available:
+                raise ArcadeRoomError(
+                    availability.reason or "当前规则不支持 AI 玩家"
+                )
         if not engine.min_players <= len(room.players) <= engine.max_players:
             if engine.min_players == engine.max_players:
                 raise ArcadeRoomError(f"该游戏需要 {engine.min_players} 名玩家")
@@ -422,6 +436,11 @@ class ArcadeRoomManager:
             raise ArcadeRoomError("只有房主可以添加 AI 玩家")
         if len(room.players) >= engine.max_players:
             raise ArcadeRoomError("房间已经满员")
+        availability = self.bots.availability(room, engine)
+        if not availability.available:
+            raise ArcadeRoomError(
+                availability.reason or "当前规则不支持 AI 玩家"
+            )
         if difficulty is not None and not isinstance(difficulty, str):
             raise ArcadeRoomError("AI 难度格式不正确")
         try:

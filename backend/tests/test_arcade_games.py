@@ -148,7 +148,7 @@ def test_avalon_record_variants_own_their_storage_selectors() -> None:
 def test_social_table_games_preserve_their_shared_capability_contract() -> None:
     expected = {
         "departed_suspicion": GameCapabilities(),
-        "doudizhu": GameCapabilities(),
+        "doudizhu": GameCapabilities(ai=True),
         "monopoly": GameCapabilities(),
         "pixel_push": GameCapabilities(first_player=False),
         "poker": GameCapabilities(first_player=False),

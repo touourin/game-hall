@@ -5,6 +5,7 @@ import random
 from dataclasses import dataclass, field
 from typing import Any
 
+from backend.app.arcade.bots import BotAvailability
 from backend.app.arcade.models import ArcadePlayer, ArcadeRoom
 from backend.app.games.base import GameRuleError
 
@@ -322,9 +323,41 @@ class DoudizhuEngine:
     name = "斗地主"
     min_players = 3
     max_players = 3
+    bot_difficulties = ("douzero",)
+    default_bot_difficulty = "douzero"
+    bot_timeout_seconds = 8.0
 
     def __init__(self, rng: random.Random | random.SystemRandom | None = None) -> None:
         self.rng = rng or random.SystemRandom()
+        from .bots import DoudizhuBotStrategy
+
+        self.bot_strategy = DoudizhuBotStrategy(self, rng=self.rng)
+
+    async def choose_bot_action_async(self, room: ArcadeRoom):
+        return await self.bot_strategy.choose_action(room)
+
+    def fallback_bot_action(self, room: ArcadeRoom):
+        return self.bot_strategy.fallback_action(room)
+
+    async def close(self) -> None:
+        await self.bot_strategy.close()
+
+    async def warm_up(self) -> None:
+        await self.bot_strategy.warm_up()
+
+    def bot_availability(self, room: ArcadeRoom) -> BotAvailability:
+        if room.options.get("variant", "classic") == "laizi":
+            return BotAvailability(False, "癞子玩法暂不支持 DouZero AI 玩家")
+        if not getattr(
+            self.bot_strategy.client,
+            "available",
+            self.bot_strategy.client.configured,
+        ):
+            return BotAvailability(
+                False,
+                "请先配置完整的 DouZero 模型后再添加 AI 玩家",
+            )
+        return BotAvailability(True)
 
     def room_options(self, options: dict[str, Any]) -> dict[str, Any]:
         variant = options.get("variant", "classic")

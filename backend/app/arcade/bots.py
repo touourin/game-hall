@@ -31,6 +31,14 @@ class BotAction:
     payload: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class BotAvailability:
+    """Whether the shared AI-seat flow is available for one room."""
+
+    available: bool
+    reason: str | None = None
+
+
 class BotActionProvider(Protocol):
     """Optional game-engine capability consumed by ``ArcadeBotService``."""
 
@@ -45,15 +53,21 @@ class AsyncBotActionProvider(Protocol):
     ) -> Awaitable[BotAction | None]: ...
 
 
+class BotAvailabilityProvider(Protocol):
+    """Optional room-aware guard for engines with conditional AI support."""
+
+    def bot_availability(self, room: ArcadeRoom) -> BotAvailability: ...
+
+
 BotActionApplier = Callable[[BotAction], None]
 
 
 class ArcadeBotService:
     """Shared bot seats and automatic-action orchestration for Arcade games.
 
-    A game opts in by implementing ``choose_bot_action``. The provider only
-    chooses an action; the room manager applies it through the same authoritative
-    ``engine.act`` path used for human actions.
+    A game opts in with a synchronous or asynchronous action provider. The
+    provider only chooses an action; the room manager applies it through the
+    same authoritative ``engine.act`` path used for human actions.
     """
 
     def __init__(
@@ -68,6 +82,22 @@ class ArcadeBotService:
             callable(getattr(engine, attribute, None))
             for attribute in ("choose_bot_action_async", "choose_bot_action")
         )
+
+    @classmethod
+    def availability(
+        cls,
+        room: ArcadeRoom,
+        engine: GameEngine,
+    ) -> BotAvailability:
+        if not cls.supports(engine):
+            return BotAvailability(False, "这个游戏暂时没有接入 AI")
+        checker = getattr(engine, "bot_availability", None)
+        if not callable(checker):
+            return BotAvailability(True)
+        result = checker(room)
+        if not isinstance(result, BotAvailability):
+            raise RuntimeError("AI 可用性配置格式不正确")
+        return result
 
     @staticmethod
     def difficulties(engine: GameEngine) -> tuple[str, ...]:

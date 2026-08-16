@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from backend.app.arcade.bots import BotAction
+from backend.app.arcade.bots import BotAction, BotAvailability
 from backend.app.arcade.models import ArcadePlayer, ArcadeRoom
 from backend.app.arcade.rooms import ArcadeRoomError, ArcadeRoomManager
 from backend.app.arcade.views import build_room_view
@@ -70,6 +70,17 @@ class NoBotEngine(BotTestEngine):
     choose_bot_action = None
 
 
+class ConditionalBotEngine(BotTestEngine):
+    key = "conditional-bot"
+    max_players = 3
+    bots_available = False
+
+    def bot_availability(self, room: ArcadeRoom) -> BotAvailability:
+        if self.bots_available:
+            return BotAvailability(True)
+        return BotAvailability(False, "当前房间不能添加 AI")
+
+
 def test_generic_bot_seat_and_action_pipeline() -> None:
     engine = BotTestEngine()
     manager = ArcadeRoomManager({engine.key: engine})
@@ -130,3 +141,21 @@ def test_game_without_bot_provider_rejects_ai_seat() -> None:
     ] is False
     with pytest.raises(ArcadeRoomError, match="暂时没有接入 AI"):
         manager.act(room, host.id, "add_ai", {})
+
+
+def test_room_aware_bot_availability_uses_the_shared_ai_seat_flow() -> None:
+    engine = ConditionalBotEngine()
+    manager = ArcadeRoomManager({engine.key: engine})
+    room, host, _ = manager.create_room(engine.key, "房主", "account-host")
+
+    assert build_room_view(room, host, engine)["actions"][
+        "canAddAiPlayer"
+    ] is False
+    with pytest.raises(ArcadeRoomError, match="当前房间不能添加 AI"):
+        manager.add_ai_player(room, host.id)
+
+    engine.bots_available = True
+    assert build_room_view(room, host, engine)["actions"][
+        "canAddAiPlayer"
+    ] is True
+    assert manager.add_ai_player(room, host.id).is_bot is True

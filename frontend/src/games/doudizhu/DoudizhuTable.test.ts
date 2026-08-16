@@ -162,6 +162,21 @@ describe('DoudizhuTable', () => {
     expect(wrapper.get('.selection-feedback').text()).toContain('可提前选择手牌')
   })
 
+  it('labels DouZero opponents in the playing table', () => {
+    const next = playingSnapshot()
+    next.players[1] = {
+      ...next.players[1]!,
+      isBot: true,
+      botDifficulty: 'douzero',
+    }
+    const wrapper = mount(DoudizhuTable, {
+      props: { snapshot: next },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.get('.opponent-1 .ai-badge').text()).toBe('AI · DouZero')
+  })
+
   it('selects a card and submits its id', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)

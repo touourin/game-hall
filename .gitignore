@@ -30,3 +30,6 @@ logs/
 
 # Locally generated document exports
 /output/
+
+# Optional local AI weights
+/ai/douzero/

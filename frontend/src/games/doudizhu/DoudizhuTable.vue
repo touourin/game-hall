@@ -150,6 +150,10 @@ function teamLabel(team: 'landlord' | 'farmer' | undefined): string {
   return team === 'landlord' ? '地主' : '农民'
 }
 
+function aiDifficultyLabel(difficulty?: string | null): string {
+  return difficulty === 'douzero' ? 'DouZero' : difficulty || 'DouZero'
+}
+
 function describeSelectedCards(cards: PlayingCard[]): string {
   if (!cards.length) return ''
   if (cards.some(isWild)) return '含癞子'
@@ -260,7 +264,10 @@ function historyText(entry: HistoryEntry): string {
         >
           <AvatarImage class="player-avatar" :src="player.avatarUrl" :name="player.name" />
           <div class="player-identity">
-            <strong>{{ player.name }}</strong>
+            <strong>
+              {{ player.name }}
+              <i v-if="player.isBot" class="ai-badge">AI · {{ aiDifficultyLabel(player.botDifficulty) }}</i>
+            </strong>
             <small :class="game.teams[player.id]">
               <Crown v-if="game.teams[player.id] === 'landlord'" :size="12" />
               {{ teamLabel(game.teams[player.id]) }}
@@ -502,6 +509,7 @@ function historyText(entry: HistoryEntry): string {
 }
 .player-identity { min-width: 0; display: grid; gap: 4px; }
 .player-identity strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-badge { margin-left: 4px; border-radius: 999px; padding: 2px 5px; color: var(--gold); background: color-mix(in srgb, var(--gold) 13%, transparent); font-size: 8px; font-style: normal; font-weight: 900; }
 .player-identity small,
 .self-seat small {
   width: max-content;

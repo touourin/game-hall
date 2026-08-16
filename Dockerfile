@@ -112,6 +112,8 @@ FROM python:3.13-slim AS runtime
 ARG DEBIAN_MIRROR
 ARG DEBIAN_SECURITY_MIRROR
 ARG PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple
+ARG PYTORCH_CPU_INDEX_URL=https://download.pytorch.org/whl/cpu
+ARG INSTALL_DOUZERO_AI=0
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -119,7 +121,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIKAFISH_EVAL_FILE=/opt/game-hall/ai/pikafish.nnue \
     KATAGO_PATH=/opt/game-hall/ai/katago \
     KATAGO_MODEL_PATH=/opt/game-hall/ai/katago-model.bin.gz \
-    KATAGO_CONFIG_PATH=/opt/game-hall/ai/katago-analysis.cfg
+    KATAGO_CONFIG_PATH=/opt/game-hall/ai/katago-analysis.cfg \
+    DOUZERO_MODEL_DIR=/opt/game-hall/ai/douzero \
+    DOUZERO_THREADS=1 \
+    DOUZERO_BID_SAMPLES=32
 
 RUN sed -i \
       -e "s|http://deb.debian.org/debian-security|${DEBIAN_SECURITY_MIRROR}|g" \
@@ -131,7 +136,14 @@ RUN sed -i \
 
 WORKDIR /app
 COPY backend/ ./backend/
-RUN pip install --no-cache-dir --index-url "$PIP_INDEX_URL" ./backend
+RUN if [ "$INSTALL_DOUZERO_AI" = "1" ]; then \
+      pip install --no-cache-dir --index-url "$PYTORCH_CPU_INDEX_URL" \
+        --extra-index-url "$PIP_INDEX_URL" 'torch>=2.6,<3'; \
+      pip install --no-cache-dir --index-url "$PIP_INDEX_URL" \
+        './backend[doudizhu-ai]'; \
+    else \
+      pip install --no-cache-dir --index-url "$PIP_INDEX_URL" ./backend; \
+    fi
 COPY third_party_games/ ./third_party_games/
 COPY --from=web-builder /build/frontend/dist ./frontend/dist
 COPY --from=pikafish-builder /out/pikafish /opt/game-hall/ai/pikafish

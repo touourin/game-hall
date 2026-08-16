@@ -104,7 +104,10 @@ describe('built-in game registry', () => {
     }
 
     expect(gameRegistration('departed_suspicion')?.capabilities).toEqual(shared)
-    expect(gameRegistration('doudizhu')?.capabilities).toEqual(shared)
+    expect(gameRegistration('doudizhu')?.capabilities).toEqual({
+      ...shared,
+      ai: true,
+    })
     expect(gameRegistration('monopoly')?.capabilities).toEqual(shared)
     expect(gameRegistration('pixel_push')?.capabilities).toEqual({
       ...shared,

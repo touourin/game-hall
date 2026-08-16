@@ -16,7 +16,7 @@ export const doudizhuGame = defineBuiltinGame({
     category: '扑克对战',
     artwork: { dark: doudizhuArtworkDark, light: doudizhuArtworkLight },
   },
-  capabilities: socialTableCapabilities(),
+  capabilities: socialTableCapabilities({ ai: true }),
   presentation: {
     component: defineAsyncComponent(() => import('./DoudizhuTable.vue')),
     roomLayout: 'wide',
