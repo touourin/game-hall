@@ -118,7 +118,7 @@ describe('account service', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ message: '验证码已发送' }), {
+        new Response(JSON.stringify({ sent: true, message: '验证码已发送' }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         }),
@@ -143,7 +143,9 @@ describe('account service', () => {
       )
     vi.stubGlobal('fetch', fetchMock)
 
-    await requestPasswordResetCode('access-token', 'player')
+    await expect(
+      requestPasswordResetCode('access-token', 'player'),
+    ).resolves.toEqual({ sent: true, message: '验证码已发送' })
     await confirmPasswordReset('access-token', {
       identifier: 'player@example.com',
       code: '123456',

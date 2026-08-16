@@ -89,7 +89,10 @@ describe('SettingsModal', () => {
       ['player@example.com'],
     ])
 
-    await wrapper.setProps({ emailCodeSent: true })
+    await wrapper.setProps({
+      emailCodeSent: true,
+      emailRequestedFor: 'player@example.com',
+    })
     const refreshedSection = wrapper.get('.email-settings-section')
     await refreshedSection
       .get('input[autocomplete="one-time-code"]')

@@ -37,12 +37,11 @@ describe('AccountGate', () => {
       props: { busy: false, error: null },
     })
     await wrapper.findAll('.account-mode button')[1]!.trigger('click')
-    const inputs = wrapper.findAll('input')
-
-    await inputs[0]!.setValue('round_player')
-    await inputs[1]!.setValue('游戏昵称')
-    await inputs[2]!.setValue('secret123')
-    await inputs[3]!.setValue('secret123')
+    await wrapper.get('input[autocomplete="username"]').setValue('round_player')
+    await wrapper.get('input[autocomplete="nickname"]').setValue('游戏昵称')
+    const passwords = wrapper.findAll('input[autocomplete="new-password"]')
+    await passwords[0]!.setValue('secret123')
+    await passwords[1]!.setValue('secret123')
     await wrapper.get('form').trigger('submit')
 
     expect(wrapper.emitted('register')).toEqual([
@@ -54,6 +53,32 @@ describe('AccountGate', () => {
         },
       ],
     ])
+  })
+
+  it('accepts an optional email and requests verification after registration', async () => {
+    const wrapper = mount(AccountGate, {
+      props: { busy: false, error: null },
+    })
+    await wrapper.findAll('.account-mode button')[1]!.trigger('click')
+    await wrapper.get('input[autocomplete="username"]').setValue('mail_player')
+    await wrapper.get('input[autocomplete="nickname"]').setValue('邮箱玩家')
+    await wrapper.get('input[autocomplete="email"]').setValue(' player@example.com ')
+    const passwords = wrapper.findAll('input[autocomplete="new-password"]')
+    await passwords[0]!.setValue('secret123')
+    await passwords[1]!.setValue('secret123')
+    await wrapper.get('form').trigger('submit')
+
+    expect(wrapper.emitted('register')).toEqual([
+      [
+        {
+          username: 'mail_player',
+          playerName: '邮箱玩家',
+          password: 'secret123',
+          email: 'player@example.com',
+        },
+      ],
+    ])
+    expect(wrapper.text()).toContain('验证通过才会绑定')
   })
 
   it('allows an email-style login name up to 50 characters', async () => {
@@ -76,11 +101,13 @@ describe('AccountGate', () => {
       props: { busy: false, error: null },
     })
     await wrapper.findAll('.account-mode button')[1]!.trigger('click')
-    const registerInputs = wrapper.findAll('input')
-    await registerInputs[0]!.setValue('single_name')
-    await registerInputs[1]!.setValue('王')
-    await registerInputs[2]!.setValue('secret123')
-    await registerInputs[3]!.setValue('secret123')
+    await wrapper.get('input[autocomplete="username"]').setValue('single_name')
+    await wrapper.get('input[autocomplete="nickname"]').setValue('王')
+    const registerPasswords = wrapper.findAll(
+      'input[autocomplete="new-password"]',
+    )
+    await registerPasswords[0]!.setValue('secret123')
+    await registerPasswords[1]!.setValue('secret123')
     await wrapper.get('form').trigger('submit')
 
     expect(wrapper.emitted('register')?.[0]?.[0]).toMatchObject({

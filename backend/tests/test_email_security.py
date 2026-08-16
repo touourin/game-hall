@@ -104,13 +104,14 @@ def test_email_binding_and_password_reset_api(monkeypatch, tmp_path) -> None:
     assert verified.json()["account"]["email"] == "mail-player@example.com"
     assert verified.json()["account"]["emailVerified"] is True
     assert reset_requested.status_code == 200
+    assert reset_requested.json()["sent"] is True
     assert delivered[1]["purpose"] == "reset_password"
     assert reset_confirmed.status_code == 200
     assert old_login.status_code == 401
     assert new_login.status_code == 200
 
 
-def test_password_reset_request_does_not_reveal_unknown_account(
+def test_password_reset_request_does_not_distinguish_unknown_and_unbound_accounts(
     monkeypatch,
     tmp_path,
 ) -> None:
@@ -128,14 +129,33 @@ def test_password_reset_request_does_not_reveal_unknown_account(
     )
 
     with TestClient(api) as client:
-        response = client.post(
+        registered = client.post(
+            "/api/auth/register",
+            headers={"X-Game-Hall-Access": access_token()},
+            json={
+                "username": "unbound-account",
+                "password": "secret123",
+                "player_name": "未绑定玩家",
+            },
+        )
+        unknown_response = client.post(
             "/api/auth/password-reset/code",
             headers={"X-Game-Hall-Access": access_token()},
             json={"identifier": "missing-account"},
         )
+        unbound_response = client.post(
+            "/api/auth/password-reset/code",
+            headers={"X-Game-Hall-Access": access_token()},
+            json={"identifier": "unbound-account"},
+        )
 
-    assert response.status_code == 200
-    assert response.json()["message"] == (
-        "如果账号已经绑定邮箱，验证码将发送到该邮箱"
-    )
+    assert registered.status_code == 200
+    assert unknown_response.status_code == 200
+    assert unbound_response.status_code == 200
+    assert unknown_response.json() == unbound_response.json()
+    assert unknown_response.json() == {
+        "ok": True,
+        "sent": False,
+        "message": "未找到已绑定邮箱的账号，无法发送验证码",
+    }
     assert delivered == []

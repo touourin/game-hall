@@ -31,11 +31,15 @@ const props = withDefaults(defineProps<{
   emailError?: string | null
   emailMessage?: string | null
   emailCodeSent?: boolean
+  initialEmail?: string
+  emailRequestedFor?: string
 }>(), {
   emailBusy: false,
   emailError: null,
   emailMessage: null,
   emailCodeSent: false,
+  initialEmail: '',
+  emailRequestedFor: '',
 })
 
 const emit = defineEmits<{
@@ -58,9 +62,8 @@ const avatarInput = ref<HTMLInputElement | null>(null)
 const avatarCropSourceFile = ref<File | null>(null)
 const avatarDraft = ref<AvatarDraft | null>(null)
 const avatarMessage = ref<string | null>(null)
-const emailDraft = ref(props.account.email ?? '')
+const emailDraft = ref(props.initialEmail || props.account.email || '')
 const emailCode = ref('')
-const requestedEmail = ref('')
 const localAvatarError = ref<string | null>(null)
 const awaitingAvatarUpdate = ref(false)
 const selectedTheme = ref<ThemeName>(storedTheme())
@@ -115,7 +118,7 @@ const canRequestEmailCode = computed(() => (
 ))
 const canVerifyEmail = computed(() => (
   props.emailCodeSent
-  && normalizedEmailDraft.value === requestedEmail.value
+  && normalizedEmailDraft.value === props.emailRequestedFor
   && /^\d{6}$/.test(emailCode.value)
   && canRequestEmailCode.value
 ))
@@ -183,7 +186,14 @@ watch(
   (currentEmail) => {
     emailDraft.value = currentEmail ?? ''
     emailCode.value = ''
-    requestedEmail.value = ''
+  },
+)
+
+watch(
+  () => props.initialEmail,
+  (initialEmail) => {
+    if (!initialEmail || props.account.emailVerified) return
+    emailDraft.value = initialEmail
   },
 )
 
@@ -221,7 +231,6 @@ function submitRename() {
 function requestBindingCode() {
   if (!canRequestEmailCode.value) return
   emailCode.value = ''
-  requestedEmail.value = normalizedEmailDraft.value
   emit('requestEmailCode', normalizedEmailDraft.value)
 }
 

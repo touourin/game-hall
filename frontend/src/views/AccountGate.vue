@@ -13,7 +13,12 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   login: [payload: { username: string; password: string }]
-  register: [payload: { username: string; playerName: string; password: string }]
+  register: [payload: {
+    username: string
+    playerName: string
+    password: string
+    email?: string
+  }]
   guest: [payload: { playerName: string }]
   passwordResetStart: []
   passwordResetCode: [identifier: string]
@@ -23,11 +28,17 @@ const emit = defineEmits<{
 const mode = ref<'login' | 'register' | 'guest' | 'reset'>('login')
 const username = ref('')
 const playerName = ref('')
+const registrationEmail = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const resetCode = ref('')
 const localError = ref<string | null>(null)
 const resetState = computed(() => props.passwordResetState ?? 'idle')
+const normalizedRegistrationEmail = computed(() => registrationEmail.value.trim())
+const registrationEmailValid = computed(() => (
+  normalizedRegistrationEmail.value === ''
+  || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedRegistrationEmail.value)
+))
 
 const canSubmit = computed(() => {
   if (mode.value === 'guest') {
@@ -53,6 +64,7 @@ const canSubmit = computed(() => {
     return (
       playerName.value.trim().length >= 1
       && password.value === confirmPassword.value
+      && registrationEmailValid.value
     )
   }
   return true
@@ -113,6 +125,9 @@ function submit() {
       username: username.value.trim(),
       playerName: playerName.value.trim(),
       password: password.value,
+      ...(normalizedRegistrationEmail.value
+        ? { email: normalizedRegistrationEmail.value }
+        : {}),
     })
     return
   }
@@ -210,6 +225,18 @@ function submit() {
             autocomplete="nickname"
             :placeholder="mode === 'guest' ? '1–12 个字符，本次游客身份使用' : '1–12 个字符，对局中显示'"
           />
+        </label>
+
+        <label v-if="mode === 'register'" class="field">
+          <span>邮箱（选填）</span>
+          <input
+            v-model="registrationEmail"
+            type="email"
+            maxlength="254"
+            autocomplete="email"
+            placeholder="用于找回密码"
+          />
+          <small>填写后会发送验证码，验证通过才会绑定。</small>
         </label>
 
         <label v-if="mode === 'login' || mode === 'register'" class="field">

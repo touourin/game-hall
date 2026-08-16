@@ -42,6 +42,11 @@ interface AuthResponse {
   account: AccountProfile
 }
 
+export interface PasswordResetCodeResult {
+  sent: boolean
+  message: string
+}
+
 export function storedAccountToken(): string | null {
   const token = localStorage.getItem(ACCOUNT_TOKEN_KEY)
   if (token) return token
@@ -126,15 +131,14 @@ export async function loginAccount(
 export async function requestPasswordResetCode(
   accessToken: string,
   identifier: string,
-): Promise<string> {
+): Promise<PasswordResetCodeResult> {
   const response = await authFetch('/api/auth/password-reset/code', accessToken, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ identifier }),
   })
   if (!response.ok) throw await responseError(response)
-  const data = (await response.json()) as { message: string }
-  return data.message
+  return (await response.json()) as PasswordResetCodeResult
 }
 
 export async function confirmPasswordReset(

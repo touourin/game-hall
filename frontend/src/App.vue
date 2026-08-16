@@ -56,6 +56,8 @@ const emailBusy = ref(false)
 const emailError = ref<string | null>(null)
 const emailMessage = ref<string | null>(null)
 const emailCodeSent = ref(false)
+const emailInitialValue = ref('')
+const emailRequestedFor = ref('')
 const passwordResetState = ref<'idle' | 'code-sent' | 'complete'>('idle')
 const passwordResetError = ref<string | null>(null)
 const passwordResetMessage = ref<string | null>(null)
@@ -207,6 +209,7 @@ async function register(payload: {
   username: string
   playerName: string
   password: string
+  email?: string
 }) {
   accountBusy.value = true
   accountError.value = null
@@ -218,6 +221,11 @@ async function register(payload: {
       password: payload.password,
     })
     enterGame(response.account, response.token)
+    if (payload.email) {
+      emailInitialValue.value = payload.email
+      showSettings.value = true
+      await sendEmailBindingCode(payload.email)
+    }
   } catch (caught) {
     accountError.value =
       caught instanceof Error ? caught.message : '注册失败，请稍后重试'
@@ -239,11 +247,16 @@ async function sendPasswordResetCode(identifier: string) {
   passwordResetState.value = 'idle'
   try {
     const accessToken = await ensureAccessToken()
-    passwordResetMessage.value = await requestPasswordResetCode(
+    const result = await requestPasswordResetCode(
       accessToken,
       identifier,
     )
-    passwordResetState.value = 'code-sent'
+    if (result.sent) {
+      passwordResetMessage.value = result.message
+      passwordResetState.value = 'code-sent'
+    } else {
+      passwordResetError.value = result.message
+    }
   } catch (caught) {
     passwordResetError.value = caught instanceof Error
       ? caught.message
@@ -360,6 +373,7 @@ async function sendEmailBindingCode(email: string) {
   emailError.value = null
   emailMessage.value = null
   emailCodeSent.value = false
+  emailRequestedFor.value = email.trim()
   try {
     emailMessage.value = await requestEmailBindingCode(
       activeAccessToken.value,
@@ -368,6 +382,7 @@ async function sendEmailBindingCode(email: string) {
     )
     emailCodeSent.value = true
   } catch (caught) {
+    emailRequestedFor.value = ''
     emailError.value = caught instanceof Error
       ? caught.message
       : '验证码发送失败，请稍后重试'
@@ -392,6 +407,8 @@ async function bindAccountEmail(payload: { email: string; code: string }) {
     account.value = response.account
     emailMessage.value = response.message
     emailCodeSent.value = false
+    emailInitialValue.value = response.account.email ?? ''
+    emailRequestedFor.value = ''
   } catch (caught) {
     emailError.value = caught instanceof Error
       ? caught.message
@@ -399,6 +416,15 @@ async function bindAccountEmail(payload: { email: string; code: string }) {
   } finally {
     emailBusy.value = false
   }
+}
+
+function openSettings() {
+  emailInitialValue.value = account.value?.email ?? ''
+  emailRequestedFor.value = ''
+  emailError.value = null
+  emailMessage.value = null
+  emailCodeSent.value = false
+  showSettings.value = true
 }
 
 async function logout() {
@@ -464,7 +490,7 @@ onMounted(async () => {
         v-if="route.name === 'hall'"
         :account="account"
         @logout="logout"
-        @settings="showSettings = true"
+        @settings="openSettings"
         @select="openGame"
         @open-room="openRoom"
         @resume-room="resumeRoom"
@@ -475,7 +501,7 @@ onMounted(async () => {
         :account="account"
         :game="selectedGame"
         @back="openHall"
-        @settings="showSettings = true"
+        @settings="openSettings"
         @room-entered="openRoom"
         @resume-room="resumeRoom"
       />
@@ -483,7 +509,7 @@ onMounted(async () => {
         :is="Component"
         v-else-if="routedRoomSnapshot"
         :snapshot="routedRoomSnapshot"
-        @settings="showSettings = true"
+        @settings="openSettings"
       />
       <ArcadeHome
         v-else-if="route.name === 'room' && selectedGame"
@@ -491,7 +517,7 @@ onMounted(async () => {
         :game="selectedGame"
         :invited-room="invitedRoomCode"
         @back="openHall"
-        @settings="showSettings = true"
+        @settings="openSettings"
         @room-entered="openRoom"
         @resume-room="resumeRoom"
       />
@@ -506,6 +532,8 @@ onMounted(async () => {
       :email-error="emailError"
       :email-message="emailMessage"
       :email-code-sent="emailCodeSent"
+      :initial-email="emailInitialValue"
+      :email-requested-for="emailRequestedFor"
       @close="showSettings = false"
       @rename="changePlayerName"
       @avatar-preset="changeAvatarPreset"

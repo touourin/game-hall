@@ -437,18 +437,24 @@ async def request_password_reset_code(
             status_code=_account_error_status(error),
             detail=str(error),
         ) from error
-    if challenge is not None:
-        await _deliver_email_challenge(challenge)
-        logger.info(
-            "Password reset email requested",
-            extra={
-                "account_id": challenge.account_id,
-                "event": "account.password_reset.requested",
-            },
-        )
+    if challenge is None:
+        return {
+            "ok": True,
+            "sent": False,
+            "message": "未找到已绑定邮箱的账号，无法发送验证码",
+        }
+    await _deliver_email_challenge(challenge)
+    logger.info(
+        "Password reset email requested",
+        extra={
+            "account_id": challenge.account_id,
+            "event": "account.password_reset.requested",
+        },
+    )
     return {
         "ok": True,
-        "message": "如果账号已经绑定邮箱，验证码将发送到该邮箱",
+        "sent": True,
+        "message": "验证码已经发送到账号绑定的邮箱",
     }
 
 
