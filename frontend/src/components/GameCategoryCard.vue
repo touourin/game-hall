@@ -308,7 +308,7 @@ const categoryEmblem = computed(() => CATEGORY_EMBLEMS[props.category.id])
 
 .category-emblem-symbol {
   display: block;
-  width: 54%;
+  width: 61%;
   height: auto;
   aspect-ratio: 1;
   filter: drop-shadow(0 0 9px color-mix(in srgb, var(--category-tone) 28%, transparent));
