@@ -2,7 +2,7 @@ import { gameThemeMaterials } from '../../game-platform/presentation/gameThemeMa
 import { criticalCrossingPalette } from './criticalCrossingPalette'
 
 describe('critical crossing palette', () => {
-  it.each(['emerald', 'midnight', 'royal'] as const)(
+  it.each(['emerald', 'midnight', 'royal', 'amber'] as const)(
     '让 %s 竞技场继承全局游戏主题材质',
     (theme) => {
       const palette = criticalCrossingPalette(theme)

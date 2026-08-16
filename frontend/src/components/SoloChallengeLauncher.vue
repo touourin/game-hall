@@ -151,7 +151,7 @@ const challenge = computed<RenderedSoloChallenge>(() => {
 
 <style scoped>
 .solo-launcher {
-  --solo-accent: var(--gold);
+  --solo-accent: var(--accent);
   --solo-glow: color-mix(in srgb, var(--solo-accent) 24%, transparent);
   position: relative;
   display: grid;

@@ -144,7 +144,7 @@ watch([activeGameMode, activeGameVariant], loadPlayers)
   grid-area: avatar;
   width: 39px;
   height: 39px;
-  border: 1px solid color-mix(in srgb, var(--gold) 30%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
   border-radius: 50%;
   background: var(--surface-inset);
   box-shadow: var(--shadow-contact);

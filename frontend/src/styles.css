@@ -31,13 +31,19 @@
   --text: #eaf2f9;
   --muted: #899bad;
   --text-soft: #c5d2df;
-  --gold: #64c6ea;
-  --gold-deep: #287fa7;
+  --accent: #64c6ea;
+  --accent-deep: #287fa7;
   --accent-highlight: #e3f4ff;
   --accent-contrast: #05101b;
   --accent-secondary: #9387cf;
+  --primary-start: #80d8f4;
+  --primary-end: #4baacb;
+  --primary-text: #05101b;
   --green: #51d4c4;
   --red: #df7e82;
+  --disabled-text: #8a98a5;
+  --disabled-bg-start: #1b2b3b;
+  --disabled-bg-end: #142231;
 
   --radius-control: 10px;
   --radius-card: 16px;
@@ -73,53 +79,65 @@
 }
 
 :root[data-theme="midnight"] {
-  /* Warm titanium ceramic: dark, tactile and restrained. */
-  --bg: #0d0d0c;
-  --chassis: #11110f;
-  --surface-primary: rgba(27, 25, 22, 0.94);
-  --surface-glass: rgba(43, 39, 33, 0.74);
-  --surface-muted: rgba(54, 48, 40, 0.62);
+  color: #eef3f5;
+
+  /* Obsidian titanium: black ceramic, smoked glass and cool machined metal. */
+  --bg: #050607;
+  --chassis: #080a0c;
+  --surface-primary: rgba(13, 16, 18, 0.96);
+  --surface-glass: rgba(24, 30, 34, 0.78);
+  --surface-muted: rgba(35, 43, 48, 0.64);
   --surface: var(--surface-primary);
-  --surface-strong: #322d26;
+  --surface-strong: #181d21;
   --surface-soft: var(--surface-muted);
-  --surface-elevated: rgba(35, 32, 27, 0.97);
-  --surface-inset: rgba(8, 8, 7, 0.72);
-  --surface-raised: #302a23;
-  --surface-deep-rgb: 13, 13, 12;
-  --surface-mid-rgb: 43, 39, 33;
-  --surface-header-rgb: 24, 23, 20;
-  --modal-surface: #24211c;
-  --line: rgba(225, 210, 187, 0.14);
-  --line-strong: rgba(185, 145, 104, 0.38);
-  --line-bright: rgba(214, 174, 128, 0.6);
-  --metal-edge: rgba(239, 222, 198, 0.2);
-  --text: #f0e9df;
-  --muted: #a09688;
-  --text-soft: #d4c9ba;
-  --gold: #b99168;
-  --gold-deep: #76583d;
-  --accent-highlight: #ead1b4;
-  --accent-contrast: #1b120b;
-  --accent-secondary: #7d8772;
-  --green: #8eae78;
-  --red: #ba6963;
-  --shadow-contact: 0 8px 22px rgba(0, 0, 0, 0.28);
-  --shadow-raised: 0 22px 58px rgba(0, 0, 0, 0.42);
-  --glow-primary: 0 0 30px rgba(185, 145, 104, 0.09);
-  --panel-highlight: rgba(244, 227, 203, 0.12);
-  --panel-shadow: rgba(3, 2, 1, 0.55);
-  --instrument-line: rgba(190, 151, 109, 0.12);
-  --instrument-bright: rgba(220, 180, 133, 0.3);
-  --control-surface: linear-gradient(155deg, rgba(238, 219, 192, 0.1), rgba(77, 61, 43, 0.035) 38%, rgba(9, 7, 5, 0.38));
-  --panel-sheen: linear-gradient(132deg, rgba(244, 227, 204, 0.065), transparent 24%, transparent 72%, rgba(145, 101, 62, 0.03));
+  --surface-elevated: rgba(18, 22, 25, 0.98);
+  --surface-inset: rgba(1, 2, 3, 0.82);
+  --surface-raised: #1c2227;
+  --surface-deep-rgb: 5, 6, 7;
+  --surface-mid-rgb: 24, 29, 33;
+  --surface-header-rgb: 13, 17, 20;
+  --modal-surface: #101417;
+  --line: rgba(184, 202, 212, 0.16);
+  --line-strong: rgba(142, 169, 184, 0.44);
+  --line-bright: rgba(193, 215, 226, 0.66);
+  --metal-edge: rgba(231, 241, 246, 0.24);
+  --text: #eef3f5;
+  --muted: #929fa7;
+  --text-soft: #c8d1d6;
+  --accent: #8ea9b8;
+  --accent-deep: #627f8f;
+  --accent-highlight: #d7e5ec;
+  --accent-contrast: #071014;
+  --accent-secondary: #78879c;
+  --primary-start: #aec1cb;
+  --primary-end: #819aa7;
+  --primary-text: #071014;
+  --green: #70bea9;
+  --red: #d77478;
+  --disabled-text: #849198;
+  --disabled-bg-start: #22292d;
+  --disabled-bg-end: #1a2024;
+  --shadow-contact: 0 1px 1px rgba(236, 247, 252, 0.04), 0 10px 26px rgba(0, 0, 0, 0.5);
+  --shadow-raised: 0 1px 0 rgba(239, 248, 252, 0.07), 0 26px 68px rgba(0, 0, 0, 0.62);
+  --shadow: 0 40px 108px rgba(0, 0, 0, 0.76);
+  --shadow-card: var(--shadow-raised);
+  --glow-primary: 0 0 30px rgba(142, 169, 184, 0.11);
+  --backdrop: rgba(0, 1, 2, 0.8);
+  --panel-highlight: rgba(234, 244, 249, 0.11);
+  --panel-shadow: rgba(0, 0, 0, 0.64);
+  --instrument-line: rgba(139, 170, 186, 0.12);
+  --instrument-bright: rgba(183, 207, 219, 0.29);
+  --control-surface: linear-gradient(155deg, rgba(235, 244, 248, 0.105), rgba(90, 110, 120, 0.03) 40%, rgba(0, 2, 3, 0.5));
+  --panel-sheen: linear-gradient(132deg, rgba(239, 247, 250, 0.065), transparent 25%, transparent 72%, rgba(116, 146, 161, 0.035));
   --material-pattern:
-    linear-gradient(rgba(229, 209, 181, 0.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(229, 209, 181, 0.018) 1px, transparent 1px),
-    radial-gradient(ellipse at 82% 10%, rgba(185, 145, 104, 0.06), transparent 40%);
+    linear-gradient(rgba(190, 211, 221, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(190, 211, 221, 0.018) 1px, transparent 1px),
+    radial-gradient(ellipse at 82% 8%, rgba(129, 157, 171, 0.07), transparent 40%);
   --body-background:
-    radial-gradient(ellipse at 14% -10%, rgba(127, 96, 64, 0.18), transparent 38%),
-    radial-gradient(ellipse at 96% 22%, rgba(112, 119, 93, 0.08), transparent 30%),
-    linear-gradient(150deg, #181612 0%, #0e0e0c 50%, #080807 100%);
+    radial-gradient(ellipse at 14% -10%, rgba(116, 145, 160, 0.15), transparent 37%),
+    radial-gradient(ellipse at 96% 22%, rgba(77, 94, 103, 0.1), transparent 31%),
+    radial-gradient(ellipse at 54% 118%, rgba(53, 69, 77, 0.1), transparent 39%),
+    linear-gradient(150deg, #0d1114 0%, #07090a 50%, #030405 100%);
 }
 
 :root[data-theme="royal"] {
@@ -149,11 +167,14 @@
   --text: #29343b;
   --muted: #56636a;
   --text-soft: #4e5d64;
-  --gold: #397064;
-  --gold-deep: #28574d;
+  --accent: #397064;
+  --accent-deep: #28574d;
   --accent-highlight: #5f9387;
   --accent-contrast: #ffffff;
   --accent-secondary: #7487a2;
+  --primary-start: #477f70;
+  --primary-end: #32685c;
+  --primary-text: #ffffff;
   --green: #4f927b;
   --red: #c06458;
   --disabled-text: #45575e;
@@ -180,6 +201,78 @@
     radial-gradient(ellipse at 16% -8%, rgba(255, 255, 255, 0.94), transparent 39%),
     radial-gradient(ellipse at 98% 18%, rgba(147, 164, 172, 0.2), transparent 34%),
     linear-gradient(145deg, #e9edef 0%, #dce2e5 50%, #d1d8dc 100%);
+}
+
+:root[data-theme="amber"] {
+  color-scheme: light;
+  color: #332d29;
+
+  /* Orange-glaze ivory: warm ceramic, apricot mist and precise orange enamel. */
+  --bg: #f0e6da;
+  --chassis: #e7dbce;
+  --surface-primary: rgba(255, 249, 241, 0.92);
+  --surface-glass: rgba(255, 253, 248, 0.72);
+  --surface-muted: rgba(231, 215, 198, 0.66);
+  --surface: var(--surface-primary);
+  --surface-strong: #fff9f1;
+  --surface-soft: var(--surface-muted);
+  --surface-elevated: rgba(255, 253, 248, 0.97);
+  --surface-inset: rgba(111, 76, 54, 0.07);
+  --surface-raised: #fffdf9;
+  --surface-deep-rgb: 229, 215, 201;
+  --surface-mid-rgb: 249, 239, 228;
+  --surface-header-rgb: 255, 249, 242;
+  --modal-surface: #fffaf3;
+  --line: rgba(95, 73, 59, 0.17);
+  --line-strong: rgba(196, 81, 36, 0.43);
+  --line-bright: rgba(143, 53, 24, 0.63);
+  --metal-edge: rgba(255, 255, 255, 0.9);
+  --text: #332d29;
+  --muted: #655950;
+  --text-soft: #594d45;
+  --accent: #c45124;
+  --accent-deep: #8f3518;
+  --accent-highlight: #e47b45;
+  --accent-contrast: #ffffff;
+  --accent-secondary: #9a7560;
+  --primary-start: #c45124;
+  --primary-end: #8f3518;
+  --primary-text: #ffffff;
+  --green: #4e8b72;
+  --red: #b94f48;
+  --disabled-text: #5c5149;
+  --disabled-bg-start: #eee2d5;
+  --disabled-bg-end: #e2d4c5;
+  --shadow-contact: 0 8px 20px rgba(101, 73, 55, 0.14), 0 1px 2px rgba(101, 73, 55, 0.14);
+  --shadow-raised: 0 24px 58px rgba(99, 70, 51, 0.16), 0 2px 5px rgba(99, 70, 51, 0.11);
+  --shadow: 0 38px 88px rgba(91, 64, 47, 0.2);
+  --shadow-card: var(--shadow-raised);
+  --glow-primary: 0 0 28px rgba(196, 81, 36, 0.09);
+  --backdrop: rgba(99, 78, 65, 0.4);
+  --panel-highlight: rgba(255, 255, 255, 0.94);
+  --panel-shadow: rgba(99, 72, 54, 0.2);
+  --instrument-line: rgba(145, 92, 58, 0.12);
+  --instrument-bright: rgba(196, 81, 36, 0.25);
+  --control-surface: linear-gradient(150deg, rgba(255, 255, 255, 0.97), rgba(250, 240, 229, 0.62) 44%, rgba(219, 194, 171, 0.3));
+  --panel-sheen: linear-gradient(132deg, rgba(255, 255, 255, 0.78), transparent 25%, transparent 72%, rgba(196, 81, 36, 0.04));
+  --material-pattern:
+    linear-gradient(rgba(112, 82, 62, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(112, 82, 62, 0.022) 1px, transparent 1px),
+    radial-gradient(ellipse at 82% 5%, rgba(255, 255, 255, 0.82), transparent 34%);
+  --material-size: 52px 52px, 52px 52px, auto;
+  --body-background:
+    radial-gradient(ellipse at 16% -8%, rgba(255, 255, 255, 0.96), transparent 39%),
+    radial-gradient(ellipse at 98% 18%, rgba(228, 123, 69, 0.16), transparent 34%),
+    radial-gradient(ellipse at 54% 118%, rgba(205, 159, 122, 0.1), transparent 40%),
+    linear-gradient(145deg, #fff9f1 0%, #f2e8dc 51%, #e9ddcf 100%);
+}
+
+:root[data-color-scheme="dark"] {
+  color-scheme: dark;
+}
+
+:root[data-color-scheme="light"] {
+  color-scheme: light;
 }
 
 * {
@@ -233,7 +326,7 @@ textarea {
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 
@@ -264,10 +357,10 @@ button:disabled {
   width: 62px;
   height: 62px;
   margin: 0 auto 19px;
-  border: 1px solid rgba(225, 188, 104, 0.34);
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
   border-radius: 21px;
-  color: var(--gold);
-  background: rgba(225, 188, 104, 0.09);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
 }
 
 .account-card h1 {
@@ -408,7 +501,7 @@ button:disabled {
 
 .eyebrow {
   margin: 0;
-  color: var(--gold);
+  color: var(--accent);
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
   font-size: 9px;
   font-weight: 800;
@@ -575,11 +668,11 @@ button:disabled {
   align-items: center;
   gap: 7px;
   min-height: 44px;
-  border: 1px solid color-mix(in srgb, var(--gold) 48%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--accent) 48%, var(--line));
   border-radius: 4px;
   padding: 5px 7px;
-  color: var(--gold);
-  background: color-mix(in srgb, var(--gold) 13%, var(--surface-elevated));
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 13%, var(--surface-elevated));
   box-shadow: 0 5px 16px rgba(0, 0, 0, 0.18);
   font-weight: 900;
   white-space: nowrap;
@@ -591,10 +684,10 @@ button:disabled {
   place-items: center;
   min-width: 34px;
   height: 32px;
-  border: 1px solid color-mix(in srgb, var(--gold) 52%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--accent) 52%, var(--line));
   border-radius: 3px;
   color: var(--accent-contrast);
-  background: var(--gold);
+  background: var(--accent);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
   line-height: 1;
@@ -621,7 +714,7 @@ button:disabled {
 }
 
 .self-number-trigger > svg {
-  color: color-mix(in srgb, var(--gold) 74%, transparent);
+  color: color-mix(in srgb, var(--accent) 74%, transparent);
 }
 
 .phase-stack {
@@ -660,11 +753,11 @@ button:disabled {
   align-items: center;
   gap: 7px;
   min-height: 36px;
-  border: 1px solid color-mix(in srgb, var(--gold) 25%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line));
   border-radius: 999px;
   padding: 0 10px 0 12px;
-  color: var(--gold);
-  background: color-mix(in srgb, var(--gold) 9%, var(--surface-inset));
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface-inset));
   font-size: 10px;
   font-weight: 800;
   cursor: pointer;
@@ -677,7 +770,7 @@ button:disabled {
   height: 18px;
   border-radius: 999px;
   color: var(--text);
-  background: color-mix(in srgb, var(--gold) 15%, transparent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
   font-size: 8px;
 }
 
@@ -700,7 +793,7 @@ button:disabled {
 }
 
 .selection-counter strong {
-  color: var(--gold);
+  color: var(--accent);
   font-size: 13px;
 }
 
@@ -723,10 +816,10 @@ button:disabled {
   place-items: center;
   width: 36px;
   height: 36px;
-  border: 1px solid color-mix(in srgb, var(--gold) 26%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line));
   border-radius: 4px;
   color: var(--accent-highlight);
-  background: linear-gradient(145deg, color-mix(in srgb, var(--gold) 13%, transparent), rgba(var(--surface-mid-rgb), 0.82));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 13%, transparent), rgba(var(--surface-mid-rgb), 0.82));
   font-family: "Songti SC", serif;
   font-size: 15px;
   font-weight: 800;
@@ -741,10 +834,10 @@ button:disabled {
   font-size: 13px;
 }
 .attempt-badge {
-  border: 1px solid rgba(225, 188, 104, 0.2);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
   border-radius: 999px;
   padding: 5px 8px;
-  color: var(--gold);
+  color: var(--accent);
   background: var(--surface-inset);
   font-size: 9px;
   font-weight: 800;
@@ -756,10 +849,10 @@ button:disabled {
   place-items: center;
   width: 42px;
   height: 42px;
-  border: 1px solid color-mix(in srgb, var(--gold) 26%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line));
   border-radius: 14px;
-  color: var(--gold);
-  background: color-mix(in srgb, var(--gold) 8%, var(--surface-inset));
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-inset));
 }
 
 .waiting-card {
@@ -799,8 +892,8 @@ button:disabled {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--gold);
-  box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 55%, transparent);
+  background: var(--accent);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent);
   animation: pulse 1.7s infinite;
 }
 
@@ -841,11 +934,11 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 12px;
-  border-color: color-mix(in srgb, var(--gold) 42%, var(--line));
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
   padding: 14px;
   background:
-    radial-gradient(circle at 12% 50%, color-mix(in srgb, var(--gold) 15%, transparent), transparent 32%),
-    linear-gradient(135deg, color-mix(in srgb, var(--gold) 9%, var(--surface)), rgba(var(--surface-mid-rgb), 0.76));
+    radial-gradient(circle at 12% 50%, color-mix(in srgb, var(--accent) 15%, transparent), transparent 32%),
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 9%, var(--surface)), rgba(var(--surface-mid-rgb), 0.76));
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
 }
 
@@ -855,10 +948,10 @@ button:disabled {
   place-items: center;
   width: 48px;
   height: 48px;
-  border: 1px solid color-mix(in srgb, var(--gold) 38%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--line));
   border-radius: 15px;
-  color: var(--gold);
-  background: color-mix(in srgb, var(--gold) 9%, var(--surface-inset));
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface-inset));
 }
 
 .first-leader-card > div {
@@ -869,7 +962,7 @@ button:disabled {
 }
 
 .first-leader-card small {
-  color: var(--gold);
+  color: var(--accent);
   font-size: 8px;
   font-weight: 900;
   letter-spacing: 0.08em;
@@ -893,11 +986,11 @@ button:disabled {
 
 .first-leader-card > em {
   flex: 0 0 auto;
-  border: 1px solid color-mix(in srgb, var(--gold) 32%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line));
   border-radius: 999px;
   padding: 6px 8px;
-  color: var(--gold);
-  background: color-mix(in srgb, var(--gold) 10%, var(--surface-inset));
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-inset));
   font-size: 8px;
   font-style: normal;
   font-weight: 900;
@@ -1036,7 +1129,7 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 9px;
-  color: var(--gold);
+  color: var(--accent);
 }
 
 .player-number-roster > header > div {
@@ -1073,17 +1166,17 @@ button:disabled {
 }
 
 .player-number-roster > div > span.self {
-  border-color: rgba(225, 188, 104, 0.3);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
   background: rgba(112, 82, 35, 0.15);
 }
 
 .player-number-roster > div > span.leader {
-  border-color: rgba(225, 188, 104, 0.42);
-  box-shadow: inset 3px 0 rgba(225, 188, 104, 0.72);
+  border-color: color-mix(in srgb, var(--accent) 42%, transparent);
+  box-shadow: inset 3px 0 color-mix(in srgb, var(--accent) 72%, transparent);
 }
 
 .player-number-roster b {
-  color: var(--gold);
+  color: var(--accent);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 10px;
 }
@@ -1109,7 +1202,7 @@ button:disabled {
   border-radius: 999px;
   padding: 3px 5px;
   color: #f7e5b5;
-  background: rgba(225, 188, 104, 0.14);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
   font-size: 7px;
   font-style: normal;
   font-weight: 900;
@@ -1117,7 +1210,7 @@ button:disabled {
 
 .player-number-roster em.leader-badge {
   color: #2c240f;
-  background: var(--gold);
+  background: var(--accent);
 }
 
 .player-number-roster em.lady-holder-badge {
@@ -1243,7 +1336,7 @@ button:disabled {
   position: absolute;
   right: 8px;
   bottom: 5px;
-  color: var(--gold);
+  color: var(--accent);
   font-size: 8px;
 }
 
@@ -1269,7 +1362,7 @@ button:disabled {
 
 .player-tile .player-tile-badges .leader-chip {
   color: #f7e5b5;
-  background: rgba(225, 188, 104, 0.12);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .player-tile .player-tile-badges .lady-chip {
@@ -1278,9 +1371,9 @@ button:disabled {
 }
 
 .player-tile.selected {
-  border-color: var(--gold);
+  border-color: var(--accent);
   background: rgba(118, 88, 35, 0.35);
-  box-shadow: inset 0 0 0 1px rgba(225, 188, 104, 0.18);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .player-tile.offline {
@@ -1400,7 +1493,7 @@ button:disabled {
 }
 
 .decision-button.selected {
-  border-color: var(--gold);
+  border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(207, 169, 91, 0.22);
   transform: translateY(-1px);
 }
@@ -1517,7 +1610,7 @@ button:disabled {
 .court-secret-note > svg,
 .final-council-chat > svg:first-child {
   flex: 0 0 auto;
-  color: var(--gold);
+  color: var(--accent);
 }
 
 .court-secret-note > div,
@@ -1560,7 +1653,7 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 9px;
-  color: var(--gold);
+  color: var(--accent);
 }
 
 .assassination-alignments > header > div {
@@ -1787,7 +1880,7 @@ button:disabled {
 }
 
 .score-summary strong {
-  color: var(--gold);
+  color: var(--accent);
   font-size: 26px;
 }
 
@@ -1902,8 +1995,8 @@ button:disabled {
 }
 
 .player-number-list > div.self {
-  border-color: rgba(225, 188, 104, 0.35);
-  background: rgba(225, 188, 104, 0.08);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .player-number-list > div > span {
@@ -1912,10 +2005,10 @@ button:disabled {
   place-items: center;
   width: 34px;
   height: 34px;
-  border: 1px solid rgba(225, 188, 104, 0.25);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
   border-radius: 11px;
-  color: var(--gold);
-  background: rgba(225, 188, 104, 0.08);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
   font-size: 14px;
   font-weight: 900;
 }
@@ -1987,7 +2080,7 @@ button:disabled {
 }
 
 .stats-loading svg {
-  color: var(--gold);
+  color: var(--accent);
   animation: spin 900ms linear infinite;
 }
 
@@ -2015,7 +2108,7 @@ button:disabled {
 }
 
 .stats-summary-grid strong {
-  color: var(--gold);
+  color: var(--accent);
   font-size: 20px;
 }
 
@@ -2212,7 +2305,7 @@ button:disabled {
 }
 
 .match-player-list b {
-  color: var(--gold);
+  color: var(--accent);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 9px;
 }
@@ -2259,7 +2352,7 @@ button:disabled {
 }
 
 .match-court-timeline strong {
-  color: var(--gold);
+  color: var(--accent);
   font-size: 8px;
 }
 
@@ -2531,7 +2624,7 @@ button:disabled {
 }
 
 .court-balance-summary strong {
-  color: var(--gold);
+  color: var(--accent);
   font-size: 13px;
 }
 
@@ -2562,7 +2655,7 @@ button:disabled {
 
 .leaderboard-list > div.self {
   border-color: var(--line-strong);
-  background: color-mix(in srgb, var(--gold) 8%, var(--surface-glass));
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-glass));
 }
 
 .leaderboard-list b {
@@ -2580,7 +2673,7 @@ button:disabled {
 .leaderboard-list b.rank-2,
 .leaderboard-list b.rank-3 {
   color: #2c240f;
-  background: var(--gold);
+  background: var(--accent);
 }
 
 .leaderboard-list > div > span {
@@ -2602,7 +2695,7 @@ button:disabled {
 }
 
 .leaderboard-list em {
-  color: var(--gold);
+  color: var(--accent);
   font-size: 11px;
   font-style: normal;
   font-weight: 900;
@@ -2660,11 +2753,11 @@ button:disabled {
   justify-self: start;
   gap: 4px;
   margin-top: 3px;
-  border: 1px solid rgba(225, 188, 104, 0.24);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
   border-radius: 999px;
   padding: 5px 7px;
   color: #ffe4a0;
-  background: rgba(225, 188, 104, 0.1);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
   font-size: 8px;
   font-weight: 900;
 }
@@ -2718,7 +2811,7 @@ button:disabled {
 }
 
 .replay-team strong.leader {
-  border: 1px solid rgba(225, 188, 104, 0.28);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
   color: #ffe4a0;
   background: rgba(112, 82, 35, 0.24);
 }
@@ -2728,7 +2821,7 @@ button:disabled {
   border-radius: 999px;
   padding: 2px 4px;
   color: #2c240f;
-  background: var(--gold);
+  background: var(--accent);
   font-size: 6px;
 }
 
@@ -2885,10 +2978,10 @@ button:disabled {
   width: 52px;
   height: 52px;
   margin: 0 auto 12px;
-  border: 1px solid color-mix(in srgb, var(--gold) 38%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--line));
   border-radius: var(--radius-md);
-  color: var(--gold);
-  background: color-mix(in srgb, var(--gold) 10%, transparent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
   box-shadow: var(--glow-primary);
 }
 
@@ -2919,44 +3012,44 @@ button:disabled {
   }
 }
 
-:root[data-theme="royal"] .connection-banner {
-  color: #fffaf0;
-}
-
-:root[data-theme="royal"] .rule-option-grid button:disabled,
-:root[data-theme="royal"] .rule-segmented button:disabled,
-:root[data-theme="royal"] .rule-toggle-list button:disabled,
-:root[data-theme="royal"] .spectator-room-list button:disabled,
-:root[data-theme="royal"] .spectator-targets button:disabled,
-:root[data-theme="royal"] .match-primary-action:disabled,
-:root[data-theme="royal"] .solo-start-button:disabled,
-:root[data-theme="royal"] .cleanup-room-button:disabled,
-:root[data-theme="royal"] .arcade-chat-panel form button:disabled,
-:root[data-theme="royal"] .gomoku-pass-button:disabled,
-:root[data-theme="royal"] .xiangqi-actions button:disabled,
-:root[data-theme="royal"] .junqi-actions button:disabled,
-:root[data-theme="royal"] .bid-panel button:disabled,
-:root[data-theme="royal"] .play-actions button:disabled,
-:root[data-theme="royal"] .go-scoring-actions button:disabled {
-  opacity: 1;
-  color: var(--disabled-text);
-  border-color: rgba(50, 64, 72, .22);
-}
-
-:root[data-theme="royal"] .leaderboard-list b:is(.rank-1, .rank-2, .rank-3),
-:root[data-theme="royal"] .replay-team strong small,
-:root[data-theme="royal"] .selection-feedback b,
-:root[data-theme="royal"] .minesweeper-mode button.active,
-:root[data-theme="royal"] .raise-button,
-:root[data-theme="royal"] .avatar-preset-grid button > svg {
+:root[data-color-scheme="light"] .connection-banner {
   color: #fff;
 }
 
-:root[data-theme="royal"] .junqi-actions button.primary {
-  color: #041f18;
+:root[data-color-scheme="light"] .rule-option-grid button:disabled,
+:root[data-color-scheme="light"] .rule-segmented button:disabled,
+:root[data-color-scheme="light"] .rule-toggle-list button:disabled,
+:root[data-color-scheme="light"] .spectator-room-list button:disabled,
+:root[data-color-scheme="light"] .spectator-targets button:disabled,
+:root[data-color-scheme="light"] .match-primary-action:disabled,
+:root[data-color-scheme="light"] .solo-start-button:disabled,
+:root[data-color-scheme="light"] .cleanup-room-button:disabled,
+:root[data-color-scheme="light"] .arcade-chat-panel form button:disabled,
+:root[data-color-scheme="light"] .gomoku-pass-button:disabled,
+:root[data-color-scheme="light"] .xiangqi-actions button:disabled,
+:root[data-color-scheme="light"] .junqi-actions button:disabled,
+:root[data-color-scheme="light"] .bid-panel button:disabled,
+:root[data-color-scheme="light"] .play-actions button:disabled,
+:root[data-color-scheme="light"] .go-scoring-actions button:disabled {
+  opacity: 1;
+  color: var(--disabled-text);
+  border-color: color-mix(in srgb, var(--text) 22%, transparent);
 }
 
-:root[data-theme="royal"] .account-bar button {
+:root[data-color-scheme="light"] .leaderboard-list b:is(.rank-1, .rank-2, .rank-3),
+:root[data-color-scheme="light"] .replay-team strong small,
+:root[data-color-scheme="light"] .selection-feedback b,
+:root[data-color-scheme="light"] .minesweeper-mode button.active,
+:root[data-color-scheme="light"] .raise-button,
+:root[data-color-scheme="light"] .avatar-preset-grid button > svg {
+  color: #fff;
+}
+
+:root[data-color-scheme="light"] .junqi-actions button.primary {
+  color: var(--primary-text);
+}
+
+:root[data-color-scheme="light"] .account-bar button {
   color: var(--text-soft);
 }
 
@@ -2985,7 +3078,7 @@ button:disabled {
 
 .avalon-core-rules h3 {
   margin: 0;
-  color: var(--gold);
+  color: var(--accent);
   font-size: 13px;
 }
 
@@ -3043,7 +3136,7 @@ button:disabled {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--gold);
+  background: var(--accent);
   animation: busy 900ms infinite alternate;
 }
 

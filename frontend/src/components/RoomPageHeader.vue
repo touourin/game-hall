@@ -53,8 +53,8 @@ defineProps<{
   left: -1px;
   width: 3px;
   border-radius: 0 3px 3px 0;
-  background: linear-gradient(180deg, transparent, var(--gold) 28% 72%, transparent);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--gold) 34%, transparent);
+  background: linear-gradient(180deg, transparent, var(--accent) 28% 72%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 34%, transparent);
   content: '';
 }
 
@@ -68,7 +68,7 @@ defineProps<{
 
 .room-page-copy > small {
   display: block;
-  color: var(--gold);
+  color: var(--accent);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: .06em;

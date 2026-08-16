@@ -46,11 +46,11 @@ const emit = defineEmits<{
 .mission-node.replayable { cursor: pointer; }
 .mission-node.replayable:hover { transform: translateY(-1px); }
 .mission-node:not(:last-child)::after { position: absolute; z-index: -1; top: 50%; left: 100%; width: calc((min(100vw, 720px) - 106px) / 5 - 8px); height: 1px; background: var(--line); content: ''; }
-.mission-node.current { border-color: var(--gold); color: var(--gold); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 9%, transparent); }
+.mission-node.current { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 9%, transparent); }
 .mission-node.success { border-color: color-mix(in srgb, var(--green) 55%, var(--line)); color: color-mix(in srgb, var(--green) 78%, var(--text)); background: color-mix(in srgb, var(--green) 28%, var(--surface-inset)); }
 .mission-node.failed { border-color: color-mix(in srgb, var(--red) 55%, var(--line)); color: color-mix(in srgb, var(--red) 78%, var(--text)); background: color-mix(in srgb, var(--red) 28%, var(--surface-inset)); }
 .mission-requirement { display: inline-flex; align-items: baseline; line-height: 1; }
 .mission-requirement small { margin-left: 1px; font-size: 8px; }
 .mission-outcome { position: absolute; top: -4px; right: -4px; display: grid; place-items: center; width: 17px; height: 17px; border: 2px solid var(--surface-strong); border-radius: 50%; color: var(--text); background: var(--surface-strong); }
-.mission-fail-note { position: absolute; top: 44px; color: var(--gold-deep); font-size: 8px; white-space: nowrap; }
+.mission-fail-note { position: absolute; top: 44px; color: var(--accent-deep); font-size: 8px; white-space: nowrap; }
 </style>

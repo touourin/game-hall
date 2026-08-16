@@ -230,7 +230,7 @@ export interface PluginScoreFormatOptions {
   maximumFractionDigits?: number
 }
 
-export type PluginThemeName = 'emerald' | 'midnight' | 'royal'
+export type PluginThemeName = 'emerald' | 'midnight' | 'royal' | 'amber'
 
 type PluginMaterialGroup<T extends string> = Readonly<Record<T, string>>
 

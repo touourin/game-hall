@@ -29,7 +29,7 @@ withDefaults(defineProps<{
 
 <style scoped>
 .game-history-panel {
-  --game-history-accent: var(--accent, var(--gold));
+  --game-history-accent: var(--accent, var(--accent));
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);

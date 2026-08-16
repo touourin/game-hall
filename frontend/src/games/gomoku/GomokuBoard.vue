@@ -277,12 +277,12 @@ function pass() {
 <style scoped>
 .board-game-panel { width: 100%; min-width: 0; display: grid; gap: 16px; justify-items: center; }
 .turn-banner { color: var(--muted); text-align: center; font-weight: 700; }
-.turn-banner.active { color: var(--gold); }
+.turn-banner.active { color: var(--accent); }
 .turn-banner small { display: block; margin-top: 3px; font-weight: 500; }
-.swap2-choice-panel { width: min(100%, 650px); display: grid; gap: 10px; border: 1px solid color-mix(in srgb, var(--gold) 42%, var(--line)); border-radius: 13px; padding: 13px; text-align: center; background: color-mix(in srgb, var(--gold) 7%, var(--surface-inset)); }
+.swap2-choice-panel { width: min(100%, 650px); display: grid; gap: 10px; border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--line)); border-radius: 13px; padding: 13px; text-align: center; background: color-mix(in srgb, var(--accent) 7%, var(--surface-inset)); }
 .swap2-choice-panel > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.swap2-choice-panel button { min-height: 42px; border: 1px solid color-mix(in srgb, var(--gold) 35%, var(--line)); border-radius: 10px; color: var(--gold); background: var(--surface-inset); font-weight: 850; }
-.gomoku-pass-notice { width: min(100%, 650px); margin: 0; color: var(--gold); text-align: center; }
+.swap2-choice-panel button { min-height: 42px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 10px; color: var(--accent); background: var(--surface-inset); font-weight: 850; }
+.gomoku-pass-notice { width: min(100%, 650px); margin: 0; color: var(--accent); text-align: center; }
 .gomoku-rule-notice { width: min(100%, 650px); margin: 0; border: 1px solid color-mix(in srgb, var(--red) 42%, var(--line)); border-radius: 11px; padding: 9px 12px; color: color-mix(in srgb, var(--red) 78%, var(--text)); background: color-mix(in srgb, var(--red) 12%, var(--surface-inset)); text-align: center; }
 .gomoku-board {
   --board-max-width: 650px;

@@ -92,7 +92,7 @@ async function shareInviteLink() {
 
 .invite-link-field svg {
   flex: 0 0 auto;
-  color: var(--gold);
+  color: var(--accent);
 }
 
 .invite-link-field input {
@@ -119,11 +119,11 @@ async function shareInviteLink() {
   justify-content: center;
   gap: 7px;
   min-height: 42px;
-  border: 1px solid color-mix(in srgb, var(--gold) 28%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
   border-radius: 12px;
   padding: 0 14px;
-  color: var(--gold);
-  background: color-mix(in srgb, var(--gold) 9%, var(--surface-inset));
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface-inset));
   font: inherit;
   font-size: 11px;
   cursor: pointer;

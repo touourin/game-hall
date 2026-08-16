@@ -48,12 +48,12 @@ const ROBOT_MATERIALS: Readonly<Record<ThemeName, RobotMaterial>> = {
     braceSoft: 'rgba(255, 255, 255, .34)',
   },
   midnight: {
-    outline: '#181511',
-    face: '#2a241d',
-    eye: '#fff0d9',
-    highlight: 'rgba(255, 240, 217, .2)',
-    brace: '#d2c6ad',
-    braceSoft: 'rgba(243, 225, 198, .28)',
+    outline: '#030506',
+    face: '#172126',
+    eye: '#f2f8fb',
+    highlight: 'rgba(235, 246, 251, .22)',
+    brace: '#b9ced8',
+    braceSoft: 'rgba(221, 238, 245, .3)',
   },
   royal: {
     outline: '#485960',
@@ -62,6 +62,14 @@ const ROBOT_MATERIALS: Readonly<Record<ThemeName, RobotMaterial>> = {
     highlight: 'rgba(255, 255, 255, .48)',
     brace: '#3f7891',
     braceSoft: 'rgba(255, 255, 255, .72)',
+  },
+  amber: {
+    outline: '#59473c',
+    face: '#725b4e',
+    eye: '#ffffff',
+    highlight: 'rgba(255, 255, 255, .52)',
+    brace: '#9f4b29',
+    braceSoft: 'rgba(255, 255, 255, .76)',
   },
 }
 

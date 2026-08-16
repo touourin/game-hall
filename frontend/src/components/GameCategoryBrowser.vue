@@ -135,7 +135,7 @@ defineExpose({ showOverview })
   place-items: center;
   border: 1px solid var(--line);
   border-radius: 14px;
-  color: var(--gold);
+  color: var(--accent);
   background: var(--control-surface), var(--surface-inset);
   box-shadow: var(--shadow-contact), inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 48%, transparent);
 }
@@ -148,7 +148,7 @@ defineExpose({ showOverview })
 
 .category-heading-copy small,
 .category-detail-header small {
-  color: var(--gold);
+  color: var(--accent);
   font-size: 9px;
   font-weight: 780;
   letter-spacing: .08em;

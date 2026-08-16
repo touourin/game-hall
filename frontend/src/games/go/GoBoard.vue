@@ -263,14 +263,14 @@ function selectPoint(row: number, column: number, cell: number, event: MouseEven
 <style scoped>
 .go-panel { width: 100%; min-width: 0; display: grid; gap: 14px; justify-items: center; }
 .go-status { width: 100%; min-width: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 16px; color: var(--muted); }
-.go-status strong { color: var(--gold); }
-.go-scoring-guide { width: min(100%, 700px); padding: 13px 15px; border: 1px solid color-mix(in srgb, var(--gold) 42%, var(--line)); border-radius: 13px; background: color-mix(in srgb, var(--gold) 8%, var(--surface)); text-align: center; }
-.go-scoring-guide strong { color: var(--gold); }
+.go-status strong { color: var(--accent); }
+.go-scoring-guide { width: min(100%, 700px); padding: 13px 15px; border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--line)); border-radius: 13px; background: color-mix(in srgb, var(--accent) 8%, var(--surface)); text-align: center; }
+.go-scoring-guide strong { color: var(--accent); }
 .go-scoring-guide p { margin: 5px 0 0; color: var(--muted); line-height: 1.5; }
 .go-board {
   --board-padding: 11px;
 }
-.go-board.scoring { --board-status-ring: 0 0 0 3px color-mix(in srgb, var(--gold) 45%, transparent); }
+.go-board.scoring { --board-status-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent); }
 .go-point {
   position: relative;
   padding: 0;
@@ -299,11 +299,11 @@ function selectPoint(row: number, column: number, cell: number, event: MouseEven
 .go-scoring-actions p { margin: 0; color: var(--muted); text-align: center; }
 .go-scoring-actions > div { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .go-scoring-actions button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--line); border-radius: 11px; color: var(--text); background: transparent; font-weight: 850; }
-.go-scoring-actions .confirm-score-button { border-color: color-mix(in srgb, var(--gold) 48%, var(--line)); color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, transparent); }
+.go-scoring-actions .confirm-score-button { border-color: color-mix(in srgb, var(--accent) 48%, var(--line)); color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .go-scoring-actions button:disabled { opacity: .58; }
 .go-score-card { width: min(100%, 700px); display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
 .go-score-card header { display: flex; align-items: center; justify-content: space-between; }
-.go-score-card header strong { color: var(--gold); }
+.go-score-card header strong { color: var(--accent); }
 .go-score-card header span, .go-score-card p, .go-score-breakdown span { color: var(--muted); }
 .go-score-breakdown { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .go-score-breakdown article { display: grid; gap: 4px; padding: 11px; border: 1px solid var(--line); border-radius: 11px; }

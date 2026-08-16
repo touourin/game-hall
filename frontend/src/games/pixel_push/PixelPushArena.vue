@@ -312,9 +312,9 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .pixel-push-game {
-  --push-accent: var(--gold);
+  --push-accent: var(--accent);
   --push-danger: var(--red);
-  --push-warning: color-mix(in srgb, var(--gold) 74%, var(--text));
+  --push-warning: color-mix(in srgb, var(--accent) 74%, var(--text));
   width: 100%;
   min-width: 0;
   display: grid;

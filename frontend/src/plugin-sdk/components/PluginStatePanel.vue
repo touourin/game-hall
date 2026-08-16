@@ -56,7 +56,7 @@ defineEmits<{ action: [] }>()
   place-items: center;
   align-content: center;
   gap: 12px;
-  border: 1px dashed color-mix(in srgb, var(--gold) 28%, var(--line));
+  border: 1px dashed color-mix(in srgb, var(--accent) 28%, var(--line));
   border-radius: var(--radius-card);
   padding: clamp(20px, 5vw, 34px);
   color: var(--text);
@@ -70,8 +70,8 @@ defineEmits<{ action: [] }>()
   display: grid;
   place-items: center;
   border-radius: 15px;
-  color: var(--gold);
-  background: color-mix(in srgb, var(--gold) 10%, transparent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .plugin-state-panel--error {

@@ -412,8 +412,8 @@ function openSharedChat() {
 
 <style scoped>
 .arcade-room { padding-bottom: 70px; }
-.guest-match-notice { margin: 0 0 18px; padding: 12px 15px; border-color: color-mix(in srgb, var(--gold) 35%, var(--line)); background: color-mix(in srgb, var(--gold) 7%, var(--surface)); }
-.guest-match-notice strong,.guest-match-notice span { display: block; }.guest-match-notice strong { color: var(--gold); font-size: 13px; }.guest-match-notice span { margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.guest-match-notice { margin: 0 0 18px; padding: 12px 15px; border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
+.guest-match-notice strong,.guest-match-notice span { display: block; }.guest-match-notice strong { color: var(--accent); font-size: 13px; }.guest-match-notice span { margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .spectator-mode-banner { display: flex; align-items: center; gap: 11px; margin: 0 0 18px; padding: 12px 15px; border-color: color-mix(in srgb, #68c8df 38%, var(--line)); background: color-mix(in srgb, #68c8df 7%, var(--surface)); }
 .spectator-mode-banner > svg { flex: 0 0 auto; color: #83d4e7; }.spectator-mode-banner span { min-width: 0; display: grid; gap: 3px; }.spectator-mode-banner strong { color: #9dddeb; font-size: 13px; }.spectator-mode-banner small { color: var(--muted); line-height: 1.45; }
 .arcade-spectator-strip { display: grid; gap: 10px; margin: -10px 0 24px; padding: 12px 14px; border-style: dashed; }
@@ -422,19 +422,19 @@ function openSharedChat() {
 .arcade-spectator-avatar { flex: 0 0 auto; width: 30px; aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: 4px; color: #83d4e7; background: color-mix(in srgb, #68c8df 12%, var(--surface-elevated)); font-size: 11px; font-weight: 900; }.arcade-spectator-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .room-rule-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -12px 0 24px; padding: 11px 13px; }
 .room-rule-bar > div { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; min-width: 0; }
-.room-rule-bar svg { flex: 0 0 auto; color: var(--gold); }
+.room-rule-bar svg { flex: 0 0 auto; color: var(--accent); }
 .room-rule-bar span { border: 1px solid var(--line); border-radius: 999px; padding: 5px 9px; color: var(--muted); background: var(--control-surface), var(--surface-inset); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 24%, transparent); font-size: 9px; }
 .room-rule-actions { flex: 0 0 auto; display: flex; gap: 8px; }
-.room-rule-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; border: 1px solid color-mix(in srgb, var(--gold) 38%, var(--line)); border-radius: 10px; padding: 0 11px; color: var(--gold); background: color-mix(in srgb, var(--gold) 7%, transparent); font-weight: 850; }
+.room-rule-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--line)); border-radius: 10px; padding: 0 11px; color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, transparent); font-weight: 850; }
 .game-skin-card + .arcade-waiting,
 .role-skin-loadout + .arcade-waiting { margin-top: 18px; }
-.arcade-waiting { position:relative; min-height: min(390px, 48dvh); display: grid; place-items: center; align-content: center; gap: 12px; overflow:hidden; padding: 30px 18px; border-color:color-mix(in srgb,var(--gold) 26%,var(--line)); text-align: center; }
+.arcade-waiting { position:relative; min-height: min(390px, 48dvh); display: grid; place-items: center; align-content: center; gap: 12px; overflow:hidden; padding: 30px 18px; border-color:color-mix(in srgb,var(--accent) 26%,var(--line)); text-align: center; }
 .arcade-waiting::before,.arcade-waiting::after { position:absolute; width:230px; aspect-ratio:1; border:1px solid var(--instrument-line); border-radius:50%; content:''; }.arcade-waiting::after { width:150px; border-color:var(--instrument-bright); border-style:dashed; }
 .arcade-waiting > * { position:relative; z-index:1; }
-.arcade-waiting > svg { color: var(--gold); filter:drop-shadow(0 0 12px color-mix(in srgb,var(--gold) 38%,transparent)); }
+.arcade-waiting > svg { color: var(--accent); filter:drop-shadow(0 0 12px color-mix(in srgb,var(--accent) 38%,transparent)); }
 .arcade-waiting h2, .arcade-waiting p { margin: 0; }
 .arcade-waiting p { color: var(--muted); }
-.room-code-share { margin: 14px 0 0; border: 1px solid var(--line-strong); border-radius:var(--radius-control); padding:10px 16px; color: var(--gold); background: var(--control-surface), var(--surface-inset); box-shadow:var(--shadow-contact), inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 52%, transparent); font-family:ui-monospace,"SFMono-Regular",Consolas,monospace; font-size: 23px; font-weight: 800; letter-spacing: .18em; }
+.room-code-share { margin: 14px 0 0; border: 1px solid var(--line-strong); border-radius:var(--radius-control); padding:10px 16px; color: var(--accent); background: var(--control-surface), var(--surface-inset); box-shadow:var(--shadow-contact), inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 52%, transparent); font-family:ui-monospace,"SFMono-Regular",Consolas,monospace; font-size: 23px; font-weight: 800; letter-spacing: .18em; }
 .arcade-waiting :deep(.invite-link-panel) { width: min(100%, 620px); }
 .arcade-game-stage { display: grid; gap: 22px; }
 .arcade-room--active.arcade-room--immersive { display: flex; flex-direction: column; }
@@ -452,7 +452,7 @@ function openSharedChat() {
 .arcade-room--active.arcade-room--immersive > :deep(.arcade-chat-dock),
 .arcade-room--active.arcade-room--immersive > :deep(.arcade-chat-panel) { order: 7; }
 .result-banner { padding: 18px; text-align: center; }
-.result-banner small { color: var(--gold); }
+.result-banner small { color: var(--accent); }
 .result-banner h2 { margin: 5px 0; }
 .result-banner p { color: var(--muted); }
 .result-banner .rematch-progress { margin-bottom: 0; font-size: 11px; }

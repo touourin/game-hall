@@ -136,7 +136,7 @@ defineExpose({ openChat })
   align-items: center;
   gap: 7px;
   min-height: 46px;
-  border: 1px solid color-mix(in srgb, var(--gold) 34%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--line));
   border-radius: 999px;
   padding: 0 15px;
   color: var(--text);
@@ -152,7 +152,7 @@ defineExpose({ openChat })
   place-items: center;
   border-radius: 999px;
   color: var(--accent-contrast);
-  background: var(--gold);
+  background: var(--accent);
   font-size: 9px;
 }
 
@@ -243,8 +243,8 @@ defineExpose({ openChat })
 }
 
 .arcade-chat-list article.mine p {
-  border-color: color-mix(in srgb, var(--gold) 30%, var(--line));
-  background: color-mix(in srgb, var(--gold) 10%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .arcade-chat-empty {
@@ -277,7 +277,7 @@ defineExpose({ openChat })
   border: 0;
   border-radius: 11px;
   color: var(--accent-contrast);
-  background: var(--gold);
+  background: var(--accent);
 }
 
 .arcade-chat-panel form button:disabled {

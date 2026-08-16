@@ -111,11 +111,11 @@ async function watchPlayer(playerId: string) {
 .spectator-browser > header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 11px; }
 .spectator-browser > header > span:nth-child(2),.spectator-targets header span { min-width: 0; display: grid; gap: 2px; }
 .spectator-browser header small { color: var(--muted); font-size: 11px; }
-.spectator-browser > header > b { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 5px 8px; color: var(--gold); background: color-mix(in srgb, var(--gold) 9%, transparent); font-size: 10px; }
-.spectator-browser-icon { width: 40px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 12px; color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, var(--surface-inset)); }
+.spectator-browser > header > b { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 5px 8px; color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); font-size: 10px; }
+.spectator-browser-icon { width: 40px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 12px; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface-inset)); }
 .spectator-room-list,.spectator-targets > div { display: grid; gap: 8px; }
 .spectator-room-list button,.spectator-targets button { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 13px; padding: 10px 11px; color: var(--text); background: var(--surface-inset); text-align: left; cursor: pointer; }
-.spectator-room-list button.selected { border-color: color-mix(in srgb, var(--gold) 55%, var(--line)); background: color-mix(in srgb, var(--gold) 7%, var(--surface-inset)); }
+.spectator-room-list button.selected { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 7%, var(--surface-inset)); }
 .spectator-room-list button:disabled,.spectator-targets button:disabled { cursor: not-allowed; opacity: .48; }
 .spectator-room-list button > span,.spectator-targets button > span { min-width: 0; display: grid; gap: 2px; }
 .spectator-room-list small,.spectator-targets small { overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
@@ -124,9 +124,9 @@ async function watchPlayer(playerId: string) {
 .spectator-code-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 9px; border-top: 1px solid var(--line); padding-top: 14px; }
 .spectator-code-search label { display: grid; gap: 6px; color: var(--muted); font-size: 10px; font-weight: 800; }
 .spectator-code-search input { min-height: 42px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; color: var(--text); background: var(--surface-inset); text-transform: uppercase; }
-.spectator-code-search button { min-height: 42px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid color-mix(in srgb, var(--gold) 34%, var(--line)); border-radius: 10px; padding: 0 14px; color: var(--gold); background: color-mix(in srgb, var(--gold) 7%, var(--surface)); font-weight: 850; }
-.spectator-targets { display: grid; gap: 10px; border: 1px solid color-mix(in srgb, var(--gold) 22%, var(--line)); border-radius: 14px; padding: 12px; background: color-mix(in srgb, var(--gold) 4%, var(--surface-inset)); }
-.spectator-targets button b { border-radius: 999px; padding: 5px 9px; color: var(--accent-contrast); background: var(--gold); font-size: 10px; }
+.spectator-code-search button { min-height: 42px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--line)); border-radius: 10px; padding: 0 14px; color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); font-weight: 850; }
+.spectator-targets { display: grid; gap: 10px; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); border-radius: 14px; padding: 12px; background: color-mix(in srgb, var(--accent) 4%, var(--surface-inset)); }
+.spectator-targets button b { border-radius: 999px; padding: 5px 9px; color: var(--accent-contrast); background: var(--accent); font-size: 10px; }
 .spectator-disabled { color: #e9a19c; font-size: 11px; text-align: center; }
 @media (max-width: 600px) {
   .spectator-browser { padding: 14px; }

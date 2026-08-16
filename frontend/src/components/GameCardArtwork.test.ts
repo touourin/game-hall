@@ -50,6 +50,14 @@ describe('GameCardArtwork', () => {
 
     expect(wrapper.findAll('img')).toHaveLength(1)
     expect(wrapper.get('img').attributes('src')).toContain('go-light')
+
+    applyTheme('amber')
+    await nextTick()
+    expect(wrapper.get('img').attributes('src')).toContain('go-light')
+
+    applyTheme('midnight')
+    await nextTick()
+    expect(wrapper.get('img').attributes('src')).toContain('go-dark')
   })
 
   it('keeps a visual fallback for a plugin key', () => {

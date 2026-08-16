@@ -43,6 +43,11 @@ describe('public plugin SDK utilities', () => {
     applyTheme('royal')
     await nextTick()
     expect(wrapper.text()).toContain('royal:')
+
+    applyTheme('amber')
+    await nextTick()
+    expect(wrapper.text()).toContain('amber:')
+    expect(pluginThemeMaterials('amber').stage.edge).toBe('#c45124')
     wrapper.unmount()
   })
 

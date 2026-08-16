@@ -517,7 +517,7 @@ function openGameCategories() {
 }
 
 .hall-section-heading small {
-  color: var(--gold);
+  color: var(--accent);
   font-size: 9px;
   font-weight: 780;
   letter-spacing: .08em;
@@ -574,7 +574,7 @@ function openGameCategories() {
   inset: 0;
   background:
     repeating-radial-gradient(circle at 76% 46%, transparent 0 46px, var(--instrument-line) 47px 48px),
-    radial-gradient(ellipse at 76% 42%, color-mix(in srgb, var(--gold) 9%, transparent), transparent 42%),
+    radial-gradient(ellipse at 76% 42%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 42%),
     linear-gradient(118deg, transparent 44%, color-mix(in srgb, var(--metal-edge) 28%, transparent));
   content: '';
   pointer-events: none;
@@ -600,7 +600,7 @@ function openGameCategories() {
   align-items: center;
   gap: 7px;
   margin-bottom: 15px;
-  color: var(--gold);
+  color: var(--accent);
   font-size: 11px;
   font-weight: 780;
 }
@@ -628,7 +628,7 @@ function openGameCategories() {
 }
 
 .hall-hub-art {
-  --card-tone: var(--gold);
+  --card-tone: var(--accent);
   position: relative;
   z-index: 1;
   display: grid;
@@ -682,7 +682,7 @@ function openGameCategories() {
 
 .hall-hub-orbit::after {
   inset: 29%;
-  border-color: color-mix(in srgb, var(--gold) 18%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .hall-command-side {
@@ -724,7 +724,7 @@ function openGameCategories() {
 
 .hall-personal-card > span svg {
   grid-row: 1 / 3;
-  color: var(--gold);
+  color: var(--accent);
 }
 
 .hall-personal-card small {
@@ -831,7 +831,7 @@ function openGameCategories() {
 
 :global(:root[data-theme="emerald"] .hall-sidebar button:hover) {
   border-color: color-mix(in srgb, var(--line-strong) 70%, transparent);
-  color: var(--gold);
+  color: var(--accent);
   background: var(--control-surface), var(--surface-inset);
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 44%, transparent);
 }

@@ -53,8 +53,8 @@ const identity = computed<BuiltinGameLauncherPresentation>(() => (
     kicker: props.game.description,
     title: `创建${props.game.name}对局`,
     description: '设置规则，邀请玩家加入房间。',
-    accent: '#e1bc68',
-    glow: '#8a6b32',
+    accent: 'var(--accent)',
+    glow: 'var(--accent-deep)',
   }
 ))
 const ruleLabels = computed(() => gameRuleLabels(props.gameKey, props.modelValue))
@@ -256,8 +256,8 @@ function saveRules() {
 
 <style scoped>
 .multiplayer-match-launcher {
-  --match-accent: var(--gold);
-  --match-glow: #8a6b32;
+  --match-accent: var(--accent);
+  --match-glow: var(--accent-deep);
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1.03fr) minmax(400px, .97fr);
@@ -329,8 +329,8 @@ function saveRules() {
 .match-name-field .match-code-input-wrap input { font-size: 14px; letter-spacing: normal; text-transform: none; }
 .match-code-note { margin: 0; color: var(--muted); font-size: 9px; line-height: 1.55; }
 .match-active-room-hint { margin: 12px 0 0; color: var(--muted); font-size: 9px; text-align: center; }
-.match-primary-action { position: relative; width: 100%; min-height: 66px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 11px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--match-accent) 74%, white 12%); border-radius: var(--radius-control); padding: 0 16px; color: var(--accent-contrast); background: linear-gradient(125deg, color-mix(in srgb, var(--match-accent) 72%, white), var(--match-accent)); box-shadow: var(--shadow-contact); text-align: left; cursor: pointer; }
-.match-primary-action > span:first-child { width: 35px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 10px; background: color-mix(in srgb, var(--accent-contrast) 12%, transparent); }
+.match-primary-action { position: relative; width: 100%; min-height: 66px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 11px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--primary-start) 58%, var(--primary-end)); border-radius: var(--radius-control); padding: 0 16px; color: var(--primary-text); background: linear-gradient(145deg, var(--primary-start), var(--primary-end)); box-shadow: var(--shadow-contact); text-align: left; cursor: pointer; }
+.match-primary-action > span:first-child { width: 35px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 10px; background: color-mix(in srgb, var(--primary-text) 12%, transparent); }
 .match-primary-action > span:nth-child(2) { min-width: 0; display: grid; gap: 2px; }.match-primary-action small { font-size: 6px; font-weight: 950; letter-spacing: .16em; opacity: .66; }.match-primary-action strong { font-size: 13px; }.match-primary-arrow { opacity: .58; transition: transform .2s ease, opacity .2s ease; }
 .match-primary-action:disabled { box-shadow: none; }
 .match-trust-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 15px; margin-top: 13px; color: var(--muted); font-size: 8px; }.match-trust-row span { display: inline-flex; align-items: center; gap: 5px; }.match-trust-row svg { color: var(--match-accent); }
@@ -339,7 +339,7 @@ function saveRules() {
 .match-rule-modal > header, .match-rule-modal > footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px; background: color-mix(in srgb, var(--surface-elevated) 84%, transparent); }
 .match-rule-modal > header { border-bottom: 1px solid var(--line); }.match-rule-modal > header > span { display: grid; gap: 3px; }.match-rule-modal > header small { color: var(--match-accent); font-size: 9px; font-weight: 850; letter-spacing: .05em; }.match-rule-modal > header strong { font-size: 18px; }
 .match-rule-body { min-width: 0; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 18px; }
-.match-rule-modal > footer { border-top: 1px solid var(--line); }.match-rule-modal > footer > span { color: var(--muted); font-size: 9px; }.match-rule-modal > footer button { min-width: 124px; min-height: 40px; border: 0; border-radius: 11px; color: var(--accent-contrast); background: var(--match-accent); font-weight: 900; }
+.match-rule-modal > footer { border-top: 1px solid var(--line); }.match-rule-modal > footer > span { color: var(--muted); font-size: 9px; }.match-rule-modal > footer button { min-width: 124px; min-height: 40px; border: 0; border-radius: 11px; color: var(--primary-text); background: linear-gradient(145deg, var(--primary-start), var(--primary-end)); font-weight: 900; }
 @media (hover: hover) { .match-room-item:hover:not(:disabled) { border-color: color-mix(in srgb, var(--match-accent) 42%, var(--line)); transform: translateY(-1px); }.match-primary-action:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 19px 39px color-mix(in srgb, var(--match-glow) 31%, transparent); }.match-primary-action:hover:not(:disabled) .match-primary-arrow { opacity: .82; transform: translateX(3px); } }
 @container (max-width: 900px) { .multiplayer-match-launcher { grid-template-columns: 1fr; }.match-story { padding-bottom: 22px; }.match-console { margin-top: 0; }.match-hero { grid-template-columns: 110px minmax(0, 1fr); }.match-emblem { width: 104px; }.match-room-list { max-height: 220px; } }
 @container (max-width: 600px) { .match-story { padding: 21px 16px 18px; }.match-story-header b { display: none; }.match-hero { grid-template-columns: 76px minmax(0, 1fr); gap: 13px; margin: 22px 0 18px; }.match-emblem { width: 72px; }.match-orbit-two { inset: 12px; }.match-hero-copy p { font-size: 8px; }.match-hero-copy h2 { font-size: 25px; }.match-hero-copy > span { margin-top: 7px; font-size: 10px; line-height: 1.55; }.match-live-metrics { margin-bottom: 15px; }.match-live-metrics > div { padding: 8px; }.match-room-browser > header { align-items: flex-start; flex-direction: column; gap: 3px; }.match-room-list { max-height: 174px; }.match-console { margin: 0 6px 6px; padding: 19px 13px 16px; border-radius: 17px; }.match-mode-control { margin: 15px 0; }.match-primary-action { min-height: 64px; padding: 0 12px; }.match-primary-arrow { width: 19px; }.match-trust-row { padding-bottom: env(safe-area-inset-bottom); } }

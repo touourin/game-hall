@@ -57,7 +57,7 @@ defineEmits<{
 
 <style scoped>
 .game-category-card {
-  --category-tone: var(--gold);
+  --category-tone: var(--accent);
   position: relative;
   min-width: 0;
   min-height: 230px;
@@ -341,7 +341,7 @@ defineEmits<{
     linear-gradient(160deg, rgba(17, 38, 58, .86), rgba(3, 11, 20, .95));
 }
 
-:global(:root[data-theme="royal"] .game-category-card) {
+:global(:root[data-color-scheme="light"] .game-category-card) {
   border-color: color-mix(in srgb, var(--category-tone) 34%, var(--line));
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--category-tone) 8%, transparent), transparent 48%),

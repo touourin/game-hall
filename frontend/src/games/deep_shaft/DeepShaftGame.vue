@@ -562,7 +562,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .deep-shaft-game {
-  --shaft-accent: var(--gold);
+  --shaft-accent: var(--accent);
   --shaft-danger: var(--red);
   width: min(100%, 980px);
   display: grid;
@@ -653,7 +653,7 @@ onBeforeUnmount(() => {
 .shaft-health span { display: flex; gap: 3px; }
 .shaft-health i { width: 4px; height: 10px; border-radius: 4px; background: color-mix(in srgb, var(--muted) 23%, transparent); }
 .shaft-health i.active { background: var(--shaft-accent); box-shadow: 0 0 8px color-mix(in srgb, var(--shaft-accent) 55%, transparent); }
-.shaft-health.warning i.active { background: var(--gold); box-shadow: 0 0 8px color-mix(in srgb, var(--gold) 42%, transparent); }
+.shaft-health.warning i.active { background: var(--accent); box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 42%, transparent); }
 .shaft-health.danger i.active { background: var(--shaft-danger); box-shadow: 0 0 8px color-mix(in srgb, var(--shaft-danger) 55%, transparent); }
 
 .pause-button {
@@ -828,7 +828,7 @@ onBeforeUnmount(() => {
 .compact-overlay > svg { color: var(--shaft-accent); filter: drop-shadow(0 0 14px color-mix(in srgb, var(--shaft-accent) 58%, transparent)); }
 .compact-overlay > strong { font-size: clamp(28px, 6vw, 48px); }
 .compact-overlay > span { max-width: 430px; color: var(--text-soft); font-size: 11px; line-height: 1.65; }
-.finished-overlay > svg { color: var(--gold); }
+.finished-overlay > svg { color: var(--accent); }
 
 .shaft-instruments {
   min-width: 0;

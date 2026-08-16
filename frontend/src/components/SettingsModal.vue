@@ -18,7 +18,12 @@ import {
   type AccountProfile,
   type AvatarPresetId,
 } from '../account'
-import { applyTheme, storedTheme, type ThemeName } from '../theme'
+import {
+  applyTheme,
+  storedTheme,
+  THEME_DEFINITIONS,
+  type ThemeName,
+} from '../theme'
 import AvatarCropModal from './AvatarCropModal.vue'
 import AvatarImage from './AvatarImage.vue'
 import BaseModal from './ui/BaseModal.vue'
@@ -74,31 +79,7 @@ const showEmailUnbind = ref(false)
 const localAvatarError = ref<string | null>(null)
 const awaitingAvatarUpdate = ref(false)
 const selectedTheme = ref<ThemeName>(storedTheme())
-const themes: Array<{
-  id: ThemeName
-  name: string
-  description: string
-  colors: string[]
-}> = [
-  {
-    id: 'emerald',
-    name: '极光雾舱',
-    description: '深海军蓝、冷银玻璃与克制冰蓝仪表光',
-    colors: ['#020810', '#0d1d2e', '#64c6ea'],
-  },
-  {
-    id: 'midnight',
-    name: '暖钛陶瓷',
-    description: '黑钛底盘、暖陶表面与香槟金属',
-    colors: ['#12110f', '#302a23', '#b99168'],
-  },
-  {
-    id: 'royal',
-    name: '月白陶瓷',
-    description: '冷月灰陶瓷、乳雾玻璃与自然铝',
-    colors: ['#cbd3d9', '#f4f2ec', '#4d8b7b'],
-  },
-]
+const themes = THEME_DEFINITIONS
 
 const canRename = computed(() => {
   const normalized = playerName.value.trim()
@@ -638,7 +619,7 @@ onBeforeUnmount(clearAvatarDraft)
 :global(.modal-card.settings-modal) { width: min(680px, calc(100vw - 28px)); max-height: calc(100dvh - 36px); overflow-y: auto; }
 .settings-section { position: relative; margin-top: 20px; padding: 18px; border: 1px solid color-mix(in srgb, var(--line-strong) 54%, var(--line)); border-radius: var(--radius-card); background: var(--panel-sheen), linear-gradient(155deg, var(--surface-glass), var(--surface-primary)); box-shadow: var(--shadow-contact), inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 48%, transparent), inset 0 -16px 30px color-mix(in srgb, var(--panel-shadow) 22%, transparent); }
 .settings-section::after { position: absolute; inset: 4px; border: 1px solid color-mix(in srgb, var(--line-bright) 11%, transparent); border-radius: calc(var(--radius-card) - 4px); content: ''; pointer-events: none; }
-.settings-section > header { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; color: var(--gold); }
+.settings-section > header { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; color: var(--accent); }
 .settings-section form { display: grid; gap: 11px; }
 .settings-hint { color: var(--muted); line-height: 1.6; }
 .settings-success { margin: 0; color: #8fe0bd; font-size: 12px; font-weight: 700; line-height: 1.55; }
@@ -651,14 +632,14 @@ onBeforeUnmount(clearAvatarDraft)
 .email-unbind-trigger { flex: 0 0 auto; margin-left: auto; padding: 7px 0 7px 10px; }
 .email-unbind-trigger:hover,.email-unbind-cancel:hover { color: var(--text); }
 .email-unbind-trigger:disabled,.email-unbind-cancel:disabled { cursor: not-allowed; opacity: .55; }
-.email-unbind-panel { display: grid; gap: 11px; border: 1px solid color-mix(in srgb, var(--gold) 30%, var(--line)); border-radius: var(--radius-control); padding: 13px; background: color-mix(in srgb, var(--gold) 5%, var(--surface-inset)); }
+.email-unbind-panel { display: grid; gap: 11px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: var(--radius-control); padding: 13px; background: color-mix(in srgb, var(--accent) 5%, var(--surface-inset)); }
 .email-unbind-panel > div { display: grid; gap: 5px; }
 .email-unbind-panel > div strong { font-size: 12px; }
 .email-unbind-panel > div small { color: var(--muted); font-size: 10px; line-height: 1.65; }
 .email-unbind-cancel { justify-self: center; }
 .settings-theme-list { display: grid; gap: 9px; }
 .settings-theme-list button { min-height: 76px; padding: 12px 14px; display: grid; grid-template-columns: auto 1fr auto; gap: 13px; align-items: center; border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--text); background: var(--control-surface), var(--surface-inset); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 46%, transparent); text-align: left; cursor: pointer; }
-.settings-theme-list button.selected { border-color: var(--line-strong); background: color-mix(in srgb, var(--gold) 8%, var(--surface-glass)); box-shadow: var(--shadow-contact), inset 0 1px 0 var(--metal-edge); }
+.settings-theme-list button.selected { border-color: var(--line-strong); background: color-mix(in srgb, var(--accent) 8%, var(--surface-glass)); box-shadow: var(--shadow-contact), inset 0 1px 0 var(--metal-edge); }
 .theme-copy { display: grid; gap: 4px; }.theme-copy strong { font-size: 13px; }.theme-copy small { color: var(--muted); font-size: 11px; line-height: 1.35; }
 .theme-swatches { width: 57px; height: 38px; display: flex; overflow: hidden; border: 1px solid rgba(255, 255, 255, .12); border-radius: 11px; }
 .theme-swatches i { width: 18px; height: 30px; display: block; flex: 1; border: 1px solid #ffffff20; }
@@ -669,24 +650,24 @@ onBeforeUnmount(clearAvatarDraft)
 .current-avatar-row > div { min-width: 0; }
 .current-avatar-row > div strong, .current-avatar-row > div small { display: block; }
 .current-avatar-row > div small { margin-top: 4px; color: var(--muted); line-height: 1.45; }
-.avatar-upload-button { min-height: 42px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-strong); border-radius: var(--radius-control); padding: 0 12px; color: var(--gold); background: var(--surface-inset); font-weight: 850; }
+.avatar-upload-button { min-height: 42px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-strong); border-radius: var(--radius-control); padding: 0 12px; color: var(--accent); background: var(--surface-inset); font-weight: 850; }
 .avatar-file-input { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .avatar-preset-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
 .avatar-preset-grid button { position: relative; min-width: 0; display: grid; justify-items: center; gap: 7px; border: 1px solid var(--line); border-radius: var(--radius-control); padding: 9px 5px 8px; color: var(--muted); background: var(--surface-inset); font-size: 11px; }
-.avatar-preset-grid button.selected { border-color: var(--gold); color: var(--text); background: color-mix(in srgb, var(--gold) 9%, transparent); box-shadow: inset 0 0 0 1px rgba(225, 188, 104, .08); }
-.avatar-preset-grid button > svg { position: absolute; top: 6px; right: 6px; border-radius: 50%; padding: 2px; color: #1d2a22; background: var(--gold); }
+.avatar-preset-grid button.selected { border-color: var(--accent); color: var(--text); background: color-mix(in srgb, var(--accent) 9%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent); }
+.avatar-preset-grid button > svg { position: absolute; top: 6px; right: 6px; border-radius: 50%; padding: 2px; color: #1d2a22; background: var(--accent); }
 .preset-avatar { width: 58px; height: 58px; border: 2px solid rgba(255, 255, 255, .09); border-radius: 50%; box-shadow: 0 7px 18px rgba(0, 0, 0, .25); }
 .avatar-confirm-panel { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 12px; margin-top: 12px; border: 1px solid var(--line); border-radius: var(--radius-control); padding: 11px; background: var(--control-surface), var(--surface-inset); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 42%, transparent); }
-.avatar-confirm-panel.pending { grid-template-columns: minmax(0, 1fr) auto auto; border-color: color-mix(in srgb, var(--gold) 54%, var(--line)); background: color-mix(in srgb, var(--gold) 7%, var(--surface-inset)); }
+.avatar-confirm-panel.pending { grid-template-columns: minmax(0, 1fr) auto auto; border-color: color-mix(in srgb, var(--accent) 54%, var(--line)); background: color-mix(in srgb, var(--accent) 7%, var(--surface-inset)); }
 .avatar-confirm-panel > span { min-width: 0; display: grid; gap: 3px; }
 .avatar-confirm-panel > span strong { color: var(--text); font-size: 12px; }
 .avatar-confirm-panel > span small { overflow: hidden; color: var(--muted); font-size: 10px; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
-.avatar-confirm-panel.pending > span strong { color: var(--gold); }
+.avatar-confirm-panel.pending > span strong { color: var(--accent); }
 .avatar-discard-button { min-height: 42px; border: 1px solid var(--line); border-radius: var(--radius-control); padding: 0 12px; color: var(--text-soft); background: var(--surface-inset); font-size: 11px; font-weight: 800; }
 .avatar-discard-button:disabled { cursor: not-allowed; opacity: .58; }
 .avatar-confirm-button { min-width: 126px; }
 .avatar-upload-hint { margin: 11px 0 0; display: flex; align-items: flex-start; gap: 6px; color: var(--muted); font-size: 11px; line-height: 1.55; }
-.avatar-upload-hint svg { flex: 0 0 auto; margin-top: 1px; color: var(--gold); }
+.avatar-upload-hint svg { flex: 0 0 auto; margin-top: 1px; color: var(--accent); }
 @media (max-width: 520px) {
   :global(.modal-card.settings-modal) { width: 100%; }
   .current-avatar-row { grid-template-columns: auto minmax(0, 1fr); }

@@ -122,12 +122,12 @@ function requestEndTable() {
 .match-request-panel > span { color: var(--muted); font-weight: 800; }
 .request-copy { display: grid; gap: 2px; }
 .request-copy span { color: var(--muted); }
-.request-copy small { color: var(--gold); }
+.request-copy small { color: var(--accent); }
 .request-actions,.request-response-actions { display: flex; align-items: center; gap: 8px; }
-.match-request-panel p { margin: 0; color: var(--gold); }
+.match-request-panel p { margin: 0; color: var(--accent); }
 .match-request-panel button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; border: 1px solid var(--line); border-radius: 10px; padding: 0 11px; color: var(--text); background: transparent; font-weight: 800; }
 .request-waiting-actions { justify-content: flex-end; }
-.request-response-actions button.accept { border-color: color-mix(in srgb, var(--gold) 38%, var(--line)); color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, transparent); }
+.request-response-actions button.accept { border-color: color-mix(in srgb, var(--accent) 38%, var(--line)); color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .match-request-panel .end-table-button { border-color: rgba(225, 114, 114, .3); color: #efaaa7; background: rgba(133, 47, 52, .12); }
 :global(.modal-card.end-table-modal) { width: min(92vw, 460px); text-align: center; }
 @media (max-width: 620px) {

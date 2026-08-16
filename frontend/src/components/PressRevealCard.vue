@@ -95,16 +95,16 @@ function hide() {
 <style scoped>
 .press-reveal-shell { display: grid; gap: 10px; -webkit-touch-callout: none; }
 .press-reveal-shell.illustrated { width: min(100%, 400px); margin-inline: auto; }
-.press-reveal-art-label { display: inline-flex; align-items: center; justify-self: end; gap: 6px; border: 1px solid color-mix(in srgb, var(--gold) 28%, var(--line)); border-radius: 999px; padding: 6px 9px; color: var(--muted); background: color-mix(in srgb, var(--gold) 7%, var(--surface-inset)); font-size: 9px; font-weight: 850; }
-.press-reveal-art-label svg, .press-reveal-art-label strong { color: var(--gold); }
-.press-reveal-card { position: relative; display: grid; width: 100%; min-height: 300px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--gold) 36%, var(--line)); border-radius: 26px; padding: 24px; color: var(--text); background: radial-gradient(circle at 50% 15%, color-mix(in srgb, var(--gold) 14%, transparent), transparent 34%), var(--surface-elevated); box-shadow: var(--shadow-card); cursor: pointer; touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.press-reveal-art-label { display: inline-flex; align-items: center; justify-self: end; gap: 6px; border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line)); border-radius: 999px; padding: 6px 9px; color: var(--muted); background: color-mix(in srgb, var(--accent) 7%, var(--surface-inset)); font-size: 9px; font-weight: 850; }
+.press-reveal-art-label svg, .press-reveal-art-label strong { color: var(--accent); }
+.press-reveal-card { position: relative; display: grid; width: 100%; min-height: 300px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--line)); border-radius: 26px; padding: 24px; color: var(--text); background: radial-gradient(circle at 50% 15%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 34%), var(--surface-elevated); box-shadow: var(--shadow-card); cursor: pointer; touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 .press-reveal-card.illustrated { aspect-ratio: 2 / 3; min-height: 0; border: 0; padding: 0; color: #f5f3e9; background: #071412; box-shadow: none; isolation: isolate; }
-.press-reveal-card::before, .press-reveal-card::after { position: absolute; width: 110px; height: 110px; border: 1px solid color-mix(in srgb, var(--gold) 18%, transparent); border-radius: 50%; content: ''; }
+.press-reveal-card::before, .press-reveal-card::after { position: absolute; width: 110px; height: 110px; border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent); border-radius: 50%; content: ''; }
 .press-reveal-card::before { top: -54px; left: -54px; }
 .press-reveal-card::after { right: -54px; bottom: -54px; }
 .press-reveal-card.illustrated::before, .press-reveal-card.illustrated::after { display: none; }
 .press-reveal-cover, .press-reveal-content { position: relative; z-index: 2; display: grid; place-items: center; align-content: center; gap: 10px; text-align: center; }
-.press-reveal-cover svg, .press-reveal-content > svg { color: var(--gold); }
+.press-reveal-cover svg, .press-reveal-content > svg { color: var(--accent); }
 .press-reveal-cover strong { font-family: "Songti SC", serif; font-size: 24px; }
 .press-reveal-cover span { color: var(--muted); font-size: 11px; }
 .press-reveal-content > strong { font-family: "Songti SC", serif; font-size: 34px; }

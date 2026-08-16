@@ -49,7 +49,7 @@ withDefaults(defineProps<{
 @media (hover: hover) {
   .ui-icon-button:hover:not(:disabled) {
     border-color: var(--line-strong);
-    color: var(--gold);
+    color: var(--accent);
     transform: translateY(-1px);
   }
 }
@@ -61,7 +61,4 @@ withDefaults(defineProps<{
   }
 }
 
-:global(:root[data-theme="royal"]) .ui-icon-button {
-  color: var(--text-soft);
-}
 </style>

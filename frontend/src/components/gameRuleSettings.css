@@ -11,15 +11,15 @@
 .rule-option-grid button::after { position: absolute; top: 11px; right: 11px; width: 7px; aspect-ratio: 1; border: 1px solid var(--line); border-radius: 50%; content: ''; }
 .rule-option-grid button strong { padding-right: 12px; font-size: 13px; }
 .rule-option-grid small { color: var(--muted); font-size: 11px; line-height: 1.4; }
-.rule-option-grid button.active, .rule-segmented button.active { border-color: color-mix(in srgb, var(--gold) 58%, var(--line)); color: var(--text); background: color-mix(in srgb, var(--gold) 9%, var(--surface-inset)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 12%, transparent); }
-.rule-option-grid button.active::after { border-color: var(--gold); background: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 11%, transparent); }
+.rule-option-grid button.active, .rule-segmented button.active { border-color: color-mix(in srgb, var(--accent) 58%, var(--line)); color: var(--text); background: color-mix(in srgb, var(--accent) 9%, var(--surface-inset)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent); }
+.rule-option-grid button.active::after { border-color: var(--accent); background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 11%, transparent); }
 .rule-option-grid button:disabled { cursor: not-allowed; opacity: .48; }
 .rule-segmented { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 3px; overflow: hidden; background: var(--surface-inset); }
 .rule-segmented.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .rule-segmented.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .rule-segmented.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .rule-segmented button { min-height: 44px; border: 0; border-radius: 7px; color: var(--muted); background: transparent; font-size: 12px; font-weight: 850; cursor: pointer; }
-.rule-segmented button.active { color: var(--gold); background: var(--surface-elevated); box-shadow: 0 4px 12px color-mix(in srgb, var(--bg) 20%, transparent); }
+.rule-segmented button.active { color: var(--accent); background: var(--surface-elevated); box-shadow: 0 4px 12px color-mix(in srgb, var(--bg) 20%, transparent); }
 .rule-segmented button:disabled { cursor: not-allowed; opacity: .48; }
 .rule-toggle-list { display: grid; gap: 8px; }
 .rule-toggle-list button { min-height: 62px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 13px; color: var(--text); background: var(--surface-inset); text-align: left; cursor: pointer; }
@@ -27,12 +27,12 @@
 .rule-toggle-list span { display: grid; gap: 2px; }
 .rule-toggle-list small { color: var(--muted); }
 .rule-toggle-list b { min-width: 38px; border-radius: 999px; padding: 5px 8px; color: var(--muted); background: color-mix(in srgb, var(--text) 6%, transparent); text-align: center; }
-.rule-toggle-list button.active b { color: var(--accent-contrast); background: var(--gold); }
+.rule-toggle-list button.active b { color: var(--accent-contrast); background: var(--accent); }
 .avalon-mode-guide-disclosure { min-width: 0; margin: 0; border-bottom: 1px solid var(--line); padding: 14px 0 18px; }
-.avalon-mode-guide-disclosure summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid color-mix(in srgb, var(--gold) 30%, var(--line)); border-radius: 13px; padding: 11px 13px; color: var(--text); background: color-mix(in srgb, var(--gold) 7%, var(--surface-inset)); cursor: pointer; list-style: none; }
+.avalon-mode-guide-disclosure summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 13px; padding: 11px 13px; color: var(--text); background: color-mix(in srgb, var(--accent) 7%, var(--surface-inset)); cursor: pointer; list-style: none; }
 .avalon-mode-guide-disclosure summary::-webkit-details-marker { display: none; }
 .avalon-mode-guide-disclosure summary > span { min-width: 0; display: grid; gap: 2px; }
-.avalon-mode-guide-disclosure summary strong { color: var(--gold); font-size: 12px; }
+.avalon-mode-guide-disclosure summary strong { color: var(--accent); font-size: 12px; }
 .avalon-mode-guide-disclosure summary small { color: var(--muted); font-size: 10px; }
 .avalon-mode-guide-disclosure summary b { flex: 0 0 auto; color: var(--muted); font-size: 9px; }
 .avalon-mode-guide-disclosure[open] summary { margin-bottom: 11px; }

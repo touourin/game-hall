@@ -174,7 +174,7 @@ describe('PixelPushArena', () => {
     wrapper.unmount()
   })
 
-  it('switches all three visual themes without resetting the live match', async () => {
+  it('switches all four visual themes without resetting the live match', async () => {
     applyTheme('emerald')
     const arcade = useArcadeStore()
     const sendInput = vi.spyOn(arcade, 'realtimeInput').mockResolvedValue(true)
@@ -184,6 +184,8 @@ describe('PixelPushArena', () => {
     applyTheme('midnight')
     await wrapper.vm.$nextTick()
     applyTheme('royal')
+    await wrapper.vm.$nextTick()
+    applyTheme('amber')
     await wrapper.vm.$nextTick()
 
     expect(wrapper.get('.pixel-push-match-header').text()).toContain('月台零号')

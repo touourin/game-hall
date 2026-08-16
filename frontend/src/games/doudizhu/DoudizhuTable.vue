@@ -441,7 +441,7 @@ function historyText(entry: HistoryEntry): string {
   font-weight: 800;
 }
 .multiplier-chip { color: var(--text); }
-.multiplier-chip b { margin-left: 5px; color: var(--gold); font-size: 15px; }
+.multiplier-chip b { margin-left: 5px; color: var(--accent); font-size: 15px; }
 .wild-chip { border-color: color-mix(in srgb, #d65bc8 38%, var(--line)); color: #eda8e5; }
 .landlord-felt {
   position: relative;
@@ -449,7 +449,7 @@ function historyText(entry: HistoryEntry): string {
   width: 100%;
   min-height: clamp(390px, 49vw, 475px);
   overflow: hidden;
-  border: 7px solid var(--game-felt-border, color-mix(in srgb, var(--gold) 34%, #4a2712));
+  border: 7px solid var(--game-felt-border, color-mix(in srgb, var(--accent) 34%, #4a2712));
   border-radius: clamp(34px, 8vw, 92px);
   background: var(--game-felt-surface, radial-gradient(circle at 50% 40%, #176348, #073c31));
   box-shadow:
@@ -461,7 +461,7 @@ function historyText(entry: HistoryEntry): string {
   position: absolute;
   z-index: -1;
   inset: 14px;
-  border: 1px solid color-mix(in srgb, var(--gold) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
   border-radius: inherit;
 }
 .opponent-row { position: absolute; inset: 0; pointer-events: none; }
@@ -486,8 +486,8 @@ function historyText(entry: HistoryEntry): string {
 .opponent-1 { left: clamp(16px, 4vw, 42px); }
 .opponent-2 { right: clamp(16px, 4vw, 42px); }
 .opponent.active {
-  border-color: color-mix(in srgb, var(--gold) 72%, white);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 12%, transparent), 0 0 28px color-mix(in srgb, var(--gold) 25%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 72%, white);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent), 0 0 28px color-mix(in srgb, var(--accent) 25%, transparent);
   transform: translateY(-3px);
 }
 .player-avatar {
@@ -496,20 +496,20 @@ function historyText(entry: HistoryEntry): string {
   aspect-ratio: 1;
   display: grid;
   place-items: center;
-  border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
   border-radius: 50%;
-  color: var(--gold);
-  background: color-mix(in srgb, var(--gold) 15%, var(--surface-strong));
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, var(--surface-strong));
   font-weight: 900;
 }
 .opponent.active .player-avatar,
 .self-seat.active .player-avatar { animation: active-seat-pulse 1.6s ease-in-out infinite; }
 @keyframes active-seat-pulse {
-  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--gold) 12%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 12%, transparent); }
 }
 .player-identity { min-width: 0; display: grid; gap: 4px; }
 .player-identity strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ai-badge { margin-left: 4px; border-radius: 999px; padding: 2px 5px; color: var(--gold); background: color-mix(in srgb, var(--gold) 13%, transparent); font-size: 8px; font-style: normal; font-weight: 900; }
+.ai-badge { margin-left: 4px; border-radius: 999px; padding: 2px 5px; color: var(--accent); background: color-mix(in srgb, var(--accent) 13%, transparent); font-size: 8px; font-style: normal; font-weight: 900; }
 .player-identity small,
 .self-seat small {
   width: max-content;
@@ -523,7 +523,7 @@ function historyText(entry: HistoryEntry): string {
   font-size: 10px;
 }
 .player-identity small.landlord,
-.self-seat small.landlord { color: color-mix(in srgb, var(--gold) 78%, var(--text)); background: color-mix(in srgb, var(--gold) 16%, var(--surface-inset)); }
+.self-seat small.landlord { color: color-mix(in srgb, var(--accent) 78%, var(--text)); background: color-mix(in srgb, var(--accent) 16%, var(--surface-inset)); }
 .opponent-card-stack { position: relative; width: 29px; height: 42px; }
 .opponent-card-stack i {
   position: absolute;
@@ -535,7 +535,7 @@ function historyText(entry: HistoryEntry): string {
 }
 .opponent-card-stack i:nth-child(1) { transform: translateX(-8px) rotate(-7deg); }
 .opponent-card-stack i:nth-child(3) { transform: translateX(8px) rotate(7deg); }
-.card-count { grid-column: 3; color: var(--gold); font-size: 18px; text-align: center; }
+.card-count { grid-column: 3; color: var(--accent); font-size: 18px; text-align: center; }
 .card-count small { display: block; color: var(--muted); font-size: 9px; }
 .opponent > em {
   grid-column: 2 / 4;
@@ -552,7 +552,7 @@ function historyText(entry: HistoryEntry): string {
   display: flex;
   align-items: center;
   gap: 5px;
-  border: 1px solid color-mix(in srgb, var(--gold) 24%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
   border-radius: 10px;
   padding: 5px 7px;
   background: color-mix(in srgb, var(--surface-inset) 82%, transparent);
@@ -574,7 +574,7 @@ function historyText(entry: HistoryEntry): string {
   transform: translate(-50%, -50%);
 }
 .table-center > small { color: color-mix(in srgb, var(--text) 80%, var(--muted)); font-weight: 800; }
-.table-center > p { margin: 0; color: color-mix(in srgb, var(--gold) 74%, var(--text)); font-weight: 850; }
+.table-center > p { margin: 0; color: color-mix(in srgb, var(--accent) 74%, var(--text)); font-weight: 850; }
 .played-cards { max-width: 100%; display: flex; justify-content: center; margin-top: 9px; }
 .played-cards .playing-card + .playing-card { margin-left: -8px; }
 .pass-bubble {
@@ -601,8 +601,8 @@ function historyText(entry: HistoryEntry): string {
   box-shadow: 0 8px 22px rgba(0,0,0,.25);
 }
 .self-seat > div { display: grid; gap: 4px; }
-.self-seat > em { margin-left: 5px; color: var(--gold); font-size: 11px; font-style: normal; font-weight: 900; }
-.self-seat.active { border-color: color-mix(in srgb, var(--gold) 68%, var(--line)); box-shadow: 0 0 26px color-mix(in srgb, var(--gold) 20%, transparent); }
+.self-seat > em { margin-left: 5px; color: var(--accent); font-size: 11px; font-style: normal; font-weight: 900; }
+.self-seat.active { border-color: color-mix(in srgb, var(--accent) 68%, var(--line)); box-shadow: 0 0 26px color-mix(in srgb, var(--accent) 20%, transparent); }
 .bid-panel {
   position: absolute;
   z-index: 5;
@@ -614,13 +614,13 @@ function historyText(entry: HistoryEntry): string {
   grid-template-columns: 1fr auto;
   align-items: center;
   gap: 8px 14px;
-  border: 1px solid color-mix(in srgb, var(--gold) 32%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line));
   border-radius: 18px;
   padding: 12px 14px;
   background: color-mix(in srgb, var(--surface-strong) 92%, transparent);
   box-shadow: 0 14px 34px rgba(0,0,0,.35);
 }
-.bid-panel > small { color: var(--gold); font-weight: 800; }
+.bid-panel > small { color: var(--accent); font-weight: 800; }
 .bid-panel > strong { grid-column: 1 / 3; font-size: clamp(16px, 2.2vw, 22px); }
 .bid-panel > div { display: flex; gap: 8px; }
 .bid-panel > p { grid-column: 1 / 3; margin: 0; color: var(--muted); font-size: 10px; }
@@ -655,8 +655,8 @@ function historyText(entry: HistoryEntry): string {
   transition: border-color .18s, box-shadow .18s;
 }
 .hand-zone.active {
-  border-color: color-mix(in srgb, var(--gold) 56%, var(--line));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 8%, transparent), 0 16px 36px rgba(0,0,0,.25);
+  border-color: color-mix(in srgb, var(--accent) 56%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent), 0 16px 36px rgba(0,0,0,.25);
 }
 .self-hand-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .self-hand-header > div { display: grid; }
@@ -683,8 +683,8 @@ function historyText(entry: HistoryEntry): string {
   text-align: center;
   font-size: 11px;
 }
-.selection-feedback.ready { color: var(--text); background: color-mix(in srgb, var(--gold) 8%, transparent); }
-.selection-feedback b { border-radius: 999px; padding: 3px 7px; color: var(--accent-contrast); background: var(--gold); }
+.selection-feedback.ready { color: var(--text); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.selection-feedback b { border-radius: 999px; padding: 3px 7px; color: var(--accent-contrast); background: var(--accent); }
 .hand {
   --hand-count: 1;
   width: 100%;
@@ -706,15 +706,15 @@ function historyText(entry: HistoryEntry): string {
   color: var(--green);
   background: var(--surface-inset);
 }
-.settlement-card { width: min(100%, 620px); display: grid; gap: 10px; border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--line)); border-radius: 16px; padding: 15px; background: var(--surface); }
+.settlement-card { width: min(100%, 620px); display: grid; gap: 10px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 16px; padding: 15px; background: var(--surface); }
 .settlement-card header,
 .settlement-card > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 9px 16px; }
-.settlement-card p { margin: 0; color: var(--gold); }
+.settlement-card p { margin: 0; color: var(--accent); }
 .settlement-card b { color: var(--red); }
 .settlement-card b.gain { color: var(--green); }
 .landlord-tools { width: 100%; display: grid; grid-template-columns: 1fr; gap: 10px; }
 .landlord-tools details { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--surface-inset); }
-.landlord-tools summary { display: flex; align-items: center; gap: 7px; cursor: pointer; color: var(--gold); font-weight: 800; }
+.landlord-tools summary { display: flex; align-items: center; gap: 7px; cursor: pointer; color: var(--accent); font-weight: 800; }
 .history-panel { --game-history-max-height: 260px; }
 @media (max-width: 700px) {
   .landlord-table { gap: 11px; }

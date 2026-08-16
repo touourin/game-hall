@@ -76,7 +76,7 @@ const lastCoordinate = computed(() => props.size - 0.5)
     var(--shadow-raised),
     var(
       --board-status-ring,
-      0 0 0 1px color-mix(in srgb, var(--gold) 24%, transparent)
+      0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent)
     );
 }
 

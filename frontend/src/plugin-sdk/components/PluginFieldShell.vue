@@ -72,8 +72,8 @@ const describedBy = computed(() => [
 }
 
 :deep(.plugin-field-control:focus) {
-  border-color: var(--gold);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 16%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 :deep(.plugin-field-control[aria-invalid="true"]) { border-color: var(--red); }

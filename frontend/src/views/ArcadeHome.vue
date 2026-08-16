@@ -191,7 +191,7 @@ async function submit() {
 .solo-arcade-home :deep(.game-home-header) { min-height: 178px; padding-bottom: 35px; }
 .solo-arcade-home :deep(.game-home-header::after) { bottom: 14px; }
 .resume-arcade-card { margin-bottom: 18px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
-.resume-arcade-card > div { display: flex; align-items: center; gap: 11px; color: var(--gold); }
+.resume-arcade-card > div { display: flex; align-items: center; gap: 11px; color: var(--accent); }
 .resume-arcade-card strong,.resume-arcade-card small { display: block; }.resume-arcade-card small { margin-top: 3px; color: var(--muted); }
 .cleanup-room-browser { width: min(100%, 760px); margin: 0 auto; padding: 16px; }
 .multiplayer-match-launcher + .cleanup-room-browser { margin-top: 18px; }

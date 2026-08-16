@@ -96,7 +96,7 @@ defineEmits<{
 }
 
 .game-home-copy small {
-  color: var(--gold);
+  color: var(--accent);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: .05em;
@@ -141,7 +141,7 @@ defineEmits<{
 }
 
 @media (hover: hover) {
-  .game-home-actions :deep(button:hover) { border-color: var(--line-strong); color: var(--gold); background: var(--surface-soft); }
+  .game-home-actions :deep(button:hover) { border-color: var(--line-strong); color: var(--accent); background: var(--surface-soft); }
 }
 
 @container (max-width: 600px) {

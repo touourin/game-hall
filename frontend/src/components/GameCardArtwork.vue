@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import type { GameCatalogItem } from '../types/arcade'
 import { gameRegistration } from '../game-platform/registry'
-import { currentTheme } from '../theme'
+import { currentTheme, isLightTheme } from '../theme'
 
 const props = defineProps<{ gameKey: GameCatalogItem['key'] }>()
 
@@ -10,7 +10,7 @@ const artwork = computed(() => {
   const variants = gameRegistration(props.gameKey)?.catalog.artwork
   if (!variants) return null
 
-  return currentTheme.value === 'royal' ? variants.light : variants.dark
+  return isLightTheme(currentTheme.value) ? variants.light : variants.dark
 })
 </script>
 
@@ -86,9 +86,9 @@ const artwork = computed(() => {
     0 12px 26px rgba(0, 3, 10, .48);
 }
 
-:global(:root[data-theme="royal"] .game-card-art) {
+:global(:root[data-color-scheme="light"] .game-card-art) {
   border-color: color-mix(in srgb, var(--card-tone) 46%, var(--line));
-  background: #e8e6e2;
+  background: var(--surface-raised);
   box-shadow: inset 0 0 24px rgba(74, 82, 86, .12), 0 10px 24px rgba(37, 63, 78, .14);
 }
 

@@ -50,7 +50,7 @@ defineEmits<{
 
 .modal-room-code {
   display: block;
-  color: var(--gold);
+  color: var(--accent);
   font-family: ui-monospace, monospace;
   font-size: 28px;
   letter-spacing: .16em;

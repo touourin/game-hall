@@ -280,7 +280,7 @@ onBeforeUnmount(() => {
   background: linear-gradient(
     145deg,
     color-mix(in srgb, var(--push-accent) 74%, var(--accent-highlight)),
-    color-mix(in srgb, var(--push-accent) 76%, var(--gold-deep))
+    color-mix(in srgb, var(--push-accent) 76%, var(--accent-deep))
   );
   box-shadow:
     inset 0 3px 0 color-mix(in srgb, white 32%, transparent),

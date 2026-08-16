@@ -246,7 +246,7 @@ function submitVote() {
 </template>
 
 <style scoped>
-.one-night-table { --one-night-accent: var(--gold); }
+.one-night-table { --one-night-accent: var(--accent); }
 .one-night-table,.one-night-phase { display: grid; gap: 16px; }
 .one-night-phase { width: min(100%, 880px); margin: 0 auto; }
 .one-night-heading { display: grid; grid-template-columns: auto minmax(0,1fr); align-items: center; gap: 13px; }

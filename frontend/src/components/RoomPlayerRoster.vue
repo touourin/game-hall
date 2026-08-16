@@ -112,7 +112,7 @@ function aiDifficultyLabel(difficulty?: string | null): string {
   left: 16px;
   height: 17px;
   border-bottom: 1px solid var(--instrument-line);
-  color: var(--gold);
+  color: var(--accent);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: .08em;

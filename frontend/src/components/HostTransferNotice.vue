@@ -31,8 +31,8 @@ onUnmounted(() => window.clearInterval(timer))
 </template>
 
 <style scoped>
-.host-transfer-notice { margin-bottom: 16px; display: flex; align-items: center; gap: 11px; border: 1px solid color-mix(in srgb, var(--gold) 42%, var(--line)); border-radius: 13px; padding: 11px 13px; color: var(--gold); background: color-mix(in srgb, var(--gold) 9%, var(--surface)); }
-.host-transfer-notice > span { width: 36px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 10px; background: color-mix(in srgb, var(--gold) 14%, transparent); }
+.host-transfer-notice { margin-bottom: 16px; display: flex; align-items: center; gap: 11px; border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--line)); border-radius: 13px; padding: 11px 13px; color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--surface)); }
+.host-transfer-notice > span { width: 36px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 10px; background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .host-transfer-notice strong, .host-transfer-notice small { display: block; }
 .host-transfer-notice small { margin-top: 2px; display: flex; align-items: center; gap: 4px; color: var(--muted); }
 </style>

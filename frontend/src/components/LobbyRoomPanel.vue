@@ -89,7 +89,7 @@ defineEmits<{
 }
 
 .lobby-room-heading small {
-  color: var(--gold);
+  color: var(--accent);
   font-size: 9px;
   font-weight: 780;
 }
@@ -217,7 +217,7 @@ defineEmits<{
   aspect-ratio: 1;
   border: 1px solid var(--line-strong);
   border-radius: 50%;
-  color: var(--gold);
+  color: var(--accent);
   background: var(--surface-inset);
   box-shadow: var(--shadow-contact);
 }
@@ -253,12 +253,12 @@ defineEmits<{
   .lobby-room-row:hover {
     padding-right: 6px;
     padding-left: 6px;
-    color: var(--gold);
-    background: color-mix(in srgb, var(--gold) 5%, transparent);
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 5%, transparent);
   }
 
   .lobby-room-row:hover > svg {
-    color: var(--gold);
+    color: var(--accent);
     transform: translateX(2px);
   }
 }

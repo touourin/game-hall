@@ -51,7 +51,7 @@ defineEmits<{ resume: []; retry: [] }>()
 </template>
 
 <style scoped>
-.tetris-board-wrap { position: relative; min-width: 0; border: 1px solid color-mix(in srgb, var(--gold) 36%, var(--line)); border-radius: 10px; padding: 6px; background: color-mix(in srgb, var(--surface-inset) 78%, var(--bg)); box-shadow: inset 0 0 24px color-mix(in srgb, var(--panel-shadow) 58%, transparent), var(--shadow-contact); }
+.tetris-board-wrap { position: relative; min-width: 0; border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--line)); border-radius: 10px; padding: 6px; background: color-mix(in srgb, var(--surface-inset) 78%, var(--bg)); box-shadow: inset 0 0 24px color-mix(in srgb, var(--panel-shadow) 58%, transparent), var(--shadow-contact); }
 .tetris-board { display: grid; grid-template-columns: repeat(10, 1fr); aspect-ratio: 1 / 2; background: linear-gradient(var(--surface-strong), color-mix(in srgb, var(--surface-inset) 84%, var(--bg))); }
 .tetris-cell { position: relative; min-width: 0; border: 1px solid color-mix(in srgb, var(--line) 24%, transparent); background: color-mix(in srgb, var(--panel-highlight) 4%, transparent); }
 .tetris-cell[class*="piece-"] { z-index: 1; border-color: color-mix(in srgb, var(--cell-color) 65%, var(--panel-highlight)); border-radius: 2px; background: linear-gradient(145deg, color-mix(in srgb, var(--cell-color) 70%, white), var(--cell-color) 44%, color-mix(in srgb, var(--cell-color) 72%, var(--bg))); box-shadow: inset 1px 1px 0 color-mix(in srgb, white 42%, transparent), inset -2px -2px 0 color-mix(in srgb, black 18%, transparent); }
@@ -62,5 +62,5 @@ defineEmits<{ resume: []; retry: [] }>()
 .tetris-overlay { position: absolute; z-index: 5; inset: 6px; display: grid; place-items: center; align-content: center; gap: 8px; padding: 20px; color: var(--text); background: color-mix(in srgb, var(--surface-elevated) 94%, transparent); text-align: center; backdrop-filter: blur(5px); }
 .tetris-overlay strong { font-size: 20px; }
 .tetris-overlay small { max-width: 260px; color: var(--muted); line-height: 1.45; }
-.tetris-overlay button { margin-top: 8px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid color-mix(in srgb, var(--gold) 42%, var(--line)); border-radius: 10px; padding: 10px 14px; color: var(--text); background: color-mix(in srgb, var(--gold) 10%, var(--surface-elevated)); font-weight: 850; cursor: pointer; }
+.tetris-overlay button { margin-top: 8px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--line)); border-radius: 10px; padding: 10px 14px; color: var(--text); background: color-mix(in srgb, var(--accent) 10%, var(--surface-elevated)); font-weight: 850; cursor: pointer; }
 </style>

@@ -203,19 +203,22 @@ describe('SettingsModal', () => {
     expect(wrapper.emitted('avatarUpload')).toEqual([[cropped]])
   })
 
-  it('offers the three material UI skins and applies the selected one', async () => {
+  it('offers all four material UI skins and applies the selected one', async () => {
     const wrapper = mountSettings()
 
     expect(wrapper.text()).toContain('极光雾舱')
-    expect(wrapper.text()).toContain('暖钛陶瓷')
+    expect(wrapper.text()).toContain('曜石黑钛')
     expect(wrapper.text()).toContain('月白陶瓷')
+    expect(wrapper.text()).toContain('橙釉象牙')
+    expect(wrapper.text()).not.toContain('暖钛陶瓷')
 
-    const ivory = wrapper
+    const orangeIvory = wrapper
       .findAll('.settings-theme-list button')
-      .find((button) => button.text().includes('月白陶瓷'))
-    await ivory?.trigger('click')
+      .find((button) => button.text().includes('橙釉象牙'))
+    await orangeIvory?.trigger('click')
 
-    expect(document.documentElement.dataset.theme).toBe('royal')
-    expect(localStorage.getItem('game-hall:theme')).toBe('royal')
+    expect(document.documentElement.dataset.theme).toBe('amber')
+    expect(document.documentElement.dataset.colorScheme).toBe('light')
+    expect(localStorage.getItem('game-hall:theme')).toBe('amber')
   })
 })

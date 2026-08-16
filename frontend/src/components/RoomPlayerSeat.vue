@@ -114,10 +114,10 @@ const statusLabel = computed(() => {
 
 .room-player-seat--self,
 .room-player-seat--perspective {
-  border-color: color-mix(in srgb, var(--gold) 56%, var(--line));
+  border-color: color-mix(in srgb, var(--accent) 56%, var(--line));
   box-shadow:
-    inset 3px 0 0 var(--gold),
-    0 0 0 1px color-mix(in srgb, var(--gold) 18%, transparent),
+    inset 3px 0 0 var(--accent),
+    0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent),
     var(--shadow-contact);
 }
 
@@ -147,7 +147,7 @@ const statusLabel = computed(() => {
 .room-player-seat-avatar {
   width: 100%;
   height: 100%;
-  border: 1px solid color-mix(in srgb, var(--gold) 26%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line));
   border-radius: 50%;
   background: var(--surface-raised);
   box-shadow: var(--shadow-contact, 0 4px 12px rgba(0, 0, 0, .14));
@@ -191,7 +191,7 @@ const statusLabel = computed(() => {
 }
 
 .room-player-seat-copy svg {
-  color: var(--gold);
+  color: var(--accent);
   vertical-align: -2px;
 }
 

@@ -52,15 +52,15 @@ withDefaults(defineProps<{
 }
 
 .ui-button--primary {
-  border-color: color-mix(in srgb, var(--accent-highlight) 76%, var(--gold-deep));
-  color: var(--accent-contrast);
+  border-color: color-mix(in srgb, var(--primary-start) 58%, var(--primary-end));
+  color: var(--primary-text);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.28), transparent 42%),
-    linear-gradient(135deg, var(--accent-highlight), var(--gold) 72%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 42%),
+    linear-gradient(145deg, var(--primary-start), var(--primary-end));
   box-shadow:
-    0 12px 30px color-mix(in srgb, var(--gold) 22%, transparent),
+    0 12px 30px color-mix(in srgb, var(--accent) 22%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.64),
-    inset 0 -1px 0 color-mix(in srgb, var(--gold-deep) 64%, transparent);
+    inset 0 -1px 0 color-mix(in srgb, var(--accent-deep) 64%, transparent);
 }
 
 .ui-button--danger {
@@ -101,7 +101,7 @@ withDefaults(defineProps<{
 
   .ui-button--primary:hover:not(:disabled) {
     box-shadow:
-      0 16px 34px color-mix(in srgb, var(--gold) 30%, transparent),
+      0 16px 34px color-mix(in srgb, var(--accent) 30%, transparent),
       inset 0 1px 0 rgba(255, 255, 255, 0.68);
     transform: translateY(-2px);
   }
@@ -112,19 +112,9 @@ withDefaults(defineProps<{
   }
 }
 
-:global(:root[data-theme="royal"]) .ui-button--primary:not(:disabled) {
-  border-color: #32685c;
-  color: #fff;
-  background: linear-gradient(145deg, #4c8a7a, #32685c);
-  box-shadow:
-    0 12px 26px rgba(50, 104, 92, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3),
-    inset 0 -1px 0 rgba(22, 64, 55, 0.4);
-}
-
-:global(:root[data-theme="royal"]) .ui-button:disabled {
+:global(:root[data-color-scheme="light"]) .ui-button:disabled {
   opacity: 1;
-  border-color: rgba(50, 64, 72, 0.22);
+  border-color: color-mix(in srgb, var(--text) 22%, transparent);
   color: var(--disabled-text);
   background: linear-gradient(145deg, var(--disabled-bg-start), var(--disabled-bg-end));
   box-shadow:

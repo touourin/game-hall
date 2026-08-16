@@ -559,7 +559,7 @@ async function resolveScanner(exchange: boolean) {
 </template>
 
 <style scoped>
-.suspicion-table { width: 100%; display: grid; gap: 14px; --case-gold: var(--gold); --case-red: var(--red); --case-blue: var(--accent-secondary); }
+.suspicion-table { width: 100%; display: grid; gap: 14px; --case-gold: var(--accent); --case-red: var(--red); --case-blue: var(--accent-secondary); }
 .suspicion-status { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 18px; border-color: color-mix(in srgb, var(--case-gold) 28%, var(--line)); background: linear-gradient(110deg, color-mix(in srgb, var(--case-gold) 8%, var(--surface)), var(--surface)); }
 .suspicion-status > div:first-child { min-width: 0; display: grid; gap: 3px; }.status-kicker { color: var(--case-gold); font-size: 9px; font-weight: 900; letter-spacing: .12em; }.suspicion-status strong { font-size: 20px; }.suspicion-status small { color: var(--muted); }
 .status-resources { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }.status-resources span,.private-team-trigger { min-height: 34px; display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 7px 10px; color: var(--text-soft); background: var(--surface-inset); font-size: 11px; font-weight: 800; }.status-resources b { color: var(--case-gold); }.private-team-trigger { color: var(--case-gold); cursor: pointer; touch-action: none; -webkit-user-select: none; user-select: none; }

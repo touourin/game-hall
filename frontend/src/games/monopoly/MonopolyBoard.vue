@@ -304,10 +304,10 @@ function submit(action: string) {
 
 <style scoped>
 .monopoly-shell {
-  --fortune-gold: var(--gold);
+  --fortune-gold: var(--accent);
   --fortune-board-surface: color-mix(in srgb, var(--surface-inset) 76%, var(--bg));
   --fortune-board-cell: color-mix(in srgb, var(--surface-elevated) 82%, var(--surface-inset));
-  --fortune-board-cell-active: color-mix(in srgb, var(--gold) 7%, var(--fortune-board-cell));
+  --fortune-board-cell-active: color-mix(in srgb, var(--accent) 7%, var(--fortune-board-cell));
   --fortune-board-text: var(--text);
   --fortune-board-muted: var(--text-soft);
   display: grid;

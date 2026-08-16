@@ -441,20 +441,20 @@ function submit() {
 <style scoped>
 .account-page { width: min(100%, 1060px); }
 .account-stage { width: 100%; display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(390px, .92fr); align-items: stretch; gap: 10px; }
-.account-intro { position: relative; min-height: 640px; display: flex; flex-direction: column; border-color: color-mix(in srgb, var(--line-strong) 74%, var(--line)); border-radius: var(--radius-lg); padding: clamp(34px, 5vw, 56px); background: radial-gradient(circle at 10% 0, color-mix(in srgb, var(--gold) 13%, transparent), transparent 35%), repeating-radial-gradient(circle at 88% 85%, transparent 0 38px, var(--instrument-line) 39px 40px), var(--panel-sheen), linear-gradient(145deg,color-mix(in srgb,var(--surface-strong) 82%,var(--bg)),var(--surface)); overflow: hidden; }
+.account-intro { position: relative; min-height: 640px; display: flex; flex-direction: column; border-color: color-mix(in srgb, var(--line-strong) 74%, var(--line)); border-radius: var(--radius-lg); padding: clamp(34px, 5vw, 56px); background: radial-gradient(circle at 10% 0, color-mix(in srgb, var(--accent) 13%, transparent), transparent 35%), repeating-radial-gradient(circle at 88% 85%, transparent 0 38px, var(--instrument-line) 39px 40px), var(--panel-sheen), linear-gradient(145deg,color-mix(in srgb,var(--surface-strong) 82%,var(--bg)),var(--surface)); overflow: hidden; }
 .account-intro::after { position: absolute; inset: 5px; border: 1px solid color-mix(in srgb, var(--line-bright) 15%, transparent); border-radius: calc(var(--radius-panel) - 5px); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 22%, transparent); content: ''; pointer-events: none; }
 .account-brand { position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; }
-.account-brand > span { width: 52px; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--gold) 36%, var(--line)); border-radius: var(--radius-control); color: var(--gold); background: var(--control-surface), var(--surface-inset); box-shadow: var(--glow-primary), inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 58%, transparent); }
+.account-brand > span { width: 52px; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--line)); border-radius: var(--radius-control); color: var(--accent); background: var(--control-surface), var(--surface-inset); box-shadow: var(--glow-primary), inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 58%, transparent); }
 .account-brand p,.account-brand small,.account-brand strong { margin: 0; }
 .account-brand p { display: grid; gap: 2px; }
-.account-brand small { color: var(--gold); font-size: 8px; font-weight: 900; letter-spacing: .2em; }
+.account-brand small { color: var(--accent); font-size: 8px; font-weight: 900; letter-spacing: .2em; }
 .account-brand strong { font-size: 17px; font-weight: 800; letter-spacing: .03em; }
 .account-intro-copy { position: relative; z-index: 1; margin-top: auto; padding: 70px 0 38px; }
 .account-intro-copy h2 { max-width: 490px; margin: 14px 0 17px; font-size: clamp(36px, 4.5vw, 52px); font-weight: 800; line-height: 1.12; letter-spacing: -.035em; }
 .account-intro-copy > p:last-child { max-width: 470px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.8; }
 .account-features { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
 .account-features li { min-width: 0; display: grid; gap: 10px; border: 1px solid var(--line); border-radius: var(--radius-control); padding: 13px 11px; background: var(--control-surface), color-mix(in srgb, var(--surface-inset) 86%, transparent); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 28%, transparent); }
-.account-features svg { color: var(--gold); }
+.account-features svg { color: var(--accent); }
 .account-features span { display: grid; gap: 4px; }
 .account-features strong { font-size: 10px; }
 .account-features small { color: var(--muted); font-size: 8px; line-height: 1.5; }
@@ -463,7 +463,7 @@ function submit() {
 .account-card { z-index: 2; width: auto; display: grid; align-content: center; border-color: color-mix(in srgb, var(--line-strong) 62%, var(--line)); border-radius: var(--radius-lg); padding: clamp(32px, 5vw, 54px); }
 .account-card::after { position: absolute; inset: 5px; border: 1px solid color-mix(in srgb, var(--line-bright) 13%, transparent); border-radius: calc(var(--radius-panel) - 5px); content: ''; pointer-events: none; }
 .account-card .account-mark { display: none; }
-.account-back-button,.forgot-password-button,.reset-resend-button { border: 0; padding: 0; color: var(--gold); background: transparent; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
+.account-back-button,.forgot-password-button,.reset-resend-button { border: 0; padding: 0; color: var(--accent); background: transparent; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
 .account-back-button { width: fit-content; display: inline-flex; align-items: center; gap: 5px; margin: 4px 0 16px; }
 .forgot-password-button { justify-self: end; margin-top: -4px; }
 .reset-resend-button { justify-self: center; }

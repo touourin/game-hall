@@ -751,7 +751,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .crossing-game {
-  --cross-accent: var(--gold);
+  --cross-accent: var(--accent);
   width: min(100%, 920px);
   display: grid;
   gap: 14px;
@@ -914,11 +914,11 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 4px 8px;
-  border: 1px solid color-mix(in srgb, var(--gold) 48%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--accent) 48%, var(--line));
   border-radius: 11px;
   padding: 8px 10px;
-  color: color-mix(in srgb, var(--gold) 72%, var(--text));
-  background: color-mix(in srgb, var(--gold) 10%, var(--surface-primary));
+  color: color-mix(in srgb, var(--accent) 72%, var(--text));
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-primary));
   backdrop-filter: blur(9px);
 }
 .boundary-pressure small { align-self: end; font-size: 8px; font-weight: 900; }
@@ -930,7 +930,7 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: color-mix(in srgb, var(--muted) 22%, transparent);
 }
-.boundary-pressure i span { display: block; height: 100%; border-radius: inherit; background: var(--gold); }
+.boundary-pressure i span { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
 .boundary-pressure.critical {
   border-color: color-mix(in srgb, var(--red) 70%, var(--line));
   color: var(--red);

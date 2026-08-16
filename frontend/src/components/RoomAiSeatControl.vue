@@ -77,7 +77,7 @@ function addAiPlayer() {
   min-width: 0;
   min-height: 68px;
   padding: 10px;
-  border: 1px dashed color-mix(in srgb, var(--gold) 48%, var(--line));
+  border: 1px dashed color-mix(in srgb, var(--accent) 48%, var(--line));
   border-radius: var(--radius-card);
   background: var(--surface-glass);
   box-shadow: var(--shadow-contact), inset 0 1px 0 var(--metal-edge);
@@ -88,10 +88,10 @@ function addAiPlayer() {
   aspect-ratio: 1;
   display: grid;
   place-items: center;
-  border: 1px solid color-mix(in srgb,var(--gold) 28%,var(--line));
+  border: 1px solid color-mix(in srgb,var(--accent) 28%,var(--line));
   border-radius: var(--radius-control);
-  color: var(--gold);
-  background: color-mix(in srgb, var(--gold) 13%, transparent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
 }
 
 .room-ai-seat-copy {
@@ -140,11 +140,14 @@ function addAiPlayer() {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  border: 1px solid color-mix(in srgb, var(--gold) 58%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--accent) 58%, var(--line));
   border-radius: var(--radius-control);
   padding: 0 10px;
-  color: var(--accent-contrast);
-  background: var(--gold);
+  color: var(--primary-text);
+  background: linear-gradient(145deg, var(--primary-start), var(--primary-end));
+  box-shadow:
+    0 8px 18px color-mix(in srgb, var(--accent) 18%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, .28);
   font-weight: 900;
 }
 
@@ -153,18 +156,9 @@ function addAiPlayer() {
   opacity: .55;
 }
 
-:global(:root[data-theme="royal"] .room-ai-add-button:not(:disabled)) {
-  border-color: #32685c;
-  color: #fff;
-  background: linear-gradient(145deg, #4c8a7a, #32685c);
-  box-shadow:
-    0 8px 18px rgba(50, 104, 92, .18),
-    inset 0 1px 0 rgba(255, 255, 255, .28);
-}
-
-:global(:root[data-theme="royal"] .room-ai-add-button:disabled) {
+:global(:root[data-color-scheme="light"] .room-ai-add-button:disabled) {
   opacity: 1;
-  border-color: rgba(77, 98, 94, .34);
+  border-color: color-mix(in srgb, var(--text) 22%, transparent);
   color: var(--disabled-text);
   background: linear-gradient(145deg, var(--disabled-bg-start), var(--disabled-bg-end));
   box-shadow:

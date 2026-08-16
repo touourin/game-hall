@@ -41,7 +41,7 @@ defineEmits<{
 
 <style scoped>
 .game-library-card {
-  --module-tone: var(--gold);
+  --module-tone: var(--accent);
   position: relative;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;

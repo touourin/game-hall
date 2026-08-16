@@ -20,6 +20,7 @@ const PUBLIC_THEME_MATERIALS: Readonly<Record<PluginThemeName, PluginThemeMateri
   emerald: freezeMaterials(GAME_THEME_MATERIALS.emerald),
   midnight: freezeMaterials(GAME_THEME_MATERIALS.midnight),
   royal: freezeMaterials(GAME_THEME_MATERIALS.royal),
+  amber: freezeMaterials(GAME_THEME_MATERIALS.amber),
 })
 
 export function pluginThemeMaterials(theme: PluginThemeName): PluginThemeMaterials {
