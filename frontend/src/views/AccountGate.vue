@@ -301,7 +301,7 @@ function submit() {
               inputmode="numeric"
               maxlength="6"
               autocomplete="one-time-code"
-              placeholder="000000"
+              placeholder="输入邮件中的 6 位验证码"
               :disabled="registrationEmailBusy"
             />
           </label>
@@ -349,7 +349,7 @@ function submit() {
             inputmode="numeric"
             maxlength="6"
             autocomplete="one-time-code"
-            placeholder="000000"
+            placeholder="输入邮件中的 6 位验证码"
           />
         </label>
 

@@ -74,9 +74,13 @@ describe('AccountGate', () => {
       registrationEmailRequestedFor: 'player@example.com',
       registrationEmailMessage: '验证码已经发送',
     })
-    await wrapper
-      .get('input[autocomplete="one-time-code"]')
-      .setValue('123456')
+    const emailCodeInput = wrapper.get(
+      'input[autocomplete="one-time-code"]',
+    )
+    expect(emailCodeInput.attributes('placeholder')).toBe(
+      '输入邮件中的 6 位验证码',
+    )
+    await emailCodeInput.setValue('123456')
     const passwords = wrapper.findAll('input[autocomplete="new-password"]')
     await passwords[0]!.setValue('secret123')
     await passwords[1]!.setValue('secret123')
@@ -148,7 +152,13 @@ describe('AccountGate', () => {
     ])
 
     await wrapper.setProps({ passwordResetState: 'code-sent' })
-    await wrapper.get('input[autocomplete="one-time-code"]').setValue('123456')
+    const resetCodeInput = wrapper.get(
+      'input[autocomplete="one-time-code"]',
+    )
+    expect(resetCodeInput.attributes('placeholder')).toBe(
+      '输入邮件中的 6 位验证码',
+    )
+    await resetCodeInput.setValue('123456')
     const passwordInputs = wrapper.findAll('input[autocomplete="new-password"]')
     await passwordInputs[0]!.setValue('new-secret')
     await passwordInputs[1]!.setValue('new-secret')

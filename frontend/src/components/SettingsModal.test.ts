@@ -94,9 +94,13 @@ describe('SettingsModal', () => {
       emailRequestedFor: 'player@example.com',
     })
     const refreshedSection = wrapper.get('.email-settings-section')
-    await refreshedSection
-      .get('input[autocomplete="one-time-code"]')
-      .setValue('123456')
+    const bindingCodeInput = refreshedSection.get(
+      'input[autocomplete="one-time-code"]',
+    )
+    expect(bindingCodeInput.attributes('placeholder')).toBe(
+      '输入邮件中的 6 位验证码',
+    )
+    await bindingCodeInput.setValue('123456')
     await refreshedSection.get('form').trigger('submit')
 
     expect(wrapper.emitted('verifyEmail')).toEqual([
@@ -121,9 +125,13 @@ describe('SettingsModal', () => {
       emailUnbindCodeSent: true,
       emailMessage: '解绑验证码已经发送',
     })
-    await wrapper
-      .get('.email-unbind-panel input[autocomplete="one-time-code"]')
-      .setValue('654321')
+    const unbindingCodeInput = wrapper.get(
+      '.email-unbind-panel input[autocomplete="one-time-code"]',
+    )
+    expect(unbindingCodeInput.attributes('placeholder')).toBe(
+      '输入邮件中的 6 位验证码',
+    )
+    await unbindingCodeInput.setValue('654321')
     const confirmButton = wrapper
       .findAll('.email-unbind-panel button')
       .find((button) => button.text().includes('验证并解绑'))
