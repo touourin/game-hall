@@ -32,7 +32,7 @@ export const criticalCrossingSoloPresentation: BuiltinGameSoloPresentation = {
     title: '沿着安全缺口穿过临界场',
     description: '观察边缘预警，在横向、纵向和交叉脉冲抵达前完成换位；不要长期停留在封锁边界。',
     button: '进入临界穿越',
-    features: ['三档目标时间', '可读脉冲缺口', '服务端重放轨迹'],
+    features: ['分档脉冲配比', '可读安全缺口', '服务端重放轨迹'],
     metrics: difficultyMetrics[String(options.difficulty ?? '5s')]
       ?? difficultyMetrics['5s']!,
     stages: ['读取预警', '移动到缺口', '持续穿越'],

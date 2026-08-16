@@ -41,11 +41,11 @@ export const criticalCrossingGame = defineBuiltinGame({
       title: '穿越时长',
       control: 'cards',
       columns: 3,
-      description: '更长的挑战会加入更多交叉脉冲，并独立记录成绩',
+      description: '档位越高，交叉脉冲更多、预警更短、缺口更窄；成绩独立记录',
       options: [
-        ['5s', '校准', '5 秒 · 5 轮'],
-        ['8s', '过载', '8 秒 · 8 轮'],
-        ['10s', '临界', '10 秒 · 10 轮'],
+        ['5s', '校准', '5 秒 · 5 轮 · 宽缺口'],
+        ['8s', '过载', '8 秒 · 8 轮 · 标准缺口'],
+        ['10s', '临界', '10 秒 · 10 轮 · 高频交叉'],
       ],
     }],
     defaults: {

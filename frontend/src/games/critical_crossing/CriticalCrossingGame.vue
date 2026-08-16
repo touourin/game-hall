@@ -18,7 +18,6 @@ import SoloResultCard from '../shared/solo/SoloResultCard.vue'
 import {
   BOARD_HEIGHT,
   BOARD_WIDTH,
-  BOUNDARY_PRESSURE_LIMIT,
   BOUNDARY_SIDES,
   BOUNDARY_ZONE_X,
   BOUNDARY_ZONE_Y,
@@ -29,16 +28,15 @@ import {
   PLAYER_HIT_RADIUS,
   PLAYER_RADIUS,
   PULSE_INTERVAL_TICKS,
-  PULSE_WARNING_TICKS,
-  SAFE_GATE_RADIUS,
   TICK_RATE,
   advanceCrossingState,
   boundaryWallDepth,
+  buildPulsePlan,
   createCrossingState,
   pulseFronts,
-  pulseSafeGate,
   pulseSides,
   type BoundarySide,
+  type CrossingProfile,
   type CrossingState,
 } from './crossingEngine'
 import {
@@ -56,6 +54,7 @@ interface ServerGame {
   collisionGraceMs: number
   pulseWarningMs: number
   boundaryPressureMs: number
+  profile: CrossingProfile
   elapsedMs: number
   crossed: boolean | null
   collisionTick: number | null
@@ -90,21 +89,31 @@ const hasTargetSpectators = computed(() => props.snapshot.spectators?.some(
 ) ?? false)
 const durationSeconds = computed(() => Math.round(game.value.durationMs / 1_000))
 const targetTicks = computed(() => durationSeconds.value * TICK_RATE)
+const pulsePlan = computed(() => buildPulsePlan(
+  game.value.seed,
+  game.value.pulseCount,
+  game.value.profile,
+))
 const remainingMs = computed(() => Math.max(
   0,
   game.value.durationMs - localElapsedMs.value,
 ))
 const remainingLabel = computed(() => (remainingMs.value / 1_000).toFixed(2))
+const boundaryLockLabel = computed(() => (
+  game.value.profile.boundaryPressureLimit / TICK_RATE
+).toFixed(2))
 const pulseIndex = computed(() => Math.min(
   Math.floor(crossingState.value.tick / PULSE_INTERVAL_TICKS),
   Math.max(0, game.value.pulseCount - 1),
 ))
 const pulseTick = computed(() => crossingState.value.tick % PULSE_INTERVAL_TICKS)
-const isPulseWarning = computed(() => pulseTick.value < PULSE_WARNING_TICKS)
+const currentPulse = computed(() => pulsePlan.value[pulseIndex.value]!)
+const isPulseWarning = computed(() => (
+  pulseTick.value < game.value.profile.pulseWarningTicks
+))
 const pulseName = computed(() => {
-  const pattern = pulseIndex.value % 3
-  if (pattern === 0) return '横向脉冲'
-  if (pattern === 1) return '纵向脉冲'
+  if (currentPulse.value.kind === 'horizontal') return '横向脉冲'
+  if (currentPulse.value.kind === 'vertical') return '纵向脉冲'
   return '交叉脉冲'
 })
 const peakBoundaryPressure = computed(() => Math.max(
@@ -112,7 +121,11 @@ const peakBoundaryPressure = computed(() => Math.max(
 ))
 const boundaryPressurePercent = computed(() => Math.min(
   100,
-  Math.round(peakBoundaryPressure.value * 100 / BOUNDARY_PRESSURE_LIMIT),
+  Math.round(
+    peakBoundaryPressure.value
+    * 100
+    / game.value.profile.boundaryPressureLimit,
+  ),
 ))
 const fieldStatus = computed(() => {
   if (peakBoundaryPressure.value > 0) {
@@ -213,9 +226,9 @@ function frame(timestamp: number) {
     inputs.value.push(input)
     crossingState.value = advanceCrossingState(
       crossingState.value,
-      game.value.seed,
       input,
-      game.value.pulseCount,
+      pulsePlan.value,
+      game.value.profile,
     )
     localElapsedMs.value = Math.min(
       game.value.durationMs,
@@ -313,11 +326,7 @@ function resizeCanvas() {
 
 function warningGate(side: BoundarySide): number {
   const verticalEdge = side === 'left' || side === 'right'
-  return pulseSafeGate(
-    game.value.seed,
-    pulseIndex.value,
-    verticalEdge ? 'y' : 'x',
-  )
+  return verticalEdge ? currentPulse.value.yGate : currentPulse.value.xGate
 }
 
 function drawPulseWarning(
@@ -332,12 +341,13 @@ function drawPulseWarning(
   const pulse = .5 + .2 * Math.sin(crossingState.value.tick * .65)
   const railWidth = Math.max(8, Math.min(width, height) * .022)
 
-  for (const side of pulseSides(pulseIndex.value)) {
+  for (const side of pulseSides(currentPulse.value.kind)) {
     const verticalEdge = side === 'left' || side === 'right'
     const scale = verticalEdge ? scaleY : scaleX
     const span = verticalEdge ? height : width
-    const start = Math.max(0, (warningGate(side) - SAFE_GATE_RADIUS) * scale)
-    const end = Math.min(span, (warningGate(side) + SAFE_GATE_RADIUS) * scale)
+    const gateRadius = game.value.profile.safeGateRadius
+    const start = Math.max(0, (warningGate(side) - gateRadius) * scale)
+    const end = Math.min(span, (warningGate(side) + gateRadius) * scale)
     context.globalAlpha = pulse
     context.fillStyle = palette.pulse
     if (verticalEdge) {
@@ -367,14 +377,15 @@ function drawPulseFronts(
 ) {
   context.lineCap = 'round'
   for (const { side, position, gate } of pulseFronts(
-    game.value.seed,
+    pulsePlan.value,
     crossingState.value.tick,
-    game.value.pulseCount,
+    game.value.profile,
   )) {
     const verticalEdge = side === 'left' || side === 'right'
     const front = position * (verticalEdge ? scaleX : scaleY)
-    const gateStart = (gate - SAFE_GATE_RADIUS) * (verticalEdge ? scaleY : scaleX)
-    const gateEnd = (gate + SAFE_GATE_RADIUS) * (verticalEdge ? scaleY : scaleX)
+    const gateRadius = game.value.profile.safeGateRadius
+    const gateStart = (gate - gateRadius) * (verticalEdge ? scaleY : scaleX)
+    const gateEnd = (gate + gateRadius) * (verticalEdge ? scaleY : scaleX)
     context.shadowColor = palette.pulseGlow
     context.shadowBlur = Math.max(7, Math.min(width, height) * .018)
     context.strokeStyle = palette.pulse
@@ -420,11 +431,14 @@ function drawBoundaryPressure(
 ) {
   for (const side of BOUNDARY_SIDES) {
     const pressure = crossingState.value.boundaryPressure[side]
-    const ratio = Math.min(1, pressure / BOUNDARY_PRESSURE_LIMIT)
+    const ratio = Math.min(
+      1,
+      pressure / game.value.profile.boundaryPressureLimit,
+    )
     const zoneDepth = side === 'top' || side === 'bottom'
       ? BOUNDARY_ZONE_Y * scaleY
       : BOUNDARY_ZONE_X * scaleX
-    const wallDepth = boundaryWallDepth(pressure)
+    const wallDepth = boundaryWallDepth(pressure, game.value.profile)
       * (side === 'top' || side === 'bottom' ? scaleY : scaleX)
 
     context.globalAlpha = .28 + ratio * .72
@@ -718,7 +732,7 @@ onBeforeUnmount(() => {
 
     <p class="crossing-hint">
       <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 或 <kbd>WASD</kbd>
-      移动 · 提前进入青色缺口，贴边约 0.5 秒会触发封锁
+      移动 · 提前进入青色缺口，贴边约 {{ boundaryLockLabel }} 秒会触发封锁
     </p>
 
     <SoloResultCard

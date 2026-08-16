@@ -13,48 +13,26 @@ BOARD_WIDTH = 10_000
 BOARD_HEIGHT = 6_500
 TICKS_PER_SECOND = 60
 
-DIFFICULTIES: dict[str, dict[str, int | str]] = {
-    "5s": {"label": "校准", "duration_seconds": 5},
-    "8s": {"label": "过载", "duration_seconds": 8},
-    "10s": {"label": "临界", "duration_seconds": 10},
-}
-DEFAULT_DIFFICULTY = "5s"
-
 PLAYER_RADIUS = 105
 PLAYER_HIT_RADIUS = 32
 PLAYER_SPEED = 160
 
 PULSE_INTERVAL_TICKS = TICKS_PER_SECOND
-PULSE_WARNING_TICKS = 22
-COLLISION_GRACE_TICKS = PULSE_WARNING_TICKS
-PULSE_FRONT_SPEED = 160
 PULSE_FRONT_HIT_RADIUS = 72
-SAFE_GATE_RADIUS = 920
 
 BOUNDARY_ZONE_X = 900
 BOUNDARY_ZONE_Y = 585
-BOUNDARY_PRESSURE_LIMIT = 30
 BOUNDARY_PRESSURE_DECAY = 1
 BOUNDARY_WALL_SPEED = 100
 BOUNDARY_WALL_DEPTH = 1_000
-BOUNDARY_PRESSURE_MAX = (
-    BOUNDARY_PRESSURE_LIMIT + BOUNDARY_WALL_DEPTH // BOUNDARY_WALL_SPEED
-)
 BOUNDARY_SIDES = ("top", "right", "bottom", "left")
 
 MIN_SUCCESS_SLACK_SECONDS = 0.3
-SOLVABLE_SEEDS = (
-    162_944_417,
-    487_235_091,
-    914_608_233,
-    1_126_805_741,
-    1_447_392_519,
-    1_733_064_287,
-    2_015_846_103,
-    2_238_519_761,
-    2_774_206_349,
-    3_180_447_907,
-)
+UINT32_MASK = 0xFFFFFFFF
+PULSE_KIND_SALT = 0xA341316C
+GATE_LANE_SALT = 0xC8013EA4
+GATE_OFFSET_SALT = 0xAD90777D
+AXIS_Y_SALT = 0x7E95761E
 
 UP = 1
 DOWN = 2
@@ -64,6 +42,74 @@ VALID_INPUT_MASK = UP | DOWN | LEFT | RIGHT
 
 BoundarySide = Literal["top", "right", "bottom", "left"]
 CollisionKind = Literal["pulse", "boundary"]
+PulseKind = Literal["horizontal", "vertical", "cross"]
+Axis = Literal["x", "y"]
+PulseWeights = tuple[int, int, int]
+
+PULSE_KINDS: tuple[PulseKind, ...] = (
+    "horizontal",
+    "vertical",
+    "cross",
+)
+
+
+@dataclass(frozen=True)
+class DifficultyConfig:
+    label: str
+    duration_seconds: int
+    pulse_weights: PulseWeights
+    pulse_warning_ticks: int
+    pulse_front_speed: int
+    safe_gate_radius: int
+    boundary_pressure_limit: int
+
+    def __post_init__(self) -> None:
+        if sum(weight > 0 for weight in self.pulse_weights) < 2:
+            raise ValueError("At least two pulse kinds need positive weights")
+        if min(
+            self.duration_seconds,
+            self.pulse_warning_ticks,
+            self.pulse_front_speed,
+            self.safe_gate_radius,
+            self.boundary_pressure_limit,
+        ) <= 0:
+            raise ValueError("Critical Crossing tuning values must be positive")
+
+    @property
+    def pulse_count(self) -> int:
+        return self.duration_seconds
+
+
+DIFFICULTIES: dict[str, DifficultyConfig] = {
+    "5s": DifficultyConfig(
+        label="校准",
+        duration_seconds=5,
+        pulse_weights=(48, 48, 4),
+        pulse_warning_ticks=28,
+        pulse_front_speed=180,
+        safe_gate_radius=1_050,
+        boundary_pressure_limit=36,
+    ),
+    "8s": DifficultyConfig(
+        label="过载",
+        duration_seconds=8,
+        pulse_weights=(38, 38, 24),
+        pulse_warning_ticks=23,
+        pulse_front_speed=175,
+        safe_gate_radius=920,
+        boundary_pressure_limit=30,
+    ),
+    "10s": DifficultyConfig(
+        label="临界",
+        duration_seconds=10,
+        pulse_weights=(25, 25, 50),
+        pulse_warning_ticks=18,
+        pulse_front_speed=170,
+        safe_gate_radius=820,
+        boundary_pressure_limit=26,
+    ),
+}
+DEFAULT_DIFFICULTY = "5s"
 
 
 @dataclass(frozen=True)
@@ -71,6 +117,13 @@ class PulseFront:
     side: BoundarySide
     position: int
     gate: int
+
+
+@dataclass(frozen=True)
+class PulsePlanEntry:
+    kind: PulseKind
+    x_gate: int
+    y_gate: int
 
 
 @dataclass(frozen=True)
@@ -97,72 +150,114 @@ class CriticalCrossingState:
     input_count: int = 0
 
 
-class Lcg:
-    """Small cross-language PRNG shared with the browser simulation."""
+def _mix_u32(value: int) -> int:
+    """Avalanche a 32-bit value identically in Python and JavaScript."""
 
-    def __init__(self, seed: int) -> None:
-        self.state = seed & 0xFFFFFFFF
-
-    def next_u32(self) -> int:
-        self.state = (
-            1_664_525 * self.state + 1_013_904_223
-        ) & 0xFFFFFFFF
-        return self.state
-
-    def integer(self, minimum: int, maximum: int) -> int:
-        return minimum + self.next_u32() % (maximum - minimum + 1)
+    value &= UINT32_MASK
+    value ^= value >> 16
+    value = (value * 0x7FEB352D) & UINT32_MASK
+    value ^= value >> 15
+    value = (value * 0x846CA68B) & UINT32_MASK
+    value ^= value >> 16
+    return value & UINT32_MASK
 
 
-def _pulse_rng(seed: int, pulse_index: int) -> Lcg:
-    return Lcg((seed ^ ((pulse_index + 1) * 2_654_435_761)) & 0xFFFFFFFF)
+def _random_word(seed: int, pulse_index: int, salt: int) -> int:
+    index_key = ((pulse_index + 1) * 0x9E3779B9) & UINT32_MASK
+    return _mix_u32(seed ^ index_key ^ salt)
 
 
-def pulse_safe_gate(seed: int, pulse_index: int, axis: str) -> int:
+def pulse_safe_gate(seed: int, pulse_index: int, axis: Axis) -> int:
     """Return a deterministic opening center along one board axis."""
 
-    axis_salt = 0 if axis == "x" else 2_246_822_519
-    rng = Lcg(
-        (_pulse_rng(seed, pulse_index).next_u32() ^ axis_salt) & 0xFFFFFFFF
+    axis_salt = 0 if axis == "x" else AXIS_Y_SALT
+    ranges = (
+        ((3_000, 3_500), (6_500, 7_000))
+        if axis == "x"
+        else ((2_050, 2_450), (4_050, 4_450))
     )
-    if axis == "y":
-        return (
-            rng.integer(2_050, 2_450)
-            if rng.integer(0, 1) == 0
-            else rng.integer(4_050, 4_450)
+    lane = _random_word(
+        seed,
+        pulse_index,
+        GATE_LANE_SALT ^ axis_salt,
+    ) % len(ranges)
+    minimum, maximum = ranges[lane]
+    offset = _random_word(
+        seed,
+        pulse_index,
+        GATE_OFFSET_SALT ^ axis_salt,
+    ) % (maximum - minimum + 1)
+    return minimum + offset
+
+
+def pulse_sequence(
+    seed: int,
+    config: DifficultyConfig,
+) -> tuple[PulseKind, ...]:
+    """Build a weighted sequence without adjacent pulse-kind repeats."""
+
+    sequence: list[PulseKind] = []
+    for pulse_index in range(config.pulse_count):
+        previous = sequence[-1] if sequence else None
+        choices = tuple(
+            (kind, weight)
+            for kind, weight in zip(
+                PULSE_KINDS,
+                config.pulse_weights,
+                strict=True,
+            )
+            if kind != previous and weight > 0
         )
-    return (
-        rng.integer(3_000, 3_500)
-        if rng.integer(0, 1) == 0
-        else rng.integer(6_500, 7_000)
+        total_weight = sum(weight for _, weight in choices)
+        roll = _random_word(seed, pulse_index, PULSE_KIND_SALT) % total_weight
+        for kind, weight in choices:
+            if roll < weight:
+                sequence.append(kind)
+                break
+            roll -= weight
+    return tuple(sequence)
+
+
+def build_pulse_plan(
+    seed: int,
+    config: DifficultyConfig,
+) -> tuple[PulsePlanEntry, ...]:
+    return tuple(
+        PulsePlanEntry(
+            kind=kind,
+            x_gate=pulse_safe_gate(seed, pulse_index, "x"),
+            y_gate=pulse_safe_gate(seed, pulse_index, "y"),
+        )
+        for pulse_index, kind in enumerate(pulse_sequence(seed, config))
     )
 
 
-def pulse_sides(pulse_index: int) -> tuple[BoundarySide, ...]:
-    pattern = pulse_index % 3
-    if pattern == 0:
+def pulse_sides(kind: PulseKind) -> tuple[BoundarySide, ...]:
+    if kind == "horizontal":
         return ("left", "right")
-    if pattern == 1:
+    if kind == "vertical":
         return ("top", "bottom")
     return BOUNDARY_SIDES
 
 
-def pulse_fronts(seed: int, tick: int, pulse_count: int) -> list[PulseFront]:
+def pulse_fronts(
+    plan: tuple[PulsePlanEntry, ...],
+    tick: int,
+    config: DifficultyConfig,
+) -> list[PulseFront]:
     fronts: list[PulseFront] = []
-    active_count = min(pulse_count, tick // PULSE_INTERVAL_TICKS + 1)
-    for pulse_index in range(active_count):
+    active_count = min(len(plan), tick // PULSE_INTERVAL_TICKS + 1)
+    for pulse_index, pulse in enumerate(plan[:active_count]):
         elapsed = tick - (
-            pulse_index * PULSE_INTERVAL_TICKS + PULSE_WARNING_TICKS
+            pulse_index * PULSE_INTERVAL_TICKS
+            + config.pulse_warning_ticks
         )
         if elapsed < 0:
             continue
-        distance = (elapsed + 1) * PULSE_FRONT_SPEED
-        for side in pulse_sides(pulse_index):
+        distance = (elapsed + 1) * config.pulse_front_speed
+        for side in pulse_sides(pulse.kind):
             vertical_edge = side in {"left", "right"}
-            gate = pulse_safe_gate(
-                seed,
-                pulse_index,
-                "y" if vertical_edge else "x",
-            )
+            gate = pulse.y_gate if vertical_edge else pulse.x_gate
             if side == "left":
                 position = BOUNDARY_ZONE_X + distance
             elif side == "right":
@@ -178,13 +273,13 @@ def pulse_fronts(seed: int, tick: int, pulse_count: int) -> list[PulseFront]:
 
 
 def pulse_collision(
-    seed: int,
+    plan: tuple[PulsePlanEntry, ...],
     tick: int,
     player_x: int,
     player_y: int,
-    pulse_count: int,
+    config: DifficultyConfig,
 ) -> bool:
-    for front in pulse_fronts(seed, tick, pulse_count):
+    for front in pulse_fronts(plan, tick, config):
         vertical_edge = front.side in {"left", "right"}
         front_distance = abs(
             (player_x if vertical_edge else player_y) - front.position
@@ -194,7 +289,7 @@ def pulse_collision(
         )
         if (
             front_distance <= PLAYER_HIT_RADIUS + PULSE_FRONT_HIT_RADIUS
-            and gate_distance > SAFE_GATE_RADIUS
+            and gate_distance > config.safe_gate_radius
         ):
             return True
     return False
@@ -220,11 +315,16 @@ def update_boundary_pressure(
     pressure: dict[BoundarySide, int],
     player_x: int,
     player_y: int,
+    config: DifficultyConfig,
 ) -> dict[BoundarySide, int]:
     active_sides = set(boundary_zone_sides(player_x, player_y))
+    pressure_max = (
+        config.boundary_pressure_limit
+        + BOUNDARY_WALL_DEPTH // BOUNDARY_WALL_SPEED
+    )
     return {
         side: (
-            min(BOUNDARY_PRESSURE_MAX, pressure[side] + 1)
+            min(pressure_max, pressure[side] + 1)
             if side in active_sides
             else max(0, pressure[side] - BOUNDARY_PRESSURE_DECAY)
         )
@@ -232,12 +332,12 @@ def update_boundary_pressure(
     }
 
 
-def boundary_wall_depth(pressure: int) -> int:
-    if pressure <= BOUNDARY_PRESSURE_LIMIT:
+def boundary_wall_depth(pressure: int, config: DifficultyConfig) -> int:
+    if pressure <= config.boundary_pressure_limit:
         return 0
     return min(
         BOUNDARY_WALL_DEPTH,
-        (pressure - BOUNDARY_PRESSURE_LIMIT) * BOUNDARY_WALL_SPEED,
+        (pressure - config.boundary_pressure_limit) * BOUNDARY_WALL_SPEED,
     )
 
 
@@ -245,9 +345,10 @@ def boundary_collision(
     player_x: int,
     player_y: int,
     pressure: dict[BoundarySide, int],
+    config: DifficultyConfig,
 ) -> bool:
     for side in BOUNDARY_SIDES:
-        depth = boundary_wall_depth(pressure[side])
+        depth = boundary_wall_depth(pressure[side], config)
         if depth == 0:
             continue
         if side == "top" and player_y - PLAYER_HIT_RADIUS <= depth:
@@ -274,10 +375,10 @@ def duration_ticks(duration_seconds: int) -> int:
 def simulate_run(
     seed: int,
     inputs: list[int],
-    duration_seconds: int,
+    config: DifficultyConfig,
 ) -> SimulationResult:
-    target_ticks = duration_ticks(duration_seconds)
-    pulse_count = duration_seconds
+    target_ticks = duration_ticks(config.duration_seconds)
+    plan = build_pulse_plan(seed, config)
     player_x = BOARD_WIDTH // 2
     player_y = BOARD_HEIGHT // 2
     boundary_pressure: dict[BoundarySide, int] = {
@@ -304,6 +405,7 @@ def simulate_run(
             boundary_pressure,
             player_x,
             player_y,
+            config,
         )
         max_boundary_pressure = max(
             max_boundary_pressure,
@@ -311,18 +413,19 @@ def simulate_run(
         )
 
         collision_kind: CollisionKind | None = None
-        if tick >= COLLISION_GRACE_TICKS and boundary_collision(
+        if tick >= config.pulse_warning_ticks and boundary_collision(
             player_x,
             player_y,
             boundary_pressure,
+            config,
         ):
             collision_kind = "boundary"
-        elif tick >= COLLISION_GRACE_TICKS and pulse_collision(
-            seed,
+        elif tick >= config.pulse_warning_ticks and pulse_collision(
+            plan,
             tick,
             player_x,
             player_y,
-            pulse_count,
+            config,
         ):
             collision_kind = "pulse"
 
@@ -348,23 +451,24 @@ def simulate_run(
     )
 
 
-def build_safe_route(seed: int, duration_seconds: int) -> list[int]:
+def build_safe_route(seed: int, config: DifficultyConfig) -> list[int]:
     """Build a reference route that keeps every generated field playable."""
 
-    target_ticks = duration_ticks(duration_seconds)
+    target_ticks = duration_ticks(config.duration_seconds)
+    plan = build_pulse_plan(seed, config)
     player_x = BOARD_WIDTH // 2
     player_y = BOARD_HEIGHT // 2
     inputs: list[int] = []
 
     for tick in range(target_ticks):
-        pulse_index = min(tick // PULSE_INTERVAL_TICKS, duration_seconds - 1)
-        pattern = pulse_index % 3
+        pulse_index = min(tick // PULSE_INTERVAL_TICKS, len(plan) - 1)
+        pulse = plan[pulse_index]
         target_x = player_x
         target_y = player_y
-        if pattern in {1, 2}:
-            target_x = pulse_safe_gate(seed, pulse_index, "x")
-        if pattern in {0, 2}:
-            target_y = pulse_safe_gate(seed, pulse_index, "y")
+        if pulse.kind in {"vertical", "cross"}:
+            target_x = pulse.x_gate
+        if pulse.kind in {"horizontal", "cross"}:
+            target_y = pulse.y_gate
 
         horizontal = 0
         vertical = 0
@@ -417,11 +521,17 @@ class CriticalCrossingEngine:
         difficulty = room.options.get("difficulty", DEFAULT_DIFFICULTY)
         if not isinstance(difficulty, str) or difficulty not in DIFFICULTIES:
             raise GameRuleError("临界穿越难度不正确")
-        duration_seconds = int(DIFFICULTIES[difficulty]["duration_seconds"])
+        config = DIFFICULTIES[difficulty]
+        previous_seed = (
+            room.state.seed
+            if isinstance(room.state, CriticalCrossingState)
+            and room.state.seed != 0
+            else None
+        )
         room.state = CriticalCrossingState(
             difficulty=difficulty,
-            duration_seconds=duration_seconds,
-            seed=self._solvable_seed(duration_seconds),
+            duration_seconds=config.duration_seconds,
+            seed=self._verified_seed(config, previous_seed),
             started_monotonic=self.clock(),
         )
         room.phase = "playing"
@@ -439,7 +549,8 @@ class CriticalCrossingEngine:
             raise GameRuleError("不支持这个临界穿越操作")
 
         state: CriticalCrossingState = room.state
-        target_ticks = duration_ticks(state.duration_seconds)
+        config = DIFFICULTIES[state.difficulty]
+        target_ticks = duration_ticks(config.duration_seconds)
         raw_inputs = payload.get("inputs")
         if not isinstance(raw_inputs, list) or not raw_inputs:
             raise GameRuleError("穿越轨迹不能为空")
@@ -454,7 +565,7 @@ class CriticalCrossingEngine:
         ):
             raise GameRuleError("穿越轨迹数据不正确")
 
-        result = simulate_run(state.seed, raw_inputs, state.duration_seconds)
+        result = simulate_run(state.seed, raw_inputs, config)
         if result.collision_tick is not None and len(raw_inputs) != result.ticks:
             raise GameRuleError("碰撞后的轨迹数据不正确")
         if result.collision_tick is None and len(raw_inputs) != target_ticks:
@@ -497,22 +608,37 @@ class CriticalCrossingEngine:
 
     def view(self, room: ArcadeRoom, viewer: ArcadePlayer) -> dict[str, Any]:
         state: CriticalCrossingState = room.state
+        config = DIFFICULTIES[state.difficulty]
         return {
             "difficulty": state.difficulty,
-            "difficultyLabel": DIFFICULTIES[state.difficulty]["label"],
+            "difficultyLabel": config.label,
             "seed": state.seed,
             "durationMs": state.duration_seconds * 1_000,
             "tickRate": TICKS_PER_SECOND,
-            "pulseCount": state.duration_seconds,
+            "pulseCount": config.pulse_count,
             "collisionGraceMs": round(
-                COLLISION_GRACE_TICKS * 1_000 / TICKS_PER_SECOND
+                config.pulse_warning_ticks * 1_000 / TICKS_PER_SECOND
             ),
             "pulseWarningMs": round(
-                PULSE_WARNING_TICKS * 1_000 / TICKS_PER_SECOND
+                config.pulse_warning_ticks * 1_000 / TICKS_PER_SECOND
             ),
             "boundaryPressureMs": round(
-                BOUNDARY_PRESSURE_LIMIT * 1_000 / TICKS_PER_SECOND
+                config.boundary_pressure_limit * 1_000 / TICKS_PER_SECOND
             ),
+            "profile": {
+                "pulseWeights": {
+                    kind: weight
+                    for kind, weight in zip(
+                        PULSE_KINDS,
+                        config.pulse_weights,
+                        strict=True,
+                    )
+                },
+                "pulseWarningTicks": config.pulse_warning_ticks,
+                "pulseFrontSpeed": config.pulse_front_speed,
+                "safeGateRadius": config.safe_gate_radius,
+                "boundaryPressureLimit": config.boundary_pressure_limit,
+            },
             "elapsedMs": state.elapsed_ms,
             "crossed": state.crossed,
             "collisionTick": state.collision_tick,
@@ -539,11 +665,25 @@ class CriticalCrossingEngine:
             "pulse_count": state.duration_seconds,
         }
 
-    def _solvable_seed(self, duration_seconds: int) -> int:
-        seed = SOLVABLE_SEEDS[self.rng.randrange(len(SOLVABLE_SEEDS))]
-        assert simulate_run(
-            seed,
-            build_safe_route(seed, duration_seconds),
-            duration_seconds,
-        ).crossed
-        return seed
+    def _verified_seed(
+        self,
+        config: DifficultyConfig,
+        previous_seed: int | None,
+    ) -> int:
+        previous_sequence = (
+            pulse_sequence(previous_seed, config)
+            if previous_seed is not None
+            else None
+        )
+        for attempt in range(64):
+            random_seed = self.rng.randrange(1, 2**32)
+            seed = (
+                (random_seed + attempt * 0x9E3779B9) & UINT32_MASK
+            ) or 1
+            if seed == previous_seed:
+                continue
+            if pulse_sequence(seed, config) == previous_sequence:
+                continue
+            if simulate_run(seed, build_safe_route(seed, config), config).crossed:
+                return seed
+        raise RuntimeError("无法生成可通关且不重复的临界穿越场")

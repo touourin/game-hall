@@ -1,39 +1,90 @@
 import { describe, expect, it } from 'vitest'
 import {
-  BOUNDARY_PRESSURE_LIMIT,
   INPUT_RIGHT,
   INPUT_UP,
-  PULSE_FRONT_SPEED,
-  PULSE_WARNING_TICKS,
   advanceCrossingState,
+  buildPulsePlan,
   buildSafeRoute,
   createCrossingState,
   durationTicks,
   pulseFronts,
-  pulseSafeGate,
+  pulseSequence,
   replayCrossingRun,
+  type CrossingProfile,
 } from './crossingEngine'
 
-describe('临界穿越确定性模拟', () => {
-  it('先显示预警，再让带安全缺口的横向脉冲进入场地', () => {
-    expect(pulseFronts(162_944_417, PULSE_WARNING_TICKS - 1, 5)).toEqual([])
+const CALIBRATION: CrossingProfile = {
+  pulseWeights: { horizontal: 48, vertical: 48, cross: 4 },
+  pulseWarningTicks: 28,
+  pulseFrontSpeed: 180,
+  safeGateRadius: 1_050,
+  boundaryPressureLimit: 36,
+}
 
-    const fronts = pulseFronts(162_944_417, PULSE_WARNING_TICKS, 5)
-    const gate = pulseSafeGate(162_944_417, 0, 'y')
-    expect(fronts.map(front => front.side)).toEqual(['left', 'right'])
-    expect(fronts.every(front => front.gate === gate)).toBe(true)
+const OVERLOAD: CrossingProfile = {
+  pulseWeights: { horizontal: 38, vertical: 38, cross: 24 },
+  pulseWarningTicks: 23,
+  pulseFrontSpeed: 175,
+  safeGateRadius: 920,
+  boundaryPressureLimit: 30,
+}
+
+const CRITICAL: CrossingProfile = {
+  pulseWeights: { horizontal: 25, vertical: 25, cross: 50 },
+  pulseWarningTicks: 18,
+  pulseFrontSpeed: 170,
+  safeGateRadius: 820,
+  boundaryPressureLimit: 26,
+}
+
+describe('临界穿越确定性模拟', () => {
+  it('与服务端共享同一组固定脉冲计划向量', () => {
+    expect(buildPulsePlan(3_000_000_005, 5, CALIBRATION)).toEqual([
+      { kind: 'cross', xGate: 6_728, yGate: 4_303 },
+      { kind: 'horizontal', xGate: 3_106, yGate: 4_276 },
+      { kind: 'vertical', xGate: 6_748, yGate: 2_295 },
+      { kind: 'horizontal', xGate: 6_704, yGate: 2_147 },
+      { kind: 'vertical', xGate: 6_540, yGate: 4_350 },
+    ])
+  })
+
+  it('按档位配比生成脉冲，且相邻类型不会重复', () => {
+    for (const [count, profile] of [
+      [5, CALIBRATION],
+      [8, OVERLOAD],
+      [10, CRITICAL],
+    ] as const) {
+      for (let seed = 1; seed <= 256; seed += 1) {
+        const sequence = pulseSequence(seed, count, profile.pulseWeights)
+        expect(sequence).toHaveLength(count)
+        expect(sequence.every((kind, index) => (
+          index === 0 || kind !== sequence[index - 1]
+        ))).toBe(true)
+      }
+    }
+  })
+
+  it('先显示预警，再让带安全缺口的首轮脉冲进入场地', () => {
+    const plan = buildPulsePlan(162_944_417, 5, CALIBRATION)
+    expect(pulseFronts(plan, CALIBRATION.pulseWarningTicks - 1, CALIBRATION))
+      .toEqual([])
+
+    const fronts = pulseFronts(plan, CALIBRATION.pulseWarningTicks, CALIBRATION)
+    expect(fronts.map(front => front.side)).toEqual(['top', 'bottom'])
+    expect(fronts.every(front => front.gate === plan[0]!.xGate)).toBe(true)
     expect(fronts.map(front => front.position)).toEqual([
-      900 + PULSE_FRONT_SPEED,
-      9_100 - PULSE_FRONT_SPEED,
+      585 + CALIBRATION.pulseFrontSpeed,
+      5_915 - CALIBRATION.pulseFrontSpeed,
     ])
   })
 
   it('每帧根据方向输入移动导航核心并保留边界压力', () => {
+    const plan = buildPulsePlan(162_944_417, 5, CALIBRATION)
     const next = advanceCrossingState(
       createCrossingState(),
-      162_944_417,
       INPUT_RIGHT,
-      5,
+      plan,
+      CALIBRATION,
     )
     expect(next.tick).toBe(1)
     expect(next.playerX).toBe(5_160)
@@ -46,41 +97,50 @@ describe('临界穿越确定性模拟', () => {
     })
   })
 
-  it('持续贴边会在可见压力累计后触发边界封锁', () => {
+  it('持续贴边会按当前档位的压力阈值触发边界封锁', () => {
     const result = replayCrossingRun(
       162_944_417,
       Array(durationTicks(5)).fill(INPUT_UP),
       5,
+      CALIBRATION,
     )
     expect(result.collisionKind).toBe('boundary')
-    expect(result.collisionTick).toBeGreaterThanOrEqual(BOUNDARY_PRESSURE_LIMIT)
+    expect(result.collisionTick).toBeGreaterThanOrEqual(
+      CALIBRATION.boundaryPressureLimit,
+    )
     expect(result.tick).toBeLessThan(durationTicks(5))
   })
 
   it('离开边缘后压力逐帧消退', () => {
+    const plan = buildPulsePlan(42, 5, CALIBRATION)
     let state = createCrossingState()
     state = {
       ...state,
       playerX: 500,
       boundaryPressure: { ...state.boundaryPressure, left: 20 },
     }
-    state = advanceCrossingState(state, 42, INPUT_RIGHT, 5)
+    state = advanceCrossingState(state, INPUT_RIGHT, plan, CALIBRATION)
     expect(state.boundaryPressure.left).toBe(21)
 
     state = { ...state, playerX: 2_000 }
-    state = advanceCrossingState(state, 42, 0, 5)
+    state = advanceCrossingState(state, 0, plan, CALIBRATION)
     expect(state.boundaryPressure.left).toBe(20)
   })
 
-  it.each([5, 8, 10])('预先验证的路线能完成 %s 秒挑战', (seconds) => {
-    const seed = 162_944_417
-    const result = replayCrossingRun(
-      seed,
-      buildSafeRoute(seed, seconds),
-      seconds,
-    )
-    expect(result.collisionKind).toBeNull()
-    expect(result.collisionTick).toBeNull()
-    expect(result.tick).toBe(durationTicks(seconds))
+  it.each([
+    [5, CALIBRATION],
+    [8, OVERLOAD],
+    [10, CRITICAL],
+  ] as const)('批量种子都有可验证的 %s 秒安全路线', (seconds, profile) => {
+    for (let seed = 1; seed <= 256; seed += 1) {
+      const result = replayCrossingRun(
+        seed,
+        buildSafeRoute(seed, seconds, profile),
+        seconds,
+        profile,
+      )
+      expect(result.collisionKind).toBeNull()
+      expect(result.tick).toBe(durationTicks(seconds))
+    }
   })
 })
