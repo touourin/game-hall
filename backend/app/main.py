@@ -12,7 +12,7 @@ import socketio
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from starlette.concurrency import run_in_threadpool
 
 from .access import access_signing_secret, access_token, verify_access_token
@@ -196,6 +196,18 @@ class RegisterRequest(BaseModel):
     )
     player_name: str = Field(min_length=1, max_length=12)
     password: str = Field(min_length=6, max_length=128)
+    email: str | None = Field(
+        default=None,
+        min_length=3,
+        max_length=EMAIL_MAX_LENGTH,
+    )
+    email_code: str | None = Field(default=None, min_length=6, max_length=6)
+
+    @model_validator(mode="after")
+    def validate_optional_email_verification(self):
+        if bool(self.email) != bool(self.email_code):
+            raise ValueError("填写邮箱后必须输入邮箱验证码")
+        return self
 
 
 class LoginRequest(BaseModel):
@@ -223,6 +235,10 @@ class EmailCodeRequest(BaseModel):
 
 
 class EmailVerificationRequest(EmailCodeRequest):
+    code: str = Field(min_length=6, max_length=6)
+
+
+class EmailUnbindRequest(BaseModel):
     code: str = Field(min_length=6, max_length=6)
 
 
@@ -371,7 +387,12 @@ def register_account(
     require_front_door(game_hall_access)
     try:
         account, token = account_store().register(
-            payload.username, payload.password, payload.player_name
+            payload.username,
+            payload.password,
+            payload.player_name,
+            email=payload.email,
+            email_code=payload.email_code,
+            policy=email_policy() if payload.email else None,
         )
     except AccountError as error:
         raise HTTPException(
@@ -379,6 +400,44 @@ def register_account(
             detail=str(error),
         ) from error
     return {"ok": True, "token": token, "account": account.as_dict()}
+
+
+@api.post("/api/auth/register/email/code")
+async def request_registration_email_code(
+    payload: EmailCodeRequest,
+    game_hall_access: str | None = Depends(game_hall_access_header),
+) -> dict:
+    require_front_door(game_hall_access)
+    try:
+        smtp_settings()
+        policy = email_policy()
+        challenge = account_store().begin_registration_email_verification(
+            payload.email,
+            policy,
+        )
+    except EmailDeliveryUnavailable as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(error),
+        ) from error
+    except AccountError as error:
+        raise HTTPException(
+            status_code=_account_error_status(error),
+            detail=str(error),
+        ) from error
+    await _deliver_email_challenge(challenge)
+    logger.info(
+        "Registration email verification requested",
+        extra={"event": "account.registration_email.requested"},
+    )
+    return {
+        "ok": True,
+        "expiresAt": challenge.expires_at,
+        "message": (
+            "验证码已经发送，请在 "
+            f"{policy.code_ttl_minutes} 分钟内完成注册"
+        ),
+    }
 
 
 @api.post("/api/auth/login")
@@ -598,6 +657,79 @@ def verify_account_email(
         "ok": True,
         "account": updated.as_dict(),
         "message": "邮箱绑定成功",
+    }
+
+
+@api.post("/api/auth/me/email/unbind/code")
+async def request_email_unbind_code(
+    authorization: str | None = Header(default=None),
+    game_hall_access: str | None = Depends(game_hall_access_header),
+) -> dict:
+    account = require_account_session(authorization, game_hall_access)
+    try:
+        smtp_settings()
+        policy = email_policy()
+        challenge = account_store().begin_email_unbinding(
+            account.id,
+            policy,
+        )
+    except EmailDeliveryUnavailable as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(error),
+        ) from error
+    except AccountError as error:
+        raise HTTPException(
+            status_code=_account_error_status(error),
+            detail=str(error),
+        ) from error
+    await _deliver_email_challenge(challenge)
+    logger.info(
+        "Account email unbinding requested",
+        extra={
+            "account_id": account.id,
+            "event": "account.email.unbinding_requested",
+        },
+    )
+    return {
+        "ok": True,
+        "expiresAt": challenge.expires_at,
+        "message": (
+            "解绑验证码已经发送到当前邮箱，请在 "
+            f"{policy.code_ttl_minutes} 分钟内完成验证"
+        ),
+    }
+
+
+@api.post("/api/auth/me/email/unbind")
+def unbind_account_email(
+    payload: EmailUnbindRequest,
+    authorization: str | None = Header(default=None),
+    game_hall_access: str | None = Depends(game_hall_access_header),
+) -> dict:
+    account = require_account_session(authorization, game_hall_access)
+    try:
+        updated = account_store().verify_and_unbind_email(
+            account.id,
+            payload.code,
+            email_policy(),
+        )
+    except (AccountError, EmailDeliveryUnavailable) as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+    logger.info(
+        "Account email unbound",
+        extra={
+            "account_id": account.id,
+            "event": "account.email.unbound",
+        },
+    )
+    return {
+        "ok": True,
+        "account": updated.as_dict(),
+        "message": "邮箱已经解绑",
     }
 
 

@@ -55,7 +55,7 @@ describe('AccountGate', () => {
     ])
   })
 
-  it('accepts an optional email and requests verification after registration', async () => {
+  it('verifies an optional email in place before registration', async () => {
     const wrapper = mount(AccountGate, {
       props: { busy: false, error: null },
     })
@@ -63,6 +63,20 @@ describe('AccountGate', () => {
     await wrapper.get('input[autocomplete="username"]').setValue('mail_player')
     await wrapper.get('input[autocomplete="nickname"]').setValue('邮箱玩家')
     await wrapper.get('input[autocomplete="email"]').setValue(' player@example.com ')
+    const sendButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('发送验证码'))
+    await sendButton?.trigger('click')
+    expect(wrapper.emitted('registrationEmailCode')).toEqual([
+      ['player@example.com'],
+    ])
+    await wrapper.setProps({
+      registrationEmailRequestedFor: 'player@example.com',
+      registrationEmailMessage: '验证码已经发送',
+    })
+    await wrapper
+      .get('input[autocomplete="one-time-code"]')
+      .setValue('123456')
     const passwords = wrapper.findAll('input[autocomplete="new-password"]')
     await passwords[0]!.setValue('secret123')
     await passwords[1]!.setValue('secret123')
@@ -75,10 +89,11 @@ describe('AccountGate', () => {
           playerName: '邮箱玩家',
           password: 'secret123',
           email: 'player@example.com',
+          emailCode: '123456',
         },
       ],
     ])
-    expect(wrapper.text()).toContain('验证通过才会绑定')
+    expect(wrapper.text()).toContain('请先在这里完成验证')
   })
 
   it('allows an email-style login name up to 50 characters', async () => {

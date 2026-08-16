@@ -47,6 +47,10 @@ export interface PasswordResetCodeResult {
   message: string
 }
 
+export interface EmailCodeResult {
+  message: string
+}
+
 export function storedAccountToken(): string | null {
   const token = localStorage.getItem(ACCOUNT_TOKEN_KEY)
   if (token) return token
@@ -104,7 +108,13 @@ async function responseError(response: Response): Promise<Error> {
 
 export async function registerAccount(
   accessToken: string,
-  payload: { username: string; player_name: string; password: string },
+  payload: {
+    username: string
+    player_name: string
+    password: string
+    email?: string
+    email_code?: string
+  },
 ): Promise<AuthResponse> {
   const response = await authFetch('/api/auth/register', accessToken, {
     method: 'POST',
@@ -113,6 +123,23 @@ export async function registerAccount(
   })
   if (!response.ok) throw await responseError(response)
   return (await response.json()) as AuthResponse
+}
+
+export async function requestRegistrationEmailCode(
+  accessToken: string,
+  email: string,
+): Promise<EmailCodeResult> {
+  const response = await authFetch(
+    '/api/auth/register/email/code',
+    accessToken,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    },
+  )
+  if (!response.ok) throw await responseError(response)
+  return (await response.json()) as EmailCodeResult
 }
 
 export async function loginAccount(
@@ -255,6 +282,46 @@ export async function verifyEmailBinding(
     },
     body: JSON.stringify({ email, code }),
   })
+  if (!response.ok) throw await responseError(response)
+  return (await response.json()) as {
+    account: AccountProfile
+    message: string
+  }
+}
+
+export async function requestEmailUnbindCode(
+  accessToken: string,
+  token: string,
+): Promise<EmailCodeResult> {
+  const response = await authFetch(
+    '/api/auth/me/email/unbind/code',
+    accessToken,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  )
+  if (!response.ok) throw await responseError(response)
+  return (await response.json()) as EmailCodeResult
+}
+
+export async function unbindEmail(
+  accessToken: string,
+  token: string,
+  code: string,
+): Promise<{ account: AccountProfile; message: string }> {
+  const response = await authFetch(
+    '/api/auth/me/email/unbind',
+    accessToken,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ code }),
+    },
+  )
   if (!response.ok) throw await responseError(response)
   return (await response.json()) as {
     account: AccountProfile

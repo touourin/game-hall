@@ -138,6 +138,89 @@ def test_verified_email_can_reset_password_and_revoke_sessions(tmp_path):
     assert logged_in.id == account.id
 
 
+def test_registration_email_is_verified_atomically_and_can_be_unbound(
+    tmp_path,
+):
+    store = AccountStore(tmp_path / "registration-email.sqlite3")
+    policy = email_policy(cooldown_seconds=1)
+    started_at = datetime(2026, 8, 16, 1, 30, 0)
+    challenge = store.begin_registration_email_verification(
+        "New.Player@Example.com",
+        policy,
+        now=started_at,
+    )
+
+    with pytest.raises(AccountError, match="验证码不正确"):
+        store.register(
+            "registration_mail",
+            "secret123",
+            "注册邮箱",
+            email="new.player@example.com",
+            email_code=(
+                "000000" if challenge.code != "000000" else "999999"
+            ),
+            policy=policy,
+            now=started_at + timedelta(minutes=1),
+        )
+    with pytest.raises(AccountError, match="账号名或密码不正确"):
+        store.login("registration_mail", "secret123")
+
+    account, token = store.register(
+        "registration_mail",
+        "secret123",
+        "注册邮箱",
+        email="new.player@example.com",
+        email_code=challenge.code,
+        policy=policy,
+        now=started_at + timedelta(minutes=2),
+    )
+
+    assert account.email == "new.player@example.com"
+    assert account.email_verified_at is not None
+    assert store.account_for_token(token) is not None
+
+    unbinding = store.begin_email_unbinding(
+        account.id,
+        policy,
+        now=started_at + timedelta(minutes=3),
+    )
+    unbound = store.verify_and_unbind_email(
+        account.id,
+        unbinding.code,
+        policy,
+        now=started_at + timedelta(minutes=4),
+    )
+
+    assert unbound.email is None
+    assert unbound.email_verified_at is None
+    assert store.account_for_token(token) is not None
+    assert store.begin_password_reset(
+        "new.player@example.com",
+        policy,
+        now=started_at + timedelta(minutes=5),
+    ) is None
+
+
+def test_registration_email_send_limit_is_applied_per_email(tmp_path):
+    store = AccountStore(tmp_path / "registration-email-limit.sqlite3")
+    policy = email_policy(cooldown_seconds=1)
+    started_at = datetime(2026, 8, 16, 1, 45, 0)
+
+    for index in range(3):
+        store.begin_registration_email_verification(
+            "limited@example.com",
+            policy,
+            now=started_at + timedelta(seconds=index * 2),
+        )
+
+    with pytest.raises(AccountError, match="每个邮箱每天最多发送 3 封"):
+        store.begin_registration_email_verification(
+            "LIMITED@example.com",
+            policy,
+            now=started_at + timedelta(seconds=8),
+        )
+
+
 def test_email_send_limits_apply_per_account_and_server(tmp_path):
     store = AccountStore(tmp_path / "email-limits.sqlite3")
     accounts = [

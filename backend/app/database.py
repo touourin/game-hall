@@ -128,6 +128,29 @@ Index(
     email_verification_challenges.c.expires_at,
 )
 
+registration_email_challenges = Table(
+    "registration_email_challenges",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("email", String(254), nullable=False),
+    Column("email_key", String(254), nullable=False),
+    Column("code_salt", LargeBinary(32), nullable=False),
+    Column("code_hash", LargeBinary(64), nullable=False),
+    Column("expires_at", DateTime(), nullable=False),
+    Column("failed_attempts", Integer(), nullable=False, default=0),
+    Column("consumed_at", DateTime(), nullable=True),
+    Column("created_at", DateTime(), nullable=False),
+)
+Index(
+    "ix_registration_email_challenges_email_created",
+    registration_email_challenges.c.email_key,
+    registration_email_challenges.c.created_at,
+)
+Index(
+    "ix_registration_email_challenges_expires_at",
+    registration_email_challenges.c.expires_at,
+)
+
 email_send_quotas = Table(
     "email_send_quotas",
     metadata,

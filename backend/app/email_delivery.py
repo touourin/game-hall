@@ -10,7 +10,9 @@ from email.message import EmailMessage
 from email.utils import formatdate, make_msgid
 
 
+REGISTER_EMAIL_PURPOSE = "register_email"
 BIND_EMAIL_PURPOSE = "bind_email"
+UNBIND_EMAIL_PURPOSE = "unbind_email"
 RESET_PASSWORD_PURPOSE = "reset_password"
 
 
@@ -117,11 +119,12 @@ def send_verification_email(
     ttl_minutes: int,
 ) -> None:
     settings = smtp_settings()
-    purpose_label = (
-        "绑定邮箱"
-        if purpose == BIND_EMAIL_PURPOSE
-        else "重置密码"
-    )
+    purpose_label = {
+        REGISTER_EMAIL_PURPOSE: "注册邮箱",
+        BIND_EMAIL_PURPOSE: "绑定邮箱",
+        UNBIND_EMAIL_PURPOSE: "解绑邮箱",
+        RESET_PASSWORD_PURPOSE: "重置密码",
+    }.get(purpose, "账号安全")
     subject = f"【Orange Play】{purpose_label}验证码"
     message = EmailMessage()
     message["From"] = Address(

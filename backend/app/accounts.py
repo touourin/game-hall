@@ -30,11 +30,14 @@ from .database import (
     metadata,
     normalize_database_url,
     player_name_claims,
+    registration_email_challenges,
     users,
 )
 from .email_delivery import (
     BIND_EMAIL_PURPOSE,
+    REGISTER_EMAIL_PURPOSE,
     RESET_PASSWORD_PURPOSE,
+    UNBIND_EMAIL_PURPOSE,
     EmailPolicy,
 )
 from .games.definition import GameRecordQueryError
@@ -121,7 +124,7 @@ class Account:
 @dataclass(frozen=True)
 class EmailChallenge:
     id: str
-    account_id: str
+    account_id: str | None
     email: str
     purpose: str
     code: str
@@ -226,14 +229,29 @@ class AccountStore:
         self.engine.dispose()
 
     def register(
-        self, username: str, password: str, player_name: str
+        self,
+        username: str,
+        password: str,
+        player_name: str,
+        *,
+        email: str | None = None,
+        email_code: str | None = None,
+        policy: EmailPolicy | None = None,
+        now: datetime | None = None,
     ) -> tuple[Account, str]:
         normalized_username, username_key = self._normalize_username(username)
         normalized_name, name_key = self._normalize_player_name(player_name)
         self._validate_password(password)
+        normalized_email: str | None = None
+        email_key: str | None = None
+        if email is not None or email_code is not None:
+            if not email or not email_code or policy is None:
+                raise AccountError("填写邮箱后必须输入邮箱验证码")
+            normalized_email, email_key = self._normalize_email(email)
+            self._validate_email_code(email_code)
         salt = secrets.token_bytes(16)
         password_hash = self._password_hash(password, salt)
-        created_at = self._now()
+        created_at = now or self._now()
         avatar_preset = secrets.choice(AVATAR_PRESET_IDS)
         account = Account(
             id=secrets.token_urlsafe(12),
@@ -242,41 +260,74 @@ class AccountStore:
             player_name_changed_at=None,
             avatar_preset=avatar_preset,
             avatar_token=None,
-            email=None,
-            email_verified_at=None,
+            email=normalized_email,
+            email_verified_at=(
+                self._iso_datetime(created_at)
+                if normalized_email is not None
+                else None
+            ),
             created_at=self._iso_datetime(created_at),
         )
         self.initialize()
+        verification_error: str | None = None
         try:
             with self.engine.begin() as connection:
-                connection.execute(
-                    insert(users).values(
-                        id=account.id,
-                        username=account.username,
-                        username_key=username_key,
-                        player_name=account.player_name,
-                        password_salt=salt,
-                        password_hash=password_hash,
-                        player_name_changed_at=None,
-                        avatar_preset=avatar_preset,
-                        avatar_token=None,
-                        avatar_mime=None,
-                        avatar_data=None,
-                        email=None,
-                        email_key=None,
-                        email_verified_at=None,
-                        created_at=created_at,
+                if normalized_email is not None and email_key is not None:
+                    owner_id = connection.execute(
+                        select(users.c.id).where(users.c.email_key == email_key)
+                    ).scalar_one_or_none()
+                    if owner_id is not None:
+                        verification_error = "此邮箱已经绑定到其他账号"
+                    else:
+                        verification_error = (
+                            self._consume_registration_email_challenge(
+                                connection,
+                                email_key=email_key,
+                                code=email_code,
+                                policy=policy,
+                                now=created_at,
+                            )
+                        )
+                if verification_error is None:
+                    connection.execute(
+                        insert(users).values(
+                            id=account.id,
+                            username=account.username,
+                            username_key=username_key,
+                            player_name=account.player_name,
+                            password_salt=salt,
+                            password_hash=password_hash,
+                            player_name_changed_at=None,
+                            avatar_preset=avatar_preset,
+                            avatar_token=None,
+                            avatar_mime=None,
+                            avatar_data=None,
+                            email=normalized_email,
+                            email_key=email_key,
+                            email_verified_at=(
+                                created_at
+                                if normalized_email is not None
+                                else None
+                            ),
+                            created_at=created_at,
+                        )
                     )
-                )
-                connection.execute(
-                    insert(player_name_claims).values(
-                        name_key=name_key,
-                        account_id=account.id,
-                        claimed_at=created_at,
+                    connection.execute(
+                        insert(player_name_claims).values(
+                            name_key=name_key,
+                            account_id=account.id,
+                            claimed_at=created_at,
+                        )
                     )
-                )
         except IntegrityError as exc:
-            raise AccountError("账号名或游戏昵称已经被使用") from exc
+            message = (
+                "账号名、游戏昵称或邮箱已经被使用"
+                if normalized_email is not None
+                else "账号名或游戏昵称已经被使用"
+            )
+            raise AccountError(message) from exc
+        if verification_error is not None:
+            raise AccountError(verification_error)
         return account, self._create_session(account.id)
 
     def login(self, username: str, password: str) -> tuple[Account, str]:
@@ -536,6 +587,87 @@ class AccountStore:
                 )
             )
 
+    def begin_registration_email_verification(
+        self,
+        email: str,
+        policy: EmailPolicy,
+        *,
+        now: datetime | None = None,
+    ) -> EmailChallenge:
+        normalized_email, email_key = self._normalize_email(email)
+        self.initialize()
+        created_at = now or self._now()
+        with self.engine.begin() as connection:
+            owner_id = connection.execute(
+                select(users.c.id).where(users.c.email_key == email_key)
+            ).scalar_one_or_none()
+            if owner_id is not None:
+                raise AccountError("此邮箱已经绑定到其他账号")
+
+            connection.execute(
+                delete(registration_email_challenges).where(
+                    registration_email_challenges.c.created_at
+                    < created_at - timedelta(days=2)
+                )
+            )
+            latest_sent_at = connection.execute(
+                select(
+                    func.max(registration_email_challenges.c.created_at)
+                ).where(
+                    registration_email_challenges.c.email_key == email_key
+                )
+            ).scalar_one_or_none()
+            self._enforce_email_cooldown(
+                latest_sent_at,
+                policy=policy,
+                now=created_at,
+            )
+            self._claim_email_send_quota(
+                connection,
+                identity_scope="email",
+                identity_key=hashlib.sha256(
+                    email_key.encode("utf-8")
+                ).hexdigest(),
+                identity_label="邮箱",
+                policy=policy,
+                now=created_at,
+            )
+            connection.execute(
+                update(registration_email_challenges)
+                .where(
+                    registration_email_challenges.c.email_key == email_key,
+                    registration_email_challenges.c.consumed_at.is_(None),
+                )
+                .values(consumed_at=created_at)
+            )
+            challenge_id = secrets.token_urlsafe(18)
+            code = f"{secrets.randbelow(1_000_000):06d}"
+            salt = secrets.token_bytes(16)
+            expires_at = created_at + timedelta(
+                minutes=policy.code_ttl_minutes
+            )
+            connection.execute(
+                insert(registration_email_challenges).values(
+                    id=challenge_id,
+                    email=normalized_email,
+                    email_key=email_key,
+                    code_salt=salt,
+                    code_hash=self._email_code_hash(code, salt),
+                    expires_at=expires_at,
+                    failed_attempts=0,
+                    consumed_at=None,
+                    created_at=created_at,
+                )
+            )
+        return EmailChallenge(
+            id=challenge_id,
+            account_id=None,
+            email=normalized_email,
+            purpose=REGISTER_EMAIL_PURPOSE,
+            code=code,
+            expires_at=self._iso_datetime(expires_at),
+        )
+
     def begin_email_binding(
         self,
         account_id: str,
@@ -572,6 +704,35 @@ class AccountStore:
                 now=created_at,
             )
 
+    def begin_email_unbinding(
+        self,
+        account_id: str,
+        policy: EmailPolicy,
+        *,
+        now: datetime | None = None,
+    ) -> EmailChallenge:
+        self.initialize()
+        created_at = now or self._now()
+        with self.engine.begin() as connection:
+            row = connection.execute(
+                select(users.c.email, users.c.email_key).where(
+                    users.c.id == account_id
+                )
+            ).mappings().first()
+            if row is None:
+                raise AccountError("账号不存在")
+            if not row["email"] or not row["email_key"]:
+                raise AccountError("当前账号尚未绑定邮箱")
+            return self._create_email_challenge(
+                connection,
+                account_id=account_id,
+                email=row["email"],
+                email_key=row["email_key"],
+                purpose=UNBIND_EMAIL_PURPOSE,
+                policy=policy,
+                now=created_at,
+            )
+
     def begin_password_reset(
         self,
         identifier: str,
@@ -603,6 +764,11 @@ class AccountStore:
             connection.execute(
                 delete(email_verification_challenges).where(
                     email_verification_challenges.c.id == challenge_id
+                )
+            )
+            connection.execute(
+                delete(registration_email_challenges).where(
+                    registration_email_challenges.c.id == challenge_id
                 )
             )
 
@@ -659,6 +825,67 @@ class AccountStore:
                             )
         except IntegrityError as error:
             raise AccountError("此邮箱已经绑定到其他账号") from error
+        if verification_error is not None:
+            raise AccountError(verification_error)
+        if updated_row is None:
+            raise AccountError("账号不存在")
+        return self._account_from_row(updated_row)
+
+    def verify_and_unbind_email(
+        self,
+        account_id: str,
+        code: str,
+        policy: EmailPolicy,
+        *,
+        now: datetime | None = None,
+    ) -> Account:
+        self._validate_email_code(code)
+        self.initialize()
+        verified_at = now or self._now()
+        verification_error: str | None = None
+        updated_row: Mapping[str, Any] | None = None
+        with self.engine.begin() as connection:
+            row = connection.execute(
+                select(users.c.email_key).where(users.c.id == account_id)
+            ).mappings().first()
+            if row is None:
+                verification_error = "账号不存在"
+            elif not row["email_key"]:
+                verification_error = "当前账号尚未绑定邮箱"
+            else:
+                verification_error = self._consume_email_challenge(
+                    connection,
+                    account_id=account_id,
+                    purpose=UNBIND_EMAIL_PURPOSE,
+                    email_key=row["email_key"],
+                    code=code,
+                    policy=policy,
+                    now=verified_at,
+                )
+                if verification_error is None:
+                    connection.execute(
+                        update(users)
+                        .where(users.c.id == account_id)
+                        .values(
+                            email=None,
+                            email_key=None,
+                            email_verified_at=None,
+                        )
+                    )
+                    connection.execute(
+                        update(email_verification_challenges)
+                        .where(
+                            email_verification_challenges.c.account_id
+                            == account_id,
+                            email_verification_challenges.c.consumed_at.is_(
+                                None
+                            ),
+                        )
+                        .values(consumed_at=verified_at)
+                    )
+                    updated_row = self._select_account_row(
+                        connection, account_id
+                    )
         if verification_error is not None:
             raise AccountError(verification_error)
         if updated_row is None:
@@ -740,27 +967,16 @@ class AccountStore:
                 email_verification_challenges.c.account_id == account_id
             )
         ).scalar_one_or_none()
-        if (
-            latest_sent_at is not None
-            and latest_sent_at + timedelta(seconds=policy.cooldown_seconds)
-            > now
-        ):
-            remaining = max(
-                1,
-                int(
-                    (
-                        latest_sent_at
-                        + timedelta(seconds=policy.cooldown_seconds)
-                        - now
-                    ).total_seconds()
-                )
-                + 1,
-            )
-            raise AccountError(f"请等待 {remaining} 秒后再发送验证码")
-
+        self._enforce_email_cooldown(
+            latest_sent_at,
+            policy=policy,
+            now=now,
+        )
         self._claim_email_send_quota(
             connection,
-            account_id=account_id,
+            identity_scope="account",
+            identity_key=account_id,
+            identity_label="账号",
             policy=policy,
             now=now,
         )
@@ -801,18 +1017,44 @@ class AccountStore:
             expires_at=self._iso_datetime(expires_at),
         )
 
+    @staticmethod
+    def _enforce_email_cooldown(
+        latest_sent_at: datetime | None,
+        *,
+        policy: EmailPolicy,
+        now: datetime,
+    ) -> None:
+        if latest_sent_at is None:
+            return
+        next_send_at = latest_sent_at + timedelta(
+            seconds=policy.cooldown_seconds
+        )
+        if next_send_at <= now:
+            return
+        remaining = max(
+            1,
+            int((next_send_at - now).total_seconds()) + 1,
+        )
+        raise AccountError(f"请等待 {remaining} 秒后再发送验证码")
+
     def _claim_email_send_quota(
         self,
         connection,
         *,
-        account_id: str,
+        identity_scope: str,
+        identity_key: str,
+        identity_label: str,
         policy: EmailPolicy,
         now: datetime,
     ) -> None:
         quota_day = self._email_quota_day(now, policy.timezone_name)
         scopes = (
             ("server", "all", policy.server_daily_limit),
-            ("account", account_id, policy.account_daily_limit),
+            (
+                identity_scope,
+                identity_key,
+                policy.account_daily_limit,
+            ),
         )
         for scope, scope_key, limit in scopes:
             values = {
@@ -862,9 +1104,10 @@ class AccountStore:
                 )
             )
             if result.rowcount != 1:
-                if scope == "account":
+                if scope == identity_scope:
                     raise AccountError(
-                        f"每个账号每天最多发送 {limit} 封验证码邮件"
+                        f"每个{identity_label}每天最多发送 "
+                        f"{limit} 封验证码邮件"
                     )
                 raise AccountError("今天的邮件发送额度已经用完")
 
@@ -879,21 +1122,62 @@ class AccountStore:
         policy: EmailPolicy,
         now: datetime,
     ) -> str | None:
-        row = connection.execute(
-            select(
-                email_verification_challenges.c.id,
-                email_verification_challenges.c.code_salt,
-                email_verification_challenges.c.code_hash,
-                email_verification_challenges.c.expires_at,
-                email_verification_challenges.c.failed_attempts,
-            )
-            .where(
+        return self._consume_challenge(
+            connection,
+            challenge_table=email_verification_challenges,
+            conditions=(
                 email_verification_challenges.c.account_id == account_id,
                 email_verification_challenges.c.purpose == purpose,
                 email_verification_challenges.c.email_key == email_key,
-                email_verification_challenges.c.consumed_at.is_(None),
+            ),
+            code=code,
+            policy=policy,
+            now=now,
+        )
+
+    def _consume_registration_email_challenge(
+        self,
+        connection,
+        *,
+        email_key: str,
+        code: str,
+        policy: EmailPolicy,
+        now: datetime,
+    ) -> str | None:
+        return self._consume_challenge(
+            connection,
+            challenge_table=registration_email_challenges,
+            conditions=(
+                registration_email_challenges.c.email_key == email_key,
+            ),
+            code=code,
+            policy=policy,
+            now=now,
+        )
+
+    def _consume_challenge(
+        self,
+        connection,
+        *,
+        challenge_table,
+        conditions: tuple,
+        code: str,
+        policy: EmailPolicy,
+        now: datetime,
+    ) -> str | None:
+        row = connection.execute(
+            select(
+                challenge_table.c.id,
+                challenge_table.c.code_salt,
+                challenge_table.c.code_hash,
+                challenge_table.c.expires_at,
+                challenge_table.c.failed_attempts,
             )
-            .order_by(email_verification_challenges.c.created_at.desc())
+            .where(
+                *conditions,
+                challenge_table.c.consumed_at.is_(None),
+            )
+            .order_by(challenge_table.c.created_at.desc())
             .limit(1)
             .with_for_update()
         ).mappings().first()
@@ -908,16 +1192,16 @@ class AccountStore:
             if failed_attempts >= policy.max_code_attempts:
                 values["consumed_at"] = now
             connection.execute(
-                update(email_verification_challenges)
-                .where(email_verification_challenges.c.id == row["id"])
+                update(challenge_table)
+                .where(challenge_table.c.id == row["id"])
                 .values(**values)
             )
             if failed_attempts >= policy.max_code_attempts:
                 return "验证码尝试次数过多，请重新获取"
             return "验证码不正确"
         connection.execute(
-            update(email_verification_challenges)
-            .where(email_verification_challenges.c.id == row["id"])
+            update(challenge_table)
+            .where(challenge_table.c.id == row["id"])
             .values(consumed_at=now)
         )
         return None

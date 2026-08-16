@@ -5,12 +5,16 @@ import {
   confirmPasswordReset,
   createGuestSession,
   loginAccount,
+  registerAccount,
   rememberAccountToken,
   requestEmailBindingCode,
+  requestEmailUnbindCode,
   requestPasswordResetCode,
+  requestRegistrationEmailCode,
   selectAvatarPreset,
   storedAccountToken,
   uploadAvatar,
+  unbindEmail,
   validateAccountToken,
   verifyEmailBinding,
 } from './account'
@@ -196,6 +200,88 @@ describe('account service', () => {
         }),
       }),
     )
+  })
+
+  it('uses registration verification and email unbinding endpoints', async () => {
+    const account = {
+      id: 'a1',
+      username: 'player',
+      playerName: '玩家昵称',
+      nextRenameAt: null,
+      email: null,
+      emailVerified: false,
+      createdAt: '2026-08-01T00:00:00+00:00',
+    }
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: '注册验证码已发送' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ token: 'token', account }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: '解绑验证码已发送' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ account, message: '邮箱已经解绑' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await requestRegistrationEmailCode('access-token', 'player@example.com')
+    await registerAccount('access-token', {
+      username: 'player',
+      player_name: '玩家昵称',
+      password: 'secret123',
+      email: 'player@example.com',
+      email_code: '123456',
+    })
+    await requestEmailUnbindCode('access-token', 'account-token')
+    await unbindEmail('access-token', 'account-token', '654321')
+
+    expect(fetchMock.mock.calls[0]).toEqual([
+      '/api/auth/register/email/code',
+      expect.objectContaining({
+        body: JSON.stringify({ email: 'player@example.com' }),
+      }),
+    ])
+    expect(fetchMock.mock.calls[1]).toEqual([
+      '/api/auth/register',
+      expect.objectContaining({
+        body: JSON.stringify({
+          username: 'player',
+          player_name: '玩家昵称',
+          password: 'secret123',
+          email: 'player@example.com',
+          email_code: '123456',
+        }),
+      }),
+    ])
+    expect(fetchMock.mock.calls[2]?.[1]).toEqual(
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer account-token',
+        }),
+      }),
+    )
+    expect(fetchMock.mock.calls[3]).toEqual([
+      '/api/auth/me/email/unbind',
+      expect.objectContaining({
+        body: JSON.stringify({ code: '654321' }),
+      }),
+    ])
   })
 
   it('creates a temporary guest session through the front door', async () => {

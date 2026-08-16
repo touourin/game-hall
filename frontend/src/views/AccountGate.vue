@@ -6,6 +6,10 @@ import UiButton from '../components/ui/UiButton.vue'
 const props = defineProps<{
   busy: boolean
   error: string | null
+  registrationEmailBusy?: boolean
+  registrationEmailError?: string | null
+  registrationEmailMessage?: string | null
+  registrationEmailRequestedFor?: string
   passwordResetState?: 'idle' | 'code-sent' | 'complete'
   passwordResetError?: string | null
   passwordResetMessage?: string | null
@@ -18,7 +22,9 @@ const emit = defineEmits<{
     playerName: string
     password: string
     email?: string
+    emailCode?: string
   }]
+  registrationEmailCode: [email: string]
   guest: [payload: { playerName: string }]
   passwordResetStart: []
   passwordResetCode: [identifier: string]
@@ -29,6 +35,7 @@ const mode = ref<'login' | 'register' | 'guest' | 'reset'>('login')
 const username = ref('')
 const playerName = ref('')
 const registrationEmail = ref('')
+const registrationEmailCode = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const resetCode = ref('')
@@ -38,6 +45,16 @@ const normalizedRegistrationEmail = computed(() => registrationEmail.value.trim(
 const registrationEmailValid = computed(() => (
   normalizedRegistrationEmail.value === ''
   || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedRegistrationEmail.value)
+))
+const registrationEmailVerifiedForInput = computed(() => (
+  normalizedRegistrationEmail.value !== ''
+  && normalizedRegistrationEmail.value === props.registrationEmailRequestedFor
+))
+const canRequestRegistrationEmailCode = computed(() => (
+  normalizedRegistrationEmail.value !== ''
+  && registrationEmailValid.value
+  && !props.registrationEmailBusy
+  && !props.busy
 ))
 
 const canSubmit = computed(() => {
@@ -65,6 +82,13 @@ const canSubmit = computed(() => {
       playerName.value.trim().length >= 1
       && password.value === confirmPassword.value
       && registrationEmailValid.value
+      && (
+        normalizedRegistrationEmail.value === ''
+        || (
+          registrationEmailVerifiedForInput.value
+          && /^\d{6}$/.test(registrationEmailCode.value)
+        )
+      )
     )
   }
   return true
@@ -90,6 +114,13 @@ function openPasswordReset() {
 
 function returnToLogin() {
   switchMode('login')
+}
+
+function requestRegistrationCode() {
+  localError.value = null
+  if (!canRequestRegistrationEmailCode.value) return
+  registrationEmailCode.value = ''
+  emit('registrationEmailCode', normalizedRegistrationEmail.value)
 }
 
 function submit() {
@@ -121,12 +152,25 @@ function submit() {
       localError.value = '两次输入的密码不一致'
       return
     }
+    if (
+      normalizedRegistrationEmail.value
+      && (
+        !registrationEmailVerifiedForInput.value
+        || !/^\d{6}$/.test(registrationEmailCode.value)
+      )
+    ) {
+      localError.value = '请先发送并输入当前邮箱的 6 位验证码'
+      return
+    }
     emit('register', {
       username: username.value.trim(),
       playerName: playerName.value.trim(),
       password: password.value,
       ...(normalizedRegistrationEmail.value
-        ? { email: normalizedRegistrationEmail.value }
+        ? {
+            email: normalizedRegistrationEmail.value,
+            emailCode: registrationEmailCode.value,
+          }
         : {}),
     })
     return
@@ -227,17 +271,55 @@ function submit() {
           />
         </label>
 
-        <label v-if="mode === 'register'" class="field">
-          <span>邮箱（选填）</span>
-          <input
-            v-model="registrationEmail"
-            type="email"
-            maxlength="254"
-            autocomplete="email"
-            placeholder="用于找回密码"
-          />
-          <small>填写后会发送验证码，验证通过才会绑定。</small>
-        </label>
+        <div v-if="mode === 'register'" class="registration-email-fields">
+          <label class="field">
+            <span>邮箱（选填）</span>
+            <input
+              v-model="registrationEmail"
+              type="email"
+              maxlength="254"
+              autocomplete="email"
+              placeholder="用于找回密码"
+              :disabled="registrationEmailBusy"
+            />
+            <small>填写邮箱时，请先在这里完成验证；留空可直接注册。</small>
+          </label>
+          <UiButton
+            variant="secondary"
+            block
+            type="button"
+            :disabled="!canRequestRegistrationEmailCode"
+            @click="requestRegistrationCode"
+          >
+            <Mail :size="17" />
+            {{ registrationEmailBusy ? '正在发送…' : registrationEmailVerifiedForInput ? '重新发送验证码' : '发送验证码' }}
+          </UiButton>
+          <label v-if="registrationEmailVerifiedForInput" class="field">
+            <span>6 位邮箱验证码</span>
+            <input
+              v-model="registrationEmailCode"
+              inputmode="numeric"
+              maxlength="6"
+              autocomplete="one-time-code"
+              placeholder="000000"
+              :disabled="registrationEmailBusy"
+            />
+          </label>
+          <p
+            v-if="registrationEmailError"
+            class="account-error"
+            role="alert"
+          >
+            {{ registrationEmailError }}
+          </p>
+          <p
+            v-if="registrationEmailMessage && registrationEmailVerifiedForInput"
+            class="account-reset-message"
+            role="status"
+          >
+            {{ registrationEmailMessage }}
+          </p>
+        </div>
 
         <label v-if="mode === 'login' || mode === 'register'" class="field">
           <span>密码</span>
@@ -387,6 +469,7 @@ function submit() {
 .reset-resend-button { justify-self: center; }
 .reset-resend-button:disabled { cursor: not-allowed; opacity: .55; }
 .account-reset-message { margin: 0; border: 1px solid color-mix(in srgb, var(--green) 36%, var(--line)); border-radius: var(--radius-control); padding: 10px 12px; color: #8fe0bd; background: color-mix(in srgb, var(--green) 7%, var(--surface-inset)); font-size: 11px; font-weight: 700; line-height: 1.6; }
+.registration-email-fields { display: grid; gap: 10px; }
 @media (max-width: 820px) {
   .account-page { width: min(100%, 560px); }
   .account-stage { grid-template-columns: 1fr; gap: 12px; }

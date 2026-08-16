@@ -11,13 +11,16 @@ import {
   logoutAccount,
   renamePlayer,
   requestEmailBindingCode,
+  requestEmailUnbindCode,
   requestPasswordResetCode,
+  requestRegistrationEmailCode,
   selectAvatarPreset,
   registerAccount,
   rememberAccountToken,
   storedAccountToken,
   validateAccountToken,
   verifyEmailBinding,
+  unbindEmail,
   uploadAvatar,
   type AvatarPresetId,
   type AccountProfile,
@@ -52,10 +55,15 @@ const accountBusy = ref(false)
 const accountError = ref<string | null>(null)
 const account = ref<AccountProfile | null>(null)
 const showSettings = ref(false)
+const registrationEmailBusy = ref(false)
+const registrationEmailError = ref<string | null>(null)
+const registrationEmailMessage = ref<string | null>(null)
+const registrationEmailRequestedFor = ref('')
 const emailBusy = ref(false)
 const emailError = ref<string | null>(null)
 const emailMessage = ref<string | null>(null)
 const emailCodeSent = ref(false)
+const emailUnbindCodeSent = ref(false)
 const emailInitialValue = ref('')
 const emailRequestedFor = ref('')
 const passwordResetState = ref<'idle' | 'code-sent' | 'complete'>('idle')
@@ -210,6 +218,7 @@ async function register(payload: {
   playerName: string
   password: string
   email?: string
+  emailCode?: string
 }) {
   accountBusy.value = true
   accountError.value = null
@@ -219,18 +228,42 @@ async function register(payload: {
       username: payload.username,
       player_name: payload.playerName,
       password: payload.password,
+      ...(payload.email
+        ? { email: payload.email, email_code: payload.emailCode ?? '' }
+        : {}),
     })
     enterGame(response.account, response.token)
-    if (payload.email) {
-      emailInitialValue.value = payload.email
-      showSettings.value = true
-      await sendEmailBindingCode(payload.email)
-    }
+    registrationEmailError.value = null
+    registrationEmailMessage.value = null
+    registrationEmailRequestedFor.value = ''
   } catch (caught) {
     accountError.value =
       caught instanceof Error ? caught.message : '注册失败，请稍后重试'
   } finally {
     accountBusy.value = false
+  }
+}
+
+async function sendRegistrationEmailCode(email: string) {
+  registrationEmailBusy.value = true
+  accountError.value = null
+  registrationEmailError.value = null
+  registrationEmailMessage.value = null
+  registrationEmailRequestedFor.value = email.trim()
+  try {
+    const accessToken = await ensureAccessToken()
+    const response = await requestRegistrationEmailCode(
+      accessToken,
+      email,
+    )
+    registrationEmailMessage.value = response.message
+  } catch (caught) {
+    registrationEmailRequestedFor.value = ''
+    registrationEmailError.value = caught instanceof Error
+      ? caught.message
+      : '验证码发送失败，请稍后重试'
+  } finally {
+    registrationEmailBusy.value = false
   }
 }
 
@@ -373,6 +406,7 @@ async function sendEmailBindingCode(email: string) {
   emailError.value = null
   emailMessage.value = null
   emailCodeSent.value = false
+  emailUnbindCodeSent.value = false
   emailRequestedFor.value = email.trim()
   try {
     emailMessage.value = await requestEmailBindingCode(
@@ -418,12 +452,64 @@ async function bindAccountEmail(payload: { email: string; code: string }) {
   }
 }
 
+async function sendEmailUnbindCode() {
+  const token = storedAccountToken()
+  if (!token) return
+  emailBusy.value = true
+  emailError.value = null
+  emailMessage.value = null
+  emailCodeSent.value = false
+  emailUnbindCodeSent.value = false
+  try {
+    const response = await requestEmailUnbindCode(
+      activeAccessToken.value,
+      token,
+    )
+    emailMessage.value = response.message
+    emailUnbindCodeSent.value = true
+  } catch (caught) {
+    emailError.value = caught instanceof Error
+      ? caught.message
+      : '解绑验证码发送失败，请稍后重试'
+  } finally {
+    emailBusy.value = false
+  }
+}
+
+async function unbindAccountEmail(code: string) {
+  const token = storedAccountToken()
+  if (!token) return
+  emailBusy.value = true
+  emailError.value = null
+  emailMessage.value = null
+  try {
+    const response = await unbindEmail(
+      activeAccessToken.value,
+      token,
+      code,
+    )
+    account.value = response.account
+    emailMessage.value = response.message
+    emailCodeSent.value = false
+    emailUnbindCodeSent.value = false
+    emailInitialValue.value = ''
+    emailRequestedFor.value = ''
+  } catch (caught) {
+    emailError.value = caught instanceof Error
+      ? caught.message
+      : '邮箱解绑失败，请检查验证码'
+  } finally {
+    emailBusy.value = false
+  }
+}
+
 function openSettings() {
   emailInitialValue.value = account.value?.email ?? ''
   emailRequestedFor.value = ''
   emailError.value = null
   emailMessage.value = null
   emailCodeSent.value = false
+  emailUnbindCodeSent.value = false
   showSettings.value = true
 }
 
@@ -467,11 +553,16 @@ onMounted(async () => {
       v-if="accountState !== 'authenticated'"
       :busy="accountBusy || accountState === 'checking'"
       :error="accountError"
+      :registration-email-busy="registrationEmailBusy"
+      :registration-email-error="registrationEmailError"
+      :registration-email-message="registrationEmailMessage"
+      :registration-email-requested-for="registrationEmailRequestedFor"
       :password-reset-state="passwordResetState"
       :password-reset-error="passwordResetError"
       :password-reset-message="passwordResetMessage"
       @login="login"
       @register="register"
+      @registration-email-code="sendRegistrationEmailCode"
       @guest="enterAsGuest"
       @password-reset-start="clearPasswordResetState"
       @password-reset-code="sendPasswordResetCode"
@@ -532,6 +623,7 @@ onMounted(async () => {
       :email-error="emailError"
       :email-message="emailMessage"
       :email-code-sent="emailCodeSent"
+      :email-unbind-code-sent="emailUnbindCodeSent"
       :initial-email="emailInitialValue"
       :email-requested-for="emailRequestedFor"
       @close="showSettings = false"
@@ -540,6 +632,8 @@ onMounted(async () => {
       @avatar-upload="changeCustomAvatar"
       @request-email-code="sendEmailBindingCode"
       @verify-email="bindAccountEmail"
+      @request-email-unbind-code="sendEmailUnbindCode"
+      @unbind-email="unbindAccountEmail"
     />
 
     <div v-if="arcade.error" class="toast" role="alert">

@@ -104,6 +104,34 @@ describe('SettingsModal', () => {
     ])
   })
 
+  it('requires a code sent to the current email before unbinding', async () => {
+    const wrapper = mountSettings({
+      email: 'player@example.com',
+      emailVerified: true,
+    })
+
+    await wrapper.get('.email-unbind-trigger').trigger('click')
+    expect(wrapper.text()).toContain('解绑后将无法通过邮箱找回密码')
+    await wrapper
+      .get('.email-unbind-panel button.ui-button')
+      .trigger('click')
+    expect(wrapper.emitted('requestEmailUnbindCode')).toEqual([[]])
+
+    await wrapper.setProps({
+      emailUnbindCodeSent: true,
+      emailMessage: '解绑验证码已经发送',
+    })
+    await wrapper
+      .get('.email-unbind-panel input[autocomplete="one-time-code"]')
+      .setValue('654321')
+    const confirmButton = wrapper
+      .findAll('.email-unbind-panel button')
+      .find((button) => button.text().includes('验证并解绑'))
+    await confirmButton?.trigger('click')
+
+    expect(wrapper.emitted('unbindEmail')).toEqual([['654321']])
+  })
+
   it('previews a built-in avatar and only saves it after confirmation', async () => {
     const wrapper = mountSettings()
     const presets = wrapper.findAll('.avatar-preset-grid button')

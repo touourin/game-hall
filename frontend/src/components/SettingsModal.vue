@@ -7,6 +7,7 @@ import {
   Palette,
   Settings,
   Upload,
+  Unlink,
   UserRound,
   UserRoundPen,
 } from '@lucide/vue'
@@ -31,6 +32,7 @@ const props = withDefaults(defineProps<{
   emailError?: string | null
   emailMessage?: string | null
   emailCodeSent?: boolean
+  emailUnbindCodeSent?: boolean
   initialEmail?: string
   emailRequestedFor?: string
 }>(), {
@@ -38,6 +40,7 @@ const props = withDefaults(defineProps<{
   emailError: null,
   emailMessage: null,
   emailCodeSent: false,
+  emailUnbindCodeSent: false,
   initialEmail: '',
   emailRequestedFor: '',
 })
@@ -49,6 +52,8 @@ const emit = defineEmits<{
   avatarUpload: [file: File]
   requestEmailCode: [email: string]
   verifyEmail: [payload: { email: string; code: string }]
+  requestEmailUnbindCode: []
+  unbindEmail: [code: string]
 }>()
 
 type AvatarDraft =
@@ -64,6 +69,8 @@ const avatarDraft = ref<AvatarDraft | null>(null)
 const avatarMessage = ref<string | null>(null)
 const emailDraft = ref(props.initialEmail || props.account.email || '')
 const emailCode = ref('')
+const emailUnbindCode = ref('')
+const showEmailUnbind = ref(false)
 const localAvatarError = ref<string | null>(null)
 const awaitingAvatarUpdate = ref(false)
 const selectedTheme = ref<ThemeName>(storedTheme())
@@ -121,6 +128,11 @@ const canVerifyEmail = computed(() => (
   && normalizedEmailDraft.value === props.emailRequestedFor
   && /^\d{6}$/.test(emailCode.value)
   && canRequestEmailCode.value
+))
+const canUnbindEmail = computed(() => (
+  props.emailUnbindCodeSent
+  && /^\d{6}$/.test(emailUnbindCode.value)
+  && !props.emailBusy
 ))
 
 const selectedAvatarPreset = computed<AvatarPresetId | null>(() => {
@@ -186,6 +198,8 @@ watch(
   (currentEmail) => {
     emailDraft.value = currentEmail ?? ''
     emailCode.value = ''
+    emailUnbindCode.value = ''
+    if (!currentEmail) showEmailUnbind.value = false
   },
 )
 
@@ -240,6 +254,26 @@ function confirmEmailBinding() {
     email: normalizedEmailDraft.value,
     code: emailCode.value,
   })
+}
+
+function openEmailUnbind() {
+  showEmailUnbind.value = true
+  emailUnbindCode.value = ''
+}
+
+function cancelEmailUnbind() {
+  showEmailUnbind.value = false
+  emailUnbindCode.value = ''
+}
+
+function requestUnbindCode() {
+  emailUnbindCode.value = ''
+  emit('requestEmailUnbindCode')
+}
+
+function confirmEmailUnbind() {
+  if (!canUnbindEmail.value) return
+  emit('unbindEmail', emailUnbindCode.value)
 }
 
 function chooseTheme(theme: ThemeName) {
@@ -485,8 +519,64 @@ onBeforeUnmount(clearAvatarDraft)
         <div v-if="account.emailVerified && account.email" class="bound-email-status">
           <span><Check :size="15" /></span>
           <div><strong>已绑定邮箱</strong><small>{{ account.email }}</small></div>
+          <button
+            type="button"
+            class="email-unbind-trigger"
+            :disabled="emailBusy"
+            @click="openEmailUnbind"
+          >
+            <Unlink :size="14" />解绑
+          </button>
         </div>
-        <form @submit.prevent="confirmEmailBinding">
+        <div v-if="showEmailUnbind" class="email-unbind-panel">
+          <div>
+            <strong>解绑当前邮箱？</strong>
+            <small>解绑后将无法通过邮箱找回密码。验证码会发送到当前邮箱，验证通过后才会解绑。</small>
+          </div>
+          <UiButton
+            v-if="!emailUnbindCodeSent"
+            variant="secondary"
+            block
+            type="button"
+            :disabled="emailBusy"
+            @click="requestUnbindCode"
+          >
+            <Mail :size="17" />{{ emailBusy ? '正在发送…' : '发送解绑验证码' }}
+          </UiButton>
+          <template v-else>
+            <label class="field">
+              <span>6 位解绑验证码</span>
+              <input
+                v-model="emailUnbindCode"
+                inputmode="numeric"
+                maxlength="6"
+                autocomplete="one-time-code"
+                placeholder="000000"
+                :disabled="emailBusy"
+              />
+            </label>
+            <p v-if="emailMessage" class="settings-success" role="status">{{ emailMessage }}</p>
+            <UiButton
+              variant="danger"
+              block
+              type="button"
+              :disabled="!canUnbindEmail"
+              @click="confirmEmailUnbind"
+            >
+              <Unlink :size="17" />{{ emailBusy ? '正在验证…' : '验证并解绑邮箱' }}
+            </UiButton>
+          </template>
+          <p v-if="emailError" class="account-error" role="alert">{{ emailError }}</p>
+          <button
+            type="button"
+            class="email-unbind-cancel"
+            :disabled="emailBusy"
+            @click="cancelEmailUnbind"
+          >
+            取消解绑
+          </button>
+        </div>
+        <form v-else @submit.prevent="confirmEmailBinding">
           <label class="field">
             <span>{{ account.emailVerified ? '更换绑定邮箱' : '绑定邮箱' }}</span>
             <input
@@ -522,7 +612,7 @@ onBeforeUnmount(clearAvatarDraft)
             每个账号每天最多发送 3 封；绑定后可在登录页通过邮箱重置密码。
           </small>
           <p v-if="emailError" class="account-error" role="alert">{{ emailError }}</p>
-          <p v-if="emailMessage" class="settings-success" role="status">{{ emailMessage }}</p>
+          <p v-if="emailMessage && !emailUnbindCodeSent" class="settings-success" role="status">{{ emailMessage }}</p>
           <UiButton
             v-if="emailCodeSent"
             variant="primary"
@@ -583,6 +673,15 @@ onBeforeUnmount(clearAvatarDraft)
 .bound-email-status div { min-width: 0; display: grid; gap: 3px; }
 .bound-email-status strong { color: var(--text); font-size: 12px; }
 .bound-email-status small { overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.email-unbind-trigger,.email-unbind-cancel { display: inline-flex; align-items: center; gap: 5px; border: 0; color: var(--muted); background: transparent; font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; }
+.email-unbind-trigger { flex: 0 0 auto; margin-left: auto; padding: 7px 0 7px 10px; }
+.email-unbind-trigger:hover,.email-unbind-cancel:hover { color: var(--text); }
+.email-unbind-trigger:disabled,.email-unbind-cancel:disabled { cursor: not-allowed; opacity: .55; }
+.email-unbind-panel { display: grid; gap: 11px; border: 1px solid color-mix(in srgb, var(--gold) 30%, var(--line)); border-radius: var(--radius-control); padding: 13px; background: color-mix(in srgb, var(--gold) 5%, var(--surface-inset)); }
+.email-unbind-panel > div { display: grid; gap: 5px; }
+.email-unbind-panel > div strong { font-size: 12px; }
+.email-unbind-panel > div small { color: var(--muted); font-size: 10px; line-height: 1.65; }
+.email-unbind-cancel { justify-self: center; }
 .settings-theme-list { display: grid; gap: 9px; }
 .settings-theme-list button { min-height: 76px; padding: 12px 14px; display: grid; grid-template-columns: auto 1fr auto; gap: 13px; align-items: center; border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--text); background: var(--control-surface), var(--surface-inset); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 46%, transparent); text-align: left; cursor: pointer; }
 .settings-theme-list button.selected { border-color: var(--line-strong); background: color-mix(in srgb, var(--gold) 8%, var(--surface-glass)); box-shadow: var(--shadow-contact), inset 0 1px 0 var(--metal-edge); }
