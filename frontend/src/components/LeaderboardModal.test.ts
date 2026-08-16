@@ -15,6 +15,31 @@ describe('LeaderboardModal', () => {
     vi.clearAllMocks()
   })
 
+  it('teleports the room leaderboard outside layout containers', async () => {
+    vi.mocked(loadLeaderboard).mockResolvedValue([])
+    const roomLayout = document.createElement('main')
+    roomLayout.className = 'adaptive-layout-root'
+    document.body.append(roomLayout)
+
+    const wrapper = mount(LeaderboardModal, {
+      attachTo: roomLayout,
+      props: {
+        accountId: 'account-1',
+        gameKey: 'tetris',
+        gameName: '落块挑战',
+        gameMode: 'timed_180',
+      },
+    })
+    await flushPromises()
+
+    const backdrop = document.body.querySelector('.base-modal-backdrop')
+    expect(backdrop?.parentElement).toBe(document.body)
+    expect(roomLayout.querySelector('.base-modal-backdrop')).toBeNull()
+
+    wrapper.unmount()
+    roomLayout.remove()
+  })
+
   it('separates classic and Shadow Merlin court-undercurrent rankings', async () => {
     vi.mocked(loadLeaderboard).mockResolvedValue([])
 
@@ -24,6 +49,7 @@ describe('LeaderboardModal', () => {
         gameKey: 'avalon',
         gameName: '阿瓦隆',
       },
+      global: { stubs: { teleport: true } },
     })
     await flushPromises()
 
@@ -61,6 +87,7 @@ describe('LeaderboardModal', () => {
         gameName: '落块挑战',
         gameMode: 'timed_180',
       },
+      global: { stubs: { teleport: true } },
     })
     await flushPromises()
 
@@ -84,6 +111,7 @@ describe('LeaderboardModal', () => {
         gameMode: 'timed_300',
         fixedGameMode: true,
       },
+      global: { stubs: { teleport: true } },
     })
     await flushPromises()
 
@@ -113,6 +141,7 @@ describe('LeaderboardModal', () => {
         gameName: '落块挑战',
         gameMode: 'timed_180',
       },
+      global: { stubs: { teleport: true } },
     })
     await flushPromises()
 
@@ -139,6 +168,7 @@ describe('LeaderboardModal', () => {
         gameName: '落块挑战',
         gameMode: 'timed_180',
       },
+      global: { stubs: { teleport: true } },
     })
     await wrapper.findAll('.stats-mode-tabs button')[0]!.trigger('click')
 
@@ -175,6 +205,7 @@ describe('LeaderboardModal', () => {
         gameName: '落块挑战',
         gameMode: 'timed_180',
       },
+      global: { stubs: { teleport: true } },
     })
     await flushPromises()
 

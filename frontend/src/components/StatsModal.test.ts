@@ -16,6 +16,41 @@ describe('StatsModal', () => {
     vi.clearAllMocks()
   })
 
+  it('teleports personal records outside layout containers', async () => {
+    vi.mocked(loadPersonalStats).mockResolvedValue({
+      summary: {
+        games: 0,
+        wins: 0,
+        draws: 0,
+        losses: 0,
+        winRate: 0,
+        goodGames: 0,
+        goodWins: 0,
+        evilGames: 0,
+        evilWins: 0,
+        bestMs: null,
+        averageMs: null,
+      },
+      history: [],
+    })
+    const roomLayout = document.createElement('main')
+    roomLayout.className = 'adaptive-layout-root'
+    document.body.append(roomLayout)
+
+    const wrapper = mount(StatsModal, {
+      attachTo: roomLayout,
+      props: { gameKey: 'tetris', gameName: '落块挑战' },
+    })
+    await flushPromises()
+
+    const backdrop = document.body.querySelector('.base-modal-backdrop')
+    expect(backdrop?.parentElement).toBe(document.body)
+    expect(roomLayout.querySelector('.base-modal-backdrop')).toBeNull()
+
+    wrapper.unmount()
+    roomLayout.remove()
+  })
+
   it('renders a gomoku draw as a draw in history and match details', async () => {
     vi.mocked(loadPersonalStats).mockResolvedValue({
       summary: {
@@ -73,6 +108,7 @@ describe('StatsModal', () => {
 
     const wrapper = mount(StatsModal, {
       props: { gameKey: 'gomoku', gameName: '五子棋' },
+      global: { stubs: { teleport: true } },
     })
     await flushPromises()
 
@@ -180,6 +216,7 @@ describe('StatsModal', () => {
 
     const wrapper = mount(StatsModal, {
       props: { gameKey: 'avalon', gameName: '阿瓦隆' },
+      global: { stubs: { teleport: true } },
     })
     await flushPromises()
 
@@ -245,6 +282,7 @@ describe('StatsModal', () => {
         gameName: '落块挑战',
         gameMode: 'timed_300',
       },
+      global: { stubs: { teleport: true } },
     })
     await flushPromises()
 
@@ -314,7 +352,9 @@ describe('StatsModal', () => {
       ],
     })
 
-    const wrapper = mount(StatsModal)
+    const wrapper = mount(StatsModal, {
+      global: { stubs: { teleport: true } },
+    })
     await flushPromises()
 
     const entries = wrapper.findAll('.match-history-list button')

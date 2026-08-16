@@ -102,7 +102,6 @@ watch([activeGameMode, activeGameVariant], loadStats)
     panel-class="stats-modal"
     close-label="关闭战绩"
     mobile-sheet
-    inline
     @close="$emit('close')"
   >
       <template v-if="selectedMatch">

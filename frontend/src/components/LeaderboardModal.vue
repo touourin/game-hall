@@ -53,7 +53,6 @@ watch([activeGameMode, activeGameVariant], loadPlayers)
     panel-class="leaderboard-modal"
     close-label="关闭排行榜"
     mobile-sheet
-    inline
     @close="$emit('close')"
   >
       <span class="modal-icon"><Trophy :size="25" /></span>
