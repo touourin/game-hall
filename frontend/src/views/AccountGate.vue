@@ -255,7 +255,7 @@ function submit() {
             minlength="2"
             :maxlength="mode === 'reset' ? 254 : 50"
             autocomplete="username"
-            :placeholder="mode === 'reset' ? '输入账号名或绑定邮箱' : '2–50 个字符，可使用邮箱'"
+            :placeholder="mode === 'reset' ? '输入账号名或绑定邮箱' : '2–50 个字符，仅用于登录'"
             :disabled="mode === 'reset' && resetState !== 'idle'"
           />
         </label>

@@ -107,7 +107,9 @@ describe('AccountGate', () => {
     const usernameInput = wrapper.get('input[autocomplete="username"]')
 
     expect(usernameInput.attributes('maxlength')).toBe('50')
-    expect(usernameInput.attributes('placeholder')).toContain('可使用邮箱')
+    expect(usernameInput.attributes('placeholder')).toBe(
+      '2–50 个字符，仅用于登录',
+    )
     await usernameInput.setValue('gantianyu+game.account@sinodata.example')
 
     expect((usernameInput.element as HTMLInputElement).value).toBe(
