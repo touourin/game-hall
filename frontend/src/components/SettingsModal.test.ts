@@ -209,6 +209,14 @@ describe('SettingsModal', () => {
     expect(
       wrapper.findAll('.theme-copy strong').map((name) => name.text()),
     ).toEqual(['橘光晴釉', '幽蓝冷钢', '月白云瓷', '曜石黑钛'])
+    expect(
+      wrapper.findAll('.theme-copy small').map((description) => description.text()),
+    ).toEqual([
+      '奶油暖杏、柔白陶面与鲜润橘釉',
+      '近黑军蓝、深蓝钢面与冰蓝仪表光',
+      '月白冷灰、柔白云瓷与灰绿釉面',
+      '曜石黑陶、石墨烟面与冷银钛光',
+    ])
     expect(wrapper.text()).toContain('幽蓝冷钢')
     expect(wrapper.text()).toContain('曜石黑钛')
     expect(wrapper.text()).toContain('月白云瓷')
