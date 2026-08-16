@@ -79,7 +79,9 @@ git submodule update --init --recursive
 cp .env.example .env
 ```
 
-大厅不再显示固定密码访问页，浏览器会自动建立内部传输会话，然后进入账号登录、注册或游客入席页面。生产环境应在 `.env` 中为 `GAME_HALL_SIGNING_SECRET`、MySQL 和 Redis 分别设置独立随机值，不要把 `.env` 提交到 Git。默认配置使用数据库和用户 `game_hall`，并只在服务器回环地址发布 MySQL `1025` 与 Redis `7878`；容器内部仍使用标准端口 `3306` 与 `6379`。
+模板中的敏感值统一留空。启动前必须在 `.env` 中为 `GAME_HALL_SIGNING_SECRET`、`MYSQL_PASSWORD`、`MYSQL_ROOT_PASSWORD` 和 `REDIS_PASSWORD` 分别填写不同的随机值，例如可多次运行 `openssl rand -hex 32` 生成；任一必填项留空时 Compose 会直接拒绝启动。不要把 `.env` 提交到 Git。
+
+大厅不再显示固定密码访问页，浏览器会自动建立内部传输会话，然后进入账号登录、注册或游客入席页面。默认配置使用数据库和用户 `game_hall`，并只在服务器回环地址发布 MySQL `1025` 与 Redis `7878`；容器内部仍使用标准端口 `3306` 与 `6379`。
 
 ```bash
 docker compose up -d --build
@@ -104,7 +106,7 @@ http://192.168.1.20:10618
 
 ### 邮箱绑定与密码找回
 
-账号设置支持通过验证码绑定邮箱，登录页支持使用账号名或已绑定邮箱找回密码。默认使用 QQ SMTP，每个账号每天最多发送 3 封验证码邮件，服务器每天最多发送 20 封；额度按 `TZ` 指定的自然日重置，默认时区为 `Asia/Shanghai`。
+账号设置支持通过验证码绑定邮箱，登录页支持使用账号名或已绑定邮箱找回密码。邮件配置是可选项；`SMTP_USER` 和 `SMTP_PASS` 留空时大厅仍可启动，但发送验证码会提示邮件服务尚未配置。默认使用 QQ SMTP，每个账号每天最多发送 3 封验证码邮件，服务器每天最多发送 20 封；额度按 `TZ` 指定的自然日重置，默认时区为 `Asia/Shanghai`。
 
 在 QQ 邮箱的“账号与安全”中开启 IMAP/SMTP 服务并生成授权码，然后只在服务器 `.env` 中填写：
 

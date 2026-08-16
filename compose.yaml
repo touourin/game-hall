@@ -92,7 +92,7 @@ services:
       LOG_DIR: /var/log/game-hall
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_RETENTION_DAYS: ${LOG_RETENTION_DAYS:-30}
-      GAME_HALL_SIGNING_SECRET: ${GAME_HALL_SIGNING_SECRET:-game-hall-local-session-v1}
+      GAME_HALL_SIGNING_SECRET: ${GAME_HALL_SIGNING_SECRET:?Set GAME_HALL_SIGNING_SECRET in .env}
       SMTP_HOST: ${SMTP_HOST:-smtp.qq.com}
       SMTP_PORT: ${SMTP_PORT:-465}
       SMTP_SECURE: ${SMTP_SECURE:-true}
