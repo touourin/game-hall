@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import random
 import sys
 from unittest.mock import AsyncMock
@@ -14,6 +15,7 @@ from backend.app.ai.douzero_models import (
     stage_model_bundle,
     write_checksum_manifest,
 )
+from backend.app.ai.douzero_worker import _configure_inference_environment
 from backend.app.ai.katago import (
     DEFAULT_VISITS,
     KataGoAnalysisClient,
@@ -502,6 +504,18 @@ def test_douzero_model_manifest_detects_changed_weights(tmp_path) -> None:
     with pytest.raises(DouZeroModelError, match="landlord.ckpt"):
         require_model_paths(tmp_path)
     assert DouZeroClient(model_dir=str(tmp_path)).configured is False
+
+
+def test_douzero_inference_does_not_require_a_git_executable(
+    monkeypatch,
+) -> None:
+    monkeypatch.delenv("CUDA_VISIBLE_DEVICES", raising=False)
+    monkeypatch.delenv("GIT_PYTHON_REFRESH", raising=False)
+
+    _configure_inference_environment()
+
+    assert os.environ["CUDA_VISIBLE_DEVICES"] == ""
+    assert os.environ["GIT_PYTHON_REFRESH"] == "quiet"
 
 
 async def test_katago_json_process_is_reused(tmp_path) -> None:

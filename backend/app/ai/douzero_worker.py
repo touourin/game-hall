@@ -16,7 +16,7 @@ class DouZeroRuntime:
     """Load the three official role models once and serve inference requests."""
 
     def __init__(self, model_paths: Mapping[str, Path], threads: int) -> None:
-        os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
+        _configure_inference_environment()
         import torch
         from douzero.dmc.models import model_dict
 
@@ -143,6 +143,14 @@ class DouZeroRuntime:
         infoset.bomb_num = bomb_num
         infoset.all_handcards = None
         return infoset
+
+
+def _configure_inference_environment() -> None:
+    os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
+    # Importing douzero.dmc.models also imports its training-only FileWriter,
+    # which asks GitPython to locate a git executable. Inference never invokes
+    # that writer, so a slim runtime should not need the full git package.
+    os.environ["GIT_PYTHON_REFRESH"] = "quiet"
 
 
 def _integer_list(value: object, label: str) -> list[int]:
