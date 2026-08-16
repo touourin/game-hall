@@ -31,6 +31,13 @@ logs/
 # Locally generated document exports
 /output/
 
+# Local reference and image-generation workspaces
+/tmp/
+/avalon-skin-imagegen-handoff-*/
+
+# Keep lossless documentation sources local; version optimized previews instead
+/docs/ui-previews/**/*.png
+
 # Versioned DouZero WP bundle; ignore accidental alternate model artifacts
 /ai/douzero/*
 !/ai/douzero/README.md

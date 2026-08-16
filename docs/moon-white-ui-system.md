@@ -1,23 +1,23 @@
-# 月白陶瓷 UI 系统
+# 月白云瓷 UI 系统
 
 ## 1. 方案状态
 
-“月白陶瓷 · 精密底盘”是已通过审核的浅色主题方向。它不是纯白背景，也不是传统拟物界面，而是由三层材料共同构成：
+“月白云瓷 · 精密底盘”是已通过审核的浅色主题方向。它不是纯白背景，也不是传统拟物界面，而是由三层材料共同构成：
 
 1. 后层底盘：冷月灰珍珠陶瓷，负责页面背景与整机轮廓。
-2. 主内容井：暖月白陶瓷，承载页面主要模块。
+2. 主内容井：柔和月白云瓷，承载页面主要模块。
 3. 内嵌控件：乳雾玻璃，承载卡片、输入、按钮和状态。
 
 喷砂自然铝只用于边缘、接缝和控件结构，不作为大面积装饰。界面的高级感来自材料层级、接触阴影、倒角精度和克制高光，而不是花纹或强光效。
 
-当前四套正式主题名称为：
+当前四套正式主题按“浅、深、浅、深”排列；没有本地偏好的新用户默认使用橘光晴釉：
 
-- `emerald`：极光雾舱
+- `amber`：橘光晴釉
+- `emerald`：幽蓝冷钢
+- `royal`：月白云瓷
 - `midnight`：曜石黑钛
-- `royal`：月白陶瓷
-- `amber`：橙釉象牙
 
-保留 `emerald`、`midnight`、`royal` 三个现有 ID，避免迁移用户本地偏好；橙釉象牙使用新增的 `amber` ID。
+保留 `emerald`、`midnight`、`royal` 三个现有 ID，避免迁移用户本地偏好；橘光晴釉使用新增的 `amber` ID。其大面积背景采用奶油暖白，鲜润果橙用于主操作与高光，果叶绿仅作克制的辅助色。
 
 ## 2. 审核预览
 
@@ -25,18 +25,18 @@
 
 | 编号 | 页面 | 设备 | 文件 |
 | --- | --- | --- | --- |
-| 01 | 游戏大厅 | 手机 | [01-mobile-hall.png](ui-previews/moon-white/01-mobile-hall.png) |
-| 02 | 游戏入口与房间选择 | 手机 | [02-mobile-game-entry.png](ui-previews/moon-white/02-mobile-game-entry.png) |
-| 03 | 多人等待房 | 手机 | [03-mobile-waiting-room.png](ui-previews/moon-white/03-mobile-waiting-room.png) |
-| 04 | 棋盘对局 | 手机 | [04-mobile-board-game.png](ui-previews/moon-white/04-mobile-board-game.png) |
-| 05 | 棋盘对局 | 电脑 | [05-desktop-board-game.png](ui-previews/moon-white/05-desktop-board-game.png) |
-| 06 | 高人数身份推理 | 电脑 | [06-desktop-social-deduction.png](ui-previews/moon-white/06-desktop-social-deduction.png) |
-| 07 | 牌桌对战 | 电脑 | [07-desktop-card-table.png](ui-previews/moon-white/07-desktop-card-table.png) |
-| 08 | 单人挑战 | 手机 | [08-mobile-solo-challenge.png](ui-previews/moon-white/08-mobile-solo-challenge.png) |
-| 09 | 地产经营 | 手机 | [09-mobile-property-game.png](ui-previews/moon-white/09-mobile-property-game.png) |
-| 10 | 弹层与基础控件 | 电脑 | [10-desktop-overlays-and-controls.png](ui-previews/moon-white/10-desktop-overlays-and-controls.png) |
-| 11 | 设置与确认抽屉 | 手机 | [11-mobile-settings-sheet.png](ui-previews/moon-white/11-mobile-settings-sheet.png) |
-| 12 | 游戏入口与建房 | 电脑 | [12-desktop-game-entry.png](ui-previews/moon-white/12-desktop-game-entry.png) |
+| 01 | 游戏大厅 | 手机 | [01-mobile-hall.webp](ui-previews/moon-white/01-mobile-hall.webp) |
+| 02 | 游戏入口与房间选择 | 手机 | [02-mobile-game-entry.webp](ui-previews/moon-white/02-mobile-game-entry.webp) |
+| 03 | 多人等待房 | 手机 | [03-mobile-waiting-room.webp](ui-previews/moon-white/03-mobile-waiting-room.webp) |
+| 04 | 棋盘对局 | 手机 | [04-mobile-board-game.webp](ui-previews/moon-white/04-mobile-board-game.webp) |
+| 05 | 棋盘对局 | 电脑 | [05-desktop-board-game.webp](ui-previews/moon-white/05-desktop-board-game.webp) |
+| 06 | 高人数身份推理 | 电脑 | [06-desktop-social-deduction.webp](ui-previews/moon-white/06-desktop-social-deduction.webp) |
+| 07 | 牌桌对战 | 电脑 | [07-desktop-card-table.webp](ui-previews/moon-white/07-desktop-card-table.webp) |
+| 08 | 单人挑战 | 手机 | [08-mobile-solo-challenge.webp](ui-previews/moon-white/08-mobile-solo-challenge.webp) |
+| 09 | 地产经营 | 手机 | [09-mobile-property-game.webp](ui-previews/moon-white/09-mobile-property-game.webp) |
+| 10 | 弹层与基础控件 | 电脑 | [10-desktop-overlays-and-controls.webp](ui-previews/moon-white/10-desktop-overlays-and-controls.webp) |
+| 11 | 设置与确认抽屉 | 手机 | [11-mobile-settings-sheet.webp](ui-previews/moon-white/11-mobile-settings-sheet.webp) |
+| 12 | 游戏入口与建房 | 电脑 | [12-desktop-game-entry.webp](ui-previews/moon-white/12-desktop-game-entry.webp) |
 
 ### 预览限制
 
@@ -122,7 +122,7 @@
 - `760–1179px`：双栏或主舞台 + 抽屉。
 - `< 760px`：手机纵向布局。
 
-## 6. 月白陶瓷设计令牌
+## 6. 月白云瓷设计令牌
 
 下面是方向值，实施时应通过视觉回归微调，而不是在各组件内硬编码。
 

@@ -47,7 +47,7 @@ describe('public plugin SDK utilities', () => {
     applyTheme('amber')
     await nextTick()
     expect(wrapper.text()).toContain('amber:')
-    expect(pluginThemeMaterials('amber').stage.edge).toBe('#c45124')
+    expect(pluginThemeMaterials('amber').stage.edge).toBe('#f26a13')
     wrapper.unmount()
   })
 
