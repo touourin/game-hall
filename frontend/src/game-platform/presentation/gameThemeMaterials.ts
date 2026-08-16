@@ -46,7 +46,7 @@ export interface GameThemeMaterials {
   }
 }
 
-const TWILIGHT_BLUE_STEEL: GameThemeMaterials = {
+const AURORA_MIST: GameThemeMaterials = {
   scene: {
     top: '#071522',
     center: '#0a2432',
@@ -138,7 +138,7 @@ const OBSIDIAN_TITANIUM: GameThemeMaterials = {
   },
 }
 
-const MOON_CLOUD_CERAMIC: GameThemeMaterials = {
+const MOON_WHITE: GameThemeMaterials = {
   scene: {
     top: '#eef1f2',
     center: '#d9e0e3',
@@ -184,37 +184,37 @@ const MOON_CLOUD_CERAMIC: GameThemeMaterials = {
   },
 }
 
-const TANGERINE_GLAZE: GameThemeMaterials = {
+const ORANGE_IVORY: GameThemeMaterials = {
   scene: {
-    top: '#fffaf2',
-    center: '#ffe7c7',
-    bottom: '#f2cfa9',
-    glow: 'rgba(255, 255, 255, .8)',
-    grid: 'rgba(122, 75, 43, .08)',
-    fog: 'rgba(255, 248, 238, .38)',
-    particle: 'rgba(242, 106, 19, .34)',
+    top: '#fffaf3',
+    center: '#f6eadf',
+    bottom: '#e7d8ca',
+    glow: 'rgba(255, 255, 255, .76)',
+    grid: 'rgba(105, 76, 58, .075)',
+    fog: 'rgba(255, 252, 247, .34)',
+    particle: 'rgba(159, 90, 52, .24)',
   },
   stage: {
-    top: '#fff4df',
-    bottom: '#e4ba8e',
-    edge: '#f26a13',
-    innerEdge: 'rgba(255, 255, 255, .9)',
-    detail: '#9e6b4c',
-    glow: 'rgba(242, 106, 19, .38)',
-    shadow: 'rgba(105, 60, 31, .25)',
+    top: '#fff8ef',
+    bottom: '#ddcbbb',
+    edge: '#c45124',
+    innerEdge: 'rgba(255, 255, 255, .88)',
+    detail: '#9a7662',
+    glow: 'rgba(196, 81, 36, .3)',
+    shadow: 'rgba(97, 66, 47, .24)',
   },
   metal: {
-    body: '#fff0df',
-    side: '#bd9878',
+    body: '#f6eee5',
+    side: '#b7a291',
     edge: '#ffffff',
-    glass: '#916e59',
-    core: '#f26a13',
-    glow: 'rgba(242, 106, 19, .5)',
+    glass: '#8e7668',
+    core: '#c45124',
+    glow: 'rgba(196, 81, 36, .42)',
   },
   copy: {
-    primary: '#35251d',
-    secondary: '#675347',
-    onStage: '#35251d',
+    primary: '#332d29',
+    secondary: '#655950',
+    onStage: '#332d29',
     onStageOutline: 'rgba(255, 253, 249, .96)',
   },
   semantic: {
@@ -231,10 +231,10 @@ const TANGERINE_GLAZE: GameThemeMaterials = {
 }
 
 export const GAME_THEME_MATERIALS: Readonly<Record<ThemeName, GameThemeMaterials>> = {
-  emerald: TWILIGHT_BLUE_STEEL,
+  emerald: AURORA_MIST,
   midnight: OBSIDIAN_TITANIUM,
-  royal: MOON_CLOUD_CERAMIC,
-  amber: TANGERINE_GLAZE,
+  royal: MOON_WHITE,
+  amber: ORANGE_IVORY,
 }
 
 export function gameThemeMaterials(theme: ThemeName): GameThemeMaterials {

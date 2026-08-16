@@ -3,10 +3,10 @@ import { join } from 'node:path'
 
 const css = readFileSync(join(process.cwd(), 'src', 'styles.css'), 'utf8')
 const themeDefinitions = [
-  { id: 'amber', name: '橘光晴釉', colorScheme: 'light' },
-  { id: 'emerald', name: '幽蓝冷钢', colorScheme: 'dark' },
-  { id: 'royal', name: '月白云瓷', colorScheme: 'light' },
+  { id: 'emerald', name: '极光雾舱', colorScheme: 'dark' },
   { id: 'midnight', name: '曜石黑钛', colorScheme: 'dark' },
+  { id: 'royal', name: '月白陶瓷', colorScheme: 'light' },
+  { id: 'amber', name: '橙釉象牙', colorScheme: 'light' },
 ]
 
 function parseHexVariables(block, label) {

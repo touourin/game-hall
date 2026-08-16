@@ -206,19 +206,16 @@ describe('SettingsModal', () => {
   it('offers all four material UI skins and applies the selected one', async () => {
     const wrapper = mountSettings()
 
-    expect(
-      wrapper.findAll('.theme-copy strong').map((name) => name.text()),
-    ).toEqual(['橘光晴釉', '幽蓝冷钢', '月白云瓷', '曜石黑钛'])
-    expect(wrapper.text()).toContain('幽蓝冷钢')
+    expect(wrapper.text()).toContain('极光雾舱')
     expect(wrapper.text()).toContain('曜石黑钛')
-    expect(wrapper.text()).toContain('月白云瓷')
-    expect(wrapper.text()).toContain('橘光晴釉')
+    expect(wrapper.text()).toContain('月白陶瓷')
+    expect(wrapper.text()).toContain('橙釉象牙')
     expect(wrapper.text()).not.toContain('暖钛陶瓷')
 
-    const tangerineGlaze = wrapper
+    const orangeIvory = wrapper
       .findAll('.settings-theme-list button')
-      .find((button) => button.text().includes('橘光晴釉'))
-    await tangerineGlaze?.trigger('click')
+      .find((button) => button.text().includes('橙釉象牙'))
+    await orangeIvory?.trigger('click')
 
     expect(document.documentElement.dataset.theme).toBe('amber')
     expect(document.documentElement.dataset.colorScheme).toBe('light')

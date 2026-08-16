@@ -8,7 +8,7 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 
-  /* Twilight blue steel: matte near-black navy panels with restrained cyan edges. */
+  /* Aurora mist cabin: cold aerospace glass and precision-machined aluminium. */
   --bg: #020810;
   --chassis: #040b14;
   --surface-primary: rgba(6, 15, 26, 0.95);
@@ -144,7 +144,7 @@
   color-scheme: light;
   color: #29343b;
 
-  /* Moon-cloud ceramic: cool porcelain, misted surfaces and natural aluminium. */
+  /* Moon-white ceramic: cool ceramic, milk glass and natural aluminium. */
   --bg: #d9dfe3;
   --chassis: #d3d9dd;
   --surface-primary: rgba(241, 243, 243, 0.9);
@@ -205,66 +205,66 @@
 
 :root[data-theme="amber"] {
   color-scheme: light;
-  color: #35251d;
+  color: #332d29;
 
-  /* Tangerine glaze: cream ceramic, fresh citrus enamel and a restrained leaf green. */
-  --bg: #f8e4cc;
-  --chassis: #efd6bd;
-  --surface-primary: rgba(255, 250, 242, 0.92);
-  --surface-glass: rgba(255, 253, 247, 0.74);
-  --surface-muted: rgba(240, 210, 181, 0.68);
+  /* Orange-glaze ivory: warm ceramic, apricot mist and precise orange enamel. */
+  --bg: #f0e6da;
+  --chassis: #e7dbce;
+  --surface-primary: rgba(255, 249, 241, 0.92);
+  --surface-glass: rgba(255, 253, 248, 0.72);
+  --surface-muted: rgba(231, 215, 198, 0.66);
   --surface: var(--surface-primary);
-  --surface-strong: #fffaf2;
+  --surface-strong: #fff9f1;
   --surface-soft: var(--surface-muted);
-  --surface-elevated: rgba(255, 253, 247, 0.98);
-  --surface-inset: rgba(122, 72, 37, 0.07);
-  --surface-raised: #fffdf8;
-  --surface-deep-rgb: 238, 211, 185;
-  --surface-mid-rgb: 252, 237, 219;
-  --surface-header-rgb: 255, 248, 238;
-  --modal-surface: #fff9ef;
-  --line: rgba(106, 70, 45, 0.17);
-  --line-strong: rgba(201, 71, 0, 0.46);
-  --line-bright: rgba(151, 50, 0, 0.66);
+  --surface-elevated: rgba(255, 253, 248, 0.97);
+  --surface-inset: rgba(111, 76, 54, 0.07);
+  --surface-raised: #fffdf9;
+  --surface-deep-rgb: 229, 215, 201;
+  --surface-mid-rgb: 249, 239, 228;
+  --surface-header-rgb: 255, 249, 242;
+  --modal-surface: #fffaf3;
+  --line: rgba(95, 73, 59, 0.17);
+  --line-strong: rgba(196, 81, 36, 0.43);
+  --line-bright: rgba(143, 53, 24, 0.63);
   --metal-edge: rgba(255, 255, 255, 0.9);
-  --text: #35251d;
-  --muted: #675347;
-  --text-soft: #5b463a;
-  --accent: #c94700;
-  --accent-deep: #923200;
-  --accent-highlight: #f57c00;
+  --text: #332d29;
+  --muted: #655950;
+  --text-soft: #594d45;
+  --accent: #c45124;
+  --accent-deep: #8f3518;
+  --accent-highlight: #e47b45;
   --accent-contrast: #ffffff;
-  --accent-secondary: #567c52;
-  --primary-start: #f57c00;
-  --primary-end: #e85d04;
-  --primary-text: #2b1104;
-  --green: #4f8258;
+  --accent-secondary: #9a7560;
+  --primary-start: #c45124;
+  --primary-end: #8f3518;
+  --primary-text: #ffffff;
+  --green: #4e8b72;
   --red: #b94f48;
-  --disabled-text: #625247;
-  --disabled-bg-start: #f2e2d1;
-  --disabled-bg-end: #e7d4c0;
-  --shadow-contact: 0 8px 20px rgba(111, 68, 38, 0.14), 0 1px 2px rgba(111, 68, 38, 0.14);
-  --shadow-raised: 0 24px 58px rgba(111, 65, 34, 0.16), 0 2px 5px rgba(111, 65, 34, 0.11);
-  --shadow: 0 38px 88px rgba(96, 56, 30, 0.21);
+  --disabled-text: #5c5149;
+  --disabled-bg-start: #eee2d5;
+  --disabled-bg-end: #e2d4c5;
+  --shadow-contact: 0 8px 20px rgba(101, 73, 55, 0.14), 0 1px 2px rgba(101, 73, 55, 0.14);
+  --shadow-raised: 0 24px 58px rgba(99, 70, 51, 0.16), 0 2px 5px rgba(99, 70, 51, 0.11);
+  --shadow: 0 38px 88px rgba(91, 64, 47, 0.2);
   --shadow-card: var(--shadow-raised);
-  --glow-primary: 0 0 30px rgba(242, 106, 19, 0.14);
-  --backdrop: rgba(103, 72, 52, 0.4);
+  --glow-primary: 0 0 28px rgba(196, 81, 36, 0.09);
+  --backdrop: rgba(99, 78, 65, 0.4);
   --panel-highlight: rgba(255, 255, 255, 0.94);
-  --panel-shadow: rgba(107, 67, 40, 0.2);
-  --instrument-line: rgba(157, 88, 42, 0.13);
-  --instrument-bright: rgba(242, 106, 19, 0.3);
-  --control-surface: linear-gradient(150deg, rgba(255, 255, 255, 0.98), rgba(255, 239, 219, 0.65) 44%, rgba(233, 190, 148, 0.32));
-  --panel-sheen: linear-gradient(132deg, rgba(255, 255, 255, 0.8), transparent 25%, transparent 72%, rgba(242, 106, 19, 0.06));
+  --panel-shadow: rgba(99, 72, 54, 0.2);
+  --instrument-line: rgba(145, 92, 58, 0.12);
+  --instrument-bright: rgba(196, 81, 36, 0.25);
+  --control-surface: linear-gradient(150deg, rgba(255, 255, 255, 0.97), rgba(250, 240, 229, 0.62) 44%, rgba(219, 194, 171, 0.3));
+  --panel-sheen: linear-gradient(132deg, rgba(255, 255, 255, 0.78), transparent 25%, transparent 72%, rgba(196, 81, 36, 0.04));
   --material-pattern:
-    linear-gradient(rgba(122, 76, 44, 0.024) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(122, 76, 44, 0.024) 1px, transparent 1px),
-    radial-gradient(ellipse at 82% 5%, rgba(255, 255, 255, 0.84), transparent 34%);
+    linear-gradient(rgba(112, 82, 62, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(112, 82, 62, 0.022) 1px, transparent 1px),
+    radial-gradient(ellipse at 82% 5%, rgba(255, 255, 255, 0.82), transparent 34%);
   --material-size: 52px 52px, 52px 52px, auto;
   --body-background:
-    radial-gradient(ellipse at 16% -8%, rgba(255, 255, 255, 0.97), transparent 39%),
-    radial-gradient(ellipse at 98% 18%, rgba(245, 124, 0, 0.22), transparent 35%),
-    radial-gradient(ellipse at 54% 118%, rgba(242, 106, 19, 0.11), transparent 40%),
-    linear-gradient(145deg, #fffaf2 0%, #f9e9d5 51%, #f1d9bf 100%);
+    radial-gradient(ellipse at 16% -8%, rgba(255, 255, 255, 0.96), transparent 39%),
+    radial-gradient(ellipse at 98% 18%, rgba(228, 123, 69, 0.16), transparent 34%),
+    radial-gradient(ellipse at 54% 118%, rgba(205, 159, 122, 0.1), transparent 40%),
+    linear-gradient(145deg, #fff9f1 0%, #f2e8dc 51%, #e9ddcf 100%);
 }
 
 :root[data-color-scheme="dark"] {
