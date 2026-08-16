@@ -21,7 +21,7 @@ export const THEME_DEFINITIONS = [
   {
     id: 'emerald',
     name: '幽蓝冷钢',
-    description: '近黑军蓝、深蓝钢面与冰蓝仪表光',
+    description: '近黑军蓝、深蓝钢面与冰蓝辉光',
     colors: ['#020810', '#0d1d2e', '#64c6ea'],
     colorScheme: 'dark',
   },

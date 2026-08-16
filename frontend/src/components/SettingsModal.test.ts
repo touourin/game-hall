@@ -213,7 +213,7 @@ describe('SettingsModal', () => {
       wrapper.findAll('.theme-copy small').map((description) => description.text()),
     ).toEqual([
       '奶油暖杏、柔白陶面与鲜润橘釉',
-      '近黑军蓝、深蓝钢面与冰蓝仪表光',
+      '近黑军蓝、深蓝钢面与冰蓝辉光',
       '月白冷灰、柔白云瓷与灰绿釉面',
       '曜石黑陶、石墨烟面与冷银钛光',
     ])
