@@ -5,15 +5,19 @@ import { WifiOff, X } from '@lucide/vue'
 import {
   clearAccountToken,
   clearAccountTokenIfCurrent,
+  confirmPasswordReset,
   createGuestSession,
   loginAccount,
   logoutAccount,
   renamePlayer,
+  requestEmailBindingCode,
+  requestPasswordResetCode,
   selectAvatarPreset,
   registerAccount,
   rememberAccountToken,
   storedAccountToken,
   validateAccountToken,
+  verifyEmailBinding,
   uploadAvatar,
   type AvatarPresetId,
   type AccountProfile,
@@ -48,6 +52,13 @@ const accountBusy = ref(false)
 const accountError = ref<string | null>(null)
 const account = ref<AccountProfile | null>(null)
 const showSettings = ref(false)
+const emailBusy = ref(false)
+const emailError = ref<string | null>(null)
+const emailMessage = ref<string | null>(null)
+const emailCodeSent = ref(false)
+const passwordResetState = ref<'idle' | 'code-sent' | 'complete'>('idle')
+const passwordResetError = ref<string | null>(null)
+const passwordResetMessage = ref<string | null>(null)
 const selectedGame = computed(() => gameCatalogItem(route.params.gameKey))
 const invitedRoomCode = computed(() => (
   route.name === 'room' && typeof route.params.roomCode === 'string'
@@ -215,6 +226,58 @@ async function register(payload: {
   }
 }
 
+function clearPasswordResetState() {
+  passwordResetState.value = 'idle'
+  passwordResetError.value = null
+  passwordResetMessage.value = null
+}
+
+async function sendPasswordResetCode(identifier: string) {
+  accountBusy.value = true
+  passwordResetError.value = null
+  passwordResetMessage.value = null
+  passwordResetState.value = 'idle'
+  try {
+    const accessToken = await ensureAccessToken()
+    passwordResetMessage.value = await requestPasswordResetCode(
+      accessToken,
+      identifier,
+    )
+    passwordResetState.value = 'code-sent'
+  } catch (caught) {
+    passwordResetError.value = caught instanceof Error
+      ? caught.message
+      : '验证码发送失败，请稍后重试'
+  } finally {
+    accountBusy.value = false
+  }
+}
+
+async function resetPassword(payload: {
+  identifier: string
+  code: string
+  password: string
+}) {
+  accountBusy.value = true
+  passwordResetError.value = null
+  passwordResetMessage.value = null
+  try {
+    const accessToken = await ensureAccessToken()
+    passwordResetMessage.value = await confirmPasswordReset(accessToken, {
+      identifier: payload.identifier,
+      code: payload.code,
+      newPassword: payload.password,
+    })
+    passwordResetState.value = 'complete'
+  } catch (caught) {
+    passwordResetError.value = caught instanceof Error
+      ? caught.message
+      : '密码重置失败，请稍后重试'
+  } finally {
+    accountBusy.value = false
+  }
+}
+
 async function enterAsGuest(payload: { playerName: string }) {
   accountBusy.value = true
   accountError.value = null
@@ -290,6 +353,54 @@ async function changeCustomAvatar(file: File) {
   }
 }
 
+async function sendEmailBindingCode(email: string) {
+  const token = storedAccountToken()
+  if (!token) return
+  emailBusy.value = true
+  emailError.value = null
+  emailMessage.value = null
+  emailCodeSent.value = false
+  try {
+    emailMessage.value = await requestEmailBindingCode(
+      activeAccessToken.value,
+      token,
+      email,
+    )
+    emailCodeSent.value = true
+  } catch (caught) {
+    emailError.value = caught instanceof Error
+      ? caught.message
+      : '验证码发送失败，请稍后重试'
+  } finally {
+    emailBusy.value = false
+  }
+}
+
+async function bindAccountEmail(payload: { email: string; code: string }) {
+  const token = storedAccountToken()
+  if (!token) return
+  emailBusy.value = true
+  emailError.value = null
+  emailMessage.value = null
+  try {
+    const response = await verifyEmailBinding(
+      activeAccessToken.value,
+      token,
+      payload.email,
+      payload.code,
+    )
+    account.value = response.account
+    emailMessage.value = response.message
+    emailCodeSent.value = false
+  } catch (caught) {
+    emailError.value = caught instanceof Error
+      ? caught.message
+      : '邮箱绑定失败，请检查验证码'
+  } finally {
+    emailBusy.value = false
+  }
+}
+
 async function logout() {
   const token = storedAccountToken()
   if (token) {
@@ -330,9 +441,15 @@ onMounted(async () => {
       v-if="accountState !== 'authenticated'"
       :busy="accountBusy || accountState === 'checking'"
       :error="accountError"
+      :password-reset-state="passwordResetState"
+      :password-reset-error="passwordResetError"
+      :password-reset-message="passwordResetMessage"
       @login="login"
       @register="register"
       @guest="enterAsGuest"
+      @password-reset-start="clearPasswordResetState"
+      @password-reset-code="sendPasswordResetCode"
+      @password-reset-confirm="resetPassword"
     />
 
     <template v-else-if="account">
@@ -385,10 +502,16 @@ onMounted(async () => {
       :account="account"
       :busy="accountBusy"
       :error="accountError"
+      :email-busy="emailBusy"
+      :email-error="emailError"
+      :email-message="emailMessage"
+      :email-code-sent="emailCodeSent"
       @close="showSettings = false"
       @rename="changePlayerName"
       @avatar-preset="changeAvatarPreset"
       @avatar-upload="changeCustomAvatar"
+      @request-email-code="sendEmailBindingCode"
+      @verify-email="bindAccountEmail"
     />
 
     <div v-if="arcade.error" class="toast" role="alert">

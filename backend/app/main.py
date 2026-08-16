@@ -17,9 +17,11 @@ from starlette.concurrency import run_in_threadpool
 
 from .access import access_signing_secret, access_token, verify_access_token
 from .accounts import (
+    EMAIL_MAX_LENGTH,
     USERNAME_MAX_LENGTH,
     USERNAME_MIN_LENGTH,
     AccountError,
+    EmailChallenge,
     account_store,
 )
 from .avatars import (
@@ -28,6 +30,13 @@ from .avatars import (
     process_avatar_upload,
 )
 from .games.registry import GAME_CATALOG, GAME_NAMES, game_registration
+from .email_delivery import (
+    EmailDeliveryError,
+    EmailDeliveryUnavailable,
+    email_policy,
+    send_verification_email,
+    smtp_settings,
+)
 from .games.avalon.records import avalon_role_skin_progress as role_skin_progress
 from .games.definition import GameRecordQueryError, GameRecords
 from .guests import GuestSessionError, guest_for_token, issue_guest_session
@@ -209,6 +218,23 @@ class AvatarPresetRequest(BaseModel):
     preset: str = Field(min_length=2, max_length=32)
 
 
+class EmailCodeRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=EMAIL_MAX_LENGTH)
+
+
+class EmailVerificationRequest(EmailCodeRequest):
+    code: str = Field(min_length=6, max_length=6)
+
+
+class PasswordResetCodeRequest(BaseModel):
+    identifier: str = Field(min_length=2, max_length=EMAIL_MAX_LENGTH)
+
+
+class PasswordResetConfirmRequest(PasswordResetCodeRequest):
+    code: str = Field(min_length=6, max_length=6)
+    new_password: str = Field(min_length=6, max_length=128)
+
+
 def bearer_token(authorization: str | None) -> str | None:
     if not authorization:
         return None
@@ -263,6 +289,39 @@ def require_identity_session(
             detail="登录状态已失效",
         )
     return identity
+
+
+def _account_error_status(error: AccountError) -> int:
+    message = str(error)
+    if "每天最多" in message or "额度" in message or "等待" in message:
+        return status.HTTP_429_TOO_MANY_REQUESTS
+    return status.HTTP_400_BAD_REQUEST
+
+
+async def _deliver_email_challenge(challenge: EmailChallenge) -> None:
+    policy = email_policy()
+    try:
+        await run_in_threadpool(
+            send_verification_email,
+            challenge.email,
+            challenge.code,
+            challenge.purpose,
+            ttl_minutes=policy.code_ttl_minutes,
+        )
+    except EmailDeliveryError as error:
+        account_store().cancel_email_challenge(challenge.id)
+        logger.exception(
+            "Verification email delivery failed",
+            extra={
+                "account_id": challenge.account_id,
+                "event": "account.email.delivery_failed",
+                "purpose": challenge.purpose,
+            },
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(error),
+        ) from error
 
 
 @api.get("/api/health")
@@ -355,6 +414,82 @@ async def login_account(
     return {"ok": True, "token": token, "account": account.as_dict()}
 
 
+@api.post("/api/auth/password-reset/code")
+async def request_password_reset_code(
+    payload: PasswordResetCodeRequest,
+    game_hall_access: str | None = Depends(game_hall_access_header),
+) -> dict:
+    require_front_door(game_hall_access)
+    try:
+        smtp_settings()
+        policy = email_policy()
+        challenge = account_store().begin_password_reset(
+            payload.identifier,
+            policy,
+        )
+    except EmailDeliveryUnavailable as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(error),
+        ) from error
+    except AccountError as error:
+        raise HTTPException(
+            status_code=_account_error_status(error),
+            detail=str(error),
+        ) from error
+    if challenge is not None:
+        await _deliver_email_challenge(challenge)
+        logger.info(
+            "Password reset email requested",
+            extra={
+                "account_id": challenge.account_id,
+                "event": "account.password_reset.requested",
+            },
+        )
+    return {
+        "ok": True,
+        "message": "如果账号已经绑定邮箱，验证码将发送到该邮箱",
+    }
+
+
+@api.post("/api/auth/password-reset/confirm")
+async def confirm_password_reset(
+    payload: PasswordResetConfirmRequest,
+    game_hall_access: str | None = Depends(game_hall_access_header),
+) -> dict:
+    require_front_door(game_hall_access)
+    try:
+        account_id = account_store().reset_password_with_code(
+            payload.identifier,
+            payload.code,
+            payload.new_password,
+            email_policy(),
+        )
+    except (AccountError, EmailDeliveryUnavailable) as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+    try:
+        await replace_account_session_connections(account_id)
+    except Exception:
+        logger.exception(
+            "Failed to notify sessions after password reset",
+            extra={
+                "account_id": account_id,
+                "event": "account.password_reset_notification_failed",
+            },
+        )
+    logger.info(
+        "Account password reset completed",
+        extra={
+            "account_id": account_id,
+            "event": "account.password_reset.completed",
+        },
+    )
+    return {"ok": True, "message": "密码已经重置，请使用新密码登录"}
+
+
 @api.post("/api/auth/guest")
 def create_guest_session(
     payload: GuestRequest,
@@ -382,6 +517,82 @@ def current_account(
 ) -> dict:
     identity = require_identity_session(authorization, game_hall_access)
     return {"ok": True, "account": identity.as_dict()}
+
+
+@api.post("/api/auth/me/email/code")
+async def request_email_binding_code(
+    payload: EmailCodeRequest,
+    authorization: str | None = Header(default=None),
+    game_hall_access: str | None = Depends(game_hall_access_header),
+) -> dict:
+    account = require_account_session(authorization, game_hall_access)
+    try:
+        smtp_settings()
+        policy = email_policy()
+        challenge = account_store().begin_email_binding(
+            account.id,
+            payload.email,
+            policy,
+        )
+    except EmailDeliveryUnavailable as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(error),
+        ) from error
+    except AccountError as error:
+        raise HTTPException(
+            status_code=_account_error_status(error),
+            detail=str(error),
+        ) from error
+    await _deliver_email_challenge(challenge)
+    logger.info(
+        "Account email verification requested",
+        extra={
+            "account_id": account.id,
+            "event": "account.email.verification_requested",
+        },
+    )
+    return {
+        "ok": True,
+        "expiresAt": challenge.expires_at,
+        "message": (
+            "验证码已经发送，请在 "
+            f"{policy.code_ttl_minutes} 分钟内完成绑定"
+        ),
+    }
+
+
+@api.post("/api/auth/me/email/verify")
+def verify_account_email(
+    payload: EmailVerificationRequest,
+    authorization: str | None = Header(default=None),
+    game_hall_access: str | None = Depends(game_hall_access_header),
+) -> dict:
+    account = require_account_session(authorization, game_hall_access)
+    try:
+        updated = account_store().verify_and_bind_email(
+            account.id,
+            payload.email,
+            payload.code,
+            email_policy(),
+        )
+    except (AccountError, EmailDeliveryUnavailable) as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+    logger.info(
+        "Account email verified",
+        extra={
+            "account_id": account.id,
+            "event": "account.email.verified",
+        },
+    )
+    return {
+        "ok": True,
+        "account": updated.as_dict(),
+        "message": "邮箱绑定成功",
+    }
 
 
 @api.patch("/api/auth/me")

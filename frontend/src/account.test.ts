@@ -2,13 +2,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   clearAccountToken,
   clearAccountTokenIfCurrent,
+  confirmPasswordReset,
   createGuestSession,
   loginAccount,
   rememberAccountToken,
+  requestEmailBindingCode,
+  requestPasswordResetCode,
   selectAvatarPreset,
   storedAccountToken,
   uploadAvatar,
   validateAccountToken,
+  verifyEmailBinding,
 } from './account'
 
 afterEach(() => {
@@ -99,6 +103,97 @@ describe('account service', () => {
     await expect(
       validateAccountToken('access-token', 'account-token'),
     ).resolves.toMatchObject({ username: 'player', playerName: '玩家昵称' })
+  })
+
+  it('uses the expected authenticated email and password-reset endpoints', async () => {
+    const account = {
+      id: 'a1',
+      username: 'player',
+      playerName: '玩家昵称',
+      nextRenameAt: null,
+      email: 'player@example.com',
+      emailVerified: true,
+      createdAt: '2026-08-01T00:00:00+00:00',
+    }
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: '验证码已发送' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: '密码已重置' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: '绑定验证码已发送' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ account, message: '邮箱绑定成功' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await requestPasswordResetCode('access-token', 'player')
+    await confirmPasswordReset('access-token', {
+      identifier: 'player@example.com',
+      code: '123456',
+      newPassword: 'new-secret',
+    })
+    await requestEmailBindingCode(
+      'access-token',
+      'account-token',
+      'player@example.com',
+    )
+    await verifyEmailBinding(
+      'access-token',
+      'account-token',
+      'player@example.com',
+      '654321',
+    )
+
+    expect(fetchMock.mock.calls[0]).toEqual([
+      '/api/auth/password-reset/code',
+      expect.objectContaining({ body: JSON.stringify({ identifier: 'player' }) }),
+    ])
+    expect(fetchMock.mock.calls[1]).toEqual([
+      '/api/auth/password-reset/confirm',
+      expect.objectContaining({
+        body: JSON.stringify({
+          identifier: 'player@example.com',
+          code: '123456',
+          new_password: 'new-secret',
+        }),
+      }),
+    ])
+    expect(fetchMock.mock.calls[2]?.[1]).toEqual(
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer account-token',
+        }),
+        body: JSON.stringify({ email: 'player@example.com' }),
+      }),
+    )
+    expect(fetchMock.mock.calls[3]?.[1]).toEqual(
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer account-token',
+        }),
+        body: JSON.stringify({
+          email: 'player@example.com',
+          code: '654321',
+        }),
+      }),
+    )
   })
 
   it('creates a temporary guest session through the front door', async () => {

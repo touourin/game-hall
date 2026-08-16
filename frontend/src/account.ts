@@ -9,6 +9,8 @@ export interface AccountProfile {
   avatarType?: 'preset' | 'custom'
   avatarPreset?: AvatarPresetId
   avatarUrl?: string
+  email?: string | null
+  emailVerified?: boolean
   createdAt: string
   isGuest?: boolean
 }
@@ -121,6 +123,42 @@ export async function loginAccount(
   return (await response.json()) as AuthResponse
 }
 
+export async function requestPasswordResetCode(
+  accessToken: string,
+  identifier: string,
+): Promise<string> {
+  const response = await authFetch('/api/auth/password-reset/code', accessToken, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier }),
+  })
+  if (!response.ok) throw await responseError(response)
+  const data = (await response.json()) as { message: string }
+  return data.message
+}
+
+export async function confirmPasswordReset(
+  accessToken: string,
+  payload: { identifier: string; code: string; newPassword: string },
+): Promise<string> {
+  const response = await authFetch(
+    '/api/auth/password-reset/confirm',
+    accessToken,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identifier: payload.identifier,
+        code: payload.code,
+        new_password: payload.newPassword,
+      }),
+    },
+  )
+  if (!response.ok) throw await responseError(response)
+  const data = (await response.json()) as { message: string }
+  return data.message
+}
+
 export async function createGuestSession(
   accessToken: string,
   playerName: string,
@@ -179,6 +217,45 @@ export async function renamePlayer(
     account: AccountProfile
   }
   return data.account
+}
+
+export async function requestEmailBindingCode(
+  accessToken: string,
+  token: string,
+  email: string,
+): Promise<string> {
+  const response = await authFetch('/api/auth/me/email/code', accessToken, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email }),
+  })
+  if (!response.ok) throw await responseError(response)
+  const data = (await response.json()) as { message: string }
+  return data.message
+}
+
+export async function verifyEmailBinding(
+  accessToken: string,
+  token: string,
+  email: string,
+  code: string,
+): Promise<{ account: AccountProfile; message: string }> {
+  const response = await authFetch('/api/auth/me/email/verify', accessToken, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, code }),
+  })
+  if (!response.ok) throw await responseError(response)
+  return (await response.json()) as {
+    account: AccountProfile
+    message: string
+  }
 }
 
 export async function selectAvatarPreset(

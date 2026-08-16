@@ -1,30 +1,46 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Crown, Gamepad2, LogIn, ShieldCheck, Trophy, UserPlus, UserRound, UsersRound } from '@lucide/vue'
+import { ArrowLeft, Crown, Gamepad2, KeyRound, LogIn, Mail, ShieldCheck, Trophy, UserPlus, UserRound, UsersRound } from '@lucide/vue'
 import UiButton from '../components/ui/UiButton.vue'
 
-defineProps<{
+const props = defineProps<{
   busy: boolean
   error: string | null
+  passwordResetState?: 'idle' | 'code-sent' | 'complete'
+  passwordResetError?: string | null
+  passwordResetMessage?: string | null
 }>()
 
 const emit = defineEmits<{
   login: [payload: { username: string; password: string }]
   register: [payload: { username: string; playerName: string; password: string }]
   guest: [payload: { playerName: string }]
+  passwordResetStart: []
+  passwordResetCode: [identifier: string]
+  passwordResetConfirm: [payload: { identifier: string; code: string; password: string }]
 }>()
 
-const mode = ref<'login' | 'register' | 'guest'>('login')
+const mode = ref<'login' | 'register' | 'guest' | 'reset'>('login')
 const username = ref('')
 const playerName = ref('')
 const password = ref('')
 const confirmPassword = ref('')
+const resetCode = ref('')
 const localError = ref<string | null>(null)
+const resetState = computed(() => props.passwordResetState ?? 'idle')
 
 const canSubmit = computed(() => {
   if (mode.value === 'guest') {
     return playerName.value.trim().length >= 1
       && playerName.value.trim().length <= 12
+  }
+  if (mode.value === 'reset') {
+    if (resetState.value === 'complete') return false
+    if (username.value.trim().length < 2) return false
+    if (resetState.value === 'idle') return true
+    return /^\d{6}$/.test(resetCode.value)
+      && password.value.length >= 6
+      && password.value === confirmPassword.value
   }
   if (
     username.value.trim().length < 2
@@ -47,12 +63,45 @@ function switchMode(nextMode: 'login' | 'register' | 'guest') {
   localError.value = null
   password.value = ''
   confirmPassword.value = ''
+  resetCode.value = ''
+  emit('passwordResetStart')
+}
+
+function openPasswordReset() {
+  mode.value = 'reset'
+  localError.value = null
+  password.value = ''
+  confirmPassword.value = ''
+  resetCode.value = ''
+  emit('passwordResetStart')
+}
+
+function returnToLogin() {
+  switchMode('login')
 }
 
 function submit() {
   localError.value = null
   if (mode.value === 'guest') {
     emit('guest', { playerName: playerName.value.trim() })
+    return
+  }
+  if (mode.value === 'reset') {
+    if (resetState.value === 'complete') return
+    const identifier = username.value.trim()
+    if (resetState.value === 'idle') {
+      emit('passwordResetCode', identifier)
+      return
+    }
+    if (password.value !== confirmPassword.value) {
+      localError.value = '两次输入的新密码不一致'
+      return
+    }
+    emit('passwordResetConfirm', {
+      identifier,
+      code: resetCode.value,
+      password: password.value,
+    })
     return
   }
   if (mode.value === 'register') {
@@ -98,18 +147,20 @@ function submit() {
       <section class="surface account-card">
       <span class="account-mark"><Crown :size="29" /></span>
       <p class="eyebrow">PLAYER PROFILE</p>
-      <h1>{{ mode === 'login' ? '玩家登录' : mode === 'register' ? '建立玩家档案' : '游客入席' }}</h1>
+      <h1>{{ mode === 'login' ? '玩家登录' : mode === 'register' ? '建立玩家档案' : mode === 'guest' ? '游客入席' : '找回账号密码' }}</h1>
       <p class="account-copy">
         {{
           mode === 'login'
             ? '使用账号名登录，继续你的战绩与对局。'
             : mode === 'register'
               ? '账号名用于登录；游戏昵称显示在大厅、对局、聊天和排行榜。'
-              : '无需注册即可完整游戏；包含游客的对局不会计入任何玩家战绩。'
+              : mode === 'guest'
+                ? '无需注册即可完整游戏；包含游客的对局不会计入任何玩家战绩。'
+                : '验证码会发送到账号已经绑定的邮箱。'
         }}
       </p>
 
-      <div class="segmented-control account-mode" aria-label="登录、注册或游客入席">
+      <div v-if="mode !== 'reset'" class="segmented-control account-mode" aria-label="登录、注册或游客入席">
         <button
           type="button"
           :class="{ active: mode === 'login' }"
@@ -133,15 +184,20 @@ function submit() {
         </button>
       </div>
 
+      <button v-else type="button" class="account-back-button" @click="returnToLogin">
+        <ArrowLeft :size="15" />返回登录
+      </button>
+
       <form class="account-form" @submit.prevent="submit">
         <label v-if="mode !== 'guest'" class="field">
-          <span>账号名</span>
+          <span>{{ mode === 'reset' ? '账号名或已绑定邮箱' : '账号名' }}</span>
           <input
             v-model="username"
             minlength="2"
-            maxlength="50"
+            :maxlength="mode === 'reset' ? 254 : 50"
             autocomplete="username"
-            placeholder="2–50 个字符，可使用邮箱"
+            :placeholder="mode === 'reset' ? '输入账号名或绑定邮箱' : '2–50 个字符，可使用邮箱'"
+            :disabled="mode === 'reset' && resetState !== 'idle'"
           />
         </label>
 
@@ -156,7 +212,7 @@ function submit() {
           />
         </label>
 
-        <label v-if="mode !== 'guest'" class="field">
+        <label v-if="mode === 'login' || mode === 'register'" class="field">
           <span>密码</span>
           <input
             v-model="password"
@@ -165,6 +221,50 @@ function submit() {
             maxlength="128"
             :autocomplete="mode === 'login' ? 'current-password' : 'new-password'"
             placeholder="至少 6 个字符"
+          />
+        </label>
+
+        <button
+          v-if="mode === 'login'"
+          type="button"
+          class="forgot-password-button"
+          @click="openPasswordReset"
+        >
+          忘记密码？
+        </button>
+
+        <label v-if="mode === 'reset' && resetState === 'code-sent'" class="field">
+          <span>6 位邮箱验证码</span>
+          <input
+            v-model="resetCode"
+            inputmode="numeric"
+            maxlength="6"
+            autocomplete="one-time-code"
+            placeholder="000000"
+          />
+        </label>
+
+        <label v-if="mode === 'reset' && resetState === 'code-sent'" class="field">
+          <span>新密码</span>
+          <input
+            v-model="password"
+            type="password"
+            minlength="6"
+            maxlength="128"
+            autocomplete="new-password"
+            placeholder="至少 6 个字符"
+          />
+        </label>
+
+        <label v-if="mode === 'reset' && resetState === 'code-sent'" class="field">
+          <span>确认新密码</span>
+          <input
+            v-model="confirmPassword"
+            type="password"
+            minlength="6"
+            maxlength="128"
+            autocomplete="new-password"
+            placeholder="再次输入新密码"
           />
         </label>
 
@@ -180,11 +280,16 @@ function submit() {
           />
         </label>
 
-        <p v-if="localError || error" class="account-error" role="alert">
-          {{ localError || error }}
+        <p v-if="localError || (mode === 'reset' ? passwordResetError : error)" class="account-error" role="alert">
+          {{ localError || (mode === 'reset' ? passwordResetError : error) }}
+        </p>
+
+        <p v-if="mode === 'reset' && passwordResetMessage" class="account-reset-message" role="status">
+          {{ passwordResetMessage }}
         </p>
 
         <UiButton
+          v-if="!(mode === 'reset' && resetState === 'complete')"
           variant="primary"
           block
           type="submit"
@@ -192,9 +297,29 @@ function submit() {
         >
           <UserPlus v-if="mode === 'register'" :size="18" />
           <UserRound v-else-if="mode === 'guest'" :size="18" />
+          <Mail v-else-if="mode === 'reset' && resetState === 'idle'" :size="18" />
+          <KeyRound v-else-if="mode === 'reset'" :size="18" />
           <LogIn v-else :size="18" />
-          {{ busy ? '请稍候…' : mode === 'login' ? '登录' : mode === 'register' ? '注册并进入' : '以游客身份进入' }}
+          {{ busy ? '请稍候…' : mode === 'login' ? '登录' : mode === 'register' ? '注册并进入' : mode === 'guest' ? '以游客身份进入' : resetState === 'idle' ? '发送邮箱验证码' : '确认重置密码' }}
         </UiButton>
+        <UiButton
+          v-else
+          variant="primary"
+          block
+          type="button"
+          @click="returnToLogin"
+        >
+          <LogIn :size="18" />返回登录
+        </UiButton>
+        <button
+          v-if="mode === 'reset' && resetState === 'code-sent'"
+          type="button"
+          class="reset-resend-button"
+          :disabled="busy"
+          @click="$emit('passwordResetCode', username.trim())"
+        >
+          没收到？重新发送验证码
+        </button>
         <small v-if="mode === 'guest'" class="guest-account-note">
           游客身份保留 7 天，可断线重连；个人战绩、比赛历史和排行榜成绩不会记录。
         </small>
@@ -229,6 +354,12 @@ function submit() {
 .account-card { z-index: 2; width: auto; display: grid; align-content: center; border-color: color-mix(in srgb, var(--line-strong) 62%, var(--line)); border-radius: var(--radius-lg); padding: clamp(32px, 5vw, 54px); }
 .account-card::after { position: absolute; inset: 5px; border: 1px solid color-mix(in srgb, var(--line-bright) 13%, transparent); border-radius: calc(var(--radius-panel) - 5px); content: ''; pointer-events: none; }
 .account-card .account-mark { display: none; }
+.account-back-button,.forgot-password-button,.reset-resend-button { border: 0; padding: 0; color: var(--gold); background: transparent; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
+.account-back-button { width: fit-content; display: inline-flex; align-items: center; gap: 5px; margin: 4px 0 16px; }
+.forgot-password-button { justify-self: end; margin-top: -4px; }
+.reset-resend-button { justify-self: center; }
+.reset-resend-button:disabled { cursor: not-allowed; opacity: .55; }
+.account-reset-message { margin: 0; border: 1px solid color-mix(in srgb, var(--green) 36%, var(--line)); border-radius: var(--radius-control); padding: 10px 12px; color: #8fe0bd; background: color-mix(in srgb, var(--green) 7%, var(--surface-inset)); font-size: 11px; font-weight: 700; line-height: 1.6; }
 @media (max-width: 820px) {
   .account-page { width: min(100%, 560px); }
   .account-stage { grid-template-columns: 1fr; gap: 12px; }

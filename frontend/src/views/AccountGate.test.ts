@@ -93,6 +93,36 @@ describe('AccountGate', () => {
     expect(wrapper.emitted('guest')?.[0]?.[0]).toEqual({ playerName: '李' })
   })
 
+  it('supports requesting a code and confirming a password reset', async () => {
+    const wrapper = mount(AccountGate, {
+      props: { busy: false, error: null, passwordResetState: 'idle' },
+    })
+
+    await wrapper.get('.forgot-password-button').trigger('click')
+    await wrapper.get('input[autocomplete="username"]').setValue('player@example.com')
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.emitted('passwordResetCode')).toEqual([
+      ['player@example.com'],
+    ])
+
+    await wrapper.setProps({ passwordResetState: 'code-sent' })
+    await wrapper.get('input[autocomplete="one-time-code"]').setValue('123456')
+    const passwordInputs = wrapper.findAll('input[autocomplete="new-password"]')
+    await passwordInputs[0]!.setValue('new-secret')
+    await passwordInputs[1]!.setValue('new-secret')
+    await wrapper.get('form').trigger('submit')
+
+    expect(wrapper.emitted('passwordResetConfirm')).toEqual([
+      [
+        {
+          identifier: 'player@example.com',
+          code: '123456',
+          password: 'new-secret',
+        },
+      ],
+    ])
+  })
+
   it('enters with only a temporary guest nickname', async () => {
     const wrapper = mount(AccountGate, {
       props: { busy: false, error: null },

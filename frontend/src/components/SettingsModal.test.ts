@@ -76,6 +76,31 @@ describe('SettingsModal', () => {
     ).toBeDefined()
   })
 
+  it('requests and verifies a binding email without losing the target address', async () => {
+    const wrapper = mountSettings()
+    const emailSection = wrapper.get('.email-settings-section')
+    await emailSection.get('input[type="email"]').setValue(' player@example.com ')
+    const sendButton = emailSection
+      .findAll('button')
+      .find((button) => button.text().includes('发送验证码'))
+
+    await sendButton?.trigger('click')
+    expect(wrapper.emitted('requestEmailCode')).toEqual([
+      ['player@example.com'],
+    ])
+
+    await wrapper.setProps({ emailCodeSent: true })
+    const refreshedSection = wrapper.get('.email-settings-section')
+    await refreshedSection
+      .get('input[autocomplete="one-time-code"]')
+      .setValue('123456')
+    await refreshedSection.get('form').trigger('submit')
+
+    expect(wrapper.emitted('verifyEmail')).toEqual([
+      [{ email: 'player@example.com', code: '123456' }],
+    ])
+  })
+
   it('previews a built-in avatar and only saves it after confirmation', async () => {
     const wrapper = mountSettings()
     const presets = wrapper.findAll('.avatar-preset-grid button')

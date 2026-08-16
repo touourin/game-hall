@@ -4,20 +4,26 @@ import hashlib
 import json
 import logging
 import os
+import re
 import secrets
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import case, delete, func, insert, inspect, or_, select, update
+from sqlalchemy.dialects.mysql import insert as mysql_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 
 from .database import (
     account_sessions,
     build_engine,
+    email_send_quotas,
+    email_verification_challenges,
     games,
     match_players,
     matches,
@@ -25,6 +31,11 @@ from .database import (
     normalize_database_url,
     player_name_claims,
     users,
+)
+from .email_delivery import (
+    BIND_EMAIL_PURPOSE,
+    RESET_PASSWORD_PURPOSE,
+    EmailPolicy,
 )
 from .games.definition import GameRecordQueryError
 from .games.registry import GAME_NAMES, GAME_REGISTRY, game_registration
@@ -35,6 +46,10 @@ SESSION_LIFETIME = timedelta(days=30)
 PLAYER_NAME_CHANGE_INTERVAL = timedelta(days=30)
 USERNAME_MIN_LENGTH = 2
 USERNAME_MAX_LENGTH = 50
+EMAIL_MAX_LENGTH = 254
+EMAIL_LOCAL_PART_PATTERN = re.compile(
+    r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+$"
+)
 SCORED_GAME_KEYS = GAME_REGISTRY.scored_game_keys
 AVATAR_PRESET_IDS = (
     "moon-fox",
@@ -67,6 +82,8 @@ class Account:
     player_name_changed_at: str | None
     avatar_preset: str
     avatar_token: str | None
+    email: str | None
+    email_verified_at: str | None
     created_at: str
 
     @property
@@ -94,9 +111,21 @@ class Account:
             "avatarType": self.avatar_type,
             "avatarPreset": self.avatar_preset,
             "avatarUrl": self.avatar_url,
+            "email": self.email,
+            "emailVerified": self.email_verified_at is not None,
             "createdAt": self.created_at,
             "isGuest": False,
         }
+
+
+@dataclass(frozen=True)
+class EmailChallenge:
+    id: str
+    account_id: str
+    email: str
+    purpose: str
+    code: str
+    expires_at: str
 
 
 class AccountStore:
@@ -111,6 +140,7 @@ class AccountStore:
         if self.engine.dialect.name == "sqlite":
             self._upgrade_local_sqlite_schema()
             metadata.create_all(self.engine)
+            self._ensure_local_sqlite_indexes()
         now = self._now()
         with self.engine.begin() as connection:
             existing_games = set(
@@ -145,20 +175,48 @@ class AccountStore:
         ``create_all`` cannot apply on its own.
         """
         inspector = inspect(self.engine)
-        if "match_players" not in inspector.get_table_names():
-            return
-        columns = {
-            column["name"]
-            for column in inspector.get_columns("match_players")
-        }
-        if "score_ms" not in columns or "score_value" in columns:
-            return
+        with self.engine.begin() as connection:
+            table_names = set(inspector.get_table_names())
+            if "match_players" in table_names:
+                match_columns = {
+                    column["name"]
+                    for column in inspector.get_columns("match_players")
+                }
+                if (
+                    "score_ms" in match_columns
+                    and "score_value" not in match_columns
+                ):
+                    connection.exec_driver_sql(
+                        "ALTER TABLE match_players "
+                        "RENAME COLUMN score_ms TO score_value"
+                    )
+                    logger.info("Upgraded local SQLite match score column")
+            if "users" in table_names:
+                user_columns = {
+                    column["name"]
+                    for column in inspector.get_columns("users")
+                }
+                email_columns = {
+                    "email": "VARCHAR(254)",
+                    "email_key": "VARCHAR(254)",
+                    "email_verified_at": "DATETIME",
+                }
+                for name, sql_type in email_columns.items():
+                    if name not in user_columns:
+                        connection.exec_driver_sql(
+                            f"ALTER TABLE users ADD COLUMN {name} {sql_type}"
+                        )
+                        logger.info(
+                            "Upgraded local SQLite account email column",
+                            extra={"column": name},
+                        )
+
+    def _ensure_local_sqlite_indexes(self) -> None:
         with self.engine.begin() as connection:
             connection.exec_driver_sql(
-                "ALTER TABLE match_players "
-                "RENAME COLUMN score_ms TO score_value"
+                "CREATE UNIQUE INDEX IF NOT EXISTS ux_users_email_key "
+                "ON users (email_key)"
             )
-        logger.info("Upgraded local SQLite match score column")
 
     def ping(self) -> None:
         with self.engine.connect() as connection:
@@ -184,6 +242,8 @@ class AccountStore:
             player_name_changed_at=None,
             avatar_preset=avatar_preset,
             avatar_token=None,
+            email=None,
+            email_verified_at=None,
             created_at=self._iso_datetime(created_at),
         )
         self.initialize()
@@ -202,6 +262,9 @@ class AccountStore:
                         avatar_token=None,
                         avatar_mime=None,
                         avatar_data=None,
+                        email=None,
+                        email_key=None,
+                        email_verified_at=None,
                         created_at=created_at,
                     )
                 )
@@ -230,6 +293,8 @@ class AccountStore:
                         users.c.player_name_changed_at,
                         users.c.avatar_preset,
                         users.c.avatar_token,
+                        users.c.email,
+                        users.c.email_verified_at,
                         users.c.password_salt,
                         users.c.password_hash,
                         users.c.created_at,
@@ -267,6 +332,8 @@ class AccountStore:
                         users.c.player_name_changed_at,
                         users.c.avatar_preset,
                         users.c.avatar_token,
+                        users.c.email,
+                        users.c.email_verified_at,
                         users.c.created_at,
                     )
                     .select_from(
@@ -297,6 +364,8 @@ class AccountStore:
                         users.c.player_name_changed_at,
                         users.c.avatar_preset,
                         users.c.avatar_token,
+                        users.c.email,
+                        users.c.email_verified_at,
                         users.c.created_at,
                     ).where(users.c.id == account_id)
                 )
@@ -320,6 +389,8 @@ class AccountStore:
                             users.c.player_name_changed_at,
                             users.c.avatar_preset,
                             users.c.avatar_token,
+                            users.c.email,
+                            users.c.email_verified_at,
                             users.c.created_at,
                         ).where(users.c.id == account_id)
                     )
@@ -374,6 +445,12 @@ class AccountStore:
                     player_name_changed_at=self._iso_datetime(now),
                     avatar_preset=row["avatar_preset"],
                     avatar_token=row["avatar_token"],
+                    email=row["email"],
+                    email_verified_at=(
+                        self._iso_datetime(row["email_verified_at"])
+                        if row["email_verified_at"] is not None
+                        else None
+                    ),
                     created_at=self._iso_datetime(row["created_at"]),
                 )
         except IntegrityError as exc:
@@ -458,6 +535,432 @@ class AccountStore:
                     account_sessions.c.token_hash == self._token_hash(token)
                 )
             )
+
+    def begin_email_binding(
+        self,
+        account_id: str,
+        email: str,
+        policy: EmailPolicy,
+        *,
+        now: datetime | None = None,
+    ) -> EmailChallenge:
+        normalized_email, email_key = self._normalize_email(email)
+        self.initialize()
+        created_at = now or self._now()
+        with self.engine.begin() as connection:
+            row = connection.execute(
+                select(users.c.id, users.c.email_key).where(
+                    users.c.id == account_id
+                )
+            ).mappings().first()
+            if row is None:
+                raise AccountError("账号不存在")
+            if row["email_key"] == email_key:
+                raise AccountError("此邮箱已经绑定到当前账号")
+            owner_id = connection.execute(
+                select(users.c.id).where(users.c.email_key == email_key)
+            ).scalar_one_or_none()
+            if owner_id is not None and owner_id != account_id:
+                raise AccountError("此邮箱已经绑定到其他账号")
+            return self._create_email_challenge(
+                connection,
+                account_id=account_id,
+                email=normalized_email,
+                email_key=email_key,
+                purpose=BIND_EMAIL_PURPOSE,
+                policy=policy,
+                now=created_at,
+            )
+
+    def begin_password_reset(
+        self,
+        identifier: str,
+        policy: EmailPolicy,
+        *,
+        now: datetime | None = None,
+    ) -> EmailChallenge | None:
+        self.initialize()
+        created_at = now or self._now()
+        with self.engine.begin() as connection:
+            row = self._account_email_for_identifier(connection, identifier)
+            if row is None or not row["email"] or not row["email_key"]:
+                return None
+            return self._create_email_challenge(
+                connection,
+                account_id=row["id"],
+                email=row["email"],
+                email_key=row["email_key"],
+                purpose=RESET_PASSWORD_PURPOSE,
+                policy=policy,
+                now=created_at,
+            )
+
+    def cancel_email_challenge(self, challenge_id: str) -> None:
+        if not challenge_id:
+            return
+        self.initialize()
+        with self.engine.begin() as connection:
+            connection.execute(
+                delete(email_verification_challenges).where(
+                    email_verification_challenges.c.id == challenge_id
+                )
+            )
+
+    def verify_and_bind_email(
+        self,
+        account_id: str,
+        email: str,
+        code: str,
+        policy: EmailPolicy,
+        *,
+        now: datetime | None = None,
+    ) -> Account:
+        normalized_email, email_key = self._normalize_email(email)
+        self._validate_email_code(code)
+        self.initialize()
+        verified_at = now or self._now()
+        verification_error: str | None = None
+        updated_row: Mapping[str, Any] | None = None
+        try:
+            with self.engine.begin() as connection:
+                verification_error = self._consume_email_challenge(
+                    connection,
+                    account_id=account_id,
+                    purpose=BIND_EMAIL_PURPOSE,
+                    email_key=email_key,
+                    code=code,
+                    policy=policy,
+                    now=verified_at,
+                )
+                if verification_error is None:
+                    owner_id = connection.execute(
+                        select(users.c.id).where(
+                            users.c.email_key == email_key,
+                            users.c.id != account_id,
+                        )
+                    ).scalar_one_or_none()
+                    if owner_id is not None:
+                        verification_error = "此邮箱已经绑定到其他账号"
+                    else:
+                        result = connection.execute(
+                            update(users)
+                            .where(users.c.id == account_id)
+                            .values(
+                                email=normalized_email,
+                                email_key=email_key,
+                                email_verified_at=verified_at,
+                            )
+                        )
+                        if result.rowcount == 0:
+                            verification_error = "账号不存在"
+                        else:
+                            updated_row = self._select_account_row(
+                                connection, account_id
+                            )
+        except IntegrityError as error:
+            raise AccountError("此邮箱已经绑定到其他账号") from error
+        if verification_error is not None:
+            raise AccountError(verification_error)
+        if updated_row is None:
+            raise AccountError("账号不存在")
+        return self._account_from_row(updated_row)
+
+    def reset_password_with_code(
+        self,
+        identifier: str,
+        code: str,
+        new_password: str,
+        policy: EmailPolicy,
+        *,
+        now: datetime | None = None,
+    ) -> str:
+        self._validate_email_code(code)
+        self._validate_password(new_password)
+        self.initialize()
+        reset_at = now or self._now()
+        verification_error: str | None = None
+        account_id: str | None = None
+        with self.engine.begin() as connection:
+            row = self._account_email_for_identifier(connection, identifier)
+            if row is None or not row["email_key"]:
+                verification_error = "验证码无效或已过期"
+            else:
+                verification_error = self._consume_email_challenge(
+                    connection,
+                    account_id=row["id"],
+                    purpose=RESET_PASSWORD_PURPOSE,
+                    email_key=row["email_key"],
+                    code=code,
+                    policy=policy,
+                    now=reset_at,
+                )
+                if verification_error is None:
+                    account_id = row["id"]
+                    salt = secrets.token_bytes(16)
+                    connection.execute(
+                        update(users)
+                        .where(users.c.id == row["id"])
+                        .values(
+                            password_salt=salt,
+                            password_hash=self._password_hash(
+                                new_password, salt
+                            ),
+                        )
+                    )
+                    connection.execute(
+                        delete(account_sessions).where(
+                            account_sessions.c.account_id == row["id"]
+                        )
+                    )
+        if verification_error is not None:
+            raise AccountError(verification_error)
+        if account_id is None:
+            raise AccountError("验证码无效或已过期")
+        return account_id
+
+    def _create_email_challenge(
+        self,
+        connection,
+        *,
+        account_id: str,
+        email: str,
+        email_key: str,
+        purpose: str,
+        policy: EmailPolicy,
+        now: datetime,
+    ) -> EmailChallenge:
+        connection.execute(
+            delete(email_verification_challenges).where(
+                email_verification_challenges.c.created_at
+                < now - timedelta(days=2)
+            )
+        )
+        latest_sent_at = connection.execute(
+            select(func.max(email_verification_challenges.c.created_at)).where(
+                email_verification_challenges.c.account_id == account_id
+            )
+        ).scalar_one_or_none()
+        if (
+            latest_sent_at is not None
+            and latest_sent_at + timedelta(seconds=policy.cooldown_seconds)
+            > now
+        ):
+            remaining = max(
+                1,
+                int(
+                    (
+                        latest_sent_at
+                        + timedelta(seconds=policy.cooldown_seconds)
+                        - now
+                    ).total_seconds()
+                )
+                + 1,
+            )
+            raise AccountError(f"请等待 {remaining} 秒后再发送验证码")
+
+        self._claim_email_send_quota(
+            connection,
+            account_id=account_id,
+            policy=policy,
+            now=now,
+        )
+        connection.execute(
+            update(email_verification_challenges)
+            .where(
+                email_verification_challenges.c.account_id == account_id,
+                email_verification_challenges.c.purpose == purpose,
+                email_verification_challenges.c.consumed_at.is_(None),
+            )
+            .values(consumed_at=now)
+        )
+        challenge_id = secrets.token_urlsafe(18)
+        code = f"{secrets.randbelow(1_000_000):06d}"
+        salt = secrets.token_bytes(16)
+        expires_at = now + timedelta(minutes=policy.code_ttl_minutes)
+        connection.execute(
+            insert(email_verification_challenges).values(
+                id=challenge_id,
+                account_id=account_id,
+                purpose=purpose,
+                email=email,
+                email_key=email_key,
+                code_salt=salt,
+                code_hash=self._email_code_hash(code, salt),
+                expires_at=expires_at,
+                failed_attempts=0,
+                consumed_at=None,
+                created_at=now,
+            )
+        )
+        return EmailChallenge(
+            id=challenge_id,
+            account_id=account_id,
+            email=email,
+            purpose=purpose,
+            code=code,
+            expires_at=self._iso_datetime(expires_at),
+        )
+
+    def _claim_email_send_quota(
+        self,
+        connection,
+        *,
+        account_id: str,
+        policy: EmailPolicy,
+        now: datetime,
+    ) -> None:
+        quota_day = self._email_quota_day(now, policy.timezone_name)
+        scopes = (
+            ("server", "all", policy.server_daily_limit),
+            ("account", account_id, policy.account_daily_limit),
+        )
+        for scope, scope_key, limit in scopes:
+            values = {
+                "scope": scope,
+                "scope_key": scope_key,
+                "quota_day": quota_day,
+                "send_count": 0,
+                "updated_at": now,
+            }
+            if connection.dialect.name == "mysql":
+                statement = mysql_insert(email_send_quotas).values(**values)
+                connection.execute(
+                    statement.on_duplicate_key_update(
+                        updated_at=now
+                    )
+                )
+            elif connection.dialect.name == "sqlite":
+                connection.execute(
+                    sqlite_insert(email_send_quotas)
+                    .values(**values)
+                    .on_conflict_do_nothing(
+                        index_elements=["scope", "scope_key", "quota_day"]
+                    )
+                )
+            else:
+                existing = connection.execute(
+                    select(email_send_quotas.c.scope).where(
+                        email_send_quotas.c.scope == scope,
+                        email_send_quotas.c.scope_key == scope_key,
+                        email_send_quotas.c.quota_day == quota_day,
+                    )
+                ).first()
+                if existing is None:
+                    connection.execute(insert(email_send_quotas).values(**values))
+
+            result = connection.execute(
+                update(email_send_quotas)
+                .where(
+                    email_send_quotas.c.scope == scope,
+                    email_send_quotas.c.scope_key == scope_key,
+                    email_send_quotas.c.quota_day == quota_day,
+                    email_send_quotas.c.send_count < limit,
+                )
+                .values(
+                    send_count=email_send_quotas.c.send_count + 1,
+                    updated_at=now,
+                )
+            )
+            if result.rowcount != 1:
+                if scope == "account":
+                    raise AccountError(
+                        f"每个账号每天最多发送 {limit} 封验证码邮件"
+                    )
+                raise AccountError("今天的邮件发送额度已经用完")
+
+    def _consume_email_challenge(
+        self,
+        connection,
+        *,
+        account_id: str,
+        purpose: str,
+        email_key: str,
+        code: str,
+        policy: EmailPolicy,
+        now: datetime,
+    ) -> str | None:
+        row = connection.execute(
+            select(
+                email_verification_challenges.c.id,
+                email_verification_challenges.c.code_salt,
+                email_verification_challenges.c.code_hash,
+                email_verification_challenges.c.expires_at,
+                email_verification_challenges.c.failed_attempts,
+            )
+            .where(
+                email_verification_challenges.c.account_id == account_id,
+                email_verification_challenges.c.purpose == purpose,
+                email_verification_challenges.c.email_key == email_key,
+                email_verification_challenges.c.consumed_at.is_(None),
+            )
+            .order_by(email_verification_challenges.c.created_at.desc())
+            .limit(1)
+            .with_for_update()
+        ).mappings().first()
+        if row is None or row["expires_at"] <= now:
+            return "验证码无效或已过期"
+        if row["failed_attempts"] >= policy.max_code_attempts:
+            return "验证码尝试次数过多，请重新获取"
+        candidate_hash = self._email_code_hash(code, row["code_salt"])
+        if not secrets.compare_digest(candidate_hash, row["code_hash"]):
+            failed_attempts = row["failed_attempts"] + 1
+            values: dict[str, Any] = {"failed_attempts": failed_attempts}
+            if failed_attempts >= policy.max_code_attempts:
+                values["consumed_at"] = now
+            connection.execute(
+                update(email_verification_challenges)
+                .where(email_verification_challenges.c.id == row["id"])
+                .values(**values)
+            )
+            if failed_attempts >= policy.max_code_attempts:
+                return "验证码尝试次数过多，请重新获取"
+            return "验证码不正确"
+        connection.execute(
+            update(email_verification_challenges)
+            .where(email_verification_challenges.c.id == row["id"])
+            .values(consumed_at=now)
+        )
+        return None
+
+    @staticmethod
+    def _select_account_row(connection, account_id: str):
+        return connection.execute(
+            select(
+                users.c.id,
+                users.c.username,
+                users.c.player_name,
+                users.c.player_name_changed_at,
+                users.c.avatar_preset,
+                users.c.avatar_token,
+                users.c.email,
+                users.c.email_verified_at,
+                users.c.created_at,
+            ).where(users.c.id == account_id)
+        ).mappings().first()
+
+    def _account_email_for_identifier(self, connection, identifier: str):
+        normalized = identifier.strip()
+        if not normalized or len(normalized) > EMAIL_MAX_LENGTH:
+            return None
+        conditions = []
+        if len(normalized) <= USERNAME_MAX_LENGTH:
+            conditions.append(users.c.username_key == normalized.casefold())
+        if "@" in normalized:
+            try:
+                _, email_key = self._normalize_email(normalized)
+            except AccountError:
+                email_key = ""
+            if email_key:
+                conditions.append(users.c.email_key == email_key)
+        if not conditions:
+            return None
+        return connection.execute(
+            select(
+                users.c.id,
+                users.c.email,
+                users.c.email_key,
+            ).where(or_(*conditions))
+        ).mappings().first()
 
     def session_is_active(self, account_id: str, token_hash: str) -> bool:
         if not account_id or not token_hash:
@@ -1259,6 +1762,12 @@ class AccountStore:
             ),
             avatar_preset=row["avatar_preset"],
             avatar_token=row["avatar_token"],
+            email=row.get("email"),
+            email_verified_at=(
+                cls._iso_datetime(row["email_verified_at"])
+                if row.get("email_verified_at") is not None
+                else None
+            ),
             created_at=cls._iso_datetime(row["created_at"]),
         )
 
@@ -1289,6 +1798,76 @@ class AccountStore:
         if not 1 <= len(normalized) <= 12:
             raise AccountError("游戏昵称需要 1–12 个字符")
         return normalized, normalized.casefold()
+
+    @staticmethod
+    def _normalize_email(email: str) -> tuple[str, str]:
+        normalized = email.strip()
+        if (
+            not normalized
+            or len(normalized) > EMAIL_MAX_LENGTH
+            or normalized.count("@") != 1
+            or any(character.isspace() for character in normalized)
+        ):
+            raise AccountError("请输入有效的邮箱地址")
+        local_part, domain = normalized.rsplit("@", 1)
+        if (
+            not local_part
+            or len(local_part) > 64
+            or local_part.startswith(".")
+            or local_part.endswith(".")
+            or ".." in local_part
+            or EMAIL_LOCAL_PART_PATTERN.fullmatch(local_part) is None
+        ):
+            raise AccountError("请输入有效的邮箱地址")
+        try:
+            ascii_domain = domain.rstrip(".").encode("idna").decode("ascii")
+        except UnicodeError as error:
+            raise AccountError("请输入有效的邮箱地址") from error
+        labels = ascii_domain.split(".")
+        if (
+            len(labels) < 2
+            or len(ascii_domain) > 253
+            or any(
+                not label
+                or len(label) > 63
+                or label.startswith("-")
+                or label.endswith("-")
+                or not all(
+                    character.isalnum() or character == "-"
+                    for character in label
+                )
+                for label in labels
+            )
+        ):
+            raise AccountError("请输入有效的邮箱地址")
+        canonical = f"{local_part}@{ascii_domain.lower()}"
+        if len(canonical) > EMAIL_MAX_LENGTH:
+            raise AccountError("请输入有效的邮箱地址")
+        return canonical, canonical.casefold()
+
+    @staticmethod
+    def _validate_email_code(code: str) -> None:
+        if len(code) != 6 or not code.isascii() or not code.isdigit():
+            raise AccountError("验证码需要是 6 位数字")
+
+    @staticmethod
+    def _email_code_hash(code: str, salt: bytes) -> bytes:
+        return hashlib.pbkdf2_hmac(
+            "sha256",
+            code.encode("ascii"),
+            salt,
+            120_000,
+            dklen=32,
+        )
+
+    @staticmethod
+    def _email_quota_day(now: datetime, timezone_name: str):
+        try:
+            local_timezone = ZoneInfo(timezone_name)
+        except ZoneInfoNotFoundError:
+            local_timezone = ZoneInfo("Asia/Shanghai")
+        aware_utc = now.replace(tzinfo=timezone.utc)
+        return aware_utc.astimezone(local_timezone).date()
 
     @staticmethod
     def _validate_password(password: str) -> None:

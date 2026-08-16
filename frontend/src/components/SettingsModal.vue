@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import {
   Check,
   ImagePlus,
+  Mail,
   Palette,
   Settings,
   Upload,
@@ -22,17 +23,28 @@ import AvatarImage from './AvatarImage.vue'
 import BaseModal from './ui/BaseModal.vue'
 import UiButton from './ui/UiButton.vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   account: AccountProfile
   busy: boolean
   error: string | null
-}>()
+  emailBusy?: boolean
+  emailError?: string | null
+  emailMessage?: string | null
+  emailCodeSent?: boolean
+}>(), {
+  emailBusy: false,
+  emailError: null,
+  emailMessage: null,
+  emailCodeSent: false,
+})
 
 const emit = defineEmits<{
   close: []
   rename: [playerName: string]
   avatarPreset: [preset: AvatarPresetId]
   avatarUpload: [file: File]
+  requestEmailCode: [email: string]
+  verifyEmail: [payload: { email: string; code: string }]
 }>()
 
 type AvatarDraft =
@@ -46,6 +58,9 @@ const avatarInput = ref<HTMLInputElement | null>(null)
 const avatarCropSourceFile = ref<File | null>(null)
 const avatarDraft = ref<AvatarDraft | null>(null)
 const avatarMessage = ref<string | null>(null)
+const emailDraft = ref(props.account.email ?? '')
+const emailCode = ref('')
+const requestedEmail = ref('')
 const localAvatarError = ref<string | null>(null)
 const awaitingAvatarUpdate = ref(false)
 const selectedTheme = ref<ThemeName>(storedTheme())
@@ -91,6 +106,19 @@ const canRename = computed(() => {
     && normalized.length <= 12
     && normalized !== props.account.playerName
 })
+const normalizedEmailDraft = computed(() => emailDraft.value.trim())
+const canRequestEmailCode = computed(() => (
+  normalizedEmailDraft.value.includes('@')
+  && normalizedEmailDraft.value.length >= 3
+  && normalizedEmailDraft.value.length <= 254
+  && !props.emailBusy
+))
+const canVerifyEmail = computed(() => (
+  props.emailCodeSent
+  && normalizedEmailDraft.value === requestedEmail.value
+  && /^\d{6}$/.test(emailCode.value)
+  && canRequestEmailCode.value
+))
 
 const selectedAvatarPreset = computed<AvatarPresetId | null>(() => {
   if (avatarDraft.value?.kind === 'preset') return avatarDraft.value.preset
@@ -151,6 +179,15 @@ watch(
 )
 
 watch(
+  () => props.account.email,
+  (currentEmail) => {
+    emailDraft.value = currentEmail ?? ''
+    emailCode.value = ''
+    requestedEmail.value = ''
+  },
+)
+
+watch(
   () => [
     props.account.avatarType,
     props.account.avatarPreset,
@@ -179,6 +216,21 @@ function submitRename() {
   savedMessage.value = null
   submittedName.value = normalized
   emit('rename', normalized)
+}
+
+function requestBindingCode() {
+  if (!canRequestEmailCode.value) return
+  emailCode.value = ''
+  requestedEmail.value = normalizedEmailDraft.value
+  emit('requestEmailCode', normalizedEmailDraft.value)
+}
+
+function confirmEmailBinding() {
+  if (!canVerifyEmail.value) return
+  emit('verifyEmail', {
+    email: normalizedEmailDraft.value,
+    code: emailCode.value,
+  })
 }
 
 function chooseTheme(theme: ThemeName) {
@@ -419,6 +471,61 @@ onBeforeUnmount(clearAvatarDraft)
         </form>
       </section>
 
+      <section v-if="!account.isGuest" class="settings-section email-settings-section">
+        <header><Mail :size="18" /><strong>邮箱与账号安全</strong></header>
+        <div v-if="account.emailVerified && account.email" class="bound-email-status">
+          <span><Check :size="15" /></span>
+          <div><strong>已绑定邮箱</strong><small>{{ account.email }}</small></div>
+        </div>
+        <form @submit.prevent="confirmEmailBinding">
+          <label class="field">
+            <span>{{ account.emailVerified ? '更换绑定邮箱' : '绑定邮箱' }}</span>
+            <input
+              v-model="emailDraft"
+              type="email"
+              maxlength="254"
+              autocomplete="email"
+              placeholder="用于找回密码"
+              :disabled="emailBusy"
+            />
+          </label>
+          <UiButton
+            variant="secondary"
+            block
+            type="button"
+            :disabled="!canRequestEmailCode"
+            @click="requestBindingCode"
+          >
+            <Mail :size="17" />{{ emailBusy ? '正在发送…' : emailCodeSent ? '重新发送验证码' : '发送验证码' }}
+          </UiButton>
+          <label v-if="emailCodeSent" class="field">
+            <span>6 位邮箱验证码</span>
+            <input
+              v-model="emailCode"
+              inputmode="numeric"
+              maxlength="6"
+              autocomplete="one-time-code"
+              placeholder="000000"
+              :disabled="emailBusy"
+            />
+          </label>
+          <small class="settings-hint">
+            每个账号每天最多发送 3 封；绑定后可在登录页通过邮箱重置密码。
+          </small>
+          <p v-if="emailError" class="account-error" role="alert">{{ emailError }}</p>
+          <p v-if="emailMessage" class="settings-success" role="status">{{ emailMessage }}</p>
+          <UiButton
+            v-if="emailCodeSent"
+            variant="primary"
+            block
+            type="submit"
+            :disabled="!canVerifyEmail"
+          >
+            <Check :size="17" />{{ emailBusy ? '正在验证…' : '验证并绑定邮箱' }}
+          </UiButton>
+        </form>
+      </section>
+
       <section v-if="account.isGuest" class="settings-section guest-settings-section">
         <header><UserRound :size="18" /><strong>游客席位</strong></header>
         <div class="current-avatar-row">
@@ -462,6 +569,11 @@ onBeforeUnmount(clearAvatarDraft)
 .settings-section form { display: grid; gap: 11px; }
 .settings-hint { color: var(--muted); line-height: 1.6; }
 .settings-success { margin: 0; color: #8fe0bd; font-size: 12px; font-weight: 700; line-height: 1.55; }
+.bound-email-status { display: flex; align-items: center; gap: 10px; margin-bottom: 13px; border: 1px solid color-mix(in srgb, #63c99b 42%, var(--line)); border-radius: var(--radius-control); padding: 11px 12px; background: color-mix(in srgb, #63c99b 8%, var(--surface-inset)); }
+.bound-email-status > span { width: 28px; height: 28px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 50%; color: #163326; background: #8fe0bd; }
+.bound-email-status div { min-width: 0; display: grid; gap: 3px; }
+.bound-email-status strong { color: var(--text); font-size: 12px; }
+.bound-email-status small { overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .settings-theme-list { display: grid; gap: 9px; }
 .settings-theme-list button { min-height: 76px; padding: 12px 14px; display: grid; grid-template-columns: auto 1fr auto; gap: 13px; align-items: center; border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--text); background: var(--control-surface), var(--surface-inset); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 46%, transparent); text-align: left; cursor: pointer; }
 .settings-theme-list button.selected { border-color: var(--line-strong); background: color-mix(in srgb, var(--gold) 8%, var(--surface-glass)); box-shadow: var(--shadow-contact), inset 0 1px 0 var(--metal-edge); }

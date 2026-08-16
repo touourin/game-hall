@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy import inspect, select, update
@@ -9,6 +9,7 @@ from backend.app.accounts import (
     AccountStore,
 )
 from backend.app.database import matches, users
+from backend.app.email_delivery import EmailPolicy
 from backend.app.games.avalon.models import Alignment, AvalonMode, Phase, Role
 from backend.app.games.avalon.records import (
     ROLE_SKIN_FREE_WEEK_END,
@@ -26,6 +27,22 @@ def account_for_player(store: AccountStore, index: int, prefix: str):
         f"{prefix}_{index}", "secret123", f"{prefix}{index}"
     )
     return account
+
+
+def email_policy(
+    *,
+    account_limit: int = 3,
+    server_limit: int = 20,
+    cooldown_seconds: int = 60,
+) -> EmailPolicy:
+    return EmailPolicy(
+        account_daily_limit=account_limit,
+        server_daily_limit=server_limit,
+        cooldown_seconds=cooldown_seconds,
+        code_ttl_minutes=10,
+        max_code_attempts=5,
+        timezone_name="Asia/Shanghai",
+    )
 
 
 def test_existing_local_sqlite_score_column_is_upgraded(tmp_path):
@@ -74,6 +91,138 @@ def test_email_style_username_can_be_registered_and_used_to_login(tmp_path):
 
     assert account.username == username
     assert logged_in.id == account.id
+
+
+def test_verified_email_can_reset_password_and_revoke_sessions(tmp_path):
+    store = AccountStore(tmp_path / "email-security.sqlite3")
+    account, old_token = store.register(
+        "email_security", "secret123", "邮箱安全玩家"
+    )
+    started_at = datetime(2026, 8, 16, 1, 0, 0)
+    binding = store.begin_email_binding(
+        account.id,
+        "Player@Example.com",
+        email_policy(),
+        now=started_at,
+    )
+
+    bound = store.verify_and_bind_email(
+        account.id,
+        "player@example.com",
+        binding.code,
+        email_policy(),
+        now=started_at + timedelta(minutes=1),
+    )
+    reset = store.begin_password_reset(
+        "PLAYER@EXAMPLE.COM",
+        email_policy(),
+        now=started_at + timedelta(minutes=2),
+    )
+
+    assert bound.email == "player@example.com"
+    assert bound.email_verified_at is not None
+    assert bound.as_dict()["emailVerified"] is True
+    assert reset is not None
+    account_id = store.reset_password_with_code(
+        "email_security",
+        reset.code,
+        "new-secret-456",
+        email_policy(),
+        now=started_at + timedelta(minutes=3),
+    )
+    assert account_id == account.id
+    assert store.account_for_token(old_token) is None
+    with pytest.raises(AccountError, match="账号名或密码不正确"):
+        store.login("email_security", "secret123")
+    logged_in, _ = store.login("email_security", "new-secret-456")
+    assert logged_in.id == account.id
+
+
+def test_email_send_limits_apply_per_account_and_server(tmp_path):
+    store = AccountStore(tmp_path / "email-limits.sqlite3")
+    accounts = [
+        store.register(f"mail_limit_{index}", "secret123", f"邮{index}")[0]
+        for index in range(7)
+    ]
+    policy = email_policy(cooldown_seconds=1)
+    started_at = datetime(2026, 8, 16, 2, 0, 0)
+
+    for index in range(20):
+        account = accounts[index % len(accounts)]
+        store.begin_email_binding(
+            account.id,
+            f"mail-{index}@example.com",
+            policy,
+            now=started_at + timedelta(seconds=index * 2),
+        )
+
+    with pytest.raises(AccountError, match="邮件发送额度"):
+        store.begin_email_binding(
+            accounts[6].id,
+            "server-limit@example.com",
+            policy,
+            now=started_at + timedelta(seconds=42),
+        )
+
+    isolated_store = AccountStore(tmp_path / "account-email-limit.sqlite3")
+    isolated, _ = isolated_store.register(
+        "isolated_mail", "secret123", "独立限额"
+    )
+    for index in range(3):
+        isolated_store.begin_email_binding(
+            isolated.id,
+            f"isolated-{index}@example.com",
+            policy,
+            now=started_at + timedelta(seconds=index * 2),
+        )
+    with pytest.raises(AccountError, match="每个账号每天最多发送 3 封"):
+        isolated_store.begin_email_binding(
+            isolated.id,
+            "fourth@example.com",
+            policy,
+            now=started_at + timedelta(seconds=8),
+        )
+
+
+def test_email_code_cooldown_and_attempt_limit_are_enforced(tmp_path):
+    store = AccountStore(tmp_path / "email-code-guard.sqlite3")
+    account, _ = store.register("guarded_mail", "secret123", "验证保护")
+    policy = email_policy()
+    started_at = datetime(2026, 8, 16, 3, 0, 0)
+    challenge = store.begin_email_binding(
+        account.id,
+        "guarded@example.com",
+        policy,
+        now=started_at,
+    )
+
+    with pytest.raises(AccountError, match="等待"):
+        store.begin_email_binding(
+            account.id,
+            "guarded@example.com",
+            policy,
+            now=started_at + timedelta(seconds=20),
+        )
+
+    for attempt in range(5):
+        expected = "尝试次数过多" if attempt == 4 else "验证码不正确"
+        with pytest.raises(AccountError, match=expected):
+            store.verify_and_bind_email(
+                account.id,
+                "guarded@example.com",
+                "000000" if challenge.code != "000000" else "999999",
+                policy,
+                now=started_at + timedelta(minutes=1, seconds=attempt),
+            )
+
+    with pytest.raises(AccountError, match="无效或已过期"):
+        store.verify_and_bind_email(
+            account.id,
+            "guarded@example.com",
+            challenge.code,
+            policy,
+            now=started_at + timedelta(minutes=2),
+        )
 
 
 def test_single_character_game_nickname_is_allowed(tmp_path):

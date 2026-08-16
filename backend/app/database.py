@@ -6,6 +6,7 @@ from sqlalchemy import (
     JSON,
     Boolean,
     Column,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -56,8 +57,12 @@ users = Table(
         LargeBinary().with_variant(MEDIUMBLOB(), "mysql"),
         nullable=True,
     ),
+    Column("email", String(254), nullable=True),
+    Column("email_key", String(254), nullable=True),
+    Column("email_verified_at", DateTime(), nullable=True),
     Column("created_at", DateTime(), nullable=False),
 )
+Index("ux_users_email_key", users.c.email_key, unique=True)
 
 player_name_claims = Table(
     "player_name_claims",
@@ -90,6 +95,47 @@ Index(
     "ux_account_sessions_account_id",
     account_sessions.c.account_id,
     unique=True,
+)
+
+email_verification_challenges = Table(
+    "email_verification_challenges",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column(
+        "account_id",
+        String(32),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("purpose", String(24), nullable=False),
+    Column("email", String(254), nullable=False),
+    Column("email_key", String(254), nullable=False),
+    Column("code_salt", LargeBinary(32), nullable=False),
+    Column("code_hash", LargeBinary(64), nullable=False),
+    Column("expires_at", DateTime(), nullable=False),
+    Column("failed_attempts", Integer(), nullable=False, default=0),
+    Column("consumed_at", DateTime(), nullable=True),
+    Column("created_at", DateTime(), nullable=False),
+)
+Index(
+    "ix_email_challenges_account_purpose_created",
+    email_verification_challenges.c.account_id,
+    email_verification_challenges.c.purpose,
+    email_verification_challenges.c.created_at,
+)
+Index(
+    "ix_email_challenges_expires_at",
+    email_verification_challenges.c.expires_at,
+)
+
+email_send_quotas = Table(
+    "email_send_quotas",
+    metadata,
+    Column("scope", String(16), primary_key=True),
+    Column("scope_key", String(64), primary_key=True),
+    Column("quota_day", Date(), primary_key=True),
+    Column("send_count", Integer(), nullable=False, default=0),
+    Column("updated_at", DateTime(), nullable=False),
 )
 
 games = Table(
