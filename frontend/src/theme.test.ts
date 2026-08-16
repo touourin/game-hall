@@ -2,25 +2,42 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import {
   applyTheme,
   currentTheme,
+  DEFAULT_THEME,
   initializeTheme,
   isLightTheme,
   storedTheme,
+  THEME_DEFINITIONS,
+  THEME_IDS,
   themeColorScheme,
 } from './theme'
 
 describe('theme preferences', () => {
   beforeEach(() => {
-    applyTheme('royal')
+    document.head.innerHTML = '<meta name="theme-color" content="#000000">'
+    applyTheme(DEFAULT_THEME)
     localStorage.clear()
     delete document.documentElement.dataset.theme
     delete document.documentElement.dataset.colorScheme
   })
 
   it('uses the default theme when no valid preference exists', () => {
-    expect(storedTheme()).toBe('royal')
+    expect(storedTheme()).toBe('amber')
 
     localStorage.setItem('game-hall:theme', 'unknown')
-    expect(storedTheme()).toBe('royal')
+    expect(storedTheme()).toBe('amber')
+  })
+
+  it('keeps theme definitions in the light-dark display order', () => {
+    const expectedOrder = ['amber', 'emerald', 'royal', 'midnight']
+
+    expect([...THEME_IDS]).toEqual(expectedOrder)
+    expect(THEME_DEFINITIONS.map(({ id }) => id)).toEqual(expectedOrder)
+    expect(THEME_DEFINITIONS.map(({ colorScheme }) => colorScheme)).toEqual([
+      'light',
+      'dark',
+      'light',
+      'dark',
+    ])
   })
 
   it('persists and applies the selected theme', () => {
@@ -28,6 +45,7 @@ describe('theme preferences', () => {
 
     expect(document.documentElement.dataset.theme).toBe('midnight')
     expect(document.documentElement.dataset.colorScheme).toBe('dark')
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#050607')
     expect(currentTheme.value).toBe('midnight')
     expect(storedTheme()).toBe('midnight')
   })
@@ -49,6 +67,7 @@ describe('theme preferences', () => {
 
     expect(document.documentElement.dataset.theme).toBe('royal')
     expect(document.documentElement.dataset.colorScheme).toBe('light')
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#cbd3d9')
   })
 
 })

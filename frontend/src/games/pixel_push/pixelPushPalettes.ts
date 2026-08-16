@@ -64,11 +64,11 @@ const ROBOT_MATERIALS: Readonly<Record<ThemeName, RobotMaterial>> = {
     braceSoft: 'rgba(255, 255, 255, .72)',
   },
   amber: {
-    outline: '#59473c',
-    face: '#725b4e',
+    outline: '#583b2b',
+    face: '#754d36',
     eye: '#ffffff',
     highlight: 'rgba(255, 255, 255, .52)',
-    brace: '#9f4b29',
+    brace: '#d95f0b',
     braceSoft: 'rgba(255, 255, 255, .76)',
   },
 }

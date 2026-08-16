@@ -4,27 +4,27 @@ import { gameThemeMaterials } from '../../game-platform/presentation/gameThemeMa
 
 describe('pixel push presentation', () => {
   it('为四套大厅主题提供独立且完整的擂台材质', () => {
-    const aurora = pixelPushPalette('emerald')
+    const twilightBlueSteel = pixelPushPalette('emerald')
     const titanium = pixelPushPalette('midnight')
-    const moonWhite = pixelPushPalette('royal')
-    const orangeIvory = pixelPushPalette('amber')
+    const moonCloudCeramic = pixelPushPalette('royal')
+    const tangerineGlaze = pixelPushPalette('amber')
 
     expect(new Set([
-      aurora.voidCenter,
+      twilightBlueSteel.voidCenter,
       titanium.voidCenter,
-      moonWhite.voidCenter,
-      orangeIvory.voidCenter,
+      moonCloudCeramic.voidCenter,
+      tangerineGlaze.voidCenter,
     ]).size).toBe(4)
-    expect(moonWhite.voidCenter).toBe(gameThemeMaterials('royal').scene.center)
-    expect(moonWhite.arenaTop).toBe(gameThemeMaterials('royal').stage.top)
-    expect(moonWhite.playerName).toBe(gameThemeMaterials('royal').copy.onStage)
+    expect(moonCloudCeramic.voidCenter).toBe(gameThemeMaterials('royal').scene.center)
+    expect(moonCloudCeramic.arenaTop).toBe(gameThemeMaterials('royal').stage.top)
+    expect(moonCloudCeramic.playerName).toBe(gameThemeMaterials('royal').copy.onStage)
 
-    const materialKeys = Object.keys(aurora).sort()
+    const materialKeys = Object.keys(twilightBlueSteel).sort()
     expect(Object.keys(titanium).sort()).toEqual(materialKeys)
-    expect(Object.keys(moonWhite).sort()).toEqual(materialKeys)
-    expect(Object.keys(orangeIvory).sort()).toEqual(materialKeys)
-    expect(Object.values(moonWhite).every(Boolean)).toBe(true)
-    expect(Object.values(orangeIvory).every(Boolean)).toBe(true)
+    expect(Object.keys(moonCloudCeramic).sort()).toEqual(materialKeys)
+    expect(Object.keys(tangerineGlaze).sort()).toEqual(materialKeys)
+    expect(Object.values(moonCloudCeramic).every(Boolean)).toBe(true)
+    expect(Object.values(tangerineGlaze).every(Boolean)).toBe(true)
   })
 
   it('让四套材质共享完全相同的收缩几何', () => {
