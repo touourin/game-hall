@@ -304,7 +304,6 @@ export function replayCrossingRun(
 export function buildSafeRoute(
   seed: number,
   durationSeconds: number,
-  profile: CrossingProfile,
 ): number[] {
   let playerX = BOARD_WIDTH / 2
   let playerY = BOARD_HEIGHT / 2

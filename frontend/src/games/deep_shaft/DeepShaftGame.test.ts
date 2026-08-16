@@ -124,7 +124,6 @@ describe('DeepShaftGame', () => {
           crumbleDue: [],
           brokenFloors: [],
           ceilingCooldown: 0,
-          lastLandedFloor: 42,
           lastLandedKind: 'normal',
         },
       },

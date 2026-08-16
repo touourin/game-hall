@@ -454,10 +454,6 @@ class ArcadeRoomManager:
         room.revision += 1
         return player
 
-    def advance_ai_players(self, room: ArcadeRoom) -> int:
-        engine = self.engine(room.game_key)
-        return self._advance_ai_players(room, engine)
-
     def apply_bot_action(
         self,
         room: ArcadeRoom,

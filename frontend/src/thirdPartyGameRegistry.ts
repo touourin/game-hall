@@ -52,13 +52,6 @@ export interface GeneratedPluginModule {
   loadView: () => Promise<PluginViewModule>
 }
 
-function playerLabel(manifest: ThirdPartyGameManifest): string {
-  if (manifest.players.label) return manifest.players.label
-  return manifest.players.min === manifest.players.max
-    ? `${manifest.players.min} 人`
-    : `${manifest.players.min}–${manifest.players.max} 人`
-}
-
 function defaultRules(manifest: ThirdPartyGameManifest): Record<string, unknown> {
   const defaults: Record<string, unknown> = {
     allowSpectators: manifest.capabilities.spectators,

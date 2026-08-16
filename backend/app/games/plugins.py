@@ -201,14 +201,6 @@ def _plugin_repository_available(root: Path) -> bool:
     return False
 
 
-def plugin_catalog(root: Path | None = None) -> list[dict[str, str]]:
-    return [
-        plugin.catalog_entry
-        for plugin in discover_game_plugins(root)
-        if plugin.registration.availability == "enabled"
-    ]
-
-
 def _read_registry(root: Path) -> list[PluginRegistryEntry]:
     path = root / "registry.json"
     if not path.is_file():

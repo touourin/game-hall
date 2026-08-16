@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   INPUT_RIGHT,
-  INPUT_UP,
   advanceCrossingState,
   boundaryCollision,
   buildPulsePlan,
@@ -138,7 +137,7 @@ describe('临界穿越确定性模拟', () => {
     for (let seed = 1; seed <= 256; seed += 1) {
       const result = replayCrossingRun(
         seed,
-        buildSafeRoute(seed, seconds, profile),
+        buildSafeRoute(seed, seconds),
         seconds,
         profile,
       )

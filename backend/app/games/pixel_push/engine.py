@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass, field
-from typing import Any, Callable, Literal
+from typing import Any, Literal
 
 from backend.app.arcade.models import ArcadePlayer, ArcadeRoom
 from backend.app.games.base import GameRuleError
@@ -80,8 +80,6 @@ class PixelPushPlayerState:
     seat: int
     x: int = WORLD_CENTER_X
     y: int = WORLD_CENTER_Y
-    previous_x: int = WORLD_CENTER_X
-    previous_y: int = WORLD_CENTER_Y
     velocity_x: int = 0
     velocity_y: int = 0
     facing_x: int = 1_000
@@ -303,7 +301,7 @@ class PixelPushEngine:
         }
         room.state = state
         room.phase = "playing"
-        self._reset_round(state, active_players, first_round=True)
+        self._reset_round(state, active_players)
 
     def act(
         self,
@@ -408,7 +406,7 @@ class PixelPushEngine:
                 state.current_map = state.map_sequence[
                     (state.round_number - 1) % len(state.map_sequence)
                 ]
-                self._reset_round(state, active_players, first_round=False)
+                self._reset_round(state, active_players)
             return True
 
         self._advance_active_round(state, room_players)
@@ -426,8 +424,6 @@ class PixelPushEngine:
             key=lambda actor: (actor.seat, actor.player_id),
         )
         for actor in actors:
-            actor.previous_x = actor.x
-            actor.previous_y = actor.y
             self._advance_player(actor)
         if state.current_map == MAP_PULSE_FACTORY:
             self._apply_factory_pulse(state, actors)
@@ -796,10 +792,7 @@ class PixelPushEngine:
         self,
         state: PixelPushState,
         room_players: list[ArcadePlayer],
-        *,
-        first_round: bool,
     ) -> None:
-        del first_round
         active_players = sorted(room_players, key=lambda player: player.seat)
         positions = _spawn_positions(len(active_players))
         for player, (x, y, facing_x, facing_y) in zip(
@@ -809,8 +802,8 @@ class PixelPushEngine:
         ):
             actor = state.players[player.id]
             actor.seat = player.seat
-            actor.x = actor.previous_x = x
-            actor.y = actor.previous_y = y
+            actor.x = x
+            actor.y = y
             actor.velocity_x = actor.velocity_y = 0
             actor.facing_x = facing_x
             actor.facing_y = facing_y

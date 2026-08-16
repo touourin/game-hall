@@ -2212,20 +2212,6 @@ class DepartedSuspicionEngine:
                 advance_after=advance_after,
             )
 
-    def _resolve_hand_limit(
-        self, state: DepartedSuspicionState, seat: int, keep_card_id: Any
-    ) -> None:
-        board = state.boards[seat]
-        if len(board.equipment) <= 1:
-            return
-        keep = str(keep_card_id or "")
-        if keep not in board.equipment:
-            raise GameRuleError("接收者超出装备上限，请指定其保留的装备")
-        for card_id in list(board.equipment):
-            if card_id != keep:
-                board.equipment.remove(card_id)
-                state.equipment_deck.append(card_id)
-
     def _resign(
         self, room: ArcadeRoom, state: DepartedSuspicionState, seat: int
     ) -> None:

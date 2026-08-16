@@ -117,10 +117,10 @@ def test_dash_collision_adds_balance_and_knockback() -> None:
     activate(room)
     attacker = room.state.players["p0"]
     target = room.state.players["p1"]
-    attacker.x = attacker.previous_x = 4_200
-    attacker.y = attacker.previous_y = 3_500
-    target.x = target.previous_x = 4_810
-    target.y = target.previous_y = 3_500
+    attacker.x = 4_200
+    attacker.y = 3_500
+    target.x = 4_810
+    target.y = 3_500
     attacker.facing_x = attacker.dash_direction_x = 1_000
     attacker.facing_y = attacker.dash_direction_y = 0
     attacker.dash_ticks = 3
@@ -142,10 +142,10 @@ def test_front_brace_reduces_knockback_and_stops_the_dash() -> None:
         activate(room)
         attacker = room.state.players["p0"]
         target = room.state.players["p1"]
-        attacker.x = attacker.previous_x = 4_200
-        attacker.y = attacker.previous_y = 3_500
-        target.x = target.previous_x = 4_810
-        target.y = target.previous_y = 3_500
+        attacker.x = 4_200
+        attacker.y = 3_500
+        target.x = 4_810
+        target.y = 3_500
         attacker.facing_x = attacker.dash_direction_x = 1_000
         attacker.facing_y = attacker.dash_direction_y = 0
         attacker.dash_ticks = 3
@@ -168,7 +168,7 @@ def test_ring_out_finishes_the_round_and_advances_the_score() -> None:
     room = make_room(engine)
     activate(room)
     loser = room.state.players["p1"]
-    loser.x = loser.previous_x = -2_000
+    loser.x = -2_000
 
     for _ in range(5):
         engine.tick(room)
@@ -342,7 +342,7 @@ def test_first_player_to_two_rounds_finishes_and_records_the_match() -> None:
     for expected_score in (1, 2):
         activate(room)
         loser = room.state.players["p1"]
-        loser.x = loser.previous_x = -2_000
+        loser.x = -2_000
         for _ in range(4):
             engine.tick(room)
         assert room.state.round_wins["p0"] == expected_score

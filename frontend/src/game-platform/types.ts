@@ -45,8 +45,6 @@ export function gamePlayerLabel(
     : `${players.min}–${players.max} 人`
 }
 
-export const builtinGamePlayerLabel = gamePlayerLabel
-
 export interface BuiltinGameCapabilities {
   undo: boolean
   draw: boolean

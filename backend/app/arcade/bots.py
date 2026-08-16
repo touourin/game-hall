@@ -5,9 +5,9 @@ import hashlib
 import inspect
 import logging
 import secrets
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any
 
 from backend.app.games.base import GameEngine
 
@@ -37,26 +37,6 @@ class BotAvailability:
 
     available: bool
     reason: str | None = None
-
-
-class BotActionProvider(Protocol):
-    """Optional game-engine capability consumed by ``ArcadeBotService``."""
-
-    def choose_bot_action(self, room: ArcadeRoom) -> BotAction | None: ...
-
-
-class AsyncBotActionProvider(Protocol):
-    """Optional asynchronous provider used by external engine processes."""
-
-    def choose_bot_action_async(
-        self, room: ArcadeRoom
-    ) -> Awaitable[BotAction | None]: ...
-
-
-class BotAvailabilityProvider(Protocol):
-    """Optional room-aware guard for engines with conditional AI support."""
-
-    def bot_availability(self, room: ArcadeRoom) -> BotAvailability: ...
 
 
 BotActionApplier = Callable[[BotAction], None]

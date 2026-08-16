@@ -24,10 +24,6 @@ class GameCapabilities:
     replay: bool = False
     ai: bool = False
 
-    @property
-    def undo_requests(self) -> bool:
-        return bool(self.undo_actions)
-
 
 def social_table_capabilities(
     *,

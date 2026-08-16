@@ -83,8 +83,6 @@ class ShaftSimulation:
     crumble_due: dict[int, int] = field(default_factory=dict)
     broken_floors: set[int] = field(default_factory=set)
     ceiling_cooldown: int = 0
-    last_landed_floor: int = 0
-    last_landed_kind: PlatformKind = "normal"
 
 
 @dataclass(frozen=True)
@@ -270,8 +268,6 @@ def advance_simulation(
     if landing is not None:
         current.player_y = landing.y - PLAYER_HALF_HEIGHT
         current.grounded_floor = landing.floor
-        current.last_landed_floor = landing.floor
-        current.last_landed_kind = landing.kind
         if landing.kind == "spring":
             current.velocity_y = SPRING_SPEED
             current.grounded_floor = None

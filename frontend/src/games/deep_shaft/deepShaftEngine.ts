@@ -65,7 +65,6 @@ export interface ShaftState {
   crumbleDue: Map<number, number>
   brokenFloors: Set<number>
   ceilingCooldown: number
-  lastLandedFloor: number
   lastLandedKind: PlatformKind
 }
 
@@ -157,7 +156,6 @@ export function createShaftState(seed: number): ShaftState {
     crumbleDue: new Map(),
     brokenFloors: new Set(),
     ceilingCooldown: 0,
-    lastLandedFloor: 0,
     lastLandedKind: 'normal',
   }
 }
@@ -218,7 +216,6 @@ export function advanceShaftState(
   if (landing) {
     current.playerY = landing.y - PLAYER_HALF_HEIGHT
     current.groundedFloor = landing.floor
-    current.lastLandedFloor = landing.floor
     current.lastLandedKind = landing.kind
     if (landing.kind === 'spring') {
       current.velocityY = SPRING_SPEED
