@@ -12,7 +12,7 @@ import { verifyGameIconBuffer } from './game-icon-utils.mjs'
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const projectRoot = resolve(scriptDirectory, '../..')
-const pluginRoot = join(projectRoot, 'community_games')
+const pluginRoot = join(projectRoot, 'game-hall-community-games')
 const output = join(projectRoot, 'frontend/src/generated/communityGameModules.ts')
 const pluginRegistryApiVersion = 1
 const pluginManifestApiVersion = 1
@@ -185,7 +185,7 @@ function discoverPluginArtwork(entry) {
 }
 
 function artworkImportPath(entry, variant) {
-  return `../../../community_games/${entry.path}/frontend/assets/${pluginArtworkFiles[variant]}`
+  return `../../../game-hall-community-games/${entry.path}/frontend/assets/${pluginArtworkFiles[variant]}`
 }
 
 function renderArtworkImports({ entry, artwork }) {
@@ -206,7 +206,7 @@ function renderModuleEntry({ entry, manifest, artwork }) {
   }
   lines.push(
     `    manifest: ${JSON.stringify(manifest, null, 2).split('\n').join('\n    ')},`,
-    `    loadView: () => import(${JSON.stringify(`../../../community_games/${entry.path}/frontend/GameView.vue`)}),`,
+    `    loadView: () => import(${JSON.stringify(`../../../game-hall-community-games/${entry.path}/frontend/GameView.vue`)}),`,
   )
   return `  {\n${lines.join('\n')}\n  }`
 }

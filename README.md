@@ -228,7 +228,7 @@ docker exec game-hall-mysql sh -c 'exec mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASS
 
 新增或重写大厅自带游戏前，必须阅读[官方游戏开发与主题适配规范](frontend/src/games/README.md)。新游戏只维护一套结构和玩法逻辑，通过主题令牌或 Canvas 调色板适配橘光晴釉、幽蓝冷钢、月白云瓷与曜石黑钛；图标、电脑端、手机端和四主题对比度也属于完成条件。
 
-社区游戏只能放在根目录的 `community_games/` 中。该路径是可选的 Git Submodule，指向独立仓库 [`touourin/game-hall-third-party-games`](https://github.com/touourin/game-hall-third-party-games)。未初始化时主项目仍可构建、测试和运行，只加载官方游戏；初始化后会在前端构建与后端启动时自动读取社区 `registry.json`，不需要在主仓库登记具体游戏。社区目录存在但注册表或已发布插件损坏时会严格失败，不能静默跳过。主仓库记录最近验证过的子模块提交，作为开发、CI、复现和回滚基线，服务器部署则默认更新到社区仓库的 `main` 最新提交。新增游戏时复制 `plugin-counter-demo/`，完成 API v1 manifest、固定前后端入口和测试，再由维护者把它加入社区仓库根部的 `registry.json`。完整步骤、能力字段和安全边界见 [`community_games/README.md`](community_games/README.md)。
+社区游戏只能放在根目录的 `game-hall-community-games/` 中。该路径是可选的 Git Submodule，指向独立仓库 [`touourin/game-hall-community-games`](https://github.com/touourin/game-hall-community-games)。未初始化时主项目仍可构建、测试和运行，只加载官方游戏；初始化后会在前端构建与后端启动时自动读取社区 `registry.json`，不需要在主仓库登记具体游戏。社区目录存在但注册表或已发布插件损坏时会严格失败，不能静默跳过。主仓库记录最近验证过的子模块提交，作为开发、CI、复现和回滚基线，服务器部署则默认更新到社区仓库的 `main` 最新提交。新增游戏时复制 `plugin-counter-demo/`，完成 API v1 manifest、固定前后端入口和测试，再由维护者把它加入社区仓库根部的 `registry.json`。完整步骤、能力字段和安全边界见 [`game-hall-community-games/README.md`](game-hall-community-games/README.md)。
 
 ```text
 frontend/src/views/         游戏大厅、通用房间与账号界面

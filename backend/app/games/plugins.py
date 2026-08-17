@@ -112,7 +112,7 @@ class GamePluginValidationError(ValueError):
 
 
 def community_games_root() -> Path:
-    return Path(__file__).resolve().parents[3] / "community_games"
+    return Path(__file__).resolve().parents[3] / "game-hall-community-games"
 
 
 def discover_game_plugins(root: Path | None = None) -> list[GamePlugin]:

@@ -1,4 +1,4 @@
-[submodule "community_games"]
-	path = community_games
-	url = git@github.com:touourin/game-hall-third-party-games.git
+[submodule "game-hall-community-games"]
+	path = game-hall-community-games
+	url = git@github.com:touourin/game-hall-community-games.git
 	branch = main

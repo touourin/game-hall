@@ -10,7 +10,7 @@ import ts from 'typescript'
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const projectRoot = resolve(scriptDirectory, '../..')
-const pluginRoot = resolve(projectRoot, 'community_games')
+const pluginRoot = resolve(projectRoot, 'game-hall-community-games')
 const productionDependencies = new Set([
   '@game-hall/plugin-sdk',
   '@lucide/vue',

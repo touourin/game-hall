@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-PLUGIN_ROOT = PROJECT_ROOT / "community_games"
+PLUGIN_ROOT = PROJECT_ROOT / "game-hall-community-games"
 
 
 def plugin_test_directories() -> list[Path]:

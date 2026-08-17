@@ -59,5 +59,5 @@ API v1 可以兼容性新增导出，不因为新增组件升级到 v2。已有 
 
 - `index.ts` 和公共类型；
 - `index.test.ts` 契约测试；
-- `community_games/README.md` 使用说明；
+- `game-hall-community-games/README.md` 使用说明；
 - `plugin-counter-demo` 示例（能力适用时）。
