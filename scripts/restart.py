@@ -176,7 +176,7 @@ def build_application_image() -> None:
 
 
 def validate_application_image() -> None:
-    log("Validating the third-party release registry and published plugins")
+    log("Validating the community game release registry and published plugins")
     run(
         [
             "docker",

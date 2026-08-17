@@ -18,7 +18,7 @@ def main() -> int:
     names = "、".join(
         plugin.registration.catalog.name for plugin in plugins
     ) or "无"
-    print(f"第三方游戏插件校验通过：{len(plugins)} 个已发布（{names}）")
+    print(f"社区游戏插件校验通过：{len(plugins)} 个已发布（{names}）")
     return 0
 
 

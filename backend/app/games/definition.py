@@ -71,7 +71,7 @@ class GameCatalogMetadata:
 
 
 GameScoreKind = Literal["outcome", "time_trial", "high_score"]
-GameSource = Literal["official", "third_party"]
+GameSource = Literal["official", "community"]
 GameAvailability = Literal["enabled", "deprecated"]
 GameRecordVariantValue = bool | int | str
 
@@ -160,9 +160,9 @@ class GameRegistration:
 
     def __post_init__(self) -> None:
         if self.source == "official" and self.plugin is not None:
-            raise ValueError("官方游戏不能携带第三方插件元数据")
-        if self.source == "third_party" and self.plugin is None:
-            raise ValueError("第三方游戏必须携带插件元数据")
+            raise ValueError("官方游戏不能携带社区插件元数据")
+        if self.source == "community" and self.plugin is None:
+            raise ValueError("社区游戏必须携带插件元数据")
 
     def create_engine(self) -> GameEngine:
         engine = self.engine_factory()

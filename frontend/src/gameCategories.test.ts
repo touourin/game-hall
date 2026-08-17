@@ -2,7 +2,7 @@ import { GAME_CATALOG } from './gameCatalog'
 import { buildGameCategories } from './gameCategories'
 
 const officialGames = GAME_CATALOG.filter((game) => game.source === 'official')
-const communityGames = GAME_CATALOG.filter((game) => game.source === 'third_party')
+const communityGames = GAME_CATALOG.filter((game) => game.source === 'community')
 
 describe('game categories', () => {
   it('assigns every published game to exactly one product category', () => {
@@ -31,11 +31,11 @@ describe('game categories', () => {
     expect(categorizedKeys).toHaveLength(GAME_CATALOG.length)
   })
 
-  it('automatically places newly registered third-party games in the community category', () => {
+  it('automatically places newly registered community games in the community category', () => {
     const pluginGame = {
       ...officialGames[0]!,
       key: 'plugin-new-community-game' as const,
-      source: 'third_party' as const,
+      source: 'community' as const,
     }
 
     const community = buildGameCategories([

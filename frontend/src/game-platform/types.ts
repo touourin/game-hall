@@ -11,7 +11,7 @@ import type {
   BuiltinArcadeGameKey,
 } from '../types/arcade'
 
-export type GameSource = 'official' | 'third_party'
+export type GameSource = 'official' | 'community'
 export type GameAvailability = 'enabled' | 'deprecated'
 
 export type BuiltinGameRoomLayout = 'standard' | 'wide' | 'immersive'

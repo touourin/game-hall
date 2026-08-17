@@ -10,7 +10,7 @@ import ts from 'typescript'
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const projectRoot = resolve(scriptDirectory, '../..')
-const pluginRoot = resolve(projectRoot, 'third_party_games')
+const pluginRoot = resolve(projectRoot, 'community_games')
 const productionDependencies = new Set([
   '@game-hall/plugin-sdk',
   '@lucide/vue',
@@ -37,11 +37,11 @@ const sourceExtensions = new Set([
 function pluginRepositoryAvailable() {
   if (!existsSync(pluginRoot)) return false
   if (!statSync(pluginRoot).isDirectory()) {
-    throw new Error('第三方游戏路径必须是目录')
+    throw new Error('社区游戏路径必须是目录')
   }
   if (existsSync(resolve(pluginRoot, 'registry.json'))) return true
   if (readdirSync(pluginRoot).length) {
-    throw new Error('第三方仓库缺少 registry.json')
+    throw new Error('社区仓库缺少 registry.json')
   }
   return false
 }
@@ -188,8 +188,8 @@ if (pluginRepositoryAvailable()) {
   }
   if (issues.length) {
     throw new Error(
-      `第三方插件前端导入边界校验失败：\n- ${issues.join('\n- ')}`,
+      `社区插件前端导入边界校验失败：\n- ${issues.join('\n- ')}`,
     )
   }
-  console.log(`第三方插件前端导入边界检查通过：${checkedFiles} 个文件`)
+  console.log(`社区插件前端导入边界检查通过：${checkedFiles} 个文件`)
 }

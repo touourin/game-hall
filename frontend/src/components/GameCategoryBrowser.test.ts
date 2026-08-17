@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils'
 import { GAME_CATALOG } from '../gameCatalog'
 import GameCategoryBrowser from './GameCategoryBrowser.vue'
 
-const communityGames = GAME_CATALOG.filter((game) => game.source === 'third_party')
+const communityGames = GAME_CATALOG.filter((game) => game.source === 'community')
 
 describe('GameCategoryBrowser', () => {
   it('shows category modules before revealing the games in a category', async () => {

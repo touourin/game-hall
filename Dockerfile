@@ -11,7 +11,7 @@ WORKDIR /build
 COPY frontend/package.json frontend/package-lock.json ./frontend/
 RUN npm --prefix frontend ci --no-audit --no-fund
 COPY frontend/ ./frontend/
-COPY third_party_games/ ./third_party_games/
+COPY community_games/ ./community_games/
 RUN npm --prefix frontend run build
 
 
@@ -217,7 +217,7 @@ ENV ENABLE_PIKAFISH_AI=${ENABLE_PIKAFISH_AI} \
     ENABLE_KATAGO_AI=${ENABLE_KATAGO_AI} \
     ENABLE_DOUZERO_AI=${ENABLE_DOUZERO_AI}
 
-COPY third_party_games/ ./third_party_games/
+COPY community_games/ ./community_games/
 COPY --from=web-builder /build/frontend/dist ./frontend/dist
 COPY --from=pikafish-bundle /bundle/ /
 COPY --from=katago-bundle /bundle/ /

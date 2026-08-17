@@ -6,7 +6,7 @@
     "dev:server": ".venv/bin/python -m uvicorn backend.app.main:app --env-file .env --reload --host 0.0.0.0 --port 10618",
     "dev:web": "npm --prefix frontend run dev -- --host 0.0.0.0",
     "build": "npm --prefix frontend run build",
-    "test": "(cd backend && ../.venv/bin/python -m pytest) && .venv/bin/python scripts/test_third_party_games.py && npm --prefix frontend run test:run",
+    "test": "(cd backend && ../.venv/bin/python -m pytest) && .venv/bin/python scripts/test_community_games.py && npm --prefix frontend run test:run",
     "smoke": "node frontend/scripts/smoke.mjs"
   },
   "devDependencies": {

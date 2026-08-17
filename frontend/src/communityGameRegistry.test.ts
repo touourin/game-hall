@@ -1,22 +1,22 @@
 import { defineComponent } from 'vue'
-import { GENERATED_THIRD_PARTY_GAME_MODULES } from './generated/thirdPartyGameModules'
+import { GENERATED_COMMUNITY_GAME_MODULES } from './generated/communityGameModules'
 import {
-  buildThirdPartyGameRegistration,
-  THIRD_PARTY_GAME_REGISTRATIONS,
+  buildCommunityGameRegistration,
+  COMMUNITY_GAME_REGISTRATIONS,
   type GeneratedPluginModule,
-  type ThirdPartyGameManifest,
-} from './thirdPartyGameRegistry'
+  type CommunityGameManifest,
+} from './communityGameRegistry'
 
-describe('third-party game registrations', () => {
+describe('community game registrations', () => {
   it('adapts every generated module without knowing concrete plugin ids', () => {
     const generatedModules = (
-      GENERATED_THIRD_PARTY_GAME_MODULES as readonly GeneratedPluginModule[]
+      GENERATED_COMMUNITY_GAME_MODULES as readonly GeneratedPluginModule[]
     )
-    expect(THIRD_PARTY_GAME_REGISTRATIONS.map(({ key }) => key)).toEqual([
+    expect(COMMUNITY_GAME_REGISTRATIONS.map(({ key }) => key)).toEqual([
       ...generatedModules.map(({ manifest }) => manifest.id),
     ])
-    expect(THIRD_PARTY_GAME_REGISTRATIONS.every(
-      ({ source }) => source === 'third_party',
+    expect(COMMUNITY_GAME_REGISTRATIONS.every(
+      ({ source }) => source === 'community',
     )).toBe(true)
   })
 
@@ -45,7 +45,7 @@ describe('third-party game registrations', () => {
       },
       records: { scoreKind: 'time_trial' },
       defaultOptions: { listed: false },
-    } as const satisfies ThirdPartyGameManifest
+    } as const satisfies CommunityGameManifest
     const generated: GeneratedPluginModule = {
       directory: 'plugin-test-game',
       status: 'enabled',
@@ -58,11 +58,11 @@ describe('third-party game registrations', () => {
       loadView: async () => ({ default: defineComponent({ template: '<main />' }) }),
     }
 
-    const registration = buildThirdPartyGameRegistration(generated)
+    const registration = buildCommunityGameRegistration(generated)
 
     expect(registration).toMatchObject({
       key: 'plugin-test-game',
-      source: 'third_party',
+      source: 'community',
       availability: 'enabled',
       catalog: {
         name: '测试插件',

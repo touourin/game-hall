@@ -55,10 +55,10 @@ const challenge = computed<RenderedSoloChallenge>(() => {
   return {
     icon: Gamepad2,
     accent: '#7794a8',
-    category: '第三方单人挑战',
-    kicker: '第三方单人挑战',
+    category: '社区单人挑战',
+    kicker: '社区单人挑战',
     title: game?.name ?? '插件挑战',
-    description: game?.description ?? '由第三方插件提供的单人挑战。',
+    description: game?.description ?? '由社区插件提供的单人挑战。',
     button: `进入${game?.name ?? '插件挑战'}`,
     features: ['自动创建单人房间', '服务端规则验证', '独立战绩与排行'],
     metrics: [

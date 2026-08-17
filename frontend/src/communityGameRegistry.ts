@@ -5,10 +5,10 @@ import type {
   GameRegistration,
 } from './game-platform/types'
 import { createScoredGameRecords } from './game-platform/recordFormatting'
-import { GENERATED_THIRD_PARTY_GAME_MODULES } from './generated/thirdPartyGameModules'
+import { GENERATED_COMMUNITY_GAME_MODULES } from './generated/communityGameModules'
 import type { PluginArcadeGameKey } from './types/arcade'
 
-export interface ThirdPartyGameManifest {
+export interface CommunityGameManifest {
   $schema?: string
   apiVersion: 1
   version: string
@@ -48,11 +48,11 @@ export interface GeneratedPluginModule {
   status: GameAvailability
   order: number
   artwork?: BuiltinGameArtwork
-  manifest: ThirdPartyGameManifest
+  manifest: CommunityGameManifest
   loadView: () => Promise<PluginViewModule>
 }
 
-function defaultRules(manifest: ThirdPartyGameManifest): Record<string, unknown> {
+function defaultRules(manifest: CommunityGameManifest): Record<string, unknown> {
   const defaults: Record<string, unknown> = {
     allowSpectators: manifest.capabilities.spectators,
   }
@@ -68,7 +68,7 @@ function defaultRules(manifest: ThirdPartyGameManifest): Record<string, unknown>
 }
 
 function ruleLabels(
-  manifest: ThirdPartyGameManifest,
+  manifest: CommunityGameManifest,
   options: Readonly<Record<string, unknown>>,
 ): string[] {
   const labels = [...(manifest.ruleLabels ?? [])]
@@ -78,7 +78,7 @@ function ruleLabels(
   return labels
 }
 
-export function buildThirdPartyGameRegistration(
+export function buildCommunityGameRegistration(
   generated: GeneratedPluginModule,
 ): GameRegistration<PluginArcadeGameKey> {
   const { artwork, directory, manifest, order, status } = generated
@@ -88,7 +88,7 @@ export function buildThirdPartyGameRegistration(
       setup: () => () => h(
         'section',
         { class: 'surface plugin-game-load-error', role: 'alert' },
-        '第三方游戏界面加载失败，请联系插件作者。',
+        '社区游戏界面加载失败，请联系插件作者。',
       ),
     },
   })
@@ -97,7 +97,7 @@ export function buildThirdPartyGameRegistration(
     : createScoredGameRecords(manifest.records.scoreKind, manifest.name)
   return Object.freeze({
     key: manifest.id,
-    source: 'third_party',
+    source: 'community',
     availability: status,
     plugin: Object.freeze({
       version: manifest.version,
@@ -139,7 +139,7 @@ export function buildThirdPartyGameRegistration(
   })
 }
 
-export const THIRD_PARTY_GAME_REGISTRATIONS = Object.freeze(
-  (GENERATED_THIRD_PARTY_GAME_MODULES as readonly GeneratedPluginModule[])
-    .map(buildThirdPartyGameRegistration),
+export const COMMUNITY_GAME_REGISTRATIONS = Object.freeze(
+  (GENERATED_COMMUNITY_GAME_MODULES as readonly GeneratedPluginModule[])
+    .map(buildCommunityGameRegistration),
 )

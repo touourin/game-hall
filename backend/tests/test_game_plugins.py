@@ -115,7 +115,7 @@ def test_enabled_plugin_is_discovered_from_its_own_directory(tmp_path) -> None:
     assert [plugin.engine.key for plugin in plugins] == ["plugin-test-game"]
     assert plugins[0].catalog_entry["players"] == "1 人"
     assert plugins[0].manifest["roomLayout"] == "immersive"
-    assert plugins[0].registration.source == "third_party"
+    assert plugins[0].registration.source == "community"
     assert plugins[0].registration.capabilities.spectators is True
     assert plugins[0].registration.records.score_kind == "outcome"
 

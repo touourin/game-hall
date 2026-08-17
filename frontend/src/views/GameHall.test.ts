@@ -1,6 +1,6 @@
 import { createPinia } from 'pinia'
 import { mount } from '@vue/test-utils'
-import { THIRD_PARTY_GAME_REGISTRATIONS } from '../thirdPartyGameRegistry'
+import { COMMUNITY_GAME_REGISTRATIONS } from '../communityGameRegistry'
 import { useArcadeStore } from '../stores/arcade'
 import GameHall from './GameHall.vue'
 
@@ -33,16 +33,16 @@ describe('GameHall', () => {
     expect(wrapper.get('[aria-label="打开设置"]').attributes('aria-label')).toBe('打开设置')
     expect(wrapper.get('[aria-label="查看社区游戏分类"]').text()).toContain('社区游戏')
     expect(wrapper.get('[aria-label="查看社区游戏分类"]').text()).toContain(
-      `${THIRD_PARTY_GAME_REGISTRATIONS.length} 款游戏`,
+      `${COMMUNITY_GAME_REGISTRATIONS.length} 款游戏`,
     )
     await wrapper.get('.account-bar-actions [aria-label="打开设置"]').trigger('click')
     expect(wrapper.emitted('settings')).toHaveLength(1)
     await wrapper.get('[aria-label="查看社区游戏分类"]').trigger('click')
-    expect(wrapper.findAll('.game-library-card')).toHaveLength(THIRD_PARTY_GAME_REGISTRATIONS.length)
-    for (const registration of THIRD_PARTY_GAME_REGISTRATIONS) {
+    expect(wrapper.findAll('.game-library-card')).toHaveLength(COMMUNITY_GAME_REGISTRATIONS.length)
+    for (const registration of COMMUNITY_GAME_REGISTRATIONS) {
       expect(wrapper.text()).toContain(registration.catalog.name)
     }
-    if (!THIRD_PARTY_GAME_REGISTRATIONS.length) {
+    if (!COMMUNITY_GAME_REGISTRATIONS.length) {
       expect(wrapper.get('[role="status"]').text()).toContain('社区作品正在准备中')
     }
     await wrapper.get('[aria-label="返回游戏分类"]').trigger('click')

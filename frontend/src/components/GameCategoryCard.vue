@@ -90,6 +90,7 @@ const categoryArtwork = computed(() => {
 <style scoped>
 .game-category-card {
   --category-tone: var(--accent);
+  --category-accent-ink: color-mix(in srgb, var(--category-tone) 74%, var(--text));
   position: relative;
   min-width: 0;
   min-height: 230px;
@@ -159,7 +160,7 @@ const categoryArtwork = computed(() => {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: color-mix(in srgb, var(--category-tone) 76%, var(--text-soft));
+  color: var(--category-accent-ink);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: .09em;
@@ -169,8 +170,8 @@ const categoryArtwork = computed(() => {
   width: 17px;
   height: 2px;
   border-radius: 999px;
-  background: var(--category-tone);
-  box-shadow: 0 0 9px color-mix(in srgb, var(--category-tone) 42%, transparent);
+  background: var(--category-accent-ink);
+  box-shadow: 0 0 9px color-mix(in srgb, var(--category-accent-ink) 42%, transparent);
 }
 
 .category-card-copy > strong {
@@ -218,7 +219,7 @@ const categoryArtwork = computed(() => {
 }
 
 .category-card-meta b { color: var(--text-soft); }
-.category-card-meta em { color: color-mix(in srgb, var(--category-tone) 72%, var(--muted)); }
+.category-card-meta em { color: var(--category-accent-ink); }
 
 .category-card-art {
   position: relative;
@@ -301,9 +302,9 @@ const categoryArtwork = computed(() => {
   aspect-ratio: 1;
   display: grid;
   place-items: center;
-  border: 1px solid color-mix(in srgb, var(--category-tone) 26%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--category-accent-ink) 26%, var(--line));
   border-radius: 50%;
-  color: color-mix(in srgb, var(--category-tone) 74%, var(--text));
+  color: var(--category-accent-ink);
   background: var(--control-surface), var(--surface-inset);
   box-shadow: var(--shadow-contact), inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 42%, transparent);
   font-style: normal;

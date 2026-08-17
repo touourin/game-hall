@@ -12,8 +12,8 @@ import { verifyGameIconBuffer } from './game-icon-utils.mjs'
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const projectRoot = resolve(scriptDirectory, '../..')
-const pluginRoot = join(projectRoot, 'third_party_games')
-const output = join(projectRoot, 'frontend/src/generated/thirdPartyGameModules.ts')
+const pluginRoot = join(projectRoot, 'community_games')
+const output = join(projectRoot, 'frontend/src/generated/communityGameModules.ts')
 const pluginRegistryApiVersion = 1
 const pluginManifestApiVersion = 1
 const pluginId = /^plugin-[a-z0-9][a-z0-9-]{0,24}$/
@@ -84,7 +84,7 @@ function rejectUnknownFields(value, allowed, label) {
 
 function validateRegistry() {
   const path = join(pluginRoot, 'registry.json')
-  if (!existsSync(path)) throw new Error('第三方仓库缺少 registry.json')
+  if (!existsSync(path)) throw new Error('社区仓库缺少 registry.json')
   const registry = assertObject(readJson(path, 'registry.json'), 'registry.json')
   rejectUnknownFields(registry, registryFields, 'registry.json')
   if (registry.$schema !== undefined && typeof registry.$schema !== 'string') {
@@ -137,11 +137,11 @@ function validateRegistry() {
 function pluginRepositoryAvailable() {
   if (!existsSync(pluginRoot)) return false
   if (!statSync(pluginRoot).isDirectory()) {
-    throw new Error('第三方游戏路径必须是目录')
+    throw new Error('社区游戏路径必须是目录')
   }
   if (existsSync(join(pluginRoot, 'registry.json'))) return true
   if (readdirSync(pluginRoot).length) {
-    throw new Error('第三方仓库缺少 registry.json')
+    throw new Error('社区仓库缺少 registry.json')
   }
   return false
 }
@@ -185,7 +185,7 @@ function discoverPluginArtwork(entry) {
 }
 
 function artworkImportPath(entry, variant) {
-  return `../../../third_party_games/${entry.path}/frontend/assets/${pluginArtworkFiles[variant]}`
+  return `../../../community_games/${entry.path}/frontend/assets/${pluginArtworkFiles[variant]}`
 }
 
 function renderArtworkImports({ entry, artwork }) {
@@ -206,7 +206,7 @@ function renderModuleEntry({ entry, manifest, artwork }) {
   }
   lines.push(
     `    manifest: ${JSON.stringify(manifest, null, 2).split('\n').join('\n    ')},`,
-    `    loadView: () => import(${JSON.stringify(`../../../third_party_games/${entry.path}/frontend/GameView.vue`)}),`,
+    `    loadView: () => import(${JSON.stringify(`../../../community_games/${entry.path}/frontend/GameView.vue`)}),`,
   )
   return `  {\n${lines.join('\n')}\n  }`
 }
@@ -340,7 +340,7 @@ if (pluginRepositoryAvailable()) {
 
 const artworkImports = modules.flatMap(renderArtworkImports).join('\n')
 const entries = modules.map(renderModuleEntry)
-const source = `// 此文件由 scripts/generate-plugin-registry.mjs 自动生成，请勿手动修改。\n${artworkImports ? `${artworkImports}\n\n` : ''}export const GENERATED_THIRD_PARTY_GAME_MODULES = [\n${entries.join(',\n')}\n] as const\n`
+const source = `// 此文件由 scripts/generate-plugin-registry.mjs 自动生成，请勿手动修改。\n${artworkImports ? `${artworkImports}\n\n` : ''}export const GENERATED_COMMUNITY_GAME_MODULES = [\n${entries.join(',\n')}\n] as const\n`
 
 mkdirSync(dirname(output), { recursive: true })
 if (!existsSync(output) || readFileSync(output, 'utf8') !== source) {

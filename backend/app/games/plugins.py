@@ -107,12 +107,12 @@ class GamePluginValidationError(ValueError):
     def __init__(self, issues: list[str]) -> None:
         self.issues = tuple(issues)
         super().__init__(
-            "第三方游戏插件校验失败：\n- " + "\n- ".join(self.issues)
+            "社区游戏插件校验失败：\n- " + "\n- ".join(self.issues)
         )
 
 
-def third_party_games_root() -> Path:
-    return Path(__file__).resolve().parents[3] / "third_party_games"
+def community_games_root() -> Path:
+    return Path(__file__).resolve().parents[3] / "community_games"
 
 
 def discover_game_plugins(root: Path | None = None) -> list[GamePlugin]:
@@ -132,7 +132,7 @@ def _collect_game_plugins(
     *,
     fail_on_error: bool,
 ) -> list[GamePlugin]:
-    plugin_root = root or third_party_games_root()
+    plugin_root = root or community_games_root()
     try:
         if not _plugin_repository_available(plugin_root):
             return []
@@ -143,7 +143,7 @@ def _collect_game_plugins(
                 [f"registry.json: {_error_reason(error)}"]
             ) from error
         logger.exception(
-            "Third-party game registry was disabled",
+            "Community game registry was disabled",
             extra={"event": "game_plugin.registry_disabled"},
         )
         return []
@@ -175,7 +175,7 @@ def _collect_game_plugins(
                 issues.append(issue)
                 continue
             logger.exception(
-                "Third-party game plugin was disabled",
+                "Community game plugin was disabled",
                 extra={
                     "event": "game_plugin.disabled",
                     "plugin_id": entry.id,
@@ -193,7 +193,7 @@ def _plugin_repository_available(root: Path) -> bool:
     if not root.exists():
         return False
     if not root.is_dir():
-        raise ValueError("第三方游戏路径必须是目录")
+        raise ValueError("社区游戏路径必须是目录")
     if (root / "registry.json").is_file():
         return True
     if any(root.iterdir()):
@@ -249,7 +249,7 @@ def _read_registry(root: Path) -> list[PluginRegistryEntry]:
             raise ValueError(f"{label}.path 必须是安全的相对目录")
         directory = root.joinpath(*pure_path.parts).resolve()
         if not directory.is_relative_to(root_resolved):
-            raise ValueError(f"{label}.path 不能离开第三方仓库")
+            raise ValueError(f"{label}.path 不能离开社区仓库")
         if status not in PLUGIN_REGISTRY_STATUSES:
             raise ValueError(
                 f"{label}.status 只能是 enabled、deprecated 或 disabled"
@@ -442,7 +442,7 @@ def _build_registration(
             ai=capabilities["ai"],
         ),
         records=GameRecords(score_kind=manifest["records"]["scoreKind"]),
-        source="third_party",
+        source="community",
         availability=(
             "deprecated" if entry.status == "deprecated" else "enabled"
         ),

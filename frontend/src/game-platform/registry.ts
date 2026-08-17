@@ -17,7 +17,7 @@ import reactionGame from '../games/reaction'
 import schulteGame from '../games/schulte'
 import tetrisGame from '../games/tetris'
 import xiangqiGame from '../games/xiangqi'
-import { THIRD_PARTY_GAME_REGISTRATIONS } from '../thirdPartyGameRegistry'
+import { COMMUNITY_GAME_REGISTRATIONS } from '../communityGameRegistry'
 import type { ArcadeGameKey, BuiltinArcadeGameKey } from '../types/arcade'
 import type { GameRegistration } from './types'
 
@@ -45,7 +45,7 @@ export const BUILTIN_GAME_REGISTRATIONS = [
 
 export const GAME_REGISTRATIONS: readonly GameRegistration[] = Object.freeze([
   ...BUILTIN_GAME_REGISTRATIONS,
-  ...THIRD_PARTY_GAME_REGISTRATIONS,
+  ...COMMUNITY_GAME_REGISTRATIONS,
 ])
 
 const registrationsByKey = new Map<ArcadeGameKey, GameRegistration>()

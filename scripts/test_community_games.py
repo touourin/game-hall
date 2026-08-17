@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-PLUGIN_ROOT = PROJECT_ROOT / "third_party_games"
+PLUGIN_ROOT = PROJECT_ROOT / "community_games"
 
 
 def plugin_test_directories() -> list[Path]:
@@ -24,7 +24,7 @@ def plugin_test_directories() -> list[Path]:
 def main() -> int:
     test_directories = plugin_test_directories()
     if not test_directories:
-        print("No third-party Python tests found.")
+        print("No community game Python tests found.")
         return 0
     result = subprocess.run(
         [

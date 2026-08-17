@@ -86,7 +86,7 @@ export function buildGameCategories(
   games: readonly GameCatalogEntry[],
 ): readonly GameCategory[] {
   const officialGames = games.filter((game) => game.source === 'official')
-  const communityGames = games.filter((game) => game.source === 'third_party')
+  const communityGames = games.filter((game) => game.source === 'community')
   const gameByKey = indexedGames(officialGames)
   const assignedKeys = new Set<string>()
 
