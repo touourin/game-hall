@@ -33,15 +33,6 @@ logs/
 
 # Local reference and image-generation workspaces
 /tmp/
-/avalon-skin-imagegen-handoff-*/
 
 # Keep lossless documentation sources local; version optimized previews instead
 /docs/ui-previews/**/*.png
-
-# Versioned DouZero WP bundle; ignore accidental alternate model artifacts
-/ai/douzero/*
-!/ai/douzero/README.md
-!/ai/douzero/SHA256SUMS
-!/ai/douzero/landlord.ckpt
-!/ai/douzero/landlord_up.ckpt
-!/ai/douzero/landlord_down.ckpt
