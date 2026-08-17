@@ -138,6 +138,51 @@ def test_account_registration_login_and_session(monkeypatch, tmp_path) -> None:
     assert current_profile.status_code == 200
 
 
+def test_legacy_username_can_be_migrated_once_through_api(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv("GAME_HALL_SIGNING_SECRET", "test-secret")
+    monkeypatch.setenv(
+        "GAME_HALL_DB_PATH",
+        str(tmp_path / "legacy-username.sqlite3"),
+    )
+    store = account_store()
+    with monkeypatch.context() as legacy_registration:
+        legacy_registration.setattr(
+            type(store),
+            "_validate_registration_username",
+            staticmethod(lambda username: None),
+        )
+        account, token = store.register("旧账号", "secret123", "老玩家")
+    headers = {
+        "X-Game-Hall-Access": access_token(),
+        "Authorization": f"Bearer {token}",
+    }
+
+    with TestClient(api) as client:
+        profile = client.get("/api/auth/me", headers=headers)
+        migrated = client.patch(
+            "/api/auth/me/username",
+            headers=headers,
+            json={"username": "new.player_01"},
+        )
+        repeated = client.patch(
+            "/api/auth/me/username",
+            headers=headers,
+            json={"username": "another_name"},
+        )
+
+    assert profile.status_code == 200
+    assert profile.json()["account"]["usernameMigrationRequired"] is True
+    assert migrated.status_code == 200
+    assert migrated.json()["account"]["id"] == account.id
+    assert migrated.json()["account"]["username"] == "new.player_01"
+    assert migrated.json()["account"]["usernameMigrationRequired"] is False
+    assert repeated.status_code == 400
+    assert repeated.json()["detail"] == "当前账号名已经符合规则，不能再次修改"
+
+
 def test_avalon_role_skin_progress_endpoint_requires_account_session(
     monkeypatch,
     tmp_path,

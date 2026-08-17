@@ -9,6 +9,7 @@ import {
   createGuestSession,
   loginAccount,
   logoutAccount,
+  migrateAccountUsername,
   renamePlayer,
   requestEmailBindingCode,
   requestEmailUnbindCode,
@@ -43,6 +44,7 @@ import type { ArcadeGameKey, GameCatalogItem } from './types/arcade'
 import AccountGate from './views/AccountGate.vue'
 import ArcadeHome from './views/ArcadeHome.vue'
 import SettingsModal from './components/SettingsModal.vue'
+import UsernameMigrationModal from './components/UsernameMigrationModal.vue'
 import UiIconButton from './components/ui/UiIconButton.vue'
 
 const arcade = useArcadeStore()
@@ -134,14 +136,18 @@ watch(
 
 document.title = '本体大厅'
 
+function activateGameSession(token: string) {
+  setSocketAccountToken(token)
+  arcade.init()
+  if (!socket.connected) socket.connect()
+}
+
 function enterGame(profile: AccountProfile, token: string) {
   account.value = profile
   activeAccountToken.value = token
   accountState.value = 'authenticated'
   rememberAccountToken(token)
-  setSocketAccountToken(token)
-  arcade.init()
-  if (!socket.connected) socket.connect()
+  if (!profile.usernameMigrationRequired) activateGameSession(token)
 }
 
 function handleAccountReplacement(payload?: { message?: string }) {
@@ -361,6 +367,28 @@ async function changePlayerName(playerName: string) {
   }
 }
 
+async function migrateUsername(username: string) {
+  const token = storedAccountToken()
+  if (!token) return
+  accountBusy.value = true
+  accountError.value = null
+  try {
+    const updated = await migrateAccountUsername(
+      activeAccessToken.value,
+      token,
+      username,
+    )
+    account.value = updated
+    activateGameSession(token)
+  } catch (caught) {
+    accountError.value = caught instanceof Error
+      ? caught.message
+      : '账号名更新失败，请稍后重试'
+  } finally {
+    accountBusy.value = false
+  }
+}
+
 async function changeAvatarPreset(preset: AvatarPresetId) {
   const token = storedAccountToken()
   if (!token) return
@@ -570,6 +598,16 @@ onMounted(async () => {
     />
 
     <template v-else-if="account">
+    <UsernameMigrationModal
+      v-if="account.usernameMigrationRequired"
+      :current-username="account.username"
+      :busy="accountBusy"
+      :error="accountError"
+      @migrate="migrateUsername"
+      @logout="logout"
+    />
+
+    <template v-else>
     <div v-if="!arcade.connected" class="connection-banner">
       <WifiOff :size="16" />
       正在重新连接游戏服务器…
@@ -648,6 +686,7 @@ onMounted(async () => {
       <span />
       <span />
     </div>
+    </template>
     </template>
   </div>
 </template>

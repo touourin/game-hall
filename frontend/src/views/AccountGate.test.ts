@@ -117,6 +117,63 @@ describe('AccountGate', () => {
     )
   })
 
+  it('rejects Chinese and unsupported symbols in new account names', async () => {
+    const wrapper = mount(AccountGate, {
+      props: { busy: false, error: null },
+    })
+    await wrapper.findAll('.account-mode button')[1]!.trigger('click')
+    const usernameInput = wrapper.get('input[autocomplete="username"]')
+    await usernameInput.setValue('中文账号')
+    await wrapper.get('input[autocomplete="nickname"]').setValue('中文昵称')
+    const passwords = wrapper.findAll('input[autocomplete="new-password"]')
+    await passwords[0]!.setValue('secret123')
+    await passwords[1]!.setValue('secret123')
+
+    expect(usernameInput.attributes('pattern')).toBe('[A-Za-z0-9._@+\\-]+')
+    expect(usernameInput.attributes('aria-invalid')).toBe('true')
+    expect(wrapper.get('.field-hint').text()).toContain('不支持中文')
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
+
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.emitted('register')).toBeUndefined()
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      '账号名只能使用英文字母、数字及 . _ @ + -',
+    )
+  })
+
+  it('accepts documented symbols in new account names', async () => {
+    const wrapper = mount(AccountGate, {
+      props: { busy: false, error: null },
+    })
+    await wrapper.findAll('.account-mode button')[1]!.trigger('click')
+    await wrapper.get('input[autocomplete="username"]').setValue(
+      'player.name_01+test@example-game',
+    )
+    await wrapper.get('input[autocomplete="nickname"]').setValue('玩家昵称')
+    const passwords = wrapper.findAll('input[autocomplete="new-password"]')
+    await passwords[0]!.setValue('secret123')
+    await passwords[1]!.setValue('secret123')
+    await wrapper.get('form').trigger('submit')
+
+    expect(wrapper.emitted('register')?.[0]?.[0]).toMatchObject({
+      username: 'player.name_01+test@example-game',
+    })
+  })
+
+  it('keeps existing Unicode account names available for login', async () => {
+    const wrapper = mount(AccountGate, {
+      props: { busy: false, error: null },
+    })
+    const inputs = wrapper.findAll('input')
+    await inputs[0]!.setValue('旧账号')
+    await inputs[1]!.setValue('secret123')
+    await wrapper.get('form').trigger('submit')
+
+    expect(wrapper.emitted('login')).toEqual([
+      [{ username: '旧账号', password: 'secret123' }],
+    ])
+  })
+
   it('allows a one-character game nickname for registration and guests', async () => {
     const wrapper = mount(AccountGate, {
       props: { busy: false, error: null },

@@ -47,6 +47,7 @@ logger = logging.getLogger(__name__)
 SESSION_LIFETIME = timedelta(days=30)
 USERNAME_MIN_LENGTH = 2
 USERNAME_MAX_LENGTH = 50
+REGISTRATION_USERNAME_PATTERN = re.compile(r"[A-Za-z0-9._@+-]+")
 EMAIL_MAX_LENGTH = 254
 EMAIL_LOCAL_PART_PATTERN = re.compile(
     r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+$"
@@ -62,6 +63,13 @@ AVATAR_PRESET_IDS = (
     "star-deer",
     "ink-dragon",
 )
+
+
+def _is_valid_account_username(username: str) -> bool:
+    return (
+        USERNAME_MIN_LENGTH <= len(username) <= USERNAME_MAX_LENGTH
+        and REGISTRATION_USERNAME_PATTERN.fullmatch(username) is not None
+    )
 
 
 def _game_score_kind(game_key: str | None) -> str:
@@ -96,6 +104,10 @@ class Account:
             return f"/api/avatars/{self.avatar_token}"
         return f"/avatars/{self.avatar_preset}.webp"
 
+    @property
+    def username_migration_required(self) -> bool:
+        return not _is_valid_account_username(self.username)
+
     def as_dict(self) -> dict[str, str | bool | None]:
         return {
             "id": self.id,
@@ -106,6 +118,7 @@ class Account:
             "avatarUrl": self.avatar_url,
             "email": self.email,
             "emailVerified": self.email_verified_at is not None,
+            "usernameMigrationRequired": self.username_migration_required,
             "createdAt": self.created_at,
             "isGuest": False,
         }
@@ -229,7 +242,10 @@ class AccountStore:
         policy: EmailPolicy | None = None,
         now: datetime | None = None,
     ) -> tuple[Account, str]:
-        normalized_username, username_key = self._normalize_username(username)
+        normalized_username, username_key = self._normalize_username(
+            username,
+            registration=True,
+        )
         normalized_name, name_key = self._normalize_player_name(player_name)
         self._validate_password(password)
         normalized_email: str | None = None
@@ -456,6 +472,61 @@ class AccountStore:
                 )
         except IntegrityError as exc:
             raise AccountError("这个游戏昵称已经被使用") from exc
+
+    def migrate_username(self, account_id: str, username: str) -> Account:
+        normalized_username, username_key = self._normalize_username(
+            username,
+            registration=True,
+        )
+        self.initialize()
+        try:
+            with self.engine.begin() as connection:
+                row = (
+                    connection.execute(
+                        select(
+                            users.c.id,
+                            users.c.username,
+                            users.c.player_name,
+                            users.c.avatar_preset,
+                            users.c.avatar_token,
+                            users.c.email,
+                            users.c.email_verified_at,
+                            users.c.created_at,
+                        )
+                        .where(users.c.id == account_id)
+                        .with_for_update()
+                    )
+                    .mappings()
+                    .first()
+                )
+                if row is None:
+                    raise AccountError("账号不存在")
+                if _is_valid_account_username(row["username"]):
+                    raise AccountError("当前账号名已经符合规则，不能再次修改")
+                connection.execute(
+                    update(users)
+                    .where(users.c.id == account_id)
+                    .values(
+                        username=normalized_username,
+                        username_key=username_key,
+                    )
+                )
+                return Account(
+                    id=account_id,
+                    username=normalized_username,
+                    player_name=row["player_name"],
+                    avatar_preset=row["avatar_preset"],
+                    avatar_token=row["avatar_token"],
+                    email=row["email"],
+                    email_verified_at=(
+                        self._iso_datetime(row["email_verified_at"])
+                        if row["email_verified_at"] is not None
+                        else None
+                    ),
+                    created_at=self._iso_datetime(row["created_at"]),
+                )
+        except IntegrityError as exc:
+            raise AccountError("这个账号名已经被使用") from exc
 
     def set_avatar_preset(self, account_id: str, preset: str) -> Account:
         if preset not in AVATAR_PRESET_IDS:
@@ -2009,10 +2080,17 @@ class AccountStore:
         return f"/avatars/{row['avatar_preset']}.webp"
 
     @staticmethod
-    def _normalize_username(username: str) -> tuple[str, str]:
+    def _normalize_username(
+        username: str,
+        *,
+        registration: bool = False,
+    ) -> tuple[str, str]:
         normalized = username.strip()
         if not USERNAME_MIN_LENGTH <= len(normalized) <= USERNAME_MAX_LENGTH:
             raise AccountError("账号名需要 2–50 个字符")
+        if registration:
+            AccountStore._validate_registration_username(normalized)
+            return normalized, normalized.casefold()
         if not all(
             character.isalnum() or character in "._@+-"
             for character in normalized
@@ -2021,6 +2099,11 @@ class AccountStore:
                 "账号名只能使用文字、数字及 . _ @ + -"
             )
         return normalized, normalized.casefold()
+
+    @staticmethod
+    def _validate_registration_username(username: str) -> None:
+        if not _is_valid_account_username(username):
+            raise AccountError("账号名只能使用英文字母、数字及 . _ @ + -")
 
     @staticmethod
     def _normalize_player_name(player_name: str) -> tuple[str, str]:

@@ -4,6 +4,7 @@ const LEGACY_ACCOUNT_TOKEN_KEY = 'avalon:account-token'
 export interface AccountProfile {
   id: string
   username: string
+  usernameMigrationRequired?: boolean
   playerName: string
   avatarType?: 'preset' | 'custom'
   avatarPreset?: AvatarPresetId
@@ -12,6 +13,14 @@ export interface AccountProfile {
   emailVerified?: boolean
   createdAt: string
   isGuest?: boolean
+}
+
+export const ACCOUNT_USERNAME_PATTERN = /^[A-Za-z0-9._@+-]+$/
+
+export function isValidAccountUsername(username: string): boolean {
+  return username.length >= 2
+    && username.length <= 50
+    && ACCOUNT_USERNAME_PATTERN.test(username)
 }
 
 export const AVATAR_PRESETS = [
@@ -240,6 +249,27 @@ export async function renamePlayer(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ player_name: playerName }),
+  })
+  if (!response.ok) throw await responseError(response)
+  const data = (await response.json()) as {
+    ok: boolean
+    account: AccountProfile
+  }
+  return data.account
+}
+
+export async function migrateAccountUsername(
+  accessToken: string,
+  token: string,
+  username: string,
+): Promise<AccountProfile> {
+  const response = await authFetch('/api/auth/me/username', accessToken, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ username }),
   })
   if (!response.ok) throw await responseError(response)
   const data = (await response.json()) as {

@@ -10,6 +10,7 @@ const props = withDefaults(defineProps<{
   panelClass?: string
   closeOnBackdrop?: boolean
   closeLabel?: string
+  closable?: boolean
   mobileSheet?: boolean
   inline?: boolean
 }>(), {
@@ -19,6 +20,7 @@ const props = withDefaults(defineProps<{
   panelClass: '',
   closeOnBackdrop: true,
   closeLabel: '关闭弹窗',
+  closable: true,
   mobileSheet: false,
   inline: false,
 })
@@ -43,11 +45,12 @@ function close() {
 }
 
 function handleBackdrop() {
-  if (props.closeOnBackdrop) close()
+  if (props.closable && props.closeOnBackdrop) close()
 }
 
 function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') {
+    if (!props.closable) return
     event.preventDefault()
     close()
     return
@@ -105,7 +108,7 @@ onBeforeUnmount(() => {
         :aria-label="title || slots.title ? undefined : ariaLabel"
         tabindex="-1"
       >
-        <UiIconButton compact class="dialog-close" :aria-label="closeLabel" @click="close">
+        <UiIconButton v-if="closable" compact class="dialog-close" :aria-label="closeLabel" @click="close">
           <X :size="20" />
         </UiIconButton>
         <span v-if="slots.icon" class="modal-icon"><slot name="icon" /></span>

@@ -32,6 +32,20 @@ describe('BaseModal', () => {
     wrapper.unmount()
   })
 
+  it('can disable every dismiss action for a blocking flow', async () => {
+    const wrapper = mount(BaseModal, {
+      props: { title: '必须完成', closable: false },
+    })
+
+    expect(document.body.querySelector('[aria-label="关闭弹窗"]')).toBeNull()
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    document.body.querySelector<HTMLElement>('.base-modal-backdrop')?.click()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.emitted('close')).toBeUndefined()
+    wrapper.unmount()
+  })
+
   it('supports an inline mobile sheet while keeping the shared shell', () => {
     const wrapper = mount(BaseModal, {
       props: {

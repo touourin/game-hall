@@ -328,6 +328,94 @@ def test_username_rejects_more_than_fifty_characters(tmp_path):
         store.register("a" * 51, "secret123", "超长账号")
 
 
+@pytest.mark.parametrize(
+    "username",
+    ["中文账号", "player name", "player!"],
+)
+def test_registration_username_rejects_non_ascii_or_unsupported_characters(
+    tmp_path, username
+):
+    store = AccountStore(tmp_path / "restricted-username.sqlite3")
+
+    with pytest.raises(
+        AccountError,
+        match=r"英文字母、数字及 \. _ @ \+ -",
+    ):
+        store.register(username, "secret123", "合规昵称")
+
+
+def test_registration_username_accepts_documented_symbols(tmp_path):
+    store = AccountStore(tmp_path / "symbol-username.sqlite3")
+
+    account, _ = store.register(
+        "player.name_01+test@example-game",
+        "secret123",
+        "符号账号",
+    )
+
+    assert account.username == "player.name_01+test@example-game"
+
+
+def test_existing_unicode_username_can_still_log_in(tmp_path, monkeypatch):
+    store = AccountStore(tmp_path / "legacy-unicode-username.sqlite3")
+    with monkeypatch.context() as legacy_registration:
+        legacy_registration.setattr(
+            AccountStore,
+            "_validate_registration_username",
+            staticmethod(lambda username: None),
+        )
+        store.register("旧账号", "secret123", "老玩家")
+
+    logged_in, _ = store.login("旧账号", "secret123")
+
+    assert logged_in.username == "旧账号"
+
+
+def test_existing_unicode_username_can_be_migrated_only_once(
+    tmp_path,
+    monkeypatch,
+):
+    store = AccountStore(tmp_path / "migrate-unicode-username.sqlite3")
+    with monkeypatch.context() as legacy_registration:
+        legacy_registration.setattr(
+            AccountStore,
+            "_validate_registration_username",
+            staticmethod(lambda username: None),
+        )
+        account, _ = store.register("旧账号", "secret123", "老玩家")
+
+    assert account.as_dict()["usernameMigrationRequired"] is True
+
+    migrated = store.migrate_username(account.id, "new.player_01")
+    logged_in, _ = store.login("new.player_01", "secret123")
+
+    assert migrated.username == "new.player_01"
+    assert migrated.as_dict()["usernameMigrationRequired"] is False
+    assert logged_in.id == account.id
+    with pytest.raises(AccountError, match="账号名或密码不正确"):
+        store.login("旧账号", "secret123")
+    with pytest.raises(AccountError, match="不能再次修改"):
+        store.migrate_username(account.id, "another_name")
+
+
+def test_username_migration_rejects_an_existing_account_name(
+    tmp_path,
+    monkeypatch,
+):
+    store = AccountStore(tmp_path / "duplicate-migrated-username.sqlite3")
+    store.register("existing_name", "secret123", "现有玩家")
+    with monkeypatch.context() as legacy_registration:
+        legacy_registration.setattr(
+            AccountStore,
+            "_validate_registration_username",
+            staticmethod(lambda username: None),
+        )
+        legacy, _ = store.register("旧账号", "secret123", "迁移玩家")
+
+    with pytest.raises(AccountError, match="这个账号名已经被使用"):
+        store.migrate_username(legacy.id, "EXISTING_NAME")
+
+
 def test_new_login_replaces_the_previous_account_session(tmp_path):
     store = AccountStore(tmp_path / "single-session.sqlite3")
     account, first_token = store.register(

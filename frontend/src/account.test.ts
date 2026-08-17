@@ -5,6 +5,7 @@ import {
   confirmPasswordReset,
   createGuestSession,
   loginAccount,
+  migrateAccountUsername,
   registerAccount,
   rememberAccountToken,
   requestEmailBindingCode,
@@ -312,6 +313,44 @@ describe('account service', () => {
           'X-Game-Hall-Access': 'access-token',
         }),
         body: JSON.stringify({ player_name: '临时骑士' }),
+      }),
+    )
+  })
+
+  it('migrates a legacy account name through the authenticated endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          account: {
+            id: 'a1',
+            username: 'new.player_01',
+            usernameMigrationRequired: false,
+            playerName: '老玩家',
+            createdAt: '2026-08-01T00:00:00+00:00',
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const account = await migrateAccountUsername(
+      'access-token',
+      'account-token',
+      'new.player_01',
+    )
+
+    expect(account.usernameMigrationRequired).toBe(false)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/auth/me/username',
+      expect.objectContaining({
+        method: 'PATCH',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer account-token',
+          'X-Game-Hall-Access': 'access-token',
+        }),
+        body: JSON.stringify({ username: 'new.player_01' }),
       }),
     )
   })

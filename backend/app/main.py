@@ -226,6 +226,13 @@ class RenamePlayerRequest(BaseModel):
     player_name: str = Field(min_length=1, max_length=12)
 
 
+class MigrateUsernameRequest(BaseModel):
+    username: str = Field(
+        min_length=USERNAME_MIN_LENGTH,
+        max_length=USERNAME_MAX_LENGTH,
+    )
+
+
 class AvatarPresetRequest(BaseModel):
     preset: str = Field(min_length=2, max_length=32)
 
@@ -750,6 +757,33 @@ def rename_current_account(
             detail=str(error),
         ) from error
     return {"ok": True, "account": renamed.as_dict()}
+
+
+@api.patch("/api/auth/me/username")
+def migrate_current_account_username(
+    payload: MigrateUsernameRequest,
+    authorization: str | None = Header(default=None),
+    game_hall_access: str | None = Depends(game_hall_access_header),
+) -> dict:
+    account = require_account_session(authorization, game_hall_access)
+    try:
+        updated = account_store().migrate_username(
+            account.id,
+            payload.username,
+        )
+    except AccountError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+    logger.info(
+        "Legacy account username migrated",
+        extra={
+            "account_id": account.id,
+            "event": "account.username.migrated",
+        },
+    )
+    return {"ok": True, "account": updated.as_dict()}
 
 
 @api.patch("/api/auth/me/avatar")

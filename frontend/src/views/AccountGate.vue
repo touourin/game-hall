@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { ArrowLeft, Crown, Gamepad2, KeyRound, LogIn, Mail, ShieldCheck, Trophy, UserPlus, UserRound, UsersRound } from '@lucide/vue'
+import { isValidAccountUsername } from '../account'
 import UiButton from '../components/ui/UiButton.vue'
 
 const props = defineProps<{
@@ -41,6 +42,10 @@ const confirmPassword = ref('')
 const resetCode = ref('')
 const localError = ref<string | null>(null)
 const resetState = computed(() => props.passwordResetState ?? 'idle')
+const normalizedUsername = computed(() => username.value.trim())
+const registrationUsernameValid = computed(() => (
+  isValidAccountUsername(normalizedUsername.value)
+))
 const normalizedRegistrationEmail = computed(() => registrationEmail.value.trim())
 const registrationEmailValid = computed(() => (
   normalizedRegistrationEmail.value === ''
@@ -79,7 +84,8 @@ const canSubmit = computed(() => {
   }
   if (mode.value === 'register') {
     return (
-      playerName.value.trim().length >= 1
+      registrationUsernameValid.value
+      && playerName.value.trim().length >= 1
       && password.value === confirmPassword.value
       && registrationEmailValid.value
       && (
@@ -148,6 +154,10 @@ function submit() {
     return
   }
   if (mode.value === 'register') {
+    if (!registrationUsernameValid.value) {
+      localError.value = '账号名只能使用英文字母、数字及 . _ @ + -'
+      return
+    }
     if (password.value !== confirmPassword.value) {
       localError.value = '两次输入的密码不一致'
       return
@@ -255,9 +265,16 @@ function submit() {
             minlength="2"
             :maxlength="mode === 'reset' ? 254 : 50"
             autocomplete="username"
-            :placeholder="mode === 'reset' ? '输入账号名或绑定邮箱' : '2–50 个字符，仅用于登录'"
+            :pattern="mode === 'register' ? '[A-Za-z0-9._@+\\-]+' : undefined"
+            :aria-invalid="mode === 'register' && normalizedUsername !== '' && !registrationUsernameValid"
+            :placeholder="mode === 'reset' ? '输入账号名或绑定邮箱' : mode === 'register' ? '2–50 位英文、数字或 . _ @ + -' : '2–50 个字符，仅用于登录'"
             :disabled="mode === 'reset' && resetState !== 'idle'"
           />
+          <small
+            v-if="mode === 'register'"
+            class="field-hint"
+            :class="{ invalid: normalizedUsername !== '' && !registrationUsernameValid }"
+          >仅支持英文字母、数字和 . _ @ + -，不支持中文</small>
         </label>
 
         <label v-if="mode === 'register' || mode === 'guest'" class="field">
@@ -470,6 +487,8 @@ function submit() {
 .reset-resend-button:disabled { cursor: not-allowed; opacity: .55; }
 .account-reset-message { margin: 0; border: 1px solid color-mix(in srgb, var(--green) 36%, var(--line)); border-radius: var(--radius-control); padding: 10px 12px; color: #8fe0bd; background: color-mix(in srgb, var(--green) 7%, var(--surface-inset)); font-size: 11px; font-weight: 700; line-height: 1.6; }
 .registration-email-fields { display: grid; gap: 10px; }
+.field-hint { margin-top: -2px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.field-hint.invalid { color: var(--danger); }
 @media (max-width: 820px) {
   .account-page { width: min(100%, 560px); }
   .account-stage { grid-template-columns: 1fr; gap: 12px; }
