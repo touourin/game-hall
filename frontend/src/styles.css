@@ -2637,28 +2637,33 @@ button:disabled {
 .leaderboard-list {
   display: grid;
   gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
   text-align: left;
 }
 
-.leaderboard-list > div {
+.leaderboard-entry {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "rank avatar identity score";
+  grid-template-columns: 32px 39px minmax(0, 1fr) max-content;
   align-items: center;
-  gap: 10px;
+  gap: clamp(7px, 1.8vw, 10px);
   min-height: 54px;
   border: 1px solid var(--line);
   border-radius: 14px;
-  padding: 7px 10px;
+  padding: 7px clamp(8px, 2vw, 10px);
   background: var(--surface-glass);
   box-shadow: inset 0 1px 0 var(--metal-edge);
 }
 
-.leaderboard-list > div.self {
+.leaderboard-entry.self {
   border-color: var(--line-strong);
   background: color-mix(in srgb, var(--accent) 8%, var(--surface-glass));
 }
 
-.leaderboard-list b {
+.leaderboard-rank {
+  grid-area: rank;
   display: grid;
   place-items: center;
   width: 32px;
@@ -2669,36 +2674,53 @@ button:disabled {
   font-size: 11px;
 }
 
-.leaderboard-list b.rank-1,
-.leaderboard-list b.rank-2,
-.leaderboard-list b.rank-3 {
+.leaderboard-rank.rank-1,
+.leaderboard-rank.rank-2,
+.leaderboard-rank.rank-3 {
   color: #2c240f;
   background: var(--accent);
 }
 
-.leaderboard-list > div > span {
+.leaderboard-avatar {
+  grid-area: avatar;
+  width: 39px;
+  height: 39px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  border-radius: 50%;
+  background: var(--surface-inset);
+  box-shadow: var(--shadow-contact);
+}
+
+.leaderboard-identity {
+  grid-area: identity;
   display: grid;
   gap: 3px;
   min-width: 0;
 }
 
-.leaderboard-list strong {
+.leaderboard-identity strong {
   overflow: hidden;
   font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.leaderboard-list small {
+.leaderboard-identity small {
   color: var(--muted);
   font-size: 7px;
+  overflow-wrap: anywhere;
 }
 
-.leaderboard-list em {
+.leaderboard-score {
+  grid-area: score;
+  justify-self: end;
   color: var(--accent);
   font-size: 11px;
   font-style: normal;
   font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .leaderboard-modal .leaderboard-note {
@@ -3036,7 +3058,7 @@ button:disabled {
   border-color: color-mix(in srgb, var(--text) 22%, transparent);
 }
 
-:root[data-color-scheme="light"] .leaderboard-list b:is(.rank-1, .rank-2, .rank-3),
+:root[data-color-scheme="light"] .leaderboard-rank:is(.rank-1, .rank-2, .rank-3),
 :root[data-color-scheme="light"] .replay-team strong small,
 :root[data-color-scheme="light"] .selection-feedback b,
 :root[data-color-scheme="light"] .minesweeper-mode button.active,

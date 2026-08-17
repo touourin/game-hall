@@ -89,81 +89,33 @@ watch([activeGameMode, activeGameVariant], loadPlayers)
       <div v-else-if="error" class="account-error leaderboard-error" role="alert">
         {{ error }}
       </div>
-      <div v-else-if="players.length" class="leaderboard-list">
-        <div
+      <ol v-else-if="players.length" class="leaderboard-list">
+        <li
           v-for="player in players"
           :key="player.accountId"
+          class="leaderboard-entry"
           :class="{ self: player.accountId === props.accountId }"
         >
-          <b :class="`rank-${player.rank}`">{{ player.rank }}</b>
+          <b class="leaderboard-rank" :class="`rank-${player.rank}`">{{ player.rank }}</b>
           <AvatarImage
             class="leaderboard-avatar"
             :src="player.avatarUrl"
             :name="player.playerName"
           />
-          <span>
+          <span class="leaderboard-identity">
             <strong>{{ player.playerName }}</strong>
             <small>{{ presentation.entryDetail(player) }}</small>
           </span>
-          <em>{{ presentation.entryScore(player) }}</em>
-        </div>
-      </div>
+          <em class="leaderboard-score">{{ presentation.entryScore(player) }}</em>
+        </li>
+      </ol>
       <div v-else class="stats-empty">还没有符合条件的真人对局</div>
       <p class="leaderboard-note">{{ presentation.note }}</p>
   </BaseModal>
 </template>
 
 <style scoped>
-.leaderboard-list > div {
-  grid-template-areas: "rank avatar identity score";
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
-}
-
-.leaderboard-list > div > b {
-  grid-area: rank;
-}
-
-.leaderboard-list > div > span {
-  grid-area: identity;
-}
-
-.leaderboard-list > div > em {
-  grid-area: score;
-  justify-self: end;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.leaderboard-list small {
-  overflow-wrap: anywhere;
-}
-
-.leaderboard-avatar {
-  grid-area: avatar;
-  width: 39px;
-  height: 39px;
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
-  border-radius: 50%;
-  background: var(--surface-inset);
-  box-shadow: var(--shadow-contact);
-}
-
 .leaderboard-error {
   margin: 16px 0;
-}
-
-@media (max-width: 420px) {
-  .leaderboard-list > div {
-    grid-template-areas:
-      "rank avatar identity"
-      "rank avatar score";
-    grid-template-columns: auto auto minmax(0, 1fr);
-    row-gap: 3px;
-  }
-
-  .leaderboard-list > div > em {
-    justify-self: start;
-  }
 }
 </style>

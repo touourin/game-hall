@@ -146,7 +146,11 @@ describe('LeaderboardModal', () => {
     await flushPromises()
 
     expect(wrapper.get('.leaderboard-list').text()).toContain('平均 —')
-    expect(wrapper.get('.leaderboard-list em').text()).toBe('—')
+    const entry = wrapper.get('.leaderboard-entry')
+    expect(entry.element.tagName).toBe('LI')
+    expect(entry.get('.leaderboard-identity').text()).toContain('玩家一号')
+    expect(entry.get('.leaderboard-avatar').classes()).not.toContain('leaderboard-identity')
+    expect(entry.get('.leaderboard-score').text()).toBe('—')
     expect(wrapper.text()).not.toContain('undefined')
     expect(wrapper.text()).not.toContain('NaN')
   })
