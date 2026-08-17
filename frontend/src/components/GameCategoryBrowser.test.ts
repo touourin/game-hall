@@ -32,14 +32,14 @@ describe('GameCategoryBrowser', () => {
     expect(wrapper.findAll('.game-library-card')).toHaveLength(0)
   })
 
-  it('uses one dedicated emblem for every category instead of composing game artwork', () => {
+  it('uses one dedicated mural for every category instead of composing game artwork', () => {
     const wrapper = mount(GameCategoryBrowser, {
       props: { games: GAME_CATALOG, roomCounts: {} },
     })
 
     expect(wrapper.findAll('.category-card-art')).toHaveLength(6)
-    expect(wrapper.findAll('.category-emblem')).toHaveLength(6)
-    expect(wrapper.findAll('.category-emblem-symbol')).toHaveLength(6)
+    expect(wrapper.findAll('.category-artwork')).toHaveLength(6)
+    expect(wrapper.findAll('.category-art-meta')).toHaveLength(6)
     expect(wrapper.find('.category-art-tile').exists()).toBe(false)
   })
 

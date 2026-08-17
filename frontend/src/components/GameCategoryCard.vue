@@ -2,12 +2,19 @@
 import { computed } from 'vue'
 import { ChevronRight, Layers3 } from '@lucide/vue'
 import type { GameCategory, GameCategoryId } from '../gameCategories'
-import boardEmblem from '../assets/game-hall/categories/board.svg'
-import socialEmblem from '../assets/game-hall/categories/social.svg'
-import cardsEmblem from '../assets/game-hall/categories/cards.svg'
-import soloEmblem from '../assets/game-hall/categories/solo.svg'
-import partyEmblem from '../assets/game-hall/categories/party.svg'
-import communityEmblem from '../assets/game-hall/categories/community.svg'
+import { currentTheme, isLightTheme } from '../theme'
+import boardArtworkDark from '../assets/game-hall/categories/board-dark.webp'
+import boardArtworkLight from '../assets/game-hall/categories/board-light.webp'
+import socialArtworkDark from '../assets/game-hall/categories/social-dark.webp'
+import socialArtworkLight from '../assets/game-hall/categories/social-light.webp'
+import cardsArtworkDark from '../assets/game-hall/categories/cards-dark.webp'
+import cardsArtworkLight from '../assets/game-hall/categories/cards-light.webp'
+import soloArtworkDark from '../assets/game-hall/categories/solo-dark.webp'
+import soloArtworkLight from '../assets/game-hall/categories/solo-light.webp'
+import partyArtworkDark from '../assets/game-hall/categories/party-dark.webp'
+import partyArtworkLight from '../assets/game-hall/categories/party-light.webp'
+import communityArtworkDark from '../assets/game-hall/categories/community-dark.webp'
+import communityArtworkLight from '../assets/game-hall/categories/community-light.webp'
 
 const props = defineProps<{
   category: GameCategory
@@ -18,16 +25,24 @@ defineEmits<{
   select: []
 }>()
 
-const CATEGORY_EMBLEMS: Readonly<Record<GameCategoryId, string>> = {
-  board: boardEmblem,
-  social: socialEmblem,
-  cards: cardsEmblem,
-  solo: soloEmblem,
-  party: partyEmblem,
-  community: communityEmblem,
+interface CategoryArtworkVariants {
+  dark: string
+  light: string
 }
 
-const categoryEmblem = computed(() => CATEGORY_EMBLEMS[props.category.id])
+const CATEGORY_ARTWORK: Readonly<Record<GameCategoryId, CategoryArtworkVariants>> = {
+  board: { dark: boardArtworkDark, light: boardArtworkLight },
+  social: { dark: socialArtworkDark, light: socialArtworkLight },
+  cards: { dark: cardsArtworkDark, light: cardsArtworkLight },
+  solo: { dark: soloArtworkDark, light: soloArtworkLight },
+  party: { dark: partyArtworkDark, light: partyArtworkLight },
+  community: { dark: communityArtworkDark, light: communityArtworkLight },
+}
+
+const categoryArtwork = computed(() => {
+  const variants = CATEGORY_ARTWORK[props.category.id]
+  return isLightTheme(currentTheme.value) ? variants.light : variants.dark
+})
 </script>
 
 <template>
@@ -52,20 +67,20 @@ const categoryEmblem = computed(() => CATEGORY_EMBLEMS[props.category.id])
     </span>
 
     <span class="category-card-art" aria-hidden="true">
-      <i class="category-art-orbit" />
-      <i class="category-art-signal" />
-      <span class="category-emblem">
-        <i class="category-emblem-core" />
-        <img
-          class="category-emblem-symbol"
-          :src="categoryEmblem"
-          alt=""
-          width="128"
-          height="128"
-        >
-        <i class="category-emblem-index">{{ String(category.games.length).padStart(2, '0') }}</i>
+      <img
+        class="category-artwork"
+        :src="categoryArtwork"
+        alt=""
+        width="768"
+        height="768"
+        loading="lazy"
+        decoding="async"
+      >
+      <i class="category-art-shade" />
+      <span class="category-art-meta">
+        <i>{{ String(category.games.length).padStart(2, '0') }}</i>
+        <em>{{ category.kind === 'community' ? 'COMMUNITY' : 'CATEGORY' }}</em>
       </span>
-      <span class="category-art-label">{{ category.kind === 'community' ? 'COMMUNITY' : 'CATEGORY' }}</span>
     </span>
 
     <i class="category-card-arrow" aria-hidden="true"><ChevronRight :size="20" /></i>
@@ -128,7 +143,7 @@ const categoryEmblem = computed(() => CATEGORY_EMBLEMS[props.category.id])
 .category-cards { --category-tone: #a97579; }
 .category-solo { --category-tone: #6f9da2; }
 .category-party { --category-tone: #a78e64; }
-.category-community { --category-tone: #748da9; }
+.category-community { --category-tone: #b46f35; }
 
 .category-card-copy {
   position: relative;
@@ -215,126 +230,66 @@ const categoryEmblem = computed(() => CATEGORY_EMBLEMS[props.category.id])
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--category-tone) 19%, var(--line));
   border-radius: calc(var(--radius-card) - 3px);
-  background:
-    radial-gradient(circle at 50% 48%, color-mix(in srgb, var(--category-tone) 18%, transparent), transparent 55%),
-    linear-gradient(150deg, color-mix(in srgb, var(--surface-elevated) 74%, transparent), var(--surface-inset));
+  background: var(--surface-inset);
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 38%, transparent),
-    inset 0 -24px 42px color-mix(in srgb, var(--panel-shadow) 22%, transparent);
+    var(--shadow-contact),
+    inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 38%, transparent);
+  isolation: isolate;
 }
 
-.category-art-orbit,
-.category-art-signal {
+.category-card-art::after {
   position: absolute;
+  z-index: 4;
+  inset: 4px;
+  border: 1px solid color-mix(in srgb, var(--line-bright) 15%, transparent);
+  border-radius: calc(var(--radius-card) - 7px);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 28%, transparent);
+  content: '';
   pointer-events: none;
 }
 
-.category-art-orbit {
-  inset: 14% 8%;
-  border: 1px solid color-mix(in srgb, var(--category-tone) 20%, transparent);
-  border-radius: 50%;
-  transform: rotate(-12deg);
-}
-
-.category-art-orbit::before,
-.category-art-orbit::after {
+.category-artwork {
   position: absolute;
-  inset: 13%;
-  border: inherit;
-  border-radius: inherit;
-  content: '';
-}
-
-.category-art-orbit::after { inset: 29%; }
-
-.category-art-signal {
-  top: 14px;
-  right: 16px;
-  width: 38px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--category-tone));
-  box-shadow: 0 0 8px color-mix(in srgb, var(--category-tone) 38%, transparent);
-}
-
-.category-emblem {
-  position: relative;
-  z-index: 2;
-  width: min(68%, 132px);
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-  border: 1px solid color-mix(in srgb, var(--category-tone) 42%, var(--line));
-  border-radius: 31%;
-  color: color-mix(in srgb, var(--category-tone) 84%, var(--text-soft));
-  background:
-    linear-gradient(145deg, color-mix(in srgb, var(--panel-highlight) 18%, transparent), transparent 42%),
-    color-mix(in srgb, var(--category-tone) 8%, var(--surface-elevated));
-  box-shadow:
-    0 18px 34px color-mix(in srgb, var(--panel-shadow) 64%, transparent),
-    0 0 0 7px color-mix(in srgb, var(--surface-inset) 62%, transparent),
-    inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 58%, transparent);
-  transform: rotate(-2deg);
-  transition: transform .45s cubic-bezier(.2, .8, .2, 1), box-shadow .45s ease;
-}
-
-.category-emblem::before,
-.category-emblem::after,
-.category-emblem-core {
-  position: absolute;
-  border-radius: inherit;
-  content: '';
-}
-
-.category-emblem::before {
-  inset: 7px;
-  border: 1px solid color-mix(in srgb, var(--category-tone) 22%, var(--line));
-}
-
-.category-emblem::after {
-  width: 7px;
-  height: 7px;
-  right: 13px;
-  top: 13px;
-  border-radius: 50%;
-  background: var(--category-tone);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--category-tone) 52%, transparent);
-}
-
-.category-emblem-core {
-  inset: 21%;
-  border: 1px solid color-mix(in srgb, var(--category-tone) 17%, transparent);
-  transform: rotate(45deg);
-}
-
-.category-emblem-symbol {
+  z-index: 1;
+  inset: 0;
   display: block;
-  width: 61%;
-  height: auto;
-  aspect-ratio: 1;
-  filter: drop-shadow(0 0 9px color-mix(in srgb, var(--category-tone) 28%, transparent));
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.015);
+  transition: transform .55s cubic-bezier(.2, .8, .2, 1);
 }
 
-.category-emblem-index {
+.category-art-shade {
   position: absolute;
-  right: 12px;
-  bottom: 10px;
-  color: color-mix(in srgb, var(--category-tone) 62%, var(--muted));
+  z-index: 2;
+  inset: 0;
+  background:
+    linear-gradient(180deg, transparent 52%, rgba(0, 0, 0, .52)),
+    linear-gradient(110deg, color-mix(in srgb, var(--category-tone) 6%, transparent), transparent 48%);
+  pointer-events: none;
+}
+
+.category-art-meta {
+  position: absolute;
+  z-index: 3;
+  right: 10px;
+  bottom: 9px;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: rgba(255, 255, 255, .62);
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
-  font-size: 8px;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, .72);
+}
+
+.category-art-meta i,
+.category-art-meta em {
+  font-size: 7px;
   font-style: normal;
   font-weight: 800;
-  letter-spacing: .1em;
-}
-
-.category-art-label {
-  position: absolute;
-  left: 11px;
-  bottom: 9px;
-  color: color-mix(in srgb, var(--category-tone) 56%, var(--muted));
-  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
-  font-size: 7px;
-  font-weight: 760;
-  letter-spacing: .12em;
+  letter-spacing: .11em;
 }
 
 .category-card-arrow {
@@ -376,14 +331,7 @@ const categoryEmblem = computed(() => CATEGORY_EMBLEMS[props.category.id])
     transform: translateY(-4px);
   }
 
-  .game-category-card:hover .category-emblem {
-    box-shadow:
-      0 22px 38px color-mix(in srgb, var(--panel-shadow) 70%, transparent),
-      0 0 0 7px color-mix(in srgb, var(--surface-inset) 62%, transparent),
-      0 0 26px color-mix(in srgb, var(--category-tone) 15%, transparent),
-      inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 62%, transparent);
-    transform: rotate(1deg) translateY(-4px) scale(1.025);
-  }
+  .game-category-card:hover .category-artwork { transform: scale(1.055); }
 
   .game-category-card:hover .category-card-arrow { transform: translateX(2px); }
 }
@@ -403,9 +351,9 @@ const categoryEmblem = computed(() => CATEGORY_EMBLEMS[props.category.id])
   .category-card-meta { padding-top: 9px; }
   .category-card-meta em { display: none; }
   .category-card-art { min-height: 118px; }
-  .category-emblem { width: min(66%, 86px); }
-  .category-emblem-index { right: 8px; bottom: 7px; font-size: 7px; }
-  .category-art-label { left: 7px; bottom: 6px; font-size: 6px; }
+  .category-art-meta { right: 7px; bottom: 6px; left: 7px; }
+  .category-art-meta i,
+  .category-art-meta em { font-size: 6px; }
   .category-card-arrow { right: 9px; top: 9px; width: 28px; }
 }
 
@@ -416,10 +364,9 @@ const categoryEmblem = computed(() => CATEGORY_EMBLEMS[props.category.id])
   }
 
   .category-card-copy > p { display: none; }
-  .category-emblem { width: 78px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .category-emblem { transition: none; }
+  .category-artwork { transition: none; }
 }
 </style>
