@@ -50,7 +50,7 @@ describe('GameHall', () => {
     await wrapper.get('[aria-label="返回游戏分类"]').trigger('click')
     expect(wrapper.get('.account-identity-copy').text()).toContain('玩家账号 · tester')
     expect(wrapper.get('.hall-title-block').text()).toContain('竞技大厅')
-    expect(wrapper.get('.hall-clock-widget').text()).toContain('本地时间')
+    expect(wrapper.get('.hall-clock-widget').text()).toContain('LOCAL TIME')
     expect(wrapper.text()).toContain('选择游戏分类')
     expect(wrapper.text()).not.toContain('全部游戏')
     expect(wrapper.text()).not.toContain('PRIVATE')

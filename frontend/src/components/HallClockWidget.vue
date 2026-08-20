@@ -71,10 +71,13 @@ onBeforeUnmount(() => {
 
     <div v-else class="hall-clock-face" role="timer" aria-live="off">
       <span class="hall-clock-icon" aria-hidden="true"><Clock3 :size="18" /></span>
-      <span class="hall-clock-copy">
-        <small>本地时间</small>
+      <span class="hall-clock-time">
+        <small>LOCAL TIME</small>
         <time :datetime="currentTime.toISOString()">{{ timeText }}</time>
-        <em>{{ dateText }} · {{ weekdayText }}</em>
+      </span>
+      <span class="hall-clock-date">
+        <strong>{{ dateText }}</strong>
+        <small>{{ weekdayText }}</small>
       </span>
     </div>
   </section>
@@ -99,7 +102,6 @@ onBeforeUnmount(() => {
 .hall-clock-face,
 .hall-clock-return {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   width: 100%;
@@ -107,7 +109,12 @@ onBeforeUnmount(() => {
   padding: 6px 11px;
 }
 
+.hall-clock-face {
+  grid-template-columns: 36px auto minmax(72px, 1fr);
+}
+
 .hall-clock-return {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
   min-width: 0;
   border: 0;
   color: var(--text);
@@ -142,7 +149,6 @@ onBeforeUnmount(() => {
   letter-spacing: .06em;
 }
 
-.hall-clock-copy time,
 .hall-clock-copy strong,
 .hall-clock-copy em {
   overflow: hidden;
@@ -150,12 +156,24 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
-.hall-clock-copy time {
+.hall-clock-time {
+  display: grid;
+  gap: 1px;
+}
+
+.hall-clock-time small {
+  color: var(--accent);
+  font-size: 7px;
+  font-weight: 820;
+  letter-spacing: .12em;
+}
+
+.hall-clock-time time {
   color: var(--text);
-  font-size: 17px;
+  font-size: 22px;
   font-variant-numeric: tabular-nums;
   font-weight: 820;
-  letter-spacing: .02em;
+  letter-spacing: -.025em;
   line-height: 1;
 }
 
@@ -168,6 +186,27 @@ onBeforeUnmount(() => {
   color: var(--muted);
   font-size: 9px;
   font-style: normal;
+}
+
+.hall-clock-date {
+  display: grid;
+  justify-self: end;
+  min-width: 74px;
+  border-left: 1px solid var(--line);
+  padding-left: 13px;
+  text-align: right;
+}
+
+.hall-clock-date strong {
+  color: var(--text-soft);
+  font-size: 10px;
+  font-weight: 760;
+}
+
+.hall-clock-date small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 8px;
 }
 
 .hall-clock-action {
