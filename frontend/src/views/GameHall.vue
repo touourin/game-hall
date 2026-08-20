@@ -7,7 +7,6 @@ import {
   History,
   LogOut,
   Radio,
-  RotateCcw,
   Settings,
   Shapes,
   ShieldCheck,
@@ -21,6 +20,7 @@ import { useArcadeStore } from '../stores/arcade'
 import AvatarImage from '../components/AvatarImage.vue'
 import GameCardArtwork from '../components/GameCardArtwork.vue'
 import GameCategoryBrowser from '../components/GameCategoryBrowser.vue'
+import HallClockWidget from '../components/HallClockWidget.vue'
 import LobbyRoomPanel from '../components/LobbyRoomPanel.vue'
 import StatsModal from '../components/StatsModal.vue'
 import UiButton from '../components/ui/UiButton.vue'
@@ -58,10 +58,6 @@ const liveRooms = computed(() => [...builtInRooms.value]
     return secondLobby - firstLobby || second.playerCount - first.playerCount
   })
   .slice(0, 4))
-const livePlayerCount = computed(() => builtInRooms.value.reduce(
-  (total, room) => total + room.playerCount,
-  0,
-))
 const roomCountByGame = computed(() => arcade.availableRooms
   .filter((room) => !room.cleanupAvailable)
   .reduce<Record<string, number>>(
@@ -72,30 +68,25 @@ const roomCountByGame = computed(() => arcade.availableRooms
     {},
   ))
 
-const hubRoom = computed(() => liveRooms.value[0] ?? null)
+const resumableGame = computed(() => (
+  arcade.resumableGame ? gameCatalogItem(arcade.resumableGame) : null
+))
+const hubRoom = computed(() => (
+  liveRooms.value.find((room) => room.roomCode !== arcade.resumableRoomCode) ?? null
+))
 const hubGame = computed(() => {
-  if (arcade.resumableGame) {
-    const resumable = gameCatalogItem(arcade.resumableGame)
-    if (resumable?.source === 'official') return resumable
-  }
   if (hubRoom.value) {
     const live = gameCatalogItem(hubRoom.value.gameKey)
     if (live?.source === 'official') return live
   }
   return officialGames.find((game) => game.key === 'go') ?? officialGames[0]!
 })
-const hubMode = computed<'resume' | 'room' | 'discover'>(() => {
-  if (arcade.resumableGame && arcade.resumableRoomCode) return 'resume'
-  if (hubRoom.value) return 'room'
-  return 'discover'
-})
+const hubMode = computed<'room' | 'discover'>(() => (hubRoom.value ? 'room' : 'discover'))
 const hubTitle = computed(() => {
-  if (hubMode.value === 'resume') return `继续上局 · ${hubGame.value.name}`
   if (hubMode.value === 'room') return hubRoom.value?.roomName || `${hubGame.value.name}公开房间`
   return `从 ${hubGame.value.name} 开始`
 })
 const hubDescription = computed(() => {
-  if (hubMode.value === 'resume') return `房间 ${arcade.resumableRoomCode} 仍在等待你，进度已经安全保留。`
   if (hubMode.value === 'room') {
     const room = hubRoom.value!
     return `${room.hostName}创建 · ${room.playerCount}/${room.maxPlayers} 人 · ${room.phase === 'lobby' ? '等待加入' : '对局进行中'}`
@@ -103,7 +94,6 @@ const hubDescription = computed(() => {
   return `${hubGame.value.description}，支持 ${hubGame.value.players}。`
 })
 const hubActionLabel = computed(() => {
-  if (hubMode.value === 'resume') return '继续对局'
   if (hubMode.value === 'room') return '查看房间'
   return '开始游戏'
 })
@@ -113,10 +103,6 @@ function openRoom(room: ArcadeLobbyRoom) {
 }
 
 function openHub() {
-  if (hubMode.value === 'resume') {
-    emit('resumeRoom')
-    return
-  }
   if (hubMode.value === 'room' && hubRoom.value) {
     openRoom(hubRoom.value)
     return
@@ -160,11 +146,11 @@ function openGameCategories() {
           <h1>竞技大厅</h1>
         </div>
 
-        <div class="hall-system-metrics" aria-label="大厅实时状态">
-          <span><i :class="{ offline: !arcade.connected }" />{{ arcade.connected ? '连接正常' : '正在重连' }}</span>
-          <span>{{ livePlayerCount }} 位玩家</span>
-          <span>{{ builtInRooms.length }} 个房间</span>
-        </div>
+        <HallClockWidget
+          :active-game-name="resumableGame?.name"
+          :active-room-code="arcade.resumableRoomCode"
+          @resume="emit('resumeRoom')"
+        />
 
         <section class="account-bar hall-account-bar" aria-label="当前登录账号">
           <div>
@@ -187,7 +173,7 @@ function openGameCategories() {
           <span>
             <small>对局与房间</small>
             <strong id="command-center-title">对局中枢</strong>
-            <em>回到进行中的对局，或从公开房间开始下一局</em>
+            <em>发现公开房间，或从推荐游戏开始下一局</em>
           </span>
           <div><Signal :size="15" />大厅数据实时同步</div>
         </header>
@@ -196,10 +182,9 @@ function openGameCategories() {
           <article class="hall-hub surface">
             <div class="hall-hub-copy">
               <span class="hall-hub-kicker">
-                <RotateCcw v-if="hubMode === 'resume'" :size="15" />
-                <Radio v-else-if="hubMode === 'room'" :size="15" />
+                <Radio v-if="hubMode === 'room'" :size="15" />
                 <Gamepad2 v-else :size="15" />
-                {{ hubMode === 'resume' ? '继续上局' : hubMode === 'room' ? '公开房间' : '为你推荐' }}
+                {{ hubMode === 'room' ? '公开房间' : '为你推荐' }}
               </span>
               <h2>{{ hubTitle }}</h2>
               <p>{{ hubDescription }}</p>
@@ -354,9 +339,9 @@ function openGameCategories() {
 
 .hall-topbar {
   display: grid;
-  grid-template-columns: minmax(150px, 0.8fr) auto minmax(310px, 1.15fr);
+  grid-template-columns: minmax(140px, .65fr) minmax(270px, .9fr) minmax(300px, 1.15fr);
   align-items: center;
-  gap: 22px;
+  gap: 16px;
   min-height: 82px;
   margin-bottom: 30px;
   padding: 10px 14px 10px 22px;
@@ -383,8 +368,7 @@ function openGameCategories() {
   letter-spacing: .12em;
 }
 
-.hall-title-block small i,
-.hall-system-metrics i {
+.hall-title-block small i {
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -397,32 +381,6 @@ function openGameCategories() {
   font-size: 21px;
   font-weight: 850;
   letter-spacing: -.02em;
-}
-
-.hall-system-metrics {
-  display: flex;
-  gap: 16px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 10px 14px;
-  color: var(--muted);
-  background: var(--control-surface), var(--surface-inset);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 48%, transparent),
-    inset 0 -8px 18px color-mix(in srgb, var(--panel-shadow) 22%, transparent);
-  font-size: 10px;
-}
-
-.hall-system-metrics span {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.hall-system-metrics i.offline {
-  background: var(--red);
-  box-shadow: none;
 }
 
 .hall-account-bar {
@@ -786,12 +744,11 @@ function openGameCategories() {
 
 @media (max-width: 1180px) {
   .hall-topbar {
-    grid-template-columns: minmax(140px, .7fr) minmax(300px, 1.2fr);
+    grid-template-columns: minmax(120px, .55fr) minmax(250px, .9fr) minmax(270px, 1fr);
+    gap: 12px;
   }
 
-  .hall-system-metrics {
-    display: none;
-  }
+  .hall-account-bar { padding-left: 12px; }
 
   .hall-command-grid {
     grid-template-columns: minmax(0, 1.35fr) minmax(300px, .75fr);
@@ -822,7 +779,20 @@ function openGameCategories() {
     padding: 9px 11px 9px 16px;
   }
 
+  .hall-topbar > .hall-title-block {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .hall-topbar > :deep(.hall-clock-widget) {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
   .hall-account-bar {
+    grid-row: 1;
+    grid-column: 2;
     border-left: 0;
     padding-left: 0;
   }

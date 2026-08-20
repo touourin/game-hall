@@ -39,6 +39,41 @@ describe('ArcadeHome', () => {
     expect(wrapper.emitted('settings')).toHaveLength(1)
   })
 
+  it('shows a compact return action on the matching game page', async () => {
+    localStorage.setItem('game-hall:arcade-session', JSON.stringify({
+      gameKey: 'go',
+      roomCode: 'R8H2',
+      playerId: 'player-1',
+      resumeToken: 'resume-1',
+    }))
+    const wrapper = mount(ArcadeHome, {
+      props: {
+        game: {
+          key: 'go',
+          name: '围棋',
+          players: '2 人',
+          description: '测试',
+        },
+        account: {
+          id: 'account-1',
+          username: 'tester',
+          playerName: '测试玩家',
+          createdAt: '2026-08-01T00:00:00Z',
+        },
+      },
+      global: { plugins: [createPinia()] },
+    })
+
+    const returnCard = wrapper.get('.resume-arcade-card')
+    expect(returnCard.text()).toContain('对局进行中')
+    expect(returnCard.text()).toContain('围棋')
+    expect(returnCard.text()).toContain('房间 R8H2')
+    expect(returnCard.text()).toContain('返回对局')
+
+    await returnCard.get('button').trigger('click')
+    expect(wrapper.emitted('resumeRoom')).toHaveLength(1)
+  })
+
   it('opens a routed invitation in join mode with its room code', () => {
     const wrapper = mount(ArcadeHome, {
       props: {

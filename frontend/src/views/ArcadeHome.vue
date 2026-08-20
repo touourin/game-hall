@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { History, Settings, Trophy, UsersRound } from '@lucide/vue'
+import { History, RotateCcw, Settings, Trophy, UsersRound } from '@lucide/vue'
 import type { AccountProfile } from '../account'
 import type { ArcadeGameKey, GameCatalogItem } from '../types/arcade'
 import { useArcadeStore } from '../stores/arcade'
@@ -113,8 +113,16 @@ async function submit() {
     <section
       v-if="arcade.activeRoomCode && arcade.activeGame === game.key"
       class="surface resume-arcade-card"
+      aria-label="进行中的对局"
     >
-      <div><History :size="20" /><span><strong>你有一局尚未结束</strong><small>房间 {{ arcade.activeRoomCode }}</small></span></div>
+      <div class="resume-arcade-copy">
+        <span class="resume-arcade-icon"><RotateCcw :size="19" /></span>
+        <span>
+          <small>对局进行中</small>
+          <strong>{{ game.name }}</strong>
+          <em>房间 {{ arcade.activeRoomCode }}</em>
+        </span>
+      </div>
       <UiButton variant="primary" @click="emit('resumeRoom')">返回对局</UiButton>
     </section>
 
@@ -190,9 +198,15 @@ async function submit() {
 .arcade-home.solo-arcade-home { width: min(100%, 1120px); }
 .solo-arcade-home :deep(.game-home-header) { min-height: 178px; padding-bottom: 35px; }
 .solo-arcade-home :deep(.game-home-header::after) { bottom: 14px; }
-.resume-arcade-card { margin-bottom: 18px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
-.resume-arcade-card > div { display: flex; align-items: center; gap: 11px; color: var(--accent); }
-.resume-arcade-card strong,.resume-arcade-card small { display: block; }.resume-arcade-card small { margin-top: 3px; color: var(--muted); }
+.resume-arcade-card { margin-bottom: 18px; padding: 11px 12px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-color: color-mix(in srgb, var(--accent) 28%, var(--line)); }
+.resume-arcade-copy { display: flex; min-width: 0; align-items: center; gap: 10px; }
+.resume-arcade-icon { display: grid; place-items: center; width: 38px; aspect-ratio: 1; flex: 0 0 auto; border-radius: 11px; color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface-soft)); }
+.resume-arcade-copy > span:last-child { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; min-width: 0; }
+.resume-arcade-copy small { grid-column: 1 / -1; margin-bottom: 2px; color: var(--accent); font-size: 9px; font-weight: 800; letter-spacing: .06em; }
+.resume-arcade-copy strong,.resume-arcade-copy em { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resume-arcade-copy strong { font-size: 13px; }
+.resume-arcade-copy em { margin-left: 8px; color: var(--muted); font-size: 10px; font-style: normal; }
+.resume-arcade-card :deep(.ui-button) { min-height: 40px; }
 .cleanup-room-browser { width: min(100%, 760px); margin: 0 auto; padding: 16px; }
 .multiplayer-match-launcher + .cleanup-room-browser { margin-top: 18px; }
 .cleanup-room-browser > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; }

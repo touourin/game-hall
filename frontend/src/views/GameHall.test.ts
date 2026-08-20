@@ -5,6 +5,8 @@ import { useArcadeStore } from '../stores/arcade'
 import GameHall from './GameHall.vue'
 
 describe('GameHall', () => {
+  beforeEach(() => localStorage.clear())
+
   it('shows category modules before selecting a game from a category', async () => {
     const wrapper = mount(GameHall, {
       props: {
@@ -48,7 +50,7 @@ describe('GameHall', () => {
     await wrapper.get('[aria-label="返回游戏分类"]').trigger('click')
     expect(wrapper.get('.account-identity-copy').text()).toContain('玩家账号 · tester')
     expect(wrapper.get('.hall-title-block').text()).toContain('竞技大厅')
-    expect(wrapper.get('.hall-system-metrics').text()).toContain('0 个房间')
+    expect(wrapper.get('.hall-clock-widget').text()).toContain('本地时间')
     expect(wrapper.text()).toContain('选择游戏分类')
     expect(wrapper.text()).not.toContain('全部游戏')
     expect(wrapper.text()).not.toContain('PRIVATE')
@@ -131,12 +133,43 @@ describe('GameHall', () => {
       global: { plugins: [pinia] },
     })
 
-    expect(wrapper.get('.hall-system-metrics').text()).toContain('6 位玩家')
     expect(wrapper.get('.hall-hub-copy').text()).toContain('冠军桌')
     await wrapper.get('.lobby-room-row').trigger('click')
     expect(wrapper.emitted('openRoom')?.[0]?.[0]).toEqual({
       gameKey: 'avalon',
       roomCode: 'NX42',
     })
+  })
+
+  it('moves the active-room return action into the top shortcut widget', async () => {
+    localStorage.setItem('game-hall:arcade-session', JSON.stringify({
+      gameKey: 'avalon',
+      roomCode: 'AVLN',
+      playerId: 'player-1',
+      resumeToken: 'resume-1',
+    }))
+    const pinia = createPinia()
+    useArcadeStore(pinia)
+    const wrapper = mount(GameHall, {
+      props: {
+        account: {
+          id: 'account-1',
+          username: 'tester',
+          playerName: '测试玩家',
+          createdAt: '2026-08-01T00:00:00Z',
+        },
+      },
+      global: { plugins: [pinia] },
+    })
+
+    const clock = wrapper.get('.hall-clock-widget--active')
+    expect(clock.text()).toContain('对局进行中')
+    expect(clock.text()).toContain('阿瓦隆')
+    expect(clock.text()).toContain('房间 AVLN')
+    expect(clock.text()).toContain('返回对局')
+    expect(wrapper.get('.hall-hub-copy').text()).toContain('从 围棋 开始')
+
+    await clock.get('.hall-clock-return').trigger('click')
+    expect(wrapper.emitted('resumeRoom')).toHaveLength(1)
   })
 })
