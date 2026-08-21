@@ -80,7 +80,6 @@ class DoudizhuState:
     bottom_cards: list[Card] = field(default_factory=list)
     bids: list[dict[str, Any]] = field(default_factory=list)
     current_bidder: int = 0
-    bidding_turns: int = 0
     landlord_candidate_seat: int | None = None
     landlord_seat: int | None = None
     current_seat: int | None = None
@@ -371,13 +370,14 @@ class DoudizhuEngine:
     def initial_state(self) -> DoudizhuState:
         return DoudizhuState()
 
-    @staticmethod
-    def repair_restored_room(room: ArcadeRoom) -> None:
+    def repair_restored_room(self, room: ArcadeRoom) -> None:
         state = room.state
         if not isinstance(state, DoudizhuState):
             return
         state.deal_number = max(1, int(getattr(state, "deal_number", 1)))
         state.revealed_seats = list(getattr(state, "revealed_seats", []))
+        if room.phase == "bidding" and state.landlord_candidate_seat is not None:
+            self._advance_rob_phase(room)
 
     def start(self, room: ArcadeRoom) -> None:
         previous = room.state if isinstance(room.state, DoudizhuState) else None
@@ -548,7 +548,12 @@ class DoudizhuEngine:
     ) -> None:
         state: DoudizhuState = room.state
         if player.seat != state.current_bidder:
-            raise GameRuleError("还没有轮到你叫地主")
+            action_label = (
+                "叫地主"
+                if state.landlord_candidate_seat is None
+                else "抢地主"
+            )
+            raise GameRuleError(f"还没有轮到你{action_label}")
         expected_positive = (
             "call" if state.landlord_candidate_seat is None else "rob"
         )
@@ -556,17 +561,20 @@ class DoudizhuEngine:
         if decision not in {expected_positive, "pass"}:
             label = "叫地主" if expected_positive == "call" else "抢地主"
             raise GameRuleError(f"请选择{label}或不{label[0]}")
-        state.bids.append({"seat": player.seat, "decision": decision})
-        state.history.append(
-            {"type": "bid", "seat": player.seat, "decision": decision}
-        )
+        bid = {
+            "seat": player.seat,
+            "decision": decision,
+            "mode": expected_positive,
+        }
+        state.bids.append(bid)
+        state.history.append({"type": "bid", **bid})
 
         if state.landlord_candidate_seat is None:
-            state.bidding_turns += 1
             if decision == "call":
                 state.landlord_candidate_seat = player.seat
-                state.bidding_turns = 0
-            elif state.bidding_turns >= 3:
+                self._advance_rob_phase(room)
+                return
+            if len(state.bids) >= 3:
                 if state.variant == "no_shuffle":
                     state.next_deck = self._gather_for_next_deal(state)
                 self.start(room)
@@ -574,14 +582,59 @@ class DoudizhuEngine:
             state.current_bidder = (state.current_bidder + 1) % 3
             return
 
-        state.bidding_turns += 1
         if decision == "rob":
             self._double(state, "抢地主", player.seat)
             state.landlord_candidate_seat = player.seat
-        if state.bidding_turns >= 2:
-            self._assign_landlord(room, state.landlord_candidate_seat)
+        self._advance_rob_phase(room)
+
+    def _advance_rob_phase(self, room: ArcadeRoom) -> None:
+        state: DoudizhuState = room.state
+        pending_robbers = self._pending_robber_seats(state)
+        if pending_robbers:
+            state.current_bidder = pending_robbers[0]
             return
-        state.current_bidder = (state.current_bidder + 1) % 3
+        if state.landlord_candidate_seat is None:
+            raise RuntimeError("抢地主阶段缺少地主候选人")
+        self._assign_landlord(room, state.landlord_candidate_seat)
+
+    @staticmethod
+    def _pending_robber_seats(state: DoudizhuState) -> list[int]:
+        call_index = next(
+            (
+                index
+                for index, bid in enumerate(state.bids)
+                if bid.get("decision") == "call"
+            ),
+            None,
+        )
+        if call_index is None:
+            return []
+
+        caller_seat = state.bids[call_index]["seat"]
+        declined_call_seats = {
+            bid["seat"]
+            for bid in state.bids[:call_index]
+            if bid.get("decision") == "pass"
+        }
+        rob_bids = state.bids[call_index + 1 :]
+        completed_rob_seats = {bid["seat"] for bid in rob_bids}
+        ineligible_seats = declined_call_seats | completed_rob_seats
+        ordered_opponents = (
+            (caller_seat + 1) % 3,
+            (caller_seat + 2) % 3,
+        )
+        pending_opponents = [
+            seat for seat in ordered_opponents if seat not in ineligible_seats
+        ]
+        if pending_opponents:
+            return pending_opponents
+
+        landlord_was_robbed = any(
+            bid.get("decision") == "rob" for bid in rob_bids
+        )
+        if landlord_was_robbed and caller_seat not in completed_rob_seats:
+            return [caller_seat]
+        return []
 
     def _assign_landlord(self, room: ArcadeRoom, seat: int) -> None:
         state: DoudizhuState = room.state

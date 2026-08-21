@@ -20,6 +20,7 @@ interface HistoryEntry {
   playerId?: string
   playerName?: string
   decision?: 'call' | 'rob' | 'pass'
+  mode?: 'call' | 'rob'
   cards?: PlayingCard[]
   pattern?: { kind: string; label: string }
 }
@@ -309,7 +310,10 @@ function historyText(entry: HistoryEntry): string {
   if (entry.type === 'landlord') return `${entry.playerName} 成为地主`
   if (entry.type === 'reveal') return `${entry.playerName} 公开了手牌`
   if (entry.type === 'pass' || entry.decision === 'pass') {
-    return `${entry.playerName} ${entry.type === 'bid' ? '不叫／不抢' : '不出'}`
+    if (entry.type !== 'bid') return `${entry.playerName} 不出`
+    if (entry.mode === 'call') return `${entry.playerName} 不叫`
+    if (entry.mode === 'rob') return `${entry.playerName} 不抢`
+    return `${entry.playerName} 不叫／不抢`
   }
   if (entry.type === 'bid') {
     return `${entry.playerName} ${entry.decision === 'call' ? '叫地主' : '抢地主'}`

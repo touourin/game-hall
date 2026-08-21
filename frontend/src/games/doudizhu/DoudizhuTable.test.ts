@@ -297,4 +297,19 @@ describe('DoudizhuTable', () => {
     await wrapper.findAll('.bid-panel button').find((button) => button.text().includes('抢地主 ×2'))?.trigger('click')
     expect(action).toHaveBeenLastCalledWith('bid', { decision: 'rob' })
   })
+
+  it('distinguishes declined calls from declined robs in the history', () => {
+    const next = playingSnapshot()
+    next.game.history = [
+      { type: 'bid', playerName: '玩家一', decision: 'pass', mode: 'call' },
+      { type: 'bid', playerName: '玩家二', decision: 'pass', mode: 'rob' },
+    ]
+    const wrapper = mount(DoudizhuTable, {
+      props: { snapshot: next },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.text()).toContain('玩家一 不叫')
+    expect(wrapper.text()).toContain('玩家二 不抢')
+  })
 })

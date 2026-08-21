@@ -1141,6 +1141,7 @@ def test_doudizhu_call_rob_assigns_landlord_and_settles_spring() -> None:
     engine.act(room, room.players[0], "bid", {"decision": "call"})
     engine.act(room, room.players[1], "bid", {"decision": "rob"})
     engine.act(room, room.players[2], "bid", {"decision": "pass"})
+    engine.act(room, room.players[0], "bid", {"decision": "pass"})
 
     assert room.phase == "playing"
     assert room.state.landlord_seat == 1
@@ -1179,20 +1180,62 @@ def test_doudizhu_turn_order_is_clockwise_for_every_landlord_seat(
     assert room.state.current_seat == landlord_seat
 
 
-def test_doudizhu_late_caller_still_gives_both_opponents_a_rob_turn() -> None:
+def test_doudizhu_player_who_declined_call_cannot_rob() -> None:
     engine = DoudizhuEngine(random.Random(13))
     room = make_room(engine, 3)
 
     engine.act(room, room.players[0], "bid", {"decision": "pass"})
     engine.act(room, room.players[1], "bid", {"decision": "call"})
+    assert room.phase == "bidding"
+    assert room.state.current_bidder == 2
+
+    with pytest.raises(GameRuleError, match="还没有轮到你抢地主"):
+        engine.act(room, room.players[0], "bid", {"decision": "rob"})
+
+    engine.act(room, room.players[2], "bid", {"decision": "rob"})
+    assert room.phase == "bidding"
+    assert room.state.current_bidder == 1
+
+    with pytest.raises(GameRuleError, match="还没有轮到你抢地主"):
+        engine.act(room, room.players[0], "bid", {"decision": "rob"})
+
+    engine.act(room, room.players[1], "bid", {"decision": "pass"})
+
+    assert room.phase == "playing"
+    assert room.state.landlord_seat == 2
+    assert room.state.multiplier == 2
+
+
+def test_doudizhu_caller_can_rob_back_after_an_opponent_robs() -> None:
+    engine = DoudizhuEngine(random.Random(19))
+    room = make_room(engine, 3)
+
+    engine.act(room, room.players[0], "bid", {"decision": "call"})
+    engine.act(room, room.players[1], "bid", {"decision": "rob"})
     engine.act(room, room.players[2], "bid", {"decision": "pass"})
+
     assert room.phase == "bidding"
     assert room.state.current_bidder == 0
+
     engine.act(room, room.players[0], "bid", {"decision": "rob"})
 
     assert room.phase == "playing"
     assert room.state.landlord_seat == 0
-    assert room.state.multiplier == 2
+    assert room.state.multiplier == 4
+
+
+def test_doudizhu_last_caller_becomes_landlord_without_a_rob_turn() -> None:
+    engine = DoudizhuEngine(random.Random(17))
+    room = make_room(engine, 3)
+
+    engine.act(room, room.players[0], "bid", {"decision": "pass"})
+    engine.act(room, room.players[1], "bid", {"decision": "pass"})
+    engine.act(room, room.players[2], "bid", {"decision": "call"})
+
+    assert room.phase == "playing"
+    assert room.state.landlord_seat == 2
+    assert len(room.state.hands[2]) == 20
+    assert room.state.multiplier == 1
 
 
 def test_doudizhu_bomb_and_anti_spring_double_the_score() -> None:
@@ -1375,16 +1418,26 @@ def test_doudizhu_redeal_advances_the_presentation_deal_number() -> None:
     assert engine.view(room, room.players[0])["dealNumber"] == 2
 
 
-def test_doudizhu_repairs_reveal_fields_on_a_restored_legacy_room() -> None:
+def test_doudizhu_repairs_a_restored_legacy_room() -> None:
     engine = DoudizhuEngine(random.Random(31))
     room = make_room(engine, 3)
     del room.state.deal_number
     del room.state.revealed_seats
+    room.state.bids = [
+        {"seat": 0, "decision": "pass"},
+        {"seat": 1, "decision": "call"},
+        {"seat": 2, "decision": "pass"},
+    ]
+    room.state.landlord_candidate_seat = 1
+    room.state.current_bidder = 0
 
     engine.repair_restored_room(room)
 
     assert room.state.deal_number == 1
     assert room.state.revealed_seats == []
+    assert room.phase == "playing"
+    assert room.state.landlord_seat == 1
+    assert len(room.state.hands[1]) == 20
 
 
 def test_doudizhu_completes_a_full_deal_through_legal_play() -> None:
