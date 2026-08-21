@@ -17,7 +17,7 @@ DOUDIZHU_GAME = GameRegistration(
         name="斗地主",
         min_players=3,
         max_players=3,
-        description="叫抢地主、三种玩法与倍数结算",
+        description="逐张发牌、随时明牌、三种玩法与倍数结算",
     ),
     capabilities=social_table_capabilities(ai=True),
 )

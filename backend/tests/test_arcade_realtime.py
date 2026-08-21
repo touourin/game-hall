@@ -1,4 +1,6 @@
 import asyncio
+import time
+from typing import Any
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -9,6 +11,8 @@ from backend.app.arcade.realtime import (
     ArcadeRealtime,
     RealtimeInputPayload,
 )
+from backend.app.arcade.bots import BotAction
+from backend.app.arcade.models import ArcadePlayer, ArcadeRoom
 
 
 class DelayedPikafish:
@@ -20,10 +24,56 @@ class DelayedPikafish:
         pass
 
 
+class PacedBotEngine:
+    key = "paced-bot-test"
+    name = "节奏测试"
+    min_players = 3
+    max_players = 3
+    bot_difficulties = ("normal",)
+    bot_action_interval_seconds = 0.02
+
+    def initial_state(self) -> dict[str, Any]:
+        return {"turnSeat": 1, "moves": []}
+
+    def start(self, room: ArcadeRoom) -> None:
+        room.state = self.initial_state()
+        room.phase = "playing"
+
+    def act(
+        self,
+        room: ArcadeRoom,
+        player: ArcadePlayer,
+        action: str,
+        payload: dict[str, Any],
+    ) -> None:
+        assert action == "move"
+        assert player.seat == room.state["turnSeat"]
+        room.state["moves"].append(player.id)
+        room.state["turnSeat"] = (player.seat + 1) % 3
+
+    async def choose_bot_action_async(
+        self,
+        room: ArcadeRoom,
+    ) -> BotAction | None:
+        player = room.players[room.state["turnSeat"]]
+        return BotAction(player.id, "move") if player.is_bot else None
+
+    def view(self, room: ArcadeRoom, viewer: ArcadePlayer) -> dict[str, Any]:
+        return {"moves": list(room.state["moves"])}
+
+    def player_result(
+        self,
+        room: ArcadeRoom,
+        player: ArcadePlayer,
+    ) -> tuple[str, str, bool]:
+        return "player", "player", False
+
+
 class FakeSocketServer:
     def __init__(self) -> None:
         self.sessions: dict[str, dict] = {}
         self.emissions: list[tuple[str, object, dict]] = []
+        self.emission_times: list[float] = []
 
     async def get_session(self, sid: str) -> dict:
         return self.sessions[sid]
@@ -38,6 +88,7 @@ class FakeSocketServer:
         return None
 
     async def emit(self, event: str, data=None, **kwargs) -> None:
+        self.emission_times.append(time.perf_counter())
         self.emissions.append((event, data, kwargs))
 
 
@@ -178,6 +229,41 @@ async def test_external_bot_turn_runs_after_releasing_the_room_lock() -> None:
     await task
     assert room.state.turn_color == "red"
     assert room.state.last_move["fromRow"] == 3
+    await realtime.close()
+
+
+async def test_consecutive_bot_actions_respect_the_game_presentation_interval() -> None:
+    realtime = ArcadeRealtime()
+    server = FakeSocketServer()
+    realtime.sio = server  # type: ignore[assignment]
+    engine = PacedBotEngine()
+    realtime.engines[engine.key] = engine
+    realtime.rooms.engines[engine.key] = engine
+    room, host, _ = realtime.rooms.create_room(
+        engine.key,
+        "真人",
+        "account-host",
+        {"firstPlayer": "host"},
+    )
+    first_bot = realtime.rooms.bots.add_player(room, engine)
+    second_bot = realtime.rooms.bots.add_player(room, engine)
+    realtime.rooms.start(room, host.id)
+
+    await realtime._run_bot_turns(room)
+
+    host_snapshot_indexes = [
+        index
+        for index, (event, payload, _) in enumerate(server.emissions)
+        if event == "arcade:snapshot"
+        and isinstance(payload, dict)
+        and payload["self"]["id"] == host.id
+    ]
+    assert room.state["moves"] == [first_bot.id, second_bot.id]
+    assert len(host_snapshot_indexes) == 2
+    first_time, second_time = (
+        server.emission_times[index] for index in host_snapshot_indexes
+    )
+    assert second_time - first_time >= 0.015
     await realtime.close()
 
 

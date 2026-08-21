@@ -934,6 +934,9 @@ class ArcadeRealtime:
 
     async def _run_bot_turns(self, room: ArcadeRoom) -> None:
         engine = self.engines[room.game_key]
+        loop = asyncio.get_running_loop()
+        action_interval = self.rooms.bots.action_interval_seconds(engine)
+        next_action_at = loop.time() + action_interval
         for _ in range(self.rooms.bots.max_automatic_actions):
             async with room.lock:
                 if self.rooms.rooms.get(room.code) is not room:
@@ -945,14 +948,20 @@ class ArcadeRealtime:
             if selected is None:
                 return
 
+            delay = next_action_at - loop.time()
+            if delay > 0:
+                await asyncio.sleep(delay)
+
             async with room.lock:
                 if self.rooms.rooms.get(room.code) is not room:
                     return
                 if room.revision != revision:
+                    next_action_at = loop.time() + action_interval
                     continue
                 self.rooms.apply_bot_action(room, selected)
                 if room.phase == "finished":
                     self._record_room(room)
+                next_action_at = loop.time() + action_interval
             await self.broadcast_room(room)
             if room.phase == "finished":
                 await self.broadcast_lobby()

@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import inspect
 import logging
+import math
 import secrets
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -17,6 +18,8 @@ from .models import ArcadePlayer, ArcadeRoom
 MAX_AUTOMATIC_ACTIONS = 100
 DEFAULT_BOT_DIFFICULTY = "normal"
 DEFAULT_BOT_TIMEOUT_SECONDS = 12.0
+DEFAULT_BOT_ACTION_INTERVAL_SECONDS = 0.0
+MAX_BOT_ACTION_INTERVAL_SECONDS = 5.0
 
 
 logger = logging.getLogger(__name__)
@@ -95,6 +98,23 @@ class ArcadeBotService:
         ):
             raise RuntimeError("AI 难度配置格式不正确")
         return difficulties
+
+    @staticmethod
+    def action_interval_seconds(engine: GameEngine) -> float:
+        """Return the minimum presentation interval between automatic actions."""
+        configured = getattr(
+            engine,
+            "bot_action_interval_seconds",
+            DEFAULT_BOT_ACTION_INTERVAL_SECONDS,
+        )
+        if (
+            isinstance(configured, bool)
+            or not isinstance(configured, (int, float))
+            or not math.isfinite(configured)
+            or not 0 <= configured <= MAX_BOT_ACTION_INTERVAL_SECONDS
+        ):
+            raise RuntimeError("AI 行动展示间隔配置不正确")
+        return float(configured)
 
     def add_player(
         self,

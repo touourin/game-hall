@@ -11,7 +11,7 @@ export const doudizhuGame = defineBuiltinGame({
     order: 80,
     name: '斗地主',
     players: { min: 3, max: 3 },
-    description: '抢下地主，三人斗到底',
+    description: '逐张发牌，可随时明牌，三人斗到底',
     tone: 'blue',
     category: '扑克对战',
     artwork: { dark: doudizhuArtworkDark, light: doudizhuArtworkLight },
@@ -53,6 +53,7 @@ export const doudizhuGame = defineBuiltinGame({
           : '经典玩法',
       options.firstPlayer === 'host' ? '房主首叫' : '随机首叫',
       '叫地主／抢地主',
+      '随时明牌',
       options.allowGuests ? '允许游客' : '仅登录玩家',
     ],
     firstPlayerCopy: () => ({

@@ -42,6 +42,7 @@ function playingSnapshot(): ArcadeSnapshot {
     game: {
       phase: 'playing',
       variant: 'classic',
+      dealNumber: 1,
       currentPlayerId: 'p1',
       bids: [
         { type: 'bid', playerId: 'p1', playerName: '玩家一', decision: 'call' },
@@ -54,6 +55,7 @@ function playingSnapshot(): ArcadeSnapshot {
       bottomCards: [],
       hand: [{ id: '3-spade', rank: 3, label: '3', suit: 'spade' }],
       cardCounts: { p1: 1, p2: 17, p3: 17 },
+      revealedHands: {},
       teams: { p1: 'landlord', p2: 'farmer', p3: 'farmer' },
       lastPlay: null,
       lastPlayPlayerId: null,
@@ -175,6 +177,63 @@ describe('DoudizhuTable', () => {
     })
 
     expect(wrapper.get('.opponent-1 .ai-badge').text()).toBe('AI · DouZero')
+  })
+
+  it('shows revealed opponent cards and lets the player reveal outside their turn', async () => {
+    const next = playingSnapshot()
+    next.game.currentPlayerId = 'p2'
+    next.game.revealedHands = {
+      p2: [
+        { id: '7-spade', rank: 7, label: '7', suit: 'spade' },
+        { id: '8-heart', rank: 8, label: '8', suit: 'heart' },
+      ],
+    }
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const action = vi.spyOn(arcade, 'action').mockResolvedValue()
+    const wrapper = mount(DoudizhuTable, {
+      props: { snapshot: next },
+      global: { plugins: [pinia] },
+    })
+
+    expect(wrapper.findAll('.opponent-1 .revealed-hand .playing-card')).toHaveLength(2)
+    expect(wrapper.find('.opponent-1 .opponent-card-stack').exists()).toBe(false)
+    await wrapper.get('.reveal-hand-button').trigger('click')
+
+    expect(action).toHaveBeenCalledWith('reveal_hand')
+  })
+
+  it('deals the opening hand one card at a time', async () => {
+    vi.useFakeTimers()
+    const bidding = playingSnapshot()
+    bidding.phase = 'bidding'
+    bidding.game = {
+      ...(bidding.game as Record<string, unknown>),
+      phase: 'bidding',
+      dealNumber: 1,
+      bids: [],
+      biddingMode: 'call',
+      currentPlayerId: 'p1',
+      hand: handFromRanks(...Array.from({ length: 17 }, (_, index) => 3 + (index % 13))),
+      cardCounts: { p1: 17, p2: 17, p3: 17 },
+      teams: {},
+    }
+    const wrapper = mount(DoudizhuTable, {
+      props: { snapshot: bidding },
+      global: { plugins: [createPinia()] },
+    })
+
+    expect(wrapper.findAll('.hand .playing-card')).toHaveLength(1)
+    expect(wrapper.get('.self-hand-status').text()).toContain('正在发牌 1 / 17')
+    expect(wrapper.findAll('.card-count').map((count) => count.text())).toEqual(['1张', '1张'])
+
+    await vi.advanceTimersByTimeAsync(16 * 90)
+
+    expect(wrapper.findAll('.hand .playing-card')).toHaveLength(17)
+    expect(wrapper.get('.self-hand-status').text()).toContain('请看牌后决定是否叫地主')
+    expect(wrapper.findAll('.card-count').map((count) => count.text())).toEqual(['17张', '17张'])
+    wrapper.unmount()
+    vi.useRealTimers()
   })
 
   it('selects a card and submits its id', async () => {

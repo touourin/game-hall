@@ -99,6 +99,8 @@ class DoudizhuState:
     settlement: dict[str, Any] | None = None
     next_deck: list[Card] | None = field(default=None, repr=False)
     variant: str = "classic"
+    deal_number: int = 0
+    revealed_seats: list[int] = field(default_factory=list)
 
 
 def create_deck() -> list[Card]:
@@ -326,6 +328,7 @@ class DoudizhuEngine:
     bot_difficulties = ("douzero",)
     default_bot_difficulty = "douzero"
     bot_timeout_seconds = 8.0
+    bot_action_interval_seconds = 1.0
 
     def __init__(self, rng: random.Random | random.SystemRandom | None = None) -> None:
         self.rng = rng or random.SystemRandom()
@@ -368,6 +371,14 @@ class DoudizhuEngine:
     def initial_state(self) -> DoudizhuState:
         return DoudizhuState()
 
+    @staticmethod
+    def repair_restored_room(room: ArcadeRoom) -> None:
+        state = room.state
+        if not isinstance(state, DoudizhuState):
+            return
+        state.deal_number = max(1, int(getattr(state, "deal_number", 1)))
+        state.revealed_seats = list(getattr(state, "revealed_seats", []))
+
     def start(self, room: ArcadeRoom) -> None:
         previous = room.state if isinstance(room.state, DoudizhuState) else None
         variant = room.options.get("variant", "classic")
@@ -390,6 +401,7 @@ class DoudizhuEngine:
             },
             bottom_cards=self._sort_hand(deck[51:]),
             variant=variant,
+            deal_number=getattr(previous, "deal_number", 0) + 1,
         )
         room.state = state
         room.phase = "bidding"
@@ -416,6 +428,9 @@ class DoudizhuEngine:
         if action == "resign":
             self._resign(room, player)
             return
+        if action == "reveal_hand":
+            self._reveal_hand(room, player)
+            return
         if room.phase == "bidding":
             if action != "bid":
                 raise GameRuleError("请先完成叫地主")
@@ -435,6 +450,7 @@ class DoudizhuEngine:
         return {
             "phase": room.phase,
             "variant": state.variant,
+            "dealNumber": getattr(state, "deal_number", 1),
             "currentPlayerId": (
                 room.players[
                     state.current_bidder
@@ -473,6 +489,13 @@ class DoudizhuEngine:
                 room.players[seat].id: len(state.hands.get(seat, []))
                 for seat in range(len(room.players))
             },
+            "revealedHands": {
+                room.players[seat].id: [
+                    card.as_dict() for card in state.hands.get(seat, [])
+                ]
+                for seat in getattr(state, "revealed_seats", [])
+                if 0 <= seat < len(room.players)
+            },
             "teams": {
                 room.players[seat].id: (
                     "landlord" if seat == state.landlord_seat else "farmer"
@@ -497,6 +520,18 @@ class DoudizhuEngine:
             },
             "settlement": state.settlement,
         }
+
+    @staticmethod
+    def _reveal_hand(room: ArcadeRoom, player: ArcadePlayer) -> None:
+        if room.phase not in {"bidding", "playing"}:
+            raise GameRuleError("当前不能明牌")
+        state: DoudizhuState = room.state
+        revealed_seats = getattr(state, "revealed_seats", [])
+        if player.seat in revealed_seats:
+            raise GameRuleError("你已经明牌了")
+        revealed_seats.append(player.seat)
+        state.revealed_seats = revealed_seats
+        state.history.append({"type": "reveal", "seat": player.seat})
 
     def player_result(
         self, room: ArcadeRoom, player: ArcadePlayer

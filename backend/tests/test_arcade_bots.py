@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from backend.app.arcade.bots import BotAction, BotAvailability
+from backend.app.arcade.bots import ArcadeBotService, BotAction, BotAvailability
 from backend.app.arcade.models import ArcadePlayer, ArcadeRoom
 from backend.app.arcade.rooms import ArcadeRoomError, ArcadeRoomManager
 from backend.app.arcade.views import build_room_view
@@ -79,6 +79,18 @@ class ConditionalBotEngine(BotTestEngine):
         if self.bots_available:
             return BotAvailability(True)
         return BotAvailability(False, "当前房间不能添加 AI")
+
+
+def test_bot_action_interval_uses_a_shared_validated_engine_setting() -> None:
+    engine = BotTestEngine()
+    assert ArcadeBotService.action_interval_seconds(engine) == 0
+
+    engine.bot_action_interval_seconds = 1.25
+    assert ArcadeBotService.action_interval_seconds(engine) == 1.25
+
+    engine.bot_action_interval_seconds = -1
+    with pytest.raises(RuntimeError, match="展示间隔"):
+        ArcadeBotService.action_interval_seconds(engine)
 
 
 def test_generic_bot_seat_and_action_pipeline() -> None:

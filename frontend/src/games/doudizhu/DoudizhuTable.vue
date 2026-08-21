@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { Crown, Flag } from '@lucide/vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { Crown, Eye, Flag } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
 import UiButton from '../../components/ui/UiButton.vue'
@@ -16,7 +16,7 @@ interface PlayingCard {
 }
 
 interface HistoryEntry {
-  type: 'bid' | 'landlord' | 'play' | 'pass'
+  type: 'bid' | 'landlord' | 'play' | 'pass' | 'reveal'
   playerId?: string
   playerName?: string
   decision?: 'call' | 'rob' | 'pass'
@@ -26,10 +26,16 @@ interface HistoryEntry {
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
+const INITIAL_HAND_SIZE = 17
+const DEAL_CARD_INTERVAL_MS = 90
 const selectedIds = ref<string[]>([])
+const dealtCardCount = ref(INITIAL_HAND_SIZE)
+const isDealing = ref(false)
+let dealTimer: ReturnType<typeof window.setInterval> | null = null
 const game = computed(() => props.snapshot.game as {
   phase: string
   variant: 'classic' | 'laizi' | 'no_shuffle'
+  dealNumber?: number
   currentPlayerId: string | null
   bids: HistoryEntry[]
   biddingMode: 'call' | 'rob'
@@ -38,6 +44,7 @@ const game = computed(() => props.snapshot.game as {
   bottomCards: PlayingCard[]
   hand: PlayingCard[]
   cardCounts: Record<string, number>
+  revealedHands?: Record<string, PlayingCard[]>
   teams: Record<string, 'landlord' | 'farmer'>
   lastPlay: { cards: PlayingCard[]; pattern: { kind: string; label?: string } } | null
   lastPlayPlayerId: string | null
@@ -74,6 +81,12 @@ const candidateName = computed(
   )?.name ?? '',
 )
 const selfTeam = computed(() => game.value.teams[props.snapshot.self.id])
+const selfIsRevealed = computed(() => Boolean(game.value.revealedHands?.[props.snapshot.self.id]))
+const canRevealHand = computed(() => (
+  props.snapshot.viewer?.mode !== 'spectator'
+  && ['bidding', 'playing'].includes(props.snapshot.phase)
+  && !selfIsRevealed.value
+))
 const currentPlayer = computed(() =>
   props.snapshot.players.find((player) => player.id === game.value.currentPlayerId),
 )
@@ -93,11 +106,20 @@ const latestPassName = computed(() => {
   if (entry?.type !== 'pass') return ''
   return entry.playerName ?? ''
 })
+const displayedHand = computed(() => (
+  isDealing.value
+    ? game.value.hand.slice(0, dealtCardCount.value)
+    : game.value.hand
+))
+const dealTargetCount = computed(() => (
+  Math.min(INITIAL_HAND_SIZE, game.value.hand.length)
+))
 const handGridStyle = computed(() => ({
-  '--hand-count': Math.max(game.value.hand.length, 1),
+  '--hand-count': Math.max(displayedHand.value.length, 1),
 }))
 const selectedPatternLabel = computed(() => describeSelectedCards(selectedCards.value))
 const selectionHint = computed(() => {
+  if (isDealing.value) return '正在发牌，请稍候'
   if (!selectedCards.value.length) {
     return isMyTurn.value ? '选择手牌后出牌' : '可提前选择手牌，等待你的回合'
   }
@@ -114,6 +136,12 @@ watch(
     )
   },
 )
+watch(
+  () => `${props.snapshot.roundNumber}:${game.value.dealNumber ?? 1}`,
+  () => startDealAnimation(),
+  { immediate: true },
+)
+onBeforeUnmount(stopDealAnimation)
 
 function toggleCard(cardId: string) {
   selectedIds.value = selectedIds.value.includes(cardId)
@@ -129,7 +157,53 @@ function play() {
 }
 
 function bid(decision: 'call' | 'rob' | 'pass') {
+  if (isDealing.value) return
   void arcade.action('bid', { decision })
+}
+
+function revealHand() {
+  if (!canRevealHand.value) return
+  void arcade.action('reveal_hand')
+}
+
+function startDealAnimation() {
+  stopDealAnimation()
+  const targetCount = dealTargetCount.value
+  if (
+    props.snapshot.phase !== 'bidding'
+    || targetCount <= 1
+    || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  ) {
+    dealtCardCount.value = game.value.hand.length
+    isDealing.value = false
+    return
+  }
+
+  selectedIds.value = []
+  dealtCardCount.value = 1
+  isDealing.value = true
+  dealTimer = window.setInterval(() => {
+    dealtCardCount.value += 1
+    if (dealtCardCount.value >= targetCount) {
+      stopDealAnimation()
+      isDealing.value = false
+    }
+  }, DEAL_CARD_INTERVAL_MS)
+}
+
+function stopDealAnimation() {
+  if (dealTimer !== null) window.clearInterval(dealTimer)
+  dealTimer = null
+}
+
+function visibleCardCount(playerId: string): number {
+  const count = game.value.cardCounts[playerId] ?? 17
+  return isDealing.value ? Math.min(count, dealtCardCount.value) : count
+}
+
+function revealedCardsFor(playerId: string): PlayingCard[] {
+  const cards = game.value.revealedHands?.[playerId] ?? []
+  return isDealing.value ? cards.slice(0, dealtCardCount.value) : cards
 }
 
 function suitSymbol(suit: PlayingCard['suit']): string {
@@ -233,6 +307,7 @@ function remainingCounts(
 
 function historyText(entry: HistoryEntry): string {
   if (entry.type === 'landlord') return `${entry.playerName} 成为地主`
+  if (entry.type === 'reveal') return `${entry.playerName} 公开了手牌`
   if (entry.type === 'pass' || entry.decision === 'pass') {
     return `${entry.playerName} ${entry.type === 'bid' ? '不叫／不抢' : '不出'}`
   }
@@ -273,9 +348,23 @@ function historyText(entry: HistoryEntry): string {
               {{ teamLabel(game.teams[player.id]) }}
             </small>
           </div>
-          <div class="opponent-card-stack" aria-hidden="true"><i /><i /><i /></div>
-          <b class="card-count">{{ game.cardCounts[player.id] ?? 17 }}<small>张</small></b>
+          <div v-if="!revealedCardsFor(player.id).length" class="opponent-card-stack" aria-hidden="true"><i /><i /><i /></div>
+          <b class="card-count">{{ visibleCardCount(player.id) }}<small>张</small></b>
           <em v-if="game.currentPlayerId === player.id">正在操作</em>
+          <div v-if="revealedCardsFor(player.id).length" class="revealed-hand" :aria-label="`${player.name}已明牌`">
+            <span><Eye :size="11" />明牌</span>
+            <div>
+              <PlayingCard
+                v-for="card in revealedCardsFor(player.id)"
+                :key="card.id"
+                :rank="card.label"
+                :suit="suitSymbol(card.suit)"
+                :red="isRed(card)"
+                :wild="isWild(card)"
+                size="bottom"
+              />
+            </div>
+          </div>
         </article>
       </div>
 
@@ -319,7 +408,7 @@ function historyText(entry: HistoryEntry): string {
           <strong>{{ snapshot.self.name }}</strong>
           <small :class="selfTeam">
             <Crown v-if="selfTeam === 'landlord'" :size="12" />
-            {{ teamLabel(selfTeam) }} · {{ game.hand.length }} 张
+            {{ teamLabel(selfTeam) }} · {{ displayedHand.length }} 张
           </small>
         </div>
         <em v-if="isMyTurn">轮到你</em>
@@ -332,8 +421,8 @@ function historyText(entry: HistoryEntry): string {
         </strong>
         <strong v-else>等待其他玩家{{ game.biddingMode === 'call' ? '叫地主' : '抢地主' }}</strong>
         <div v-if="isMyTurn">
-          <button type="button" :disabled="arcade.busy" @click="bid('pass')">{{ game.biddingMode === 'call' ? '不叫' : '不抢' }}</button>
-          <button type="button" class="primary" :disabled="arcade.busy" @click="bid(game.biddingMode)">
+          <button type="button" :disabled="arcade.busy || isDealing" @click="bid('pass')">{{ game.biddingMode === 'call' ? '不叫' : '不抢' }}</button>
+          <button type="button" class="primary" :disabled="arcade.busy || isDealing" @click="bid(game.biddingMode)">
             {{ game.biddingMode === 'call' ? '叫地主' : '抢地主 ×2' }}
           </button>
         </div>
@@ -352,12 +441,19 @@ function historyText(entry: HistoryEntry): string {
       <header class="self-hand-header">
         <div>
           <small>我的手牌</small>
-          <strong>{{ snapshot.phase === 'bidding' ? '地主竞选' : teamLabel(selfTeam) }} · {{ game.hand.length }} 张</strong>
+          <strong>{{ snapshot.phase === 'bidding' ? '地主竞选' : teamLabel(selfTeam) }} · {{ displayedHand.length }} 张</strong>
         </div>
-        <span v-if="snapshot.phase === 'bidding'" :class="{ active: isMyTurn }">
-          {{ isMyTurn ? (game.biddingMode === 'call' ? '请看牌后决定是否叫地主' : '请看牌后决定是否抢地主') : `等待${currentPlayer?.name ?? '其他玩家'}${game.biddingMode === 'call' ? '叫地主' : '抢地主'}` }}
-        </span>
-        <span v-else :class="{ active: isMyTurn }">{{ isMyTurn ? '轮到你出牌' : `等待${currentPlayer?.name ?? '对手'}` }}</span>
+        <div class="self-hand-status">
+          <span v-if="isDealing">正在发牌 {{ dealtCardCount }} / {{ dealTargetCount }}</span>
+          <span v-else-if="snapshot.phase === 'bidding'" :class="{ active: isMyTurn }">
+            {{ isMyTurn ? (game.biddingMode === 'call' ? '请看牌后决定是否叫地主' : '请看牌后决定是否抢地主') : `等待${currentPlayer?.name ?? '其他玩家'}${game.biddingMode === 'call' ? '叫地主' : '抢地主'}` }}
+          </span>
+          <span v-else :class="{ active: isMyTurn }">{{ isMyTurn ? '轮到你出牌' : `等待${currentPlayer?.name ?? '对手'}` }}</span>
+          <button v-if="canRevealHand" type="button" class="reveal-hand-button" :disabled="arcade.busy" @click="revealHand">
+            <Eye :size="15" />明牌
+          </button>
+          <span v-else-if="selfIsRevealed" class="revealed-status"><Eye :size="14" />已明牌</span>
+        </div>
       </header>
 
       <div v-if="snapshot.phase === 'playing'" id="doudizhu-selection-hint" class="selection-feedback" :class="{ ready: selectedIds.length }" role="status" aria-live="polite">
@@ -367,8 +463,9 @@ function historyText(entry: HistoryEntry): string {
 
       <div class="hand" :style="handGridStyle" aria-label="我的手牌">
         <PlayingCard
-          v-for="(card, index) in game.hand"
+          v-for="(card, index) in displayedHand"
           :key="card.id"
+          :class="{ 'deal-card-arrive': isDealing && index === displayedHand.length - 1 }"
           :style="{ '--card-index': index }"
           :rank="card.label"
           :suit="suitSymbol(card.suit)"
@@ -378,15 +475,15 @@ function historyText(entry: HistoryEntry): string {
           :selected="selectedIds.includes(card.id)"
           interactive
           size="hand"
-          :disabled="snapshot.phase !== 'playing' || arcade.busy"
+          :disabled="snapshot.phase !== 'playing' || arcade.busy || isDealing"
           :aria-label="`${card.label}${suitSymbol(card.suit)}${isWild(card) ? '，癞子' : ''}`"
           @select="toggleCard(card.id)"
         />
       </div>
 
       <div v-if="snapshot.phase === 'playing'" class="play-actions" aria-describedby="doudizhu-selection-hint">
-        <button type="button" :disabled="!canPass || arcade.busy" @click="arcade.action('pass')">不出</button>
-        <button type="button" class="primary" :disabled="!isMyTurn || !selectedIds.length || arcade.busy" @click="play">
+        <button type="button" :disabled="!canPass || arcade.busy || isDealing" @click="arcade.action('pass')">不出</button>
+        <button type="button" class="primary" :disabled="!isMyTurn || !selectedIds.length || arcade.busy || isDealing" @click="play">
           出牌 <small v-if="selectedIds.length">{{ selectedIds.length }}</small>
         </button>
         <UiButton variant="danger" compact :disabled="arcade.busy" @click="arcade.action('resign')"><Flag :size="17" />认输</UiButton>
@@ -544,6 +641,25 @@ function historyText(entry: HistoryEntry): string {
   font-style: normal;
   font-weight: 800;
 }
+.revealed-hand {
+  grid-column: 1 / 4;
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  padding-top: 5px;
+}
+.revealed-hand > span {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 900;
+}
+.revealed-hand > div { min-width: 0; display: flex; justify-content: center; }
+.revealed-hand .playing-card { width: 25px; height: 32px; }
+.revealed-hand .playing-card + .playing-card { margin-left: -18px; }
 .bottom-cards {
   position: absolute;
   z-index: 3;
@@ -659,9 +775,10 @@ function historyText(entry: HistoryEntry): string {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent), 0 16px 36px rgba(0,0,0,.25);
 }
 .self-hand-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.self-hand-header > div { display: grid; }
+.self-hand-header > div:first-child { display: grid; }
 .self-hand-header small { color: var(--muted); }
-.self-hand-header > span {
+.self-hand-status { display: flex; align-items: center; justify-content: flex-end; gap: 7px; }
+.self-hand-status > span {
   border-radius: 999px;
   padding: 6px 10px;
   color: var(--muted);
@@ -669,7 +786,23 @@ function historyText(entry: HistoryEntry): string {
   font-size: 11px;
   font-weight: 800;
 }
-.self-hand-header > span.active { color: var(--accent-contrast); background: var(--green); }
+.self-hand-status > span.active { color: var(--accent-contrast); background: var(--green); }
+.self-hand-status > span.revealed-status { display: inline-flex; align-items: center; gap: 4px; color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface-inset)); }
+.reveal-hand-button {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--line));
+  border-radius: 999px;
+  padding: 0 11px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  font-size: 11px;
+  font-weight: 900;
+}
+.reveal-hand-button:disabled { opacity: .4; }
 .selection-feedback {
   min-height: 33px;
   display: flex;
@@ -693,6 +826,11 @@ function historyText(entry: HistoryEntry): string {
   grid-template-columns: repeat(var(--hand-count), minmax(0, 1fr));
   align-items: end;
   padding: 30px 34px 7px;
+}
+.hand .deal-card-arrive { animation: deal-card-arrive .24s cubic-bezier(.2, .82, .28, 1.18); }
+@keyframes deal-card-arrive {
+  from { opacity: 0; transform: translate(34px, -42px) rotate(7deg) scale(.78); }
+  to { opacity: 1; transform: translate(0, 0) rotate(0) scale(1); }
 }
 .play-actions { display: flex; justify-content: center; gap: 8px; padding-top: 3px; }
 .play-actions .primary { min-width: 124px; }
@@ -728,6 +866,9 @@ function historyText(entry: HistoryEntry): string {
   .opponent-card-stack i:nth-child(3) { transform: translateX(5px) rotate(6deg); }
   .card-count { font-size: 15px; }
   .player-identity strong { font-size: 12px; }
+  .revealed-hand { padding-top: 3px; }
+  .revealed-hand .playing-card { width: 21px; height: 28px; }
+  .revealed-hand .playing-card + .playing-card { margin-left: -15px; }
   .table-center { top: 53%; width: 80%; min-height: 100px; }
   .played-cards .playing-card { width: 38px; height: 57px; padding: 5px; }
   .played-cards .playing-card + .playing-card { margin-left: -12px; }
@@ -742,6 +883,9 @@ function historyText(entry: HistoryEntry): string {
   .bid-panel button:not(.ui-button--danger) { min-height: 38px; padding: 0 12px; }
   .hand-zone { border-radius: 16px; padding: 11px 8px 10px; }
   .self-hand-header { padding: 0 3px; }
+  .self-hand-status { flex-wrap: wrap; }
+  .self-hand-status > span { padding: 5px 8px; font-size: 10px; }
+  .reveal-hand-button { min-height: 30px; padding: 0 9px; }
   .selection-feedback { align-items: flex-start; flex-direction: column; gap: 2px; text-align: left; }
   .hand { min-height: 126px; padding: 29px 24px 6px; }
   .play-actions {
@@ -762,5 +906,6 @@ function historyText(entry: HistoryEntry): string {
 @media (prefers-reduced-motion: reduce) {
   .opponent.active .player-avatar,
   .self-seat.active .player-avatar { animation: none; }
+  .hand .deal-card-arrive { animation: none; }
 }
 </style>

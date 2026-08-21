@@ -1327,6 +1327,66 @@ def test_doudizhu_bidding_view_includes_the_viewers_hand() -> None:
     assert "remainingRanks" not in view
 
 
+def test_doudizhu_players_can_reveal_their_remaining_hand_at_any_time() -> None:
+    engine = DoudizhuEngine(random.Random(23))
+    room = make_room(engine, 3)
+
+    assert engine.view(room, room.players[1])["revealedHands"] == {}
+
+    engine.act(room, room.players[0], "reveal_hand", {})
+    bidding_view = engine.view(room, room.players[1])
+    assert len(bidding_view["revealedHands"][room.players[0].id]) == 17
+    assert bidding_view["history"][-1] == {
+        "type": "reveal",
+        "seat": 0,
+        "playerId": room.players[0].id,
+        "playerName": room.players[0].name,
+    }
+    with pytest.raises(GameRuleError, match="已经明牌"):
+        engine.act(room, room.players[0], "reveal_hand", {})
+
+    engine.act(room, room.players[0], "bid", {"decision": "call"})
+    engine.act(room, room.players[1], "bid", {"decision": "pass"})
+    engine.act(room, room.players[2], "bid", {"decision": "pass"})
+    engine.act(room, room.players[2], "reveal_hand", {})
+
+    playing_view = engine.view(room, room.players[1])
+    assert set(playing_view["revealedHands"]) == {
+        room.players[0].id,
+        room.players[2].id,
+    }
+    assert len(playing_view["revealedHands"][room.players[0].id]) == 20
+    assert len(playing_view["revealedHands"][room.players[2].id]) == 17
+
+    card_id = room.state.hands[0][0].id
+    engine.act(room, room.players[0], "play", {"cardIds": [card_id]})
+    updated_view = engine.view(room, room.players[1])
+    assert len(updated_view["revealedHands"][room.players[0].id]) == 19
+
+
+def test_doudizhu_redeal_advances_the_presentation_deal_number() -> None:
+    engine = DoudizhuEngine(random.Random(29))
+    room = make_room(engine, 3)
+
+    assert engine.view(room, room.players[0])["dealNumber"] == 1
+    for player in room.players:
+        engine.act(room, player, "bid", {"decision": "pass"})
+
+    assert engine.view(room, room.players[0])["dealNumber"] == 2
+
+
+def test_doudizhu_repairs_reveal_fields_on_a_restored_legacy_room() -> None:
+    engine = DoudizhuEngine(random.Random(31))
+    room = make_room(engine, 3)
+    del room.state.deal_number
+    del room.state.revealed_seats
+
+    engine.repair_restored_room(room)
+
+    assert room.state.deal_number == 1
+    assert room.state.revealed_seats == []
+
+
 def test_doudizhu_completes_a_full_deal_through_legal_play() -> None:
     engine = DoudizhuEngine(random.Random(11))
     room = make_room(engine, 3)
