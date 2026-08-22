@@ -1364,9 +1364,13 @@ def test_doudizhu_bidding_view_includes_the_viewers_hand() -> None:
 
     assert room.phase == "bidding"
     assert len(view["hand"]) == 17
-    assert {card["id"] for card in view["hand"]} == {
+    hand_ids = [card["id"] for card in view["hand"]]
+    assert set(hand_ids) == {
         card.id for card in room.state.hands[0]
     }
+    assert view["dealOrder"] == room.state.opening_deal_card_ids[0]
+    assert set(view["dealOrder"]) == set(hand_ids)
+    assert view["dealOrder"] != hand_ids
     assert "remainingRanks" not in view
 
 
@@ -1379,6 +1383,10 @@ def test_doudizhu_players_can_reveal_their_remaining_hand_at_any_time() -> None:
     engine.act(room, room.players[0], "reveal_hand", {})
     bidding_view = engine.view(room, room.players[1])
     assert len(bidding_view["revealedHands"][room.players[0].id]) == 17
+    assert (
+        bidding_view["revealedDealOrders"][room.players[0].id]
+        == room.state.opening_deal_card_ids[0]
+    )
     assert bidding_view["history"][-1] == {
         "type": "reveal",
         "seat": 0,
@@ -1400,6 +1408,8 @@ def test_doudizhu_players_can_reveal_their_remaining_hand_at_any_time() -> None:
     }
     assert len(playing_view["revealedHands"][room.players[0].id]) == 20
     assert len(playing_view["revealedHands"][room.players[2].id]) == 17
+    assert len(playing_view["revealedDealOrders"][room.players[0].id]) == 17
+    assert len(playing_view["revealedDealOrders"][room.players[2].id]) == 17
 
     card_id = room.state.hands[0][0].id
     engine.act(room, room.players[0], "play", {"cardIds": [card_id]})
@@ -1423,6 +1433,7 @@ def test_doudizhu_repairs_a_restored_legacy_room() -> None:
     room = make_room(engine, 3)
     del room.state.deal_number
     del room.state.revealed_seats
+    del room.state.opening_deal_card_ids
     room.state.bids = [
         {"seat": 0, "decision": "pass"},
         {"seat": 1, "decision": "call"},
@@ -1435,6 +1446,11 @@ def test_doudizhu_repairs_a_restored_legacy_room() -> None:
 
     assert room.state.deal_number == 1
     assert room.state.revealed_seats == []
+    assert set(room.state.opening_deal_card_ids) == {0, 1, 2}
+    assert all(
+        len(order) == 17
+        for order in room.state.opening_deal_card_ids.values()
+    )
     assert room.phase == "playing"
     assert room.state.landlord_seat == 1
     assert len(room.state.hands[1]) == 20

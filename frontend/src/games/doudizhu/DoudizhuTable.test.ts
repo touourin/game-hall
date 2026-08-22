@@ -70,7 +70,14 @@ function playingSnapshot(): ArcadeSnapshot {
   }
 }
 
-function handFromRanks(...ranks: number[]): Array<Record<string, unknown>> {
+interface TestCard {
+  id: string
+  rank: number
+  label: string
+  suit: 'spade' | 'heart' | 'club' | 'diamond'
+}
+
+function handFromRanks(...ranks: number[]): TestCard[] {
   const suits = ['spade', 'heart', 'club', 'diamond'] as const
   return ranks.map((rank, index) => ({
     id: `${rank}-${index}`,
@@ -140,7 +147,7 @@ describe('DoudizhuTable', () => {
     },
   ])('识别$name', async ({ ranks, label }) => {
     const next = playingSnapshot()
-    ;(next.game.hand as Array<Record<string, unknown>>) = handFromRanks(...ranks)
+    ;(next.game.hand as TestCard[]) = handFromRanks(...ranks)
     const wrapper = mount(DoudizhuTable, {
       props: { snapshot: next },
       global: { plugins: [createPinia()] },
@@ -203,10 +210,18 @@ describe('DoudizhuTable', () => {
     expect(action).toHaveBeenCalledWith('reveal_hand')
   })
 
-  it('deals the opening hand one card at a time', async () => {
+  it('deals cards in arrival order while keeping visible hands sorted', async () => {
     vi.useFakeTimers()
     const bidding = playingSnapshot()
     bidding.phase = 'bidding'
+    const openingHand = handFromRanks(
+      3, 3, 4, 4, 5, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+    )
+    const dealOrder = [
+      openingHand[10]!,
+      openingHand[0]!,
+      ...openingHand.filter((_, index) => index !== 10 && index !== 0),
+    ].map((card) => card.id)
     bidding.game = {
       ...(bidding.game as Record<string, unknown>),
       phase: 'bidding',
@@ -214,8 +229,11 @@ describe('DoudizhuTable', () => {
       bids: [],
       biddingMode: 'call',
       currentPlayerId: 'p1',
-      hand: handFromRanks(...Array.from({ length: 17 }, (_, index) => 3 + (index % 13))),
+      hand: openingHand,
+      dealOrder,
       cardCounts: { p1: 17, p2: 17, p3: 17 },
+      revealedHands: { p2: openingHand },
+      revealedDealOrders: { p2: dealOrder },
       teams: {},
     }
     const wrapper = mount(DoudizhuTable, {
@@ -224,12 +242,26 @@ describe('DoudizhuTable', () => {
     })
 
     expect(wrapper.findAll('.hand .playing-card')).toHaveLength(1)
+    expect(wrapper.get('.hand .playing-card').attributes('aria-label')).toContain('10')
+    expect(wrapper.get('.opponent-1 .revealed-hand .playing-card').text()).toContain('10')
     expect(wrapper.get('.self-hand-status').text()).toContain('正在发牌 1 / 17')
     expect(wrapper.findAll('.card-count').map((count) => count.text())).toEqual(['1张', '1张'])
+    expect(wrapper.get('.reveal-hand-button').attributes('disabled')).toBeUndefined()
 
-    await vi.advanceTimersByTimeAsync(16 * 90)
+    await vi.advanceTimersByTimeAsync(180)
+
+    const visibleLabels = wrapper
+      .findAll('.hand .playing-card')
+      .map((card) => card.attributes('aria-label'))
+    expect(visibleLabels[0]).toContain('3')
+    expect(visibleLabels[1]).toContain('10')
+    expect(wrapper.findAll('.hand .playing-card')[0]?.classes()).toContain('deal-card-arrive')
+    expect(wrapper.findAll('.opponent-1 .revealed-hand .playing-card')).toHaveLength(2)
+
+    await vi.advanceTimersByTimeAsync(15 * 180)
 
     expect(wrapper.findAll('.hand .playing-card')).toHaveLength(17)
+    expect(wrapper.findAll('.opponent-1 .revealed-hand .playing-card')).toHaveLength(17)
     expect(wrapper.get('.self-hand-status').text()).toContain('请看牌后决定是否叫地主')
     expect(wrapper.findAll('.card-count').map((count) => count.text())).toEqual(['17张', '17张'])
     wrapper.unmount()

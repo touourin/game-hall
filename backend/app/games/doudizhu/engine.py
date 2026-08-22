@@ -12,6 +12,9 @@ from backend.app.games.base import GameRuleError
 
 SUITS = ("spade", "heart", "club", "diamond")
 VARIANTS = {"classic", "laizi", "no_shuffle"}
+PLAYER_COUNT = 3
+OPENING_HAND_SIZE = 17
+OPENING_DEAL_CARD_COUNT = PLAYER_COUNT * OPENING_HAND_SIZE
 RANK_LABELS = {
     **{rank: str(rank) for rank in range(3, 11)},
     11: "J",
@@ -100,6 +103,10 @@ class DoudizhuState:
     variant: str = "classic"
     deal_number: int = 0
     revealed_seats: list[int] = field(default_factory=list)
+    opening_deal_card_ids: dict[int, list[str]] = field(
+        default_factory=dict,
+        repr=False,
+    )
 
 
 def create_deck() -> list[Card]:
@@ -376,6 +383,10 @@ class DoudizhuEngine:
             return
         state.deal_number = max(1, int(getattr(state, "deal_number", 1)))
         state.revealed_seats = list(getattr(state, "revealed_seats", []))
+        state.opening_deal_card_ids = {
+            seat: self._opening_deal_order(state, seat)
+            for seat in range(PLAYER_COUNT)
+        }
         if room.phase == "bidding" and state.landlord_candidate_seat is not None:
             self._advance_rob_phase(room)
 
@@ -394,14 +405,26 @@ class DoudizhuEngine:
         else:
             deck = create_deck()
             self.rng.shuffle(deck)
+        opening_hands = {
+            seat: list(
+                deck[
+                    seat * OPENING_HAND_SIZE : (seat + 1) * OPENING_HAND_SIZE
+                ]
+            )
+            for seat in range(PLAYER_COUNT)
+        }
         state = DoudizhuState(
             hands={
-                seat: self._sort_hand(deck[seat * 17 : (seat + 1) * 17])
-                for seat in range(3)
+                seat: self._sort_hand(cards)
+                for seat, cards in opening_hands.items()
             },
-            bottom_cards=self._sort_hand(deck[51:]),
+            bottom_cards=self._sort_hand(deck[OPENING_DEAL_CARD_COUNT:]),
             variant=variant,
             deal_number=getattr(previous, "deal_number", 0) + 1,
+            opening_deal_card_ids={
+                seat: [card.id for card in cards]
+                for seat, cards in opening_hands.items()
+            },
         )
         room.state = state
         room.phase = "bidding"
@@ -412,10 +435,14 @@ class DoudizhuEngine:
         self.rng.shuffle(deck)
         gathered = [
             card
-            for seat in range(3)
-            for card in self._sort_hand(deck[seat * 17 : (seat + 1) * 17])
+            for seat in range(PLAYER_COUNT)
+            for card in self._sort_hand(
+                deck[
+                    seat * OPENING_HAND_SIZE : (seat + 1) * OPENING_HAND_SIZE
+                ]
+            )
         ]
-        gathered.extend(self._sort_hand(deck[51:]))
+        gathered.extend(self._sort_hand(deck[OPENING_DEAL_CARD_COUNT:]))
         return gathered
 
     def act(
@@ -485,6 +512,7 @@ class DoudizhuEngine:
             if state.landlord_seat is not None
             else [],
             "hand": [card.as_dict() for card in state.hands.get(viewer.seat, [])],
+            "dealOrder": self._opening_deal_order(state, viewer.seat),
             "cardCounts": {
                 room.players[seat].id: len(state.hands.get(seat, []))
                 for seat in range(len(room.players))
@@ -493,6 +521,11 @@ class DoudizhuEngine:
                 room.players[seat].id: [
                     card.as_dict() for card in state.hands.get(seat, [])
                 ]
+                for seat in getattr(state, "revealed_seats", [])
+                if 0 <= seat < len(room.players)
+            },
+            "revealedDealOrders": {
+                room.players[seat].id: self._opening_deal_order(state, seat)
                 for seat in getattr(state, "revealed_seats", [])
                 if 0 <= seat < len(room.players)
             },
@@ -846,4 +879,17 @@ class DoudizhuEngine:
         return sorted(
             cards,
             key=lambda card: (card.rank, suit_order.get(card.suit, 9)),
+        )
+
+    @staticmethod
+    def _opening_deal_order(state: DoudizhuState, seat: int) -> list[str]:
+        orders = getattr(state, "opening_deal_card_ids", {})
+        return list(
+            orders.get(
+                seat,
+                [
+                    card.id
+                    for card in state.hands.get(seat, [])[:OPENING_HAND_SIZE]
+                ],
+            )
         )

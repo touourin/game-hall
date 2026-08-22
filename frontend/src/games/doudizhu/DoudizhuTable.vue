@@ -28,7 +28,7 @@ interface HistoryEntry {
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
 const INITIAL_HAND_SIZE = 17
-const DEAL_CARD_INTERVAL_MS = 90
+const DEAL_CARD_INTERVAL_MS = 180
 const selectedIds = ref<string[]>([])
 const dealtCardCount = ref(INITIAL_HAND_SIZE)
 const isDealing = ref(false)
@@ -44,8 +44,10 @@ const game = computed(() => props.snapshot.game as {
   landlordPlayerId: string | null
   bottomCards: PlayingCard[]
   hand: PlayingCard[]
+  dealOrder?: string[]
   cardCounts: Record<string, number>
   revealedHands?: Record<string, PlayingCard[]>
+  revealedDealOrders?: Record<string, string[]>
   teams: Record<string, 'landlord' | 'farmer'>
   lastPlay: { cards: PlayingCard[]; pattern: { kind: string; label?: string } } | null
   lastPlayPlayerId: string | null
@@ -107,10 +109,13 @@ const latestPassName = computed(() => {
   if (entry?.type !== 'pass') return ''
   return entry.playerName ?? ''
 })
-const displayedHand = computed(() => (
-  isDealing.value
-    ? game.value.hand.slice(0, dealtCardCount.value)
-    : game.value.hand
+const displayedHand = computed(() => cardsVisibleDuringDeal(
+  game.value.hand,
+  game.value.dealOrder,
+))
+const arrivingHandCardId = computed(() => arrivingCardId(
+  game.value.hand,
+  game.value.dealOrder,
 ))
 const dealTargetCount = computed(() => (
   Math.min(INITIAL_HAND_SIZE, game.value.hand.length)
@@ -204,7 +209,43 @@ function visibleCardCount(playerId: string): number {
 
 function revealedCardsFor(playerId: string): PlayingCard[] {
   const cards = game.value.revealedHands?.[playerId] ?? []
-  return isDealing.value ? cards.slice(0, dealtCardCount.value) : cards
+  return cardsVisibleDuringDeal(cards, game.value.revealedDealOrders?.[playerId])
+}
+
+function arrivingRevealedCardId(playerId: string): string | null {
+  const cards = game.value.revealedHands?.[playerId] ?? []
+  return arrivingCardId(cards, game.value.revealedDealOrders?.[playerId])
+}
+
+function cardsVisibleDuringDeal(
+  cards: PlayingCard[],
+  dealOrder: string[] | undefined,
+): PlayingCard[] {
+  if (!isDealing.value) return cards
+  const visibleIds = new Set(
+    normalizedDealOrder(cards, dealOrder).slice(0, dealtCardCount.value),
+  )
+  return cards.filter((card) => visibleIds.has(card.id))
+}
+
+function arrivingCardId(
+  cards: PlayingCard[],
+  dealOrder: string[] | undefined,
+): string | null {
+  if (!isDealing.value) return null
+  return normalizedDealOrder(cards, dealOrder)[dealtCardCount.value - 1] ?? null
+}
+
+function normalizedDealOrder(
+  cards: PlayingCard[],
+  dealOrder: string[] | undefined,
+): string[] {
+  const remainingIds = new Set(cards.map((card) => card.id))
+  const orderedIds = (dealOrder ?? []).filter((cardId) => remainingIds.delete(cardId))
+  for (const card of cards) {
+    if (remainingIds.delete(card.id)) orderedIds.push(card.id)
+  }
+  return orderedIds
 }
 
 function suitSymbol(suit: PlayingCard['suit']): string {
@@ -361,6 +402,7 @@ function historyText(entry: HistoryEntry): string {
               <PlayingCard
                 v-for="card in revealedCardsFor(player.id)"
                 :key="card.id"
+                :class="{ 'deal-card-arrive': card.id === arrivingRevealedCardId(player.id) }"
                 :rank="card.label"
                 :suit="suitSymbol(card.suit)"
                 :red="isRed(card)"
@@ -469,7 +511,7 @@ function historyText(entry: HistoryEntry): string {
         <PlayingCard
           v-for="(card, index) in displayedHand"
           :key="card.id"
-          :class="{ 'deal-card-arrive': isDealing && index === displayedHand.length - 1 }"
+          :class="{ 'deal-card-arrive': card.id === arrivingHandCardId }"
           :style="{ '--card-index': index }"
           :rank="card.label"
           :suit="suitSymbol(card.suit)"
@@ -831,10 +873,15 @@ function historyText(entry: HistoryEntry): string {
   align-items: end;
   padding: 30px 34px 7px;
 }
-.hand .deal-card-arrive { animation: deal-card-arrive .24s cubic-bezier(.2, .82, .28, 1.18); }
+.hand .deal-card-arrive { animation: deal-card-arrive .16s cubic-bezier(.2, .82, .28, 1.18); }
+.revealed-hand .deal-card-arrive { animation: deal-revealed-card-arrive .16s ease-out; }
 @keyframes deal-card-arrive {
   from { opacity: 0; transform: translate(34px, -42px) rotate(7deg) scale(.78); }
   to { opacity: 1; transform: translate(0, 0) rotate(0) scale(1); }
+}
+@keyframes deal-revealed-card-arrive {
+  from { opacity: 0; transform: translateY(-12px) scale(.88); }
+  to { opacity: 1; transform: none; }
 }
 .play-actions { display: flex; justify-content: center; gap: 8px; padding-top: 3px; }
 .play-actions .primary { min-width: 124px; }
@@ -910,6 +957,7 @@ function historyText(entry: HistoryEntry): string {
 @media (prefers-reduced-motion: reduce) {
   .opponent.active .player-avatar,
   .self-seat.active .player-avatar { animation: none; }
-  .hand .deal-card-arrive { animation: none; }
+  .hand .deal-card-arrive,
+  .revealed-hand .deal-card-arrive { animation: none; }
 }
 </style>
