@@ -370,7 +370,7 @@ async function resolveScanner(exchange: boolean) {
       </div>
       <p>现在轮到你响应。装备会逐张完整结算；也可以直接放弃响应。</p>
       <div class="equipment-actions">
-        <button v-for="card in responseCards" :key="card.id" type="button" @click="openEquipment(card)">{{ card.name }}</button>
+        <button v-for="card in responseCards" :key="card.id" type="button" data-ui-interaction="choice" @click="openEquipment(card)">{{ card.name }}</button>
         <UiButton compact @click="arcade.action('pass_response')"><SkipForward :size="16" />不响应</UiButton>
       </div>
     </section>
@@ -390,18 +390,18 @@ async function resolveScanner(exchange: boolean) {
             <option v-for="card in pendingTargetBoard?.cards.filter(item => item.kind === 'honest' || item.kind === 'crooked')" :key="card.index" :value="card.index">第{{ card.index + 1 }}张 · {{ card.label }}</option>
           </select>
         </label>
-        <div class="decision-actions"><UiButton variant="primary" :disabled="scannerOwnCardIndex === null || scannerTargetCardIndex === null" @click="resolveScanner(true)">交换并继续结算</UiButton><button type="button" @click="resolveScanner(false)">不交换，继续结算</button></div>
+        <div class="decision-actions"><UiButton variant="primary" :disabled="scannerOwnCardIndex === null || scannerTargetCardIndex === null" @click="resolveScanner(true)">交换并继续结算</UiButton><button type="button" data-ui-interaction="lift" @click="resolveScanner(false)">不交换，继续结算</button></div>
       </template>
-      <div v-else class="decision-actions"><UiButton variant="primary" @click="useScanner">使用并私看</UiButton><button type="button" @click="arcade.action('pass_scanner')">不使用</button></div>
+      <div v-else class="decision-actions"><UiButton variant="primary" @click="useScanner">使用并私看</UiButton><button type="button" data-ui-interaction="lift" @click="arcade.action('pass_scanner')">不使用</button></div>
     </section>
 
     <section v-if="game.choice?.isMyDecision" class="decision-panel surface">
       <div><span class="panel-icon"><ArrowLeftRight :size="20" /></span><div><strong>{{ game.currentPrompt?.title ?? '需要你的选择' }}</strong><small>{{ game.currentPrompt?.detail ?? '完成后对局会自动继续' }}</small></div></div>
       <div v-if="game.choice.kind === 'equipment_limit'" class="equipment-actions">
-        <button v-for="card in game.choice.cards" :key="card.id" type="button" @click="chooseEquipment(card.id)">保留{{ card.name }}</button>
+        <button v-for="card in game.choice.cards" :key="card.id" type="button" data-ui-interaction="choice" @click="chooseEquipment(card.id)">保留{{ card.name }}</button>
       </div>
       <div v-else-if="game.choice.kind === 'report_audit' || game.choice.kind === 'truth_serum'" class="card-choice-list">
-        <button v-for="card in selfBoard?.cards.filter(item => !item.revealed)" :key="card.index" type="button" @click="chooseReveal(card.index)">公开第{{ card.index + 1 }}张</button>
+        <button v-for="card in selfBoard?.cards.filter(item => !item.revealed)" :key="card.index" type="button" data-ui-interaction="choice" @click="chooseReveal(card.index)">公开第{{ card.index + 1 }}张</button>
       </div>
       <div v-else-if="game.choice.kind === 'flashbang'" class="decision-actions">
         <label v-for="position in 3" :key="position">新位置 {{ position }}
@@ -413,8 +413,8 @@ async function resolveScanner(exchange: boolean) {
         <UiButton variant="primary" :disabled="arcade.busy || !flashbangReady" @click="reorderIntegrity">确认新顺序</UiButton>
       </div>
       <div v-else-if="game.choice.kind === 'inspection_gloves'" class="decision-actions">
-        <button v-if="selfBoard?.equipmentCount" type="button" @click="arcade.action('inspection_choice', { choice: 'discard_equipment' })">弃掉装备</button>
-        <button v-if="selfBoard?.cards.some(card => !card.revealed)" type="button" @click="arcade.action('inspection_choice', { choice: 'show_integrity' })">向所有人展示暗牌</button>
+        <button v-if="selfBoard?.equipmentCount" type="button" data-ui-interaction="choice" @click="arcade.action('inspection_choice', { choice: 'discard_equipment' })">弃掉装备</button>
+        <button v-if="selfBoard?.cards.some(card => !card.revealed)" type="button" data-ui-interaction="choice" @click="arcade.action('inspection_choice', { choice: 'show_integrity' })">向所有人展示暗牌</button>
       </div>
       <template v-else-if="game.choice.kind === 'classified_redirect' || game.choice.kind === 'grenade_pass'">
         <label>选择玩家
@@ -430,18 +430,18 @@ async function resolveScanner(exchange: boolean) {
       <label>连锁目标
         <select v-model="choiceTargetSeat"><option :value="null">请选择</option><option v-for="board in livingBoards.filter(item => postShotTargetPlayerIds.has(item.playerId))" :key="board.seat" :value="board.seat">{{ playerName(board.playerId) }}</option></select>
       </label>
-      <div class="decision-actions"><UiButton variant="primary" @click="useMobileDetonator">引爆</UiButton><button type="button" @click="arcade.action('pass_mobile_detonator')">不引爆</button></div>
+      <div class="decision-actions"><UiButton variant="primary" @click="useMobileDetonator">引爆</UiButton><button type="button" data-ui-interaction="lift" @click="arcade.action('pass_mobile_detonator')">不引爆</button></div>
     </section>
 
     <section v-if="game.legal.canTakeNormalAction || game.legal.canTakeExtraInvestigation || game.legal.canEndTurn" class="turn-console surface">
       <header><div><strong>行动台</strong><small>{{ game.actionDone ? '可以结束回合' : selfBoard?.restrictedToEquip ? '拐杖复活限制：此后只能获取装备' : '行动声明后，系统按座位顺序询问装备响应' }}</small></div></header>
       <div v-if="game.legal.canTakeNormalAction" class="action-grid" :class="{ restricted: normalActionIds.length === 1 }">
-        <button v-if="normalActionIds.includes('investigate')" type="button" :class="{ active: actionKind === 'investigate' }" @click="chooseAction('investigate')"><Search :size="18" /><span><strong>调查</strong><small>私看一张暗置底细</small></span></button>
-        <button v-if="normalActionIds.includes('equip')" type="button" :class="{ active: actionKind === 'equip' }" @click="chooseAction('equip')"><PackageOpen :size="18" /><span><strong>获取装备</strong><small>抽一张装备；若有暗牌则公开一张</small></span></button>
-        <button v-if="normalActionIds.includes('arm')" type="button" :class="{ active: actionKind === 'arm' }" @click="chooseAction('arm')"><Crosshair :size="18" /><span><strong>武装</strong><small>拿枪瞄准；若有暗牌则公开一张</small></span></button>
-        <button v-if="normalActionIds.includes('shoot')" type="button" :class="{ active: actionKind === 'shoot' }" @click="chooseAction('shoot')"><Target :size="18" /><span><strong>射击</strong><small>只能射向当前瞄准目标</small></span></button>
+        <button v-if="normalActionIds.includes('investigate')" type="button" data-ui-interaction="choice" :class="{ active: actionKind === 'investigate' }" @click="chooseAction('investigate')"><Search :size="18" /><span><strong>调查</strong><small>私看一张暗置底细</small></span></button>
+        <button v-if="normalActionIds.includes('equip')" type="button" data-ui-interaction="choice" :class="{ active: actionKind === 'equip' }" @click="chooseAction('equip')"><PackageOpen :size="18" /><span><strong>获取装备</strong><small>抽一张装备；若有暗牌则公开一张</small></span></button>
+        <button v-if="normalActionIds.includes('arm')" type="button" data-ui-interaction="choice" :class="{ active: actionKind === 'arm' }" @click="chooseAction('arm')"><Crosshair :size="18" /><span><strong>武装</strong><small>拿枪瞄准；若有暗牌则公开一张</small></span></button>
+        <button v-if="normalActionIds.includes('shoot')" type="button" data-ui-interaction="choice" :class="{ active: actionKind === 'shoot' }" @click="chooseAction('shoot')"><Target :size="18" /><span><strong>射击</strong><small>只能射向当前瞄准目标</small></span></button>
       </div>
-      <button v-if="game.legal.canTakeExtraInvestigation" type="button" class="extra-action" :class="{ active: actionKind === 'extra_investigate' }" @click="chooseAction('extra_investigate')"><Search :size="16" />钥匙 · 额外调查</button>
+      <button v-if="game.legal.canTakeExtraInvestigation" type="button" class="extra-action" data-ui-interaction="choice" :class="{ active: actionKind === 'extra_investigate' }" @click="chooseAction('extra_investigate')"><Search :size="16" />钥匙 · 额外调查</button>
 
       <div v-if="actionKind" class="action-form">
         <label v-if="actionKind === 'investigate' || actionKind === 'extra_investigate' || actionKind === 'arm'">目标玩家
@@ -465,14 +465,14 @@ async function resolveScanner(exchange: boolean) {
     </section>
 
     <section v-if="game.equipmentHand.length" class="equipment-hand surface">
-      <header><div><strong>我的装备</strong><small>手牌上限1张 · 可用时机会由服务端校验</small></div><button type="button" @click="showCatalog = true">查看33张资料库</button></header>
+      <header><div><strong>我的装备</strong><small>手牌上限1张 · 可用时机会由服务端校验</small></div><button type="button" data-ui-interaction="choice" @click="showCatalog = true">查看33张资料库</button></header>
       <article v-for="card in game.equipmentHand" :key="card.id">
         <span>{{ String(card.number).padStart(2, '0') }}</span>
         <div><strong>{{ card.name }}</strong><small>{{ card.englishName }} · {{ card.description }}</small></div>
-        <button type="button" :disabled="!game.legal.playableEquipmentIds.includes(card.id)" @click="openEquipment(card)">使用</button>
+        <button type="button" data-ui-interaction="lift" :disabled="!game.legal.playableEquipmentIds.includes(card.id)" @click="openEquipment(card)">使用</button>
       </article>
     </section>
-    <button v-else type="button" class="catalog-trigger" @click="showCatalog = true"><BriefcaseBusiness :size="15" />查看33张装备资料库</button>
+    <button v-else type="button" class="catalog-trigger" data-ui-interaction="choice" @click="showCatalog = true"><BriefcaseBusiness :size="15" />查看33张装备资料库</button>
 
     <div class="investigation-board">
       <article

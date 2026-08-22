@@ -29,6 +29,7 @@ function confirmKick() {
   <button
     type="button"
     class="kick-player-button"
+    data-ui-interaction="choice"
     :aria-label="`移除${playerName}`"
     :disabled="busy"
     @click="showConfirmation = true"

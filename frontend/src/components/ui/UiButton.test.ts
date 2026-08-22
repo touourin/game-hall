@@ -8,6 +8,7 @@ describe('UiButton', () => {
 
     expect(wrapper.element.tagName).toBe('BUTTON')
     expect(wrapper.attributes('type')).toBe('button')
+    expect(wrapper.attributes('data-ui-interaction')).toBe('lift')
     expect(wrapper.classes()).toContain('ui-button--secondary')
   })
 

@@ -57,6 +57,7 @@ onBeforeUnmount(() => {
       v-if="hasActiveRoom"
       type="button"
       class="hall-clock-return"
+      data-ui-interaction="choice"
       :aria-label="`返回${activeGameName || '未结束'}对局，房间 ${activeRoomCode}`"
       @click="emit('resume')"
     >

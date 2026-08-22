@@ -204,7 +204,7 @@ function selectPoint(row: number, column: number, cell: number, event: MouseEven
     </p>
 
     <div v-if="snapshot.phase === 'playing'" class="inline-actions">
-      <button type="button" :disabled="!isMyTurn || arcade.busy" @click="arcade.action('pass')">
+      <button type="button" data-ui-interaction="lift" :disabled="!isMyTurn || arcade.busy" @click="arcade.action('pass')">
         停一手
       </button>
       <UiButton variant="danger" compact :disabled="arcade.busy" @click="arcade.action('resign')">
@@ -224,12 +224,13 @@ function selectPoint(row: number, column: number, cell: number, event: MouseEven
         <button
           type="button"
           class="confirm-score-button"
+          data-ui-interaction="lift"
           :disabled="selfConfirmed || arcade.busy"
           @click="arcade.action('confirm_score')"
         >
           <CheckCircle2 :size="18" />{{ selfConfirmed ? '你已确认' : '确认死子和数子' }}
         </button>
-        <button type="button" :disabled="arcade.busy" @click="arcade.action('resume_play')">
+        <button type="button" data-ui-interaction="lift" :disabled="arcade.busy" @click="arcade.action('resume_play')">
           <Play :size="18" />{{ resumeLabel }}
         </button>
       </div>

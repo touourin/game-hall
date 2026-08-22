@@ -55,6 +55,7 @@ function addAiPlayer() {
       <button
         type="button"
         class="room-ai-add-button"
+        data-ui-interaction="lift"
         aria-label="添加 AI 玩家"
         :disabled="busy"
         @click="addAiPlayer"

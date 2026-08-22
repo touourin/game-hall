@@ -124,16 +124,16 @@ function openGameCategories() {
   <main class="game-hall page-container adaptive-layout-root">
     <aside class="hall-sidebar surface" aria-label="大厅导航">
       <span class="hall-sidebar-mark" aria-hidden="true">竞</span>
-      <button type="button" aria-label="查看游戏分类" @click="openGameCategories">
+      <button type="button" data-ui-interaction="choice" aria-label="查看游戏分类" @click="openGameCategories">
         <Shapes :size="19" /><span>游戏分类</span>
       </button>
-      <button type="button" aria-label="查看实时房间" @click="scrollTo(roomsSection)">
+      <button type="button" data-ui-interaction="choice" aria-label="查看实时房间" @click="scrollTo(roomsSection)">
         <Radio :size="19" /><span>房间</span>
       </button>
-      <button v-if="!account.isGuest" type="button" aria-label="大厅导航：查看战绩" @click="showStats = true">
+      <button v-if="!account.isGuest" type="button" data-ui-interaction="choice" aria-label="大厅导航：查看战绩" @click="showStats = true">
         <BarChart3 :size="19" /><span>战绩</span>
       </button>
-      <button type="button" aria-label="大厅导航：打开设置" @click="emit('settings')">
+      <button type="button" data-ui-interaction="choice" aria-label="大厅导航：打开设置" @click="emit('settings')">
         <Settings :size="19" /><span>设置</span>
       </button>
       <AvatarImage class="hall-sidebar-avatar" :src="account.avatarUrl" :name="account.playerName" />
@@ -161,9 +161,9 @@ function openGameCategories() {
             </span>
           </div>
           <div class="account-bar-actions">
-            <button v-if="!account.isGuest" type="button" aria-label="查看全部战绩" @click="showStats = true"><History :size="17" /><span>全部战绩</span></button>
-            <button type="button" aria-label="打开设置" @click="emit('settings')"><Settings :size="17" /><span>设置</span></button>
-            <button type="button" :aria-label="account.isGuest ? '退出游客模式' : '退出登录'" @click="emit('logout')"><LogOut :size="17" /><span>退出</span></button>
+            <button v-if="!account.isGuest" type="button" data-ui-interaction="choice" aria-label="查看全部战绩" @click="showStats = true"><History :size="17" /><span>全部战绩</span></button>
+            <button type="button" data-ui-interaction="choice" aria-label="打开设置" @click="emit('settings')"><Settings :size="17" /><span>设置</span></button>
+            <button type="button" data-ui-interaction="choice" :aria-label="account.isGuest ? '退出游客模式' : '退出登录'" @click="emit('logout')"><LogOut :size="17" /><span>退出</span></button>
           </div>
         </section>
       </header>
@@ -209,6 +209,7 @@ function openGameCategories() {
               v-if="!account.isGuest"
               type="button"
               class="hall-personal-card surface"
+              data-ui-interaction="lift"
               aria-label="查看个人对局数据"
               @click="showStats = true"
             >
@@ -240,10 +241,10 @@ function openGameCategories() {
     </div>
 
     <nav class="hall-mobile-dock surface" aria-label="手机端大厅导航">
-      <button type="button" aria-label="手机端：游戏分类" @click="openGameCategories"><Shapes :size="21" /><span>游戏分类</span></button>
-      <button type="button" aria-label="手机端：实时房间" @click="scrollTo(roomsSection)"><Radio :size="21" /><span>房间</span></button>
-      <button v-if="!account.isGuest" type="button" aria-label="手机端：查看战绩" @click="showStats = true"><BarChart3 :size="21" /><span>战绩</span></button>
-      <button type="button" aria-label="手机端：打开设置" @click="emit('settings')"><Settings :size="21" /><span>设置</span></button>
+      <button type="button" data-ui-interaction="choice" aria-label="手机端：游戏分类" @click="openGameCategories"><Shapes :size="21" /><span>游戏分类</span></button>
+      <button type="button" data-ui-interaction="choice" aria-label="手机端：实时房间" @click="scrollTo(roomsSection)"><Radio :size="21" /><span>房间</span></button>
+      <button v-if="!account.isGuest" type="button" data-ui-interaction="choice" aria-label="手机端：查看战绩" @click="showStats = true"><BarChart3 :size="21" /><span>战绩</span></button>
+      <button type="button" data-ui-interaction="choice" aria-label="手机端：打开设置" @click="emit('settings')"><Settings :size="21" /><span>设置</span></button>
     </nav>
 
     <StatsModal v-if="showStats && !account.isGuest" @close="showStats = false" />

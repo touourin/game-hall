@@ -310,12 +310,13 @@ onBeforeUnmount(() => {
         </label>
 
         <div class="crop-actions">
-          <button type="button" class="crop-cancel" :disabled="processing" @click="$emit('close')">
+          <button type="button" class="crop-cancel" data-ui-interaction="lift" :disabled="processing" @click="$emit('close')">
             重新选择
           </button>
           <button
             type="button"
             class="crop-confirm"
+            data-ui-interaction="lift"
             :disabled="!ready || processing"
             @click="confirmCrop"
           >

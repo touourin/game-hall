@@ -75,7 +75,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
       </div>
     </header>
 
-    <button v-if="error" type="button" class="role-skin-error" @click="emit('retry')">
+    <button v-if="error" type="button" class="role-skin-error" data-ui-interaction="choice" @click="emit('retry')">
       {{ error }} · 点击重试
     </button>
     <p v-else-if="loading" class="role-skin-loading" role="status">正在读取角色胜场与皮肤权限…</p>
@@ -86,6 +86,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
         :key="role.code"
         type="button"
         class="role-skin-role"
+        data-ui-interaction="choice"
         :data-role-skin-role="role.code"
         :aria-label="`设置${role.name}的身份画风，当前为${role.currentSkinName}`"
         @click="activeRoleCode = role.code"
@@ -143,6 +144,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleEscape))
             :key="choice.id"
             type="button"
             class="role-skin-choice"
+            data-ui-interaction="choice"
             :class="{ locked: !choice.unlocked, selected: choice.name === activeRole.currentSkinName }"
             :data-role-skin-choice="choice.id"
             :disabled="!choice.unlocked"

@@ -144,6 +144,7 @@ function saveRules() {
             :key="room.roomCode"
             type="button"
             class="match-room-item"
+            data-ui-interaction="choice"
             :class="{ selected: selectedPublicRoom?.roomCode === room.roomCode }"
             :disabled="guest && room.allowsGuests === false"
             @click="chooseRoom(room)"
@@ -170,8 +171,8 @@ function saveRules() {
       </header>
 
       <div class="segmented-control match-mode-control">
-        <button type="button" :class="{ active: mode === 'create' }" @click="changeMode('create')"><Plus :size="15" />创建房间</button>
-        <button type="button" :class="{ active: mode === 'join' }" @click="changeMode('join')"><LogIn :size="15" />加入房间</button>
+        <button type="button" data-ui-interaction="choice" :class="{ active: mode === 'create' }" @click="changeMode('create')"><Plus :size="15" />创建房间</button>
+        <button type="button" data-ui-interaction="choice" :class="{ active: mode === 'join' }" @click="changeMode('join')"><LogIn :size="15" />加入房间</button>
       </div>
 
       <form class="adaptive-action-stack" @submit.prevent="emit('submit')">
@@ -183,7 +184,7 @@ function saveRules() {
           <div class="match-rule-summary">
             <header>
               <span><Settings2 :size="17" /><strong>本局规则</strong></span>
-              <button type="button" @click="openRuleEditor">调整规则</button>
+              <button type="button" data-ui-interaction="choice" @click="openRuleEditor">调整规则</button>
             </header>
             <div>
               <span v-for="label in ruleLabels" :key="label">{{ label }}</span>
@@ -209,7 +210,7 @@ function saveRules() {
 
         <p v-if="activeRoom" class="match-active-room-hint">请先返回并退出当前房间，再开始或加入其他对局。</p>
 
-        <button type="submit" class="match-primary-action adaptive-action-push" :disabled="disabled">
+        <button type="submit" class="match-primary-action adaptive-action-push" data-ui-interaction="lift" :disabled="disabled">
           <span><Plus v-if="mode === 'create'" :size="19" /><LogIn v-else :size="19" /></span>
           <span><small>{{ mode === 'create' ? '建立新的多人对局' : '使用房间代码加入' }}</small><strong>{{ mode === 'create' ? `创建${game.name}房间` : '确认加入房间' }}</strong></span>
           <ArrowRight class="match-primary-arrow" :size="22" :stroke-width="1.8" aria-hidden="true" />
@@ -246,7 +247,7 @@ function saveRules() {
           </div>
           <footer>
             <span>保存后将用于新建房间</span>
-            <button type="button" @click="saveRules">保存规则</button>
+            <button type="button" data-ui-interaction="lift" @click="saveRules">保存规则</button>
           </footer>
         </section>
       </div>

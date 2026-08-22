@@ -175,19 +175,19 @@ function act(action: string, payload: Record<string, unknown> = {}) {
     <section v-if="snapshot.phase === 'playing'" class="poker-controls surface">
       <template v-if="legal.canAct">
         <div class="primary-actions">
-          <button v-if="legal.canFold" type="button" class="fold" :disabled="arcade.busy" @click="act('fold')">弃牌</button>
-          <button v-if="legal.canCheck" type="button" :disabled="arcade.busy" @click="act('check')">过牌</button>
-          <button v-if="legal.canCall" type="button" :disabled="arcade.busy" @click="act('call')">跟注 {{ legal.callAmount }}</button>
-          <button v-if="legal.canAllIn" type="button" class="all-in" :disabled="arcade.busy" @click="act('all_in')">全押</button>
+          <button v-if="legal.canFold" type="button" class="fold" data-ui-interaction="lift" :disabled="arcade.busy" @click="act('fold')">弃牌</button>
+          <button v-if="legal.canCheck" type="button" data-ui-interaction="lift" :disabled="arcade.busy" @click="act('check')">过牌</button>
+          <button v-if="legal.canCall" type="button" data-ui-interaction="lift" :disabled="arcade.busy" @click="act('call')">跟注 {{ legal.callAmount }}</button>
+          <button v-if="legal.canAllIn" type="button" class="all-in" data-ui-interaction="lift" :disabled="arcade.busy" @click="act('all_in')">全押</button>
         </div>
         <div v-if="legal.canRaise" class="raise-controls">
           <div class="quick-raises">
-            <button type="button" @click="quickRaise('minimum')">最小</button>
-            <button type="button" @click="quickRaise('half')">1/2 底池</button>
-            <button type="button" @click="quickRaise('pot')">底池</button>
+            <button type="button" data-ui-interaction="choice" @click="quickRaise('minimum')">最小</button>
+            <button type="button" data-ui-interaction="choice" @click="quickRaise('half')">1/2 底池</button>
+            <button type="button" data-ui-interaction="choice" @click="quickRaise('pot')">底池</button>
           </div>
           <label><span>加注到</span><input v-model.number="raiseTo" type="number" inputmode="numeric" :min="legal.minimumRaiseTo" :max="legal.maximumRaiseTo" /></label>
-          <button type="button" class="raise-button" :disabled="arcade.busy || raiseTo < legal.minimumRaiseTo || raiseTo > legal.maximumRaiseTo" @click="act('raise', { raiseTo })">确认加注</button>
+          <button type="button" class="raise-button" data-ui-interaction="lift" :disabled="arcade.busy || raiseTo < legal.minimumRaiseTo || raiseTo > legal.maximumRaiseTo" @click="act('raise', { raiseTo })">确认加注</button>
         </div>
       </template>
       <p v-else>{{ game.actionPlayerId ? `等待 ${playerName(game.actionPlayerId)} 行动` : '正在结算牌局' }}</p>

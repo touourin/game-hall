@@ -78,7 +78,7 @@ defineExpose({ showOverview })
 
       <div v-else key="detail" class="category-detail-view">
         <header class="category-detail-header surface">
-          <button type="button" aria-label="返回游戏分类" @click="showOverview">
+          <button type="button" data-ui-interaction="choice" aria-label="返回游戏分类" @click="showOverview">
             <ArrowLeft :size="20" />
           </button>
           <span>

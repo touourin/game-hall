@@ -28,6 +28,7 @@ function confirmDissolve() {
   <button
     type="button"
     class="dissolve-room-trigger"
+    data-ui-interaction="choice"
     aria-label="解散当前房间"
     :disabled="busy"
     @click="showConfirmation = true"

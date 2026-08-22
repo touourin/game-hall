@@ -12,6 +12,7 @@ withDefaults(defineProps<{
   <button
     :type="type"
     class="ui-icon-button"
+    data-ui-interaction="choice"
     :class="{ 'ui-icon-button--compact': compact }"
   >
     <slot />
@@ -42,15 +43,10 @@ withDefaults(defineProps<{
   height: 34px;
 }
 
-.ui-icon-button:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
 @media (hover: hover) {
   .ui-icon-button:hover:not(:disabled) {
     border-color: var(--line-strong);
     color: var(--accent);
-    transform: translateY(-1px);
   }
 }
 

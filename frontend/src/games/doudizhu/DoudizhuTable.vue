@@ -425,8 +425,8 @@ function historyText(entry: HistoryEntry): string {
         </strong>
         <strong v-else>等待其他玩家{{ game.biddingMode === 'call' ? '叫地主' : '抢地主' }}</strong>
         <div v-if="isMyTurn">
-          <button type="button" :disabled="arcade.busy || isDealing" @click="bid('pass')">{{ game.biddingMode === 'call' ? '不叫' : '不抢' }}</button>
-          <button type="button" class="primary" :disabled="arcade.busy || isDealing" @click="bid(game.biddingMode)">
+          <button type="button" data-ui-interaction="lift" :disabled="arcade.busy || isDealing" @click="bid('pass')">{{ game.biddingMode === 'call' ? '不叫' : '不抢' }}</button>
+          <button type="button" class="primary" data-ui-interaction="lift" :disabled="arcade.busy || isDealing" @click="bid(game.biddingMode)">
             {{ game.biddingMode === 'call' ? '叫地主' : '抢地主 ×2' }}
           </button>
         </div>
@@ -453,7 +453,7 @@ function historyText(entry: HistoryEntry): string {
             {{ isMyTurn ? (game.biddingMode === 'call' ? '请看牌后决定是否叫地主' : '请看牌后决定是否抢地主') : `等待${currentPlayer?.name ?? '其他玩家'}${game.biddingMode === 'call' ? '叫地主' : '抢地主'}` }}
           </span>
           <span v-else :class="{ active: isMyTurn }">{{ isMyTurn ? '轮到你出牌' : `等待${currentPlayer?.name ?? '对手'}` }}</span>
-          <button v-if="canRevealHand" type="button" class="reveal-hand-button" :disabled="arcade.busy" @click="revealHand">
+          <button v-if="canRevealHand" type="button" class="reveal-hand-button" data-ui-interaction="choice" :disabled="arcade.busy" @click="revealHand">
             <Eye :size="15" />明牌
           </button>
           <span v-else-if="selfIsRevealed" class="revealed-status"><Eye :size="14" />已明牌</span>
@@ -486,8 +486,8 @@ function historyText(entry: HistoryEntry): string {
       </div>
 
       <div v-if="snapshot.phase === 'playing'" class="play-actions" aria-describedby="doudizhu-selection-hint">
-        <button type="button" :disabled="!canPass || arcade.busy || isDealing" @click="arcade.action('pass')">不出</button>
-        <button type="button" class="primary" :disabled="!isMyTurn || !selectedIds.length || arcade.busy || isDealing" @click="play">
+        <button type="button" data-ui-interaction="lift" :disabled="!canPass || arcade.busy || isDealing" @click="arcade.action('pass')">不出</button>
+        <button type="button" class="primary" data-ui-interaction="lift" :disabled="!isMyTurn || !selectedIds.length || arcade.busy || isDealing" @click="play">
           出牌 <small v-if="selectedIds.length">{{ selectedIds.length }}</small>
         </button>
         <UiButton variant="danger" compact :disabled="arcade.busy" @click="arcade.action('resign')"><Flag :size="17" />认输</UiButton>

@@ -170,6 +170,7 @@ watch([activeGameMode, activeGameVariant], loadStats)
             v-for="filter in presentation.filters"
             :key="`${filter.mode}-${filter.variant ?? 'default'}`"
             type="button"
+            data-ui-interaction="choice"
             :class="{
               active:
                 activeGameMode === filter.mode &&
@@ -206,7 +207,7 @@ watch([activeGameMode, activeGameVariant], loadStats)
           </div>
 
           <div v-if="history.length" class="match-history-list">
-            <button v-for="match in history" :key="match.id" type="button" @click="openMatch(match.id)">
+            <button v-for="match in history" :key="match.id" type="button" data-ui-interaction="choice" @click="openMatch(match.id)">
               <span :class="['match-outcome', match.outcome]">
                 {{ historyPresentation(match).historyOutcome(match) }}
               </span>

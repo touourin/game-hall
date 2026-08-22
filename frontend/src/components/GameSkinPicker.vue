@@ -45,6 +45,7 @@ function selectSkin(skin: GameSkinId) {
     <button
       type="button"
       class="game-skin-mobile-trigger"
+      data-ui-interaction="choice"
       aria-label="更换本局画风"
       @click="mobileOpen = true"
     >
@@ -77,6 +78,7 @@ function selectSkin(skin: GameSkinId) {
         v-for="skin in GAME_SKINS"
         :key="skin.id"
         type="button"
+        data-ui-interaction="choice"
         :data-game-skin-option="skin.id"
         :class="{ active: modelValue === skin.id }"
         :aria-pressed="modelValue === skin.id"

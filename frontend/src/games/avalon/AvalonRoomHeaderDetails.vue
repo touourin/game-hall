@@ -32,6 +32,7 @@ function aiDifficultyLabel(difficulty?: string | null): string {
     v-if="avalonSnapshot"
     class="self-number-trigger"
     type="button"
+    data-ui-interaction="choice"
     :aria-label="`${isSpectating ? '观战视角' : '我的号码'}是 ${selfPlayerNumber} 号，查看玩家号码表`"
     @click="showPlayerNumbers = true"
   >

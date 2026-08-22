@@ -104,9 +104,9 @@ async function submit() {
       @back="$emit('back')"
     >
       <template #actions>
-        <button v-if="!account.isGuest" type="button" @click="showStats = true"><History :size="17" />我的战绩</button>
-        <button type="button" @click="showLeaderboard = true"><Trophy :size="17" />排行榜</button>
-        <button type="button" aria-label="打开设置" @click="emit('settings')"><Settings :size="17" />设置</button>
+        <button v-if="!account.isGuest" type="button" data-ui-interaction="choice" @click="showStats = true"><History :size="17" />我的战绩</button>
+        <button type="button" data-ui-interaction="choice" @click="showLeaderboard = true"><Trophy :size="17" />排行榜</button>
+        <button type="button" data-ui-interaction="choice" aria-label="打开设置" @click="emit('settings')"><Settings :size="17" />设置</button>
       </template>
     </GameHomeHeader>
 

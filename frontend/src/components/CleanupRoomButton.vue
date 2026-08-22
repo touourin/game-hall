@@ -17,6 +17,7 @@ function confirmCleanup() {
   <button
     type="button"
     class="cleanup-room-button"
+    data-ui-interaction="lift"
     :disabled="busy"
     @click.stop="confirming = true"
   >

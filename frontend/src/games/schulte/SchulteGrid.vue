@@ -207,6 +207,7 @@ onBeforeUnmount(() => {
             v-if="snapshot.phase === 'playing'"
             type="button"
             class="schulte-reset-button"
+            data-ui-interaction="choice"
             :disabled="isSpectating || arcade.busy"
             @click="resetChallenge"
           ><RotateCcw :size="16" />重置</button>

@@ -69,6 +69,7 @@ async function watchPlayer(playerId: string) {
         v-for="room in rooms"
         :key="room.roomCode"
         type="button"
+        data-ui-interaction="choice"
         :class="{ selected: selectedRoom?.roomCode === room.roomCode }"
         :disabled="disabled || (guest && room.allowsGuests === false)"
         @click="selectRoom(room)"
@@ -82,7 +83,7 @@ async function watchPlayer(playerId: string) {
 
     <form class="spectator-code-search" @submit.prevent="inspectRoom">
       <label><span>通过房间码观战</span><input v-model="roomCode" maxlength="8" placeholder="输入 4–8 位房间码" autocomplete="off" autocapitalize="characters" /></label>
-      <button type="submit" :disabled="disabled || roomCode.trim().length < 4 || arcade.busy"><Search :size="16" />查找</button>
+      <button type="submit" data-ui-interaction="lift" :disabled="disabled || roomCode.trim().length < 4 || arcade.busy"><Search :size="16" />查找</button>
     </form>
 
     <section v-if="selectedRoom" class="spectator-targets">
@@ -92,6 +93,7 @@ async function watchPlayer(playerId: string) {
           v-for="player in targets"
           :key="player.id"
           type="button"
+          data-ui-interaction="choice"
           :disabled="disabled || arcade.busy"
           @click="watchPlayer(player.id)"
         >

@@ -18,6 +18,7 @@ withDefaults(defineProps<{
   <button
     :type="type"
     class="ui-button"
+    data-ui-interaction="lift"
     :class="[
       `ui-button--${variant}`,
       {
@@ -52,6 +53,7 @@ withDefaults(defineProps<{
 }
 
 .ui-button--primary {
+  --ui-button-hover-lift: -2px;
   border-color: color-mix(in srgb, var(--primary-start) 58%, var(--primary-end));
   color: var(--primary-text);
   background:
@@ -84,10 +86,6 @@ withDefaults(defineProps<{
   font-size: 12px;
 }
 
-.ui-button:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
 .ui-button:disabled {
   cursor: not-allowed;
   opacity: .58;
@@ -96,14 +94,12 @@ withDefaults(defineProps<{
 @media (hover: hover) {
   .ui-button:hover:not(:disabled) {
     border-color: var(--line-strong);
-    transform: translateY(-1px);
   }
 
   .ui-button--primary:hover:not(:disabled) {
     box-shadow:
       0 16px 34px color-mix(in srgb, var(--accent) 30%, transparent),
       inset 0 1px 0 rgba(255, 255, 255, 0.68);
-    transform: translateY(-2px);
   }
 
   .ui-button--danger:hover:not(:disabled) {

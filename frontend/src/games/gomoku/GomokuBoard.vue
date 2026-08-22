@@ -178,9 +178,9 @@ function pass() {
       <template v-if="isMyTurn">
         <strong>{{ swapStage === 'second_choice' ? '你可以直接选色，或再摆两子' : '请根据五颗开局棋选择颜色' }}</strong>
         <div>
-          <button type="button" @click="chooseSwap2('white')">执白</button>
-          <button type="button" @click="chooseSwap2('black')">执黑</button>
-          <button v-if="swapStage === 'second_choice'" type="button" @click="chooseSwap2('add')">再摆两子</button>
+          <button type="button" data-ui-interaction="choice" @click="chooseSwap2('white')">执白</button>
+          <button type="button" data-ui-interaction="choice" @click="chooseSwap2('black')">执黑</button>
+          <button v-if="swapStage === 'second_choice'" type="button" data-ui-interaction="choice" @click="chooseSwap2('add')">再摆两子</button>
         </div>
       </template>
       <span v-else>对手正在做 Swap2 选择</span>
@@ -258,6 +258,7 @@ function pass() {
         v-if="swapStage === null"
         type="button"
         class="gomoku-pass-button"
+        data-ui-interaction="lift"
         :disabled="!isMyTurn || arcade.busy"
         @click="pass"
       >

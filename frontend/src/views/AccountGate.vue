@@ -232,6 +232,7 @@ function submit() {
       <div v-if="mode !== 'reset'" class="segmented-control account-mode" aria-label="登录、注册或游客入席">
         <button
           type="button"
+          data-ui-interaction="choice"
           :class="{ active: mode === 'login' }"
           @click="switchMode('login')"
         >
@@ -239,6 +240,7 @@ function submit() {
         </button>
         <button
           type="button"
+          data-ui-interaction="choice"
           :class="{ active: mode === 'register' }"
           @click="switchMode('register')"
         >
@@ -246,6 +248,7 @@ function submit() {
         </button>
         <button
           type="button"
+          data-ui-interaction="choice"
           :class="{ active: mode === 'guest' }"
           @click="switchMode('guest')"
         >
@@ -253,7 +256,7 @@ function submit() {
         </button>
       </div>
 
-      <button v-else type="button" class="account-back-button" @click="returnToLogin">
+      <button v-else type="button" class="account-back-button" data-ui-interaction="choice" @click="returnToLogin">
         <ArrowLeft :size="15" />返回登录
       </button>
 
@@ -354,6 +357,7 @@ function submit() {
           v-if="mode === 'login'"
           type="button"
           class="forgot-password-button"
+          data-ui-interaction="choice"
           @click="openPasswordReset"
         >
           忘记密码？
@@ -441,6 +445,7 @@ function submit() {
           v-if="mode === 'reset' && resetState === 'code-sent'"
           type="button"
           class="reset-resend-button"
+          data-ui-interaction="choice"
           :disabled="busy"
           @click="$emit('passwordResetCode', username.trim())"
         >

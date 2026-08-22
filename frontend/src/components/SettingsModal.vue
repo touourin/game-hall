@@ -366,6 +366,7 @@ onBeforeUnmount(clearAvatarDraft)
           <button
             type="button"
             class="avatar-upload-button"
+            data-ui-interaction="lift"
             :disabled="busy || awaitingAvatarUpdate"
             @click="openAvatarUpload"
           >
@@ -386,6 +387,7 @@ onBeforeUnmount(clearAvatarDraft)
             v-for="preset in AVATAR_PRESETS"
             :key="preset.id"
             type="button"
+            data-ui-interaction="choice"
             :class="{
               selected: selectedAvatarPreset === preset.id,
             }"
@@ -418,6 +420,7 @@ onBeforeUnmount(clearAvatarDraft)
             v-if="avatarDraft"
             type="button"
             class="avatar-discard-button"
+            data-ui-interaction="choice"
             :disabled="busy || awaitingAvatarUpdate"
             @click="discardAvatarChange"
           >
@@ -477,6 +480,7 @@ onBeforeUnmount(clearAvatarDraft)
           <button
             type="button"
             class="email-unbind-trigger"
+            data-ui-interaction="choice"
             :disabled="emailBusy"
             @click="openEmailUnbind"
           >
@@ -525,6 +529,7 @@ onBeforeUnmount(clearAvatarDraft)
           <button
             type="button"
             class="email-unbind-cancel"
+            data-ui-interaction="choice"
             :disabled="emailBusy"
             @click="cancelEmailUnbind"
           >
@@ -595,6 +600,7 @@ onBeforeUnmount(clearAvatarDraft)
             v-for="theme in themes"
             :key="theme.id"
             type="button"
+            data-ui-interaction="choice"
             :class="{ selected: selectedTheme === theme.id }"
             @click="chooseTheme(theme.id)"
           >

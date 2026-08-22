@@ -391,8 +391,8 @@ function placementMarkPath(row: number, column: number, side: 'left' | 'right') 
     </div>
 
     <div class="xiangqi-actions">
-      <button type="button" :disabled="!moveHistory.length" @click="openReplay()"><History :size="17" />对局复盘</button>
-      <button type="button" :disabled="!moveHistory.length" @click="exportMoves"><Download :size="17" />导出记录</button>
+      <button type="button" data-ui-interaction="lift" :disabled="!moveHistory.length" @click="openReplay()"><History :size="17" />对局复盘</button>
+      <button type="button" data-ui-interaction="lift" :disabled="!moveHistory.length" @click="exportMoves"><Download :size="17" />导出记录</button>
       <UiButton v-if="snapshot.phase === 'playing'" variant="danger" compact @click="arcade.action('resign')"><Flag :size="17" />认输</UiButton>
     </div>
 
@@ -400,14 +400,14 @@ function placementMarkPath(row: number, column: number, side: 'left' | 'right') 
       <section class="replay-panel" role="dialog" aria-modal="true" aria-label="象棋对局复盘">
         <header><div><small>走棋记录</small><strong>第 {{ replayStep }} / {{ moveHistory.length }} 手</strong></div><UiIconButton compact aria-label="关闭复盘" @click="showReplay = false"><X :size="20" /></UiIconButton></header>
         <div class="move-list">
-          <button type="button" :class="{ active: replayStep === 0 }" @click="replayStep = 0">开局</button>
-          <button v-for="move in moveHistory" :key="move.number" type="button" :class="{ active: replayStep === move.number }" @click="replayStep = move.number">
+          <button type="button" data-ui-interaction="choice" :class="{ active: replayStep === 0 }" @click="replayStep = 0">开局</button>
+          <button v-for="move in moveHistory" :key="move.number" type="button" data-ui-interaction="choice" :class="{ active: replayStep === move.number }" @click="replayStep = move.number">
             <span>{{ move.number }}.</span><b>{{ moveLabel(move) }}</b><em v-if="move.gaveCheck">将军</em>
           </button>
         </div>
         <footer>
-          <button type="button" :disabled="replayStep === 0" @click="replayStep--"><ChevronLeft :size="18" />上一步</button>
-          <button type="button" :disabled="replayStep >= moveHistory.length" @click="replayStep++">下一步<ChevronRight :size="18" /></button>
+          <button type="button" data-ui-interaction="lift" :disabled="replayStep === 0" @click="replayStep--"><ChevronLeft :size="18" />上一步</button>
+          <button type="button" data-ui-interaction="lift" :disabled="replayStep >= moveHistory.length" @click="replayStep++">下一步<ChevronRight :size="18" /></button>
         </footer>
       </section>
     </div>

@@ -54,14 +54,14 @@ function requestEndTable() {
       </div>
       <div v-if="request.isMine" class="request-response-actions request-waiting-actions">
         <p>等待其他玩家确认</p>
-        <button type="button" :disabled="busy" @click="emit('resolve', false)">撤回申请</button>
+        <button type="button" data-ui-interaction="lift" :disabled="busy" @click="emit('resolve', false)">撤回申请</button>
       </div>
       <div v-else-if="request.hasApproved" class="request-response-actions request-waiting-actions">
         <p>你已同意，等待其他玩家</p>
       </div>
       <div v-else-if="request.canRespond !== false" class="request-response-actions">
-        <button type="button" :disabled="busy" @click="emit('resolve', false)">拒绝</button>
-        <button type="button" class="accept" :disabled="busy" @click="emit('resolve', true)">同意</button>
+        <button type="button" data-ui-interaction="lift" :disabled="busy" @click="emit('resolve', false)">拒绝</button>
+        <button type="button" class="accept" data-ui-interaction="lift" :disabled="busy" @click="emit('resolve', true)">同意</button>
       </div>
       <div v-else class="request-response-actions request-waiting-actions">
         <p>等待仍在本桌的玩家确认</p>
@@ -73,6 +73,7 @@ function requestEndTable() {
         <button
           v-if="canRequestUndo"
           type="button"
+          data-ui-interaction="lift"
           :disabled="busy"
           @click="emit('request', 'undo')"
         >
@@ -81,6 +82,7 @@ function requestEndTable() {
         <button
           v-if="canRequestDraw"
           type="button"
+          data-ui-interaction="lift"
           :disabled="busy"
           @click="emit('request', 'draw')"
         >
@@ -90,6 +92,7 @@ function requestEndTable() {
           v-if="canRequestEndTable"
           type="button"
           class="end-table-button"
+          data-ui-interaction="lift"
           :disabled="busy"
           @click="showEndTableConfirmation = true"
         >

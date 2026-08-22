@@ -271,8 +271,8 @@ function choose(row: number, column: number, event: MouseEvent) {
     </div>
 
     <div v-if="isSetup" class="junqi-actions">
-      <button type="button" :disabled="isReady" @click="arcade.action('randomize')"><Dices :size="18" />重新随机</button>
-      <button type="button" class="primary" :disabled="isReady" @click="arcade.action('ready')"><Check :size="18" />确认布阵</button>
+      <button type="button" data-ui-interaction="lift" :disabled="isReady" @click="arcade.action('randomize')"><Dices :size="18" />重新随机</button>
+      <button type="button" class="primary" data-ui-interaction="lift" :disabled="isReady" @click="arcade.action('ready')"><Check :size="18" />确认布阵</button>
     </div>
     <div v-else-if="snapshot.phase === 'playing'" class="junqi-actions">
       <UiButton variant="danger" compact @click="arcade.action('resign')"><Flag :size="17" />认输</UiButton>

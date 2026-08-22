@@ -72,6 +72,7 @@ watch([activeGameMode, activeGameVariant], loadPlayers)
           v-for="filter in presentation.filters"
           :key="`${filter.mode}-${filter.variant ?? 'default'}`"
           type="button"
+          data-ui-interaction="choice"
           :class="{
             active:
               activeGameMode === filter.mode &&

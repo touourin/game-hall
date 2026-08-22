@@ -383,6 +383,7 @@ function selfRoleArtworkFraming() {
         v-if="snapshot.actions.canEarlyAssassinate"
         class="danger-tool"
         type="button"
+        data-ui-interaction="lift"
         @click="showEarlyAssassination = true"
       >
         <Swords :size="17" />
@@ -391,6 +392,7 @@ function selfRoleArtworkFraming() {
       <button
         v-if="snapshot.lady.history.length"
         type="button"
+        data-ui-interaction="choice"
         @click="showLadyHistory = true"
       >
         <Sparkles :size="17" />
@@ -569,6 +571,7 @@ function selfRoleArtworkFraming() {
             :key="player.id"
             type="button"
             class="player-tile"
+            data-ui-interaction="choice"
             :class="playerClasses(player)"
             @click="toggleTeamPlayer(player.id)"
           >
@@ -640,6 +643,7 @@ function selfRoleArtworkFraming() {
         <button
           class="decision-button reject"
           type="button"
+          data-ui-interaction="lift"
           @click="room.action('vote_team', { approve: false })"
         >
           <X :size="25" />
@@ -649,6 +653,7 @@ function selfRoleArtworkFraming() {
         <button
           class="decision-button approve"
           type="button"
+          data-ui-interaction="lift"
           @click="room.action('vote_team', { approve: true })"
         >
           <Check :size="25" />
@@ -698,6 +703,7 @@ function selfRoleArtworkFraming() {
           <button
             class="mission-card success-card"
             type="button"
+            data-ui-interaction="lift"
             @click="room.action('vote_mission', { success: true })"
           >
             <Check :size="28" />
@@ -708,6 +714,7 @@ function selfRoleArtworkFraming() {
             v-if="snapshot.actions.canMissionFail"
             class="mission-card fail-card"
             type="button"
+            data-ui-interaction="lift"
             @click="room.action('vote_mission', { success: false })"
           >
             <X :size="28" />
@@ -795,7 +802,7 @@ function selfRoleArtworkFraming() {
         <strong>所有人秘密锁定祓影目标，选票提交后不能修改</strong>
       </div>
 
-      <button class="surface final-council-chat" type="button" @click="openSharedChat">
+      <button class="surface final-council-chat" type="button" data-ui-interaction="lift" @click="openSharedChat">
         <MessageCircle :size="21" />
         <div>
           <strong>打开议庭讨论</strong>
@@ -825,6 +832,7 @@ function selfRoleArtworkFraming() {
             :key="player.id"
             type="button"
             class="player-tile"
+            data-ui-interaction="choice"
             :class="{ selected: exileCouncilTargetId === player.id }"
             @click="exileCouncilTargetId = player.id"
           >
@@ -868,7 +876,7 @@ function selfRoleArtworkFraming() {
         <strong>刺客重新获得一次刺杀梅林的机会</strong>
       </div>
 
-      <button class="surface final-council-chat" type="button" @click="openSharedChat">
+      <button class="surface final-council-chat" type="button" data-ui-interaction="lift" @click="openSharedChat">
         <MessageCircle :size="21" />
         <div>
           <strong>打开议庭讨论</strong>
@@ -894,6 +902,7 @@ function selfRoleArtworkFraming() {
             class="decision-button reject"
             :class="{ selected: councilAssassinateChoice === false }"
             type="button"
+            data-ui-interaction="choice"
             @click="councilAssassinateChoice = false"
           >
             <Shield :size="25" />
@@ -905,6 +914,7 @@ function selfRoleArtworkFraming() {
             class="decision-button approve"
             :class="{ selected: councilAssassinateChoice === true }"
             type="button"
+            data-ui-interaction="choice"
             @click="councilAssassinateChoice = true"
           >
             <Swords :size="25" />
@@ -963,6 +973,7 @@ function selfRoleArtworkFraming() {
             :key="player.id"
             type="button"
             class="player-tile"
+            data-ui-interaction="choice"
             :class="{ selected: councilAssassinationTargetId === player.id }"
             @click="councilAssassinationTargetId = player.id"
           >
@@ -1016,6 +1027,7 @@ function selfRoleArtworkFraming() {
             :key="player.id"
             type="button"
             class="player-tile"
+            data-ui-interaction="choice"
             :class="{ selected: ladyTargetId === player.id }"
             @click="ladyTargetId = player.id"
           >
@@ -1136,6 +1148,7 @@ function selfRoleArtworkFraming() {
             :key="player.id"
             type="button"
             class="player-tile"
+            data-ui-interaction="choice"
             :class="{ selected: assassinTargetId === player.id }"
             @click="assassinTargetId = player.id"
           >
@@ -1193,6 +1206,7 @@ function selfRoleArtworkFraming() {
             :key="player.id"
             type="button"
             class="player-tile"
+            data-ui-interaction="choice"
             :class="{ selected: daggerTargetId === player.id }"
             @click="daggerTargetId = player.id"
           >
@@ -1233,7 +1247,7 @@ function selfRoleArtworkFraming() {
         </strong>
       </div>
 
-      <button class="surface final-council-chat" type="button" @click="openSharedChat">
+      <button class="surface final-council-chat" type="button" data-ui-interaction="lift" @click="openSharedChat">
         <MessageCircle :size="21" />
         <div>
           <strong>打开最后议事</strong>
@@ -1273,6 +1287,7 @@ function selfRoleArtworkFraming() {
             :key="player.id"
             type="button"
             class="player-tile"
+            data-ui-interaction="choice"
             :class="{ selected: dissentingTargetId === player.id }"
             @click="dissentingTargetId = player.id"
           >
@@ -1589,6 +1604,7 @@ function selfRoleArtworkFraming() {
             :key="player.id"
             type="button"
             class="player-tile"
+            data-ui-interaction="choice"
             :class="{ selected: earlyAssassinTargetId === player.id }"
             @click="earlyAssassinTargetId = player.id"
           >

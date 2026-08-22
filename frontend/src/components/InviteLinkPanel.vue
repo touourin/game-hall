@@ -56,12 +56,12 @@ async function shareInviteLink() {
       />
     </label>
     <div class="invite-link-actions">
-      <button type="button" @click="copyInviteLink">
+      <button type="button" data-ui-interaction="lift" @click="copyInviteLink">
         <Check v-if="copyStatus === 'copied'" :size="17" />
         <Copy v-else :size="17" />
         {{ copyStatus === 'copied' ? '已复制' : copyStatus === 'failed' ? '复制失败' : '复制邀请链接' }}
       </button>
-      <button v-if="canShare" type="button" @click="shareInviteLink">
+      <button v-if="canShare" type="button" data-ui-interaction="lift" @click="shareInviteLink">
         <Share2 :size="17" />
         分享
       </button>

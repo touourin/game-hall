@@ -287,7 +287,7 @@ function openSharedChat() {
           :snapshot="snapshot"
           placement="rule"
         />
-        <button v-if="snapshot.actions.canEditRules" type="button" @click="openRuleEditor">{{ snapshot.phase === 'finished' ? '修改下局规则' : '修改规则' }}</button>
+        <button v-if="snapshot.actions.canEditRules" type="button" data-ui-interaction="choice" @click="openRuleEditor">{{ snapshot.phase === 'finished' ? '修改下局规则' : '修改规则' }}</button>
       </div>
     </section>
 
@@ -311,7 +311,7 @@ function openSharedChat() {
       <p v-else-if="missingPlayers > 0">还需要 {{ missingPlayers }} 名玩家</p>
       <p v-else-if="availableSeats > 0">已可开始，还可加入 {{ availableSeats }} 名玩家</p>
       <p v-else>人员已到齐，房主可以开始</p>
-      <button v-if="!isSolo" type="button" class="room-code-share" aria-label="显示加入二维码" @click="showQr = true">
+      <button v-if="!isSolo" type="button" class="room-code-share" data-ui-interaction="lift" aria-label="显示加入二维码" @click="showQr = true">
         {{ snapshot.roomCode }}
       </button>
       <InviteLinkPanel

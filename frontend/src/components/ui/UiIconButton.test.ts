@@ -14,6 +14,7 @@ describe('UiIconButton', () => {
       type: 'button',
       'aria-label': '关闭弹窗',
       disabled: '',
+      'data-ui-interaction': 'choice',
     })
     expect(wrapper.classes()).toContain('ui-icon-button--compact')
   })

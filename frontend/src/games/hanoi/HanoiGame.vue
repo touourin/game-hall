@@ -242,6 +242,7 @@ onBeforeUnmount(() => {
       <button
         v-if="snapshot.phase === 'playing'"
         type="button"
+        data-ui-interaction="lift"
         :disabled="arcade.busy"
         @click="resetChallenge"
       >

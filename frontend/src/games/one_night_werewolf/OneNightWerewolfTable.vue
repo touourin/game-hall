@@ -160,6 +160,7 @@ function submitVote() {
             v-for="player in selectablePlayers"
             :key="player.id"
             type="button"
+            data-ui-interaction="choice"
             :class="{ selected: selectedPlayerIds.includes(player.id) }"
             @click="togglePlayer(player.id)"
           ><b>{{ player.seat + 1 }}</b><span>{{ player.name }}</span></button>
@@ -169,6 +170,7 @@ function submitVote() {
             v-for="index in [0, 1, 2]"
             :key="index"
             type="button"
+            data-ui-interaction="choice"
             :class="{ selected: selectedCenterIndices.includes(index) }"
             @click="toggleCenter(index)"
           ><Moon :size="18" /><span>中央 {{ index + 1 }}</span></button>

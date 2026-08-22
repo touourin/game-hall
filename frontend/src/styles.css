@@ -320,7 +320,37 @@ button,
 a,
 input,
 textarea {
-  transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease, color 180ms ease, transform 180ms ease;
+  transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease, color 180ms ease, filter 180ms ease, transform 180ms ease;
+}
+
+button[data-ui-interaction="lift"],
+button[data-ui-interaction="choice"] {
+  --ui-button-hover-lift: -1px;
+  transform-origin: center;
+}
+
+button[data-ui-interaction="lift"] {
+  --ui-button-hover-lift: -2px;
+}
+
+button[data-ui-interaction]:active:not(:disabled) {
+  filter: brightness(.98);
+  transform: translateY(1px) scale(.99);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button[data-ui-interaction]:hover:not(:disabled) {
+    border-color: var(--line-strong);
+    filter: brightness(1.045);
+    transform: translateY(var(--ui-button-hover-lift));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button[data-ui-interaction] {
+    filter: none;
+    transform: none;
+  }
 }
 
 button:focus-visible,

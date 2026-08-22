@@ -80,6 +80,7 @@ defineExpose({ openChat })
     v-if="!open"
     type="button"
     class="arcade-chat-dock"
+    data-ui-interaction="choice"
     aria-label="打开房间聊天"
     @click="openChat"
   >
@@ -119,7 +120,7 @@ defineExpose({ openChat })
         placeholder="输入消息…"
         aria-label="聊天消息"
       />
-      <button type="submit" aria-label="发送消息" :disabled="!draft.trim() || busy">
+      <button type="submit" data-ui-interaction="choice" aria-label="发送消息" :disabled="!draft.trim() || busy">
         <Send :size="18" />
       </button>
     </form>
