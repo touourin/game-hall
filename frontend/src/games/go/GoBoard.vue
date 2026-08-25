@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { CheckCircle2, Flag, Play } from '@lucide/vue'
+import { Calculator, CheckCircle2, Flag, Play } from '@lucide/vue'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
 import UiButton from '../../components/ui/UiButton.vue'
@@ -206,6 +206,16 @@ function selectPoint(row: number, column: number, cell: number, event: MouseEven
     <div v-if="snapshot.phase === 'playing'" class="inline-actions">
       <button type="button" data-ui-interaction="lift" :disabled="!isMyTurn || arcade.busy" @click="arcade.action('pass')">
         停一手
+      </button>
+      <button
+        v-if="snapshot.actions.canRequestScore !== false"
+        type="button"
+        class="request-score-button"
+        data-ui-interaction="lift"
+        :disabled="arcade.busy"
+        @click="arcade.requestGameAction('score')"
+      >
+        <Calculator :size="17" />申请点目
       </button>
       <UiButton variant="danger" compact :disabled="arcade.busy" @click="arcade.action('resign')">
         <Flag :size="17" />认输

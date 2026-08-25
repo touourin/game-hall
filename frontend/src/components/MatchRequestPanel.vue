@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Calculator, Handshake, OctagonX, Undo2 } from '@lucide/vue'
+import { Handshake, OctagonX, Undo2 } from '@lucide/vue'
 import type {
   ArcadeGameRequest,
   ArcadeGameRequestKind,
@@ -12,14 +12,12 @@ const props = withDefaults(
     request: ArcadeGameRequest | null
     canRequestUndo?: boolean
     canRequestDraw?: boolean
-    canRequestScore?: boolean
     canRequestEndTable?: boolean
     busy?: boolean
   }>(),
   {
     canRequestUndo: false,
     canRequestDraw: false,
-    canRequestScore: false,
     canRequestEndTable: false,
     busy: false,
   },
@@ -94,15 +92,6 @@ function requestEndTable() {
           @click="emit('request', 'draw')"
         >
           <Handshake :size="16" />申请和棋
-        </button>
-        <button
-          v-if="canRequestScore"
-          type="button"
-          data-ui-interaction="lift"
-          :disabled="busy"
-          @click="emit('request', 'score')"
-        >
-          <Calculator :size="16" />申请点目
         </button>
         <button
           v-if="canRequestEndTable"

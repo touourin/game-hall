@@ -124,6 +124,25 @@ describe('GoBoard', () => {
     expect(action).toHaveBeenCalledWith('place', { row: 4, column: 4 })
   })
 
+  it('keeps the scoring request in the primary board actions', async () => {
+    const pinia = createPinia()
+    const arcade = useArcadeStore(pinia)
+    const request = vi
+      .spyOn(arcade, 'requestGameAction')
+      .mockResolvedValue(true)
+    const snapshot = playingSnapshot()
+    delete snapshot.actions.canRequestScore
+    const wrapper = mount(GoBoard, {
+      props: { snapshot },
+      global: { plugins: [pinia] },
+    })
+
+    expect(wrapper.get('.request-score-button').text()).toContain('申请点目')
+    await wrapper.get('.request-score-button').trigger('click')
+
+    expect(request).toHaveBeenCalledWith('score')
+  })
+
   it('marks dead stones and exposes both scoring decisions', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)

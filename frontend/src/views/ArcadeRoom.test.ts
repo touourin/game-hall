@@ -891,32 +891,6 @@ describe('ArcadeRoom', () => {
     expect(resolve).toHaveBeenCalledWith(true)
   })
 
-  it('routes a Go scoring request through the shared negotiation panel', async () => {
-    const pinia = createPinia()
-    const arcade = useArcadeStore(pinia)
-    const request = vi
-      .spyOn(arcade, 'requestGameAction')
-      .mockResolvedValue(true)
-    const playingRoom = snapshot('go')
-    playingRoom.phase = 'playing'
-    playingRoom.actions.canAct = true
-    playingRoom.actions.canRequestScore = true
-    const wrapper = shallowMount(ArcadeRoom, {
-      props: { snapshot: playingRoom },
-      global: {
-        plugins: [pinia],
-        stubs: { MatchRequestPanel: false },
-      },
-    })
-
-    const scoreButton = wrapper
-      .findAll('.request-actions button')
-      .find(button => button.text().includes('申请点目'))
-    await scoreButton?.trigger('click')
-
-    expect(request).toHaveBeenCalledWith('score')
-  })
-
   it('lets the host edit and save rules before the game', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)

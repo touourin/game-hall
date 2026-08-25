@@ -361,11 +361,10 @@ function openSharedChat() {
       />
 
       <MatchRequestPanel
-        v-if="!isSpectating && (snapshot.actions.canRequestUndo || snapshot.actions.canRequestDraw || snapshot.actions.canRequestScore || snapshot.actions.canRequestEndTable || snapshot.request)"
+        v-if="!isSpectating && (snapshot.actions.canRequestUndo || snapshot.actions.canRequestDraw || snapshot.actions.canRequestEndTable || snapshot.request)"
         :request="snapshot.request"
         :can-request-undo="snapshot.actions.canRequestUndo"
         :can-request-draw="snapshot.actions.canRequestDraw"
-        :can-request-score="snapshot.actions.canRequestScore"
         :can-request-end-table="snapshot.actions.canRequestEndTable"
         :busy="arcade.busy"
         @request="arcade.requestGameAction"

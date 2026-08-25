@@ -2,17 +2,21 @@ import { mount } from '@vue/test-utils'
 import MatchRequestPanel from './MatchRequestPanel.vue'
 
 describe('MatchRequestPanel', () => {
-  it('offers a scoring request for games that support point counting', async () => {
+  it('shows a scoring request and lets the opponent accept it', async () => {
     const wrapper = mount(MatchRequestPanel, {
       props: {
-        request: null,
-        canRequestScore: true,
+        request: {
+          kind: 'score',
+          requesterId: 'p1',
+          requesterName: '玩家一',
+          isMine: false,
+        },
       },
     })
 
-    expect(wrapper.text()).toContain('申请点目')
-    await wrapper.get('.request-actions button').trigger('click')
-    expect(wrapper.emitted('request')).toEqual([['score']])
+    expect(wrapper.text()).toContain('玩家一申请点目')
+    await wrapper.get('.request-response-actions .accept').trigger('click')
+    expect(wrapper.emitted('resolve')).toEqual([[true]])
   })
 
   it('confirms before requesting a table termination', async () => {
