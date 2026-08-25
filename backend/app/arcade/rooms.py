@@ -14,6 +14,7 @@ from .bots import ArcadeBotService, BotAction
 from .models import (
     ArcadeChatMessage,
     ArcadeGameRequest,
+    ArcadeGameRequestKind,
     ArcadePlayer,
     ArcadeRoom,
     ArcadeUndoEntry,
@@ -62,6 +63,11 @@ def game_supports_undo(game_key: str) -> bool:
 def game_supports_draw(game_key: str) -> bool:
     definition = game_registration(game_key)
     return bool(definition and definition.capabilities.draw_requests)
+
+
+def game_supports_score_request(game_key: str) -> bool:
+    definition = game_registration(game_key)
+    return bool(definition and definition.capabilities.score_requests)
 
 
 def request_voter_ids(
@@ -574,7 +580,10 @@ class ArcadeRoomManager:
         return message
 
     def request_game_action(
-        self, room: ArcadeRoom, player_id: str, kind: str
+        self,
+        room: ArcadeRoom,
+        player_id: str,
+        kind: ArcadeGameRequestKind,
     ) -> bool:
         player = room.player(player_id)
         engine = self.engine(room.game_key)
@@ -596,6 +605,13 @@ class ArcadeRoomManager:
                 raise ArcadeRoomError("这个游戏不支持和棋申请")
             if not room.options.get("allowDraw", True):
                 raise ArcadeRoomError("本房间没有开启和棋申请")
+        elif kind == "score":
+            if room.phase != "playing":
+                raise ArcadeRoomError("当前不能发起这个申请")
+            if not game_supports_score_request(room.game_key):
+                raise ArcadeRoomError("这个游戏不支持点目申请")
+            if not callable(getattr(engine, "accept_score_request", None)):
+                raise ArcadeRoomError("这个游戏没有实现点目申请")
         elif kind == "end_table":
             if engine.max_players <= 1:
                 raise ArcadeRoomError("单人挑战不需要申请结束本桌")
@@ -611,16 +627,22 @@ class ArcadeRoomManager:
             self._undo_to_before_player_action(room, player.id)
             room.revision += 1
             return False
-        room.pending_request = ArcadeGameRequest(
+        request = ArcadeGameRequest(
             kind=kind,
             requester_id=player_id,
             approved_player_ids={player.id},
         )
-        if kind == "end_table" and request_voter_ids(room, engine, kind) <= {
-            player.id
-        }:
-            self._prepare_lobby(room)
-            return True
+        room.pending_request = request
+        if kind in {"score", "end_table"} and request_voter_ids(
+            room,
+            engine,
+            kind,
+        ) <= {player.id}:
+            return self._complete_game_request(
+                room,
+                engine,
+                request,
+            )
         room.revision += 1
         return False
 
@@ -652,6 +674,14 @@ class ArcadeRoomManager:
             room.revision += 1
             return False
 
+        return self._complete_game_request(room, engine, request)
+
+    def _complete_game_request(
+        self,
+        room: ArcadeRoom,
+        engine: GameEngine,
+        request: ArcadeGameRequest,
+    ) -> bool:
         room.pending_request = None
         if request.kind == "draw":
             room.finish("draw", [], "双方同意和棋")
@@ -659,9 +689,16 @@ class ArcadeRoomManager:
             if not room.undo_history:
                 raise ArcadeRoomError("当前没有可以撤回的操作")
             room.state = undo_entry_state(room.undo_history.pop())
+        elif request.kind == "score":
+            handler = getattr(engine, "accept_score_request", None)
+            if not callable(handler):
+                raise ArcadeRoomError("这个游戏没有实现点目申请")
+            handler(room)
         elif request.kind == "end_table":
             self._prepare_lobby(room)
             return True
+        else:
+            raise ArcadeRoomError("不支持这个申请")
         room.revision += 1
         return False
 

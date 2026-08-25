@@ -22,6 +22,7 @@ GO_GAME = GameRegistration(
     capabilities=GameCapabilities(
         undo_actions=frozenset({"place", "pass"}),
         draw_requests=True,
+        score_requests=True,
         guests=True,
         spectators=True,
         first_player=True,

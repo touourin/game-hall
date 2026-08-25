@@ -9,7 +9,7 @@ import secrets
 from collections import defaultdict, deque
 from dataclasses import asdict, is_dataclass
 from functools import wraps
-from typing import Any, Literal
+from typing import Any
 
 import socketio
 from pydantic import BaseModel, Field, ValidationError
@@ -18,7 +18,7 @@ from backend.app.accounts import account_store
 from backend.app.games.registry import build_engine_registry, game_registration
 from backend.app.logging_config import bind_game_context, reset_game_context
 
-from .models import ArcadeRoom, ArcadeSpectator
+from .models import ArcadeGameRequestKind, ArcadeRoom, ArcadeSpectator
 from .rooms import (
     ACTION_ERRORS,
     ActiveRoomError,
@@ -109,7 +109,7 @@ class ChatPayload(BaseModel):
 
 
 class GameRequestPayload(BaseModel):
-    kind: Literal["undo", "draw", "end_table"]
+    kind: ArcadeGameRequestKind
 
 
 class ResolveRequestPayload(BaseModel):
@@ -814,6 +814,8 @@ class ArcadeRealtime:
                     room, player.id, payload.kind
                 )
             await self.broadcast_room(room)
+            if room.phase == "scoring":
+                self.schedule_bot_turns(room)
             if returned_to_lobby:
                 await self.broadcast_lobby()
             return {"ok": True}
@@ -835,6 +837,8 @@ class ArcadeRealtime:
                 if room.phase == "finished":
                     self._record_room(room)
             await self.broadcast_room(room)
+            if room.phase == "scoring":
+                self.schedule_bot_turns(room)
             if returned_to_lobby:
                 await self.broadcast_lobby()
             return {"ok": True}

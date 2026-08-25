@@ -186,11 +186,7 @@ class GoEngine:
             state.move_history.append(dict(state.last_move))
             state.turn_seat = 1 - state.turn_seat
             if state.consecutive_passes >= 2:
-                state.dead_stones.clear()
-                state.score_confirmed_player_ids.clear()
-                state.resume_requested_by = None
-                state.score = None
-                room.phase = "scoring"
+                self._begin_scoring(room, state)
                 return
             return
         if action != "place":
@@ -241,6 +237,11 @@ class GoEngine:
         state.resume_requested_by = None
         state.score = None
         state.turn_seat = 1 - state.turn_seat
+
+    def accept_score_request(self, room: ArcadeRoom) -> None:
+        if room.phase != "playing":
+            raise GameRuleError("当前不能进入点目阶段")
+        self._begin_scoring(room, room.state)
 
     def view(self, room: ArcadeRoom, viewer: ArcadePlayer) -> dict[str, Any]:
         state: GoState = room.state
@@ -343,6 +344,14 @@ class GoEngine:
             room.phase = "playing"
             return
         raise GameRuleError("数子阶段只能标记死子、确认结果或继续对局")
+
+    @staticmethod
+    def _begin_scoring(room: ArcadeRoom, state: GoState) -> None:
+        state.dead_stones.clear()
+        state.score_confirmed_player_ids.clear()
+        state.resume_requested_by = None
+        state.score = None
+        room.phase = "scoring"
 
     def _finish_by_score(self, room: ArcadeRoom, state: GoState) -> None:
         dead_black = sum(

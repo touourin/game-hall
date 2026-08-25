@@ -13,6 +13,7 @@ from .rooms import (
     MAX_CHAT_LENGTH,
     can_undo_for_player,
     game_supports_draw,
+    game_supports_score_request,
     game_supports_undo,
     request_voter_ids,
 )
@@ -257,6 +258,11 @@ def build_room_view(
                 room.phase == "playing"
                 and game_supports_draw(room.game_key)
                 and room.options.get("allowDraw", True)
+                and pending_request is None
+            ),
+            "canRequestScore": (
+                room.phase == "playing"
+                and game_supports_score_request(room.game_key)
                 and pending_request is None
             ),
             "canRequestEndTable": (

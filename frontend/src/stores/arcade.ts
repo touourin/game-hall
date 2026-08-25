@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { emitWithAck, socket, type AckResponse } from '../socket'
 import type {
   ArcadeGameKey,
+  ArcadeGameRequestKind,
   ArcadeLobbyRoom,
   ArcadeRealtimeFrame,
   ArcadeSnapshot,
@@ -459,7 +460,7 @@ export const useArcadeStore = defineStore('arcade', () => {
     return Boolean(await perform('arcade:chat', { content }))
   }
 
-  async function requestGameAction(kind: 'undo' | 'draw' | 'end_table') {
+  async function requestGameAction(kind: ArcadeGameRequestKind) {
     if (rejectSpectatorAction()) return false
     return Boolean(await perform('arcade:request', { kind }))
   }

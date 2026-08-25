@@ -3,7 +3,10 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
+
+
+ArcadeGameRequestKind = Literal["undo", "draw", "score", "end_table"]
 
 
 def utc_now_iso() -> str:
@@ -49,7 +52,7 @@ class ArcadeChatMessage:
 
 @dataclass
 class ArcadeGameRequest:
-    kind: str
+    kind: ArcadeGameRequestKind
     requester_id: str
     approved_player_ids: set[str] = field(default_factory=set)
 

@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from backend.app.arcade.realtime import (
     ActionPayload,
     ArcadeRealtime,
+    GameRequestPayload,
     RealtimeInputPayload,
 )
 from backend.app.arcade.bots import BotAction
@@ -106,6 +107,12 @@ def test_action_payload_accepts_legacy_council_action_from_open_browser() -> Non
 def test_action_payload_still_rejects_unbounded_action_names() -> None:
     with pytest.raises(ValidationError):
         ActionPayload.model_validate({"action": "a" * 65})
+
+
+def test_game_request_payload_accepts_score_requests() -> None:
+    payload = GameRequestPayload.model_validate({"kind": "score"})
+
+    assert payload.kind == "score"
 
 
 def test_realtime_input_payload_has_bounded_integer_fields() -> None:

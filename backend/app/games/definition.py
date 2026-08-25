@@ -17,6 +17,7 @@ class GameCapabilities:
 
     undo_actions: frozenset[str] = field(default_factory=frozenset)
     draw_requests: bool = False
+    score_requests: bool = False
     guests: bool = True
     spectators: bool = True
     spectator_frames: bool = False

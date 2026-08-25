@@ -101,8 +101,10 @@ export interface ArcadeViewer {
   targetPlayerId: string
 }
 
+export type ArcadeGameRequestKind = 'undo' | 'draw' | 'score' | 'end_table'
+
 export interface ArcadeGameRequest {
-  kind: 'undo' | 'draw' | 'end_table'
+  kind: ArcadeGameRequestKind
   requesterId: string
   requesterName: string
   isMine: boolean
@@ -155,6 +157,7 @@ export interface ArcadeSnapshot {
     canEditRules: boolean
     canRequestUndo: boolean
     canRequestDraw: boolean
+    canRequestScore?: boolean
     canRequestEndTable?: boolean
     canResolveRequest: boolean
   }

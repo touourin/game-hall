@@ -169,19 +169,26 @@ def test_social_table_games_preserve_their_shared_capability_contract() -> None:
 
 
 @pytest.mark.parametrize(
-    ("game_key", "undo_actions", "supports_draw", "supports_ai"),
     (
-        ("gomoku", {"place", "pass"}, True, False),
-        ("xiangqi", {"move"}, True, True),
-        ("chess", {"move"}, True, False),
-        ("go", {"place", "pass"}, True, True),
-        ("junqi", set(), False, False),
+        "game_key",
+        "undo_actions",
+        "supports_draw",
+        "supports_score",
+        "supports_ai",
+    ),
+    (
+        ("gomoku", {"place", "pass"}, True, False, False),
+        ("xiangqi", {"move"}, True, False, True),
+        ("chess", {"move"}, True, False, False),
+        ("go", {"place", "pass"}, True, True, True),
+        ("junqi", set(), False, False, False),
     ),
 )
 def test_board_games_use_builtin_game_definitions(
     game_key: str,
     undo_actions: set[str],
     supports_draw: bool,
+    supports_score: bool,
     supports_ai: bool,
 ) -> None:
     definition = game_registration(game_key)
@@ -190,6 +197,7 @@ def test_board_games_use_builtin_game_definitions(
     assert definition.catalog.players == "2 人"
     assert definition.capabilities.undo_actions == frozenset(undo_actions)
     assert definition.capabilities.draw_requests is supports_draw
+    assert definition.capabilities.score_requests is supports_score
     assert definition.capabilities.spectators is True
     assert definition.capabilities.ai is supports_ai
     assert definition.create_engine().key == game_key
@@ -651,6 +659,36 @@ def test_go_two_passes_enter_scoring_and_both_players_confirm_result() -> None:
     assert room.state.score["black"] == 0.0
     assert room.state.score["white"] == 7.5
     assert room.winner == "white"
+
+
+def test_go_score_request_needs_opponent_agreement_before_scoring() -> None:
+    manager = ArcadeRoomManager(build_engine_registry())
+    room, host, _ = manager.create_room("go", "甲", "account-1")
+    manager.join_room(room.code, "go", "乙", "account-2")
+    manager.start(room, host.id)
+    opponent = next(player for player in room.players if player.id != host.id)
+
+    host_view = build_arcade_room_view(room, host, manager.engines["go"])
+    assert host_view["actions"]["canRequestScore"] is True
+
+    manager.request_game_action(room, host.id, "score")
+
+    assert room.phase == "playing"
+    assert room.pending_request is not None
+    assert room.pending_request.kind == "score"
+    opponent_view = build_arcade_room_view(
+        room,
+        opponent,
+        manager.engines["go"],
+    )
+    assert opponent_view["request"]["kind"] == "score"
+    assert opponent_view["request"]["canRespond"] is True
+
+    manager.resolve_game_request(room, opponent.id, True)
+
+    assert room.pending_request is None
+    assert room.phase == "scoring"
+    assert room.state.score_confirmed_player_ids == []
 
 
 def test_go_supports_small_boards_and_zero_komi_draws() -> None:

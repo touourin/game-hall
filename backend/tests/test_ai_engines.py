@@ -207,6 +207,19 @@ async def test_go_bot_passes_and_confirms_the_scoring_phase() -> None:
     assert room.state.score_confirmed_player_ids == [bot.id]
 
 
+async def test_go_bot_automatically_accepts_a_score_request() -> None:
+    engine = GoEngine()
+    engine.bot_strategy.client = FakeKataGo("pass")
+    manager, room, host, bot = _human_vs_bot(engine)
+
+    manager.request_game_action(room, host.id, "score")
+
+    assert room.pending_request is None
+    assert room.phase == "scoring"
+    confirmation = await engine.choose_bot_action_async(room)
+    assert confirmation == BotAction(bot.id, "confirm_score")
+
+
 @pytest.mark.parametrize(
     ("engine_type", "environment_names", "message"),
     [

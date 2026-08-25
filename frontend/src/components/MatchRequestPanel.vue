@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Handshake, OctagonX, Undo2 } from '@lucide/vue'
-import type { ArcadeGameRequest } from '../types/arcade'
+import { Calculator, Handshake, OctagonX, Undo2 } from '@lucide/vue'
+import type {
+  ArcadeGameRequest,
+  ArcadeGameRequestKind,
+} from '../types/arcade'
 import ConfirmModal from './ui/ConfirmModal.vue'
 
 const props = withDefaults(
@@ -9,28 +12,32 @@ const props = withDefaults(
     request: ArcadeGameRequest | null
     canRequestUndo?: boolean
     canRequestDraw?: boolean
+    canRequestScore?: boolean
     canRequestEndTable?: boolean
     busy?: boolean
   }>(),
   {
     canRequestUndo: false,
     canRequestDraw: false,
+    canRequestScore: false,
     canRequestEndTable: false,
     busy: false,
   },
 )
 
 const emit = defineEmits<{
-  request: [kind: 'undo' | 'draw' | 'end_table']
+  request: [kind: ArcadeGameRequestKind]
   resolve: [accept: boolean]
 }>()
 
 const showEndTableConfirmation = ref(false)
-const requestLabel = computed(() => ({
+const requestLabels: Record<ArcadeGameRequestKind, string> = {
   undo: '悔棋',
   draw: '和棋',
+  score: '点目',
   end_table: '结束本桌',
-}[props.request?.kind ?? 'undo']))
+}
+const requestLabel = computed(() => requestLabels[props.request?.kind ?? 'undo'])
 const approvalProgress = computed(() => {
   if (!props.request) return ''
   const approved = props.request.approvalCount ?? props.request.approvedPlayerIds?.length ?? 1
@@ -87,6 +94,15 @@ function requestEndTable() {
           @click="emit('request', 'draw')"
         >
           <Handshake :size="16" />申请和棋
+        </button>
+        <button
+          v-if="canRequestScore"
+          type="button"
+          data-ui-interaction="lift"
+          :disabled="busy"
+          @click="emit('request', 'score')"
+        >
+          <Calculator :size="16" />申请点目
         </button>
         <button
           v-if="canRequestEndTable"
