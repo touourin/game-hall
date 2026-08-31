@@ -15,6 +15,7 @@ export interface StatsSummary {
   averageMs: number | null
   bestScore?: number | null
   averageScore?: number | null
+  totalPoints?: number | null
   missionRouteGames?: number
   recruitmentAttempts?: number
   recruitmentHits?: number
@@ -70,6 +71,7 @@ export interface MatchDetail {
       isBot?: boolean
       role?: string
       alignment?: string
+      scoreValue?: number | null
       initialAlignment?: string
       finalAlignment?: string
       transformed?: boolean
@@ -162,6 +164,7 @@ export interface LeaderboardEntry {
   averageMs: number | null
   bestScore: number | null
   averageScore: number | null
+  totalPoints?: number | null
 }
 
 type LeaderboardEntryPayload = Omit<
@@ -183,6 +186,9 @@ function normalizeLeaderboardEntry(entry: LeaderboardEntryPayload): LeaderboardE
     averageMs: finiteNumberOrNull(entry.averageMs),
     bestScore: finiteNumberOrNull(entry.bestScore),
     averageScore: finiteNumberOrNull(entry.averageScore),
+    ...(entry.totalPoints !== undefined
+      ? { totalPoints: finiteNumberOrNull(entry.totalPoints) }
+      : {}),
   }
 }
 

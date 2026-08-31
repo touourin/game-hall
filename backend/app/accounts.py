@@ -1534,6 +1534,9 @@ class AccountStore:
             select(
                 func.count().label("games"),
                 func.coalesce(
+                    func.sum(match_players.c.score_value), 0
+                ).label("total_points"),
+                func.coalesce(
                     func.sum(case((match_players.c.outcome == "win", 1), else_=0)),
                     0,
                 ).label("wins"),
@@ -1641,7 +1644,11 @@ class AccountStore:
         if game_key is not None:
             statement = statement.where(matches.c.game_key == game_key)
         else:
-            statement = statement.where(matches.c.game_key.not_in(SCORED_GAME_KEYS))
+            solo_score_keys = {
+                key for key in SCORED_GAME_KEYS
+                if _game_score_kind(key) in {"time_trial", "high_score"}
+            }
+            statement = statement.where(matches.c.game_key.not_in(solo_score_keys))
         if game_mode is not None:
             statement = statement.where(matches.c.mode == game_mode)
         statement = self._filter_game_variant(
@@ -1654,6 +1661,11 @@ class AccountStore:
         return {
             "games": game_count,
             "wins": win_count,
+            **(
+                {"totalPoints": int(row["total_points"])}
+                if _game_score_kind(game_key) == "ranking"
+                else {}
+            ),
             "draws": int(row["draws"]),
             "losses": int(row["losses"]),
             "winRate": round(win_count / game_count * 100, 1) if game_count else 0,
@@ -1807,6 +1819,10 @@ class AccountStore:
         draw_count = func.coalesce(
             func.sum(case((match_players.c.outcome == "draw", 1), else_=0)), 0
         ).label("draws")
+        ranking = _game_score_kind(game_key) == "ranking"
+        total_points = func.coalesce(
+            func.sum(match_players.c.score_value), 0
+        ).label("total_points")
         statement = (
             select(
                 users.c.id,
@@ -1816,6 +1832,7 @@ class AccountStore:
                 game_count,
                 win_count,
                 draw_count,
+                total_points,
             )
             .select_from(
                 match_players.join(
@@ -1831,6 +1848,7 @@ class AccountStore:
                 users.c.created_at,
             )
             .order_by(
+                *([total_points.desc()] if ranking else []),
                 win_count.desc(),
                 (win_count * 1.0 / game_count).desc(),
                 game_count.desc(),
@@ -1854,6 +1872,7 @@ class AccountStore:
                 "avatarUrl": self._avatar_url_from_row(row),
                 "games": int(row["games"]),
                 "wins": int(row["wins"]),
+                **({"totalPoints": int(row["total_points"])} if ranking else {}),
                 "draws": int(row["draws"]),
                 "winRate": round(row["wins"] / row["games"] * 100, 1),
             }
@@ -2032,7 +2051,7 @@ class AccountStore:
             "scoreValue": (
                 int(row["score_value"])
                 if row["score_value"] is not None
-                and score_kind == "high_score"
+                and score_kind in {"high_score", "ranking"}
                 else None
             ),
             "gameMode": row["mode"],
@@ -2040,7 +2059,7 @@ class AccountStore:
 
     @staticmethod
     def _game_outcome(*, game_key: str, winner: str, won: bool) -> str:
-        if _game_score_kind(game_key) != "outcome" and won:
+        if _game_score_kind(game_key) in {"time_trial", "high_score"} and won:
             return "completed"
         if winner == "draw":
             return "draw"

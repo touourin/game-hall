@@ -105,9 +105,47 @@ export function standardOutcomeLabel(match: MatchHistoryItem): string {
 }
 
 export function createScoredGameRecords(
-  scoreKind: 'time_trial' | 'high_score',
+  scoreKind: 'time_trial' | 'high_score' | 'ranking',
   gameName: string,
 ): BuiltinGameRecords {
+  if (scoreKind === 'ranking') {
+    const points = (value: number | null | undefined) => (
+      typeof value === 'number' && Number.isFinite(value)
+        ? `${value > 0 ? '+' : ''}${value.toLocaleString('zh-CN')} 分`
+        : '—'
+    )
+    return {
+      scoreKind,
+      leaderboard: {
+        description: '按累计名次积分排序；同分依次比较冠军次数、夺冠率、场次和注册时间。',
+        entryDetail: (entry) => `${entry.games} 局 · ${entry.wins} 次冠军`,
+        entryScore: (entry) => points(entry.totalPoints),
+        note: '积分可为负数；只累计已结束且符合战绩条件的对局。',
+      },
+      stats: {
+        description: `记录${gameName}每局名次与积分变化。`,
+        summaryItems: (summary) => [
+          { value: summary.games, label: '总场次' },
+          { value: points(summary.totalPoints), label: '累计积分' },
+          { value: summary.wins, label: '冠军次数' },
+        ],
+        historyOutcome: () => '分',
+        historyTitle: (match) => `${gameName} · ${match.role} · ${points(match.scoreValue)}`,
+        historyMeta: (match, date) => `${date} · ${match.playerCount} 人 · 房间 ${match.roomCode}`,
+        detailPlayerRoleLabel: (role) => role,
+        detailSection: (match) => ({
+          title: '名次积分',
+          metrics: match.details.players.map((player) => ({
+            status: (player.scoreValue ?? 0) >= 0 ? 'success' : 'failed',
+            label: `${player.name} · ${player.role ?? '玩家'}`,
+            value: points(player.scoreValue),
+          })),
+        }),
+        detailWinnerLabel: () => `${gameName}名次已结算`,
+        detailNote: (match) => match.ranked ? '本局名次积分计入排行榜' : '本局不计排行榜',
+      },
+    }
+  }
   if (scoreKind === 'time_trial') {
     return {
       scoreKind,

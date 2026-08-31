@@ -36,7 +36,7 @@ export interface CommunityGameManifest {
     ai: boolean
   }
   records: {
-    scoreKind: 'outcome' | 'time_trial' | 'high_score'
+    scoreKind: 'outcome' | 'time_trial' | 'high_score' | 'ranking'
   }
   defaultOptions?: Record<string, unknown>
   ruleLabels?: readonly string[]

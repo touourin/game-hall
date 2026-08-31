@@ -52,7 +52,7 @@ const capabilityFields = new Set([
 ])
 const recordFields = new Set(['scoreKind'])
 const registryStatuses = new Set(['enabled', 'deprecated', 'disabled'])
-const scoreKinds = new Set(['outcome', 'time_trial', 'high_score'])
+const scoreKinds = new Set(['outcome', 'time_trial', 'high_score', 'ranking'])
 const pluginArtworkFiles = Object.freeze({
   dark: 'catalog-dark.webp',
   light: 'catalog-light.webp',

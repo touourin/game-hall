@@ -71,7 +71,7 @@ class GameCatalogMetadata:
         }
 
 
-GameScoreKind = Literal["outcome", "time_trial", "high_score"]
+GameScoreKind = Literal["outcome", "time_trial", "high_score", "ranking"]
 GameSource = Literal["official", "community"]
 GameAvailability = Literal["enabled", "deprecated"]
 GameRecordVariantValue = bool | int | str

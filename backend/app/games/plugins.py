@@ -33,7 +33,7 @@ PLUGIN_VERSION_PATTERN = re.compile(
 PLUGIN_ACTION_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 PLUGIN_ROOM_LAYOUTS = frozenset({"standard", "wide", "immersive"})
 PLUGIN_REGISTRY_STATUSES = frozenset({"enabled", "deprecated", "disabled"})
-PLUGIN_SCORE_KINDS = frozenset({"outcome", "time_trial", "high_score"})
+PLUGIN_SCORE_KINDS = frozenset({"outcome", "time_trial", "high_score", "ranking"})
 PLUGIN_MANIFEST_FIELDS = frozenset(
     {
         "$schema",
@@ -408,7 +408,7 @@ def _validate_records(candidate: Any) -> dict[str, Any]:
     _reject_unknown_fields(candidate, PLUGIN_RECORD_FIELDS, "records")
     if candidate.get("scoreKind") not in PLUGIN_SCORE_KINDS:
         raise ValueError(
-            "records.scoreKind 只能是 outcome、time_trial 或 high_score"
+            "records.scoreKind 只能是 outcome、time_trial、high_score 或 ranking"
         )
     return candidate
 
@@ -533,7 +533,7 @@ def _validate_engine(engine: GameEngine, manifest: dict[str, Any]) -> None:
         and not callable(getattr(engine, "player_score", None))
     ):
         raise ValueError(
-            "计时或高分插件引擎必须实现 player_score()"
+            "计时、高分或排名积分插件引擎必须实现 player_score()"
         )
 
 

@@ -216,7 +216,7 @@ export interface BuiltinGameLeaderboardPresentation {
 }
 
 export interface BuiltinGameRecords {
-  scoreKind?: 'outcome' | 'time_trial' | 'high_score'
+  scoreKind?: 'outcome' | 'time_trial' | 'high_score' | 'ranking'
   leaderboard?: BuiltinGameLeaderboardPresentation
   stats?: BuiltinGameStatsPresentation
   matchDetailComponent?: Component

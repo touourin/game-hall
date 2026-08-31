@@ -1600,6 +1600,7 @@ class ArcadeRealtime:
                             "role": players[index]["role"],
                             "alignment": players[index]["alignment"],
                             "isBot": player.is_bot,
+                            "scoreValue": players[index]["scoreValue"],
                         }
                         for index, player in enumerate(room.players)
                     ],

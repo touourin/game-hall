@@ -166,11 +166,12 @@ def test_plugin_with_fields_outside_the_manifest_schema_is_rejected(tmp_path) ->
     )
 
 
-def test_scored_plugin_must_expose_player_score(tmp_path) -> None:
+@pytest.mark.parametrize("score_kind", ("time_trial", "high_score", "ranking"))
+def test_scored_plugin_must_expose_player_score(tmp_path, score_kind) -> None:
     directory = write_plugin(tmp_path, plugin_id="plugin-test-game")
     manifest_path = directory / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["records"]["scoreKind"] = "time_trial"
+    manifest["records"]["scoreKind"] = score_kind
     manifest_path.write_text(
         json.dumps(manifest, ensure_ascii=False),
         encoding="utf-8",
@@ -180,7 +181,7 @@ def test_scored_plugin_must_expose_player_score(tmp_path) -> None:
         validate_game_plugins(tmp_path)
 
     assert error.value.issues == (
-        "plugin-test-game: 计时或高分插件引擎必须实现 player_score()",
+        "plugin-test-game: 计时、高分或排名积分插件引擎必须实现 player_score()",
     )
 
 
