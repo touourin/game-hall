@@ -479,11 +479,32 @@ function submit() {
 </template>
 
 <style scoped>
-.account-page { width: min(100%, 1060px); }
-.account-page--register { width: min(100%, 1180px); align-items: start; }
-.account-stage { width: 100%; display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(390px, .92fr); align-items: stretch; gap: 10px; }
-.account-page--register .account-stage { grid-template-columns: minmax(0, .9fr) minmax(520px, 1.1fr); align-items: start; }
-.account-intro { position: relative; min-height: 640px; display: flex; flex-direction: column; border-color: color-mix(in srgb, var(--line-strong) 74%, var(--line)); border-radius: var(--radius-lg); padding: clamp(34px, 5vw, 56px); background: radial-gradient(circle at 10% 0, color-mix(in srgb, var(--accent) 13%, transparent), transparent 35%), repeating-radial-gradient(circle at 88% 85%, transparent 0 38px, var(--instrument-line) 39px 40px), var(--panel-sheen), linear-gradient(145deg,color-mix(in srgb,var(--surface-strong) 82%,var(--bg)),var(--surface)); overflow: hidden; }
+.account-page {
+  width: min(100%, 66.25rem);
+  container: account-gate / inline-size;
+  --account-stage-columns: minmax(26rem, 1.08fr) minmax(24.375rem, .92fr);
+  --account-stage-align: stretch;
+  --account-intro-position: relative;
+  --account-intro-top: auto;
+  --account-intro-height: auto;
+  --account-intro-min-height: 640px;
+  --account-card-align: center;
+  --account-card-padding: clamp(32px, 5vw, 54px);
+}
+.account-page--register {
+  width: min(100%, 73.75rem);
+  align-items: start;
+  --account-stage-columns: minmax(27.5rem, .9fr) minmax(32.5rem, 1.1fr);
+  --account-stage-align: start;
+  --account-intro-position: sticky;
+  --account-intro-top: calc(18px + env(safe-area-inset-top));
+  --account-intro-height: calc(100dvh - 72px);
+  --account-intro-min-height: min(640px, calc(100dvh - 72px));
+  --account-card-align: start;
+  --account-card-padding: clamp(28px, 3vw, 40px);
+}
+.account-stage { width: 100%; display: grid; grid-template-columns: var(--account-stage-columns); align-items: var(--account-stage-align); gap: 10px; }
+.account-intro { position: var(--account-intro-position); top: var(--account-intro-top); height: var(--account-intro-height); min-height: var(--account-intro-min-height); display: flex; flex-direction: column; border-color: color-mix(in srgb, var(--line-strong) 74%, var(--line)); border-radius: var(--radius-lg); padding: clamp(34px, 5vw, 56px); background: radial-gradient(circle at 10% 0, color-mix(in srgb, var(--accent) 13%, transparent), transparent 35%), repeating-radial-gradient(circle at 88% 85%, transparent 0 38px, var(--instrument-line) 39px 40px), var(--panel-sheen), linear-gradient(145deg,color-mix(in srgb,var(--surface-strong) 82%,var(--bg)),var(--surface)); overflow: hidden; }
 .account-intro::after { position: absolute; inset: 5px; border: 1px solid color-mix(in srgb, var(--line-bright) 15%, transparent); border-radius: calc(var(--radius-panel) - 5px); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 22%, transparent); content: ''; pointer-events: none; }
 .account-brand { position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; }
 .account-brand > span { width: 52px; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--line)); border-radius: var(--radius-control); color: var(--accent); background: var(--control-surface), var(--surface-inset); box-shadow: var(--glow-primary), inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 58%, transparent); }
@@ -502,9 +523,7 @@ function submit() {
 .account-features small { color: var(--muted); font-size: 8px; line-height: 1.5; }
 .account-trust { position: relative; z-index: 1; display: flex; align-items: center; gap: 7px; margin: 17px 0 0; color: var(--text-soft); font-size: 9px; }
 .account-trust svg { color: var(--green); }
-.account-card { z-index: 2; width: auto; display: grid; align-content: center; border-color: color-mix(in srgb, var(--line-strong) 62%, var(--line)); border-radius: var(--radius-lg); padding: clamp(32px, 5vw, 54px); }
-.account-page--register .account-intro { position: sticky; top: calc(18px + env(safe-area-inset-top)); min-height: min(640px, calc(100dvh - 72px)); height: calc(100dvh - 72px); }
-.account-page--register .account-card { align-content: start; padding: clamp(28px, 3vw, 40px); }
+.account-card { z-index: 2; width: auto; display: grid; align-content: var(--account-card-align); border-color: color-mix(in srgb, var(--line-strong) 62%, var(--line)); border-radius: var(--radius-lg); padding: var(--account-card-padding); }
 .account-card::after { position: absolute; inset: 5px; border: 1px solid color-mix(in srgb, var(--line-bright) 13%, transparent); border-radius: calc(var(--radius-panel) - 5px); content: ''; pointer-events: none; }
 .account-card .account-mark { display: none; }
 .account-back-button,.forgot-password-button,.reset-resend-button { border: 0; padding: 0; color: var(--accent); background: transparent; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
@@ -522,31 +541,28 @@ function submit() {
 .registration-password-fields .field { margin-bottom: 0; }
 .field-hint { margin-top: -2px; color: var(--muted); font-size: 10px; line-height: 1.5; }
 .field-hint.invalid { color: var(--danger); }
-@media (max-width: 820px) {
-  .account-page { width: min(100%, 560px); }
-  .account-page--register { align-items: start; }
-  .account-stage { grid-template-columns: 1fr; gap: 12px; }
-  .account-page--register .account-stage { grid-template-columns: 1fr; }
-  .account-intro { min-height: auto; border-radius: var(--radius-lg); padding: 19px 21px; }
-  .account-page--register .account-intro { position: relative; top: auto; height: auto; min-height: auto; }
+/* Switch the whole composition when both panels no longer fit their readable measure. */
+@container account-gate (max-width: 61rem) {
+  .account-stage { width: min(100%, 42.5rem); justify-self: center; grid-template-columns: 1fr; align-items: stretch; gap: 12px; }
+  .account-intro { position: relative; top: auto; height: auto; min-height: auto; border-radius: var(--radius-lg); padding: clamp(1rem, 2.25cqi, 1.375rem); }
   .account-intro::after,.account-features,.account-trust { display: none; }
-  .account-intro-copy { margin: 16px 0 0; padding: 0; }
+  .account-intro-copy { margin: clamp(.6875rem, 1.7cqi, 1rem) 0 0; padding: 0; }
   .account-intro-copy .eyebrow,.account-intro-copy > p:last-child { display: none; }
-  .account-intro-copy h2 { margin: 0; font-size: 24px; line-height: 1.35; }
+  .account-intro-copy h2 { margin: 0; font-size: clamp(1.125rem, 2.5cqi, 1.5rem); line-height: 1.35; }
   .account-intro-copy h2 br { display: none; }
-  .account-card { border-radius: var(--radius-lg); padding: clamp(24px, 7vw, 42px); }
+  .account-card { border-radius: var(--radius-lg); padding: clamp(24px, 7cqi, 42px); }
 }
-@media (max-width: 520px) {
-  .account-page { align-content: start; padding-top: calc(11px + env(safe-area-inset-top)); padding-right: calc(11px + env(safe-area-inset-right)); padding-bottom: calc(24px + env(safe-area-inset-bottom)); padding-left: calc(11px + env(safe-area-inset-left)); }
-  .account-intro { padding: 14px 16px; border-radius: var(--radius-md); }
+@container account-gate (max-width: 32.5rem) {
+  .account-intro { border-radius: var(--radius-md); }
   .account-brand > span { width: 43px; border-radius: 4px; }
   .account-brand > span :deep(svg) { width: 25px; }
   .account-brand strong { font-size: 15px; }
-  .account-intro-copy { margin-top: 11px; }
-  .account-intro-copy h2 { font-size: 18px; }
   .account-card { border-radius: var(--radius-md); padding: 24px 19px; }
   .account-card h1 { font-size: 31px; }
   .account-copy { margin-bottom: 18px; font-size: 12px; }
   .registration-email-row,.registration-password-fields { grid-template-columns: 1fr; }
+}
+@media (max-width: 32.5rem) {
+  .account-page { align-content: start; padding-top: calc(11px + env(safe-area-inset-top)); padding-right: calc(11px + env(safe-area-inset-right)); padding-bottom: calc(24px + env(safe-area-inset-bottom)); padding-left: calc(11px + env(safe-area-inset-left)); }
 }
 </style>
