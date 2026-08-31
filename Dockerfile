@@ -137,7 +137,6 @@ RUN sed -i \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY backend/ ./backend/
 
 
 FROM runtime-base AS empty-ai-bundle
@@ -184,28 +183,36 @@ RUN install -D -m 0755 /src/KataGo/build/katago \
 FROM katago-bundle-${ENABLE_KATAGO_AI} AS katago-bundle
 
 
-FROM runtime-base AS douzero-runtime-0
+FROM runtime-base AS python-dependency-context
 
-RUN pip install --no-cache-dir --index-url "$PIP_INDEX_URL" ./backend
+COPY backend/pyproject.toml backend/__init__.py \
+  /tmp/game-hall-dependency-context/backend/
+
+
+FROM python-dependency-context AS douzero-runtime-0
+
+RUN pip install --no-cache-dir --index-url "$PIP_INDEX_URL" \
+      /tmp/game-hall-dependency-context/backend \
+    && rm -rf /tmp/game-hall-dependency-context
 
 
 FROM runtime-base AS douzero-model-bundle
 
+COPY backend/app/ai/douzero_models.py /tmp/douzero_models.py
 COPY ai/douzero/ /tmp/douzero-models/
-RUN python backend/app/ai/douzero_models.py \
+RUN python /tmp/douzero_models.py \
       /tmp/douzero-models --output /bundle
 
 
-FROM runtime-base AS douzero-runtime-1
+FROM python-dependency-context AS douzero-runtime-1
 
-COPY --from=douzero-model-bundle \
-  /bundle/ /opt/game-hall/ai/douzero/
 RUN pip install --no-cache-dir --index-url "$PYTORCH_CPU_INDEX_URL" \
       --extra-index-url "$PIP_INDEX_URL" 'torch>=2.6,<3' \
     && pip install --no-cache-dir --index-url "$PIP_INDEX_URL" \
-      './backend[doudizhu-ai]' \
-    && python -m backend.app.ai.douzero_worker \
-      --model-dir /opt/game-hall/ai/douzero --threads 1 --check
+      '/tmp/game-hall-dependency-context/backend[doudizhu-ai]' \
+    && rm -rf /tmp/game-hall-dependency-context
+COPY --from=douzero-model-bundle \
+  /bundle/ /opt/game-hall/ai/douzero/
 
 
 FROM douzero-runtime-${ENABLE_DOUZERO_AI} AS runtime
@@ -217,6 +224,11 @@ ENV ENABLE_PIKAFISH_AI=${ENABLE_PIKAFISH_AI} \
     ENABLE_KATAGO_AI=${ENABLE_KATAGO_AI} \
     ENABLE_DOUZERO_AI=${ENABLE_DOUZERO_AI}
 
+COPY backend/ ./backend/
+RUN if [ "$ENABLE_DOUZERO_AI" = "1" ]; then \
+      python -m backend.app.ai.douzero_worker \
+        --model-dir /opt/game-hall/ai/douzero --threads 1 --check; \
+    fi
 COPY game-hall-community-games/ ./game-hall-community-games/
 COPY --from=web-builder /build/frontend/dist ./frontend/dist
 COPY --from=pikafish-bundle /bundle/ /

@@ -90,6 +90,7 @@ def test_main_skips_git_updates_with_no_pull(monkeypatch) -> None:
         lambda: SimpleNamespace(
             no_pull=True,
             restart_only=False,
+            build_timeout=900,
             timeout=120,
         ),
     )
@@ -101,7 +102,7 @@ def test_main_skips_git_updates_with_no_pull(monkeypatch) -> None:
 
     assert restart.main() == 0
     update_sources.assert_not_called()
-    deploy_application.assert_called_once_with()
+    deploy_application.assert_called_once_with(900)
 
 
 def test_restart_only_skips_source_updates_and_deployment(monkeypatch) -> None:
@@ -117,6 +118,7 @@ def test_restart_only_skips_source_updates_and_deployment(monkeypatch) -> None:
         lambda: SimpleNamespace(
             no_pull=False,
             restart_only=True,
+            build_timeout=900,
             timeout=45,
         ),
     )
@@ -162,35 +164,66 @@ def test_restart_only_restarts_the_application_service(monkeypatch) -> None:
     ]
 
 
+def test_deployment_lock_rejects_overlapping_runs(monkeypatch, tmp_path) -> None:
+    restart = load_restart_script()
+    monkeypatch.setattr(restart, "DEPLOYMENT_LOCK_PATH", tmp_path / "deploy.lock")
+
+    with restart.deployment_lock():
+        with pytest.raises(RuntimeError, match="already running"):
+            with restart.deployment_lock():
+                pytest.fail("overlapping deployment unexpectedly acquired the lock")
+
+
 def test_deployment_builds_validates_then_restarts(monkeypatch) -> None:
     restart = load_restart_script()
-    commands: list[list[str]] = []
+    calls: list[tuple[list[str], dict[str, object]]] = []
 
     monkeypatch.setattr(restart, "log", lambda _message: None)
     monkeypatch.setattr(
         restart,
         "run",
-        lambda command, **_kwargs: commands.append(command),
+        lambda command, **kwargs: calls.append((command, kwargs)),
     )
 
-    restart.deploy_application()
+    restart.deploy_application(900)
 
-    assert commands == [
-        ["docker", "compose", "config", "--quiet"],
-        ["docker", "compose", "build", "app"],
-        [
-            "docker",
-            "compose",
-            "run",
-            "--rm",
-            "--no-deps",
-            "app",
-            "python",
-            "-m",
-            "backend.app.games.validate_plugins",
-        ],
-        ["docker", "compose", "up", "-d", "--no-build", "app"],
+    assert calls == [
+        (["docker", "compose", "config", "--quiet"], {}),
+        (
+            ["docker", "compose", "--progress", "plain", "build", "app"],
+            {"timeout": 900},
+        ),
+        (
+            [
+                "docker",
+                "compose",
+                "run",
+                "--rm",
+                "--no-deps",
+                "app",
+                "python",
+                "-m",
+                "backend.app.games.validate_plugins",
+            ],
+            {},
+        ),
+        (["docker", "compose", "up", "-d", "--no-build", "app"], {}),
     ]
+
+
+def test_build_timeout_keeps_current_application_image(monkeypatch) -> None:
+    restart = load_restart_script()
+
+    def run(command: list[str], **_kwargs) -> None:
+        raise subprocess.TimeoutExpired(command, 900)
+
+    monkeypatch.setattr(restart, "run", run)
+
+    with pytest.raises(
+        RuntimeError,
+        match="current application container was not replaced",
+    ):
+        restart.build_application_image(900)
 
 
 def test_failed_plugin_validation_keeps_current_application_running(
@@ -209,7 +242,7 @@ def test_failed_plugin_validation_keeps_current_application_running(
     monkeypatch.setattr(restart, "run", run)
 
     with pytest.raises(subprocess.CalledProcessError):
-        restart.deploy_application()
+        restart.deploy_application(900)
 
     assert ["docker", "compose", "up", "-d", "--no-build", "app"] not in commands
 
@@ -237,9 +270,26 @@ def test_ai_engines_use_uniform_optional_build_bundles() -> None:
     assert "FROM douzero-runtime-${ENABLE_DOUZERO_AI} AS runtime" in dockerfile
     assert "COPY --from=pikafish-bundle /bundle/ /" in dockerfile
     assert "COPY --from=katago-bundle /bundle/ /" in dockerfile
+    assert "python /tmp/douzero_models.py" in dockerfile
     assert "/tmp/douzero-models --output /bundle" in dockerfile
     assert "COPY --from=douzero-model-bundle" in dockerfile
     assert "/bundle/ /opt/game-hall/ai/douzero/" in dockerfile
     assert "--model-dir /opt/game-hall/ai/douzero --threads 1 --check" in dockerfile
+    dependency_manifest = dockerfile.index("COPY backend/pyproject.toml")
+    heavy_dependency_install = dockerfile.index("'torch>=2.6,<3'")
+    application_source = dockerfile.index(
+        "COPY backend/ ./backend/",
+        heavy_dependency_install,
+    )
+    assert dependency_manifest < heavy_dependency_install < application_source
+    assert dockerfile.count("COPY backend/ ./backend/") == 1
     assert "INSTALL_DOUZERO_AI" not in dockerfile + compose + environment_example
     assert "DOUZERO_MODEL_HOST_DIR" not in compose
+
+
+def test_docker_build_context_excludes_runtime_data_and_secrets() -> None:
+    dockerignore = (PROJECT_ROOT / ".dockerignore").read_text(encoding="utf-8")
+    ignored_paths = set(dockerignore.splitlines())
+
+    assert {".env", ".env.*", "backups", "logs"} <= ignored_paths
+    assert "!.env.example" in ignored_paths
