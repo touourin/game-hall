@@ -1,6 +1,20 @@
-# 服务重启脚本
+# 部署与服务重启脚本
 
-`restart.py` 使用 Docker Compose 重新构建并重启游戏大厅。它会根据脚本自身的位置寻找仓库根目录，不依赖固定目录名；推荐把仓库放在本机的 `game-hall` 目录和服务器的 `/opt/game-hall`。
+`restart.py` 使用 Docker Compose 部署或重启游戏大厅。它会根据脚本自身的位置寻找仓库根目录，不依赖固定目录名；推荐把仓库放在本机的 `game-hall` 目录和服务器的 `/opt/game-hall`。
+
+只需要重启当前应用容器时，使用轻量模式：
+
+```bash
+python3 scripts/restart.py --restart-only
+```
+
+该模式不会拉取代码、构建镜像、运行数据库迁移或执行插件发布校验，也会显式跳过 MySQL 和 Redis 等依赖服务；它只重启现有 `app` 容器、等待健康检查，并在失败时打印最近的应用日志。适合内存较小的服务器和不涉及代码更新的日常服务重启。
+
+从另一台电脑轻量重启服务器：
+
+```bash
+ssh root@SERVER_IP 'cd /opt/game-hall && python3 scripts/restart.py --restart-only'
+```
 
 三套模型 AI 使用一致的构建开关：`ENABLE_PIKAFISH_AI`、`ENABLE_KATAGO_AI` 和
 `ENABLE_DOUZERO_AI`，取值只能是 `0` 或 `1`，默认全部启用。关闭一项会跳过对应
@@ -39,6 +53,6 @@ python3 scripts/restart.py --no-pull
 ssh root@SERVER_IP 'cd /opt/game-hall && python3 scripts/restart.py'
 ```
 
-脚本必须在主仓库的 `main` 分支运行；当主仓库存在未提交的受跟踪文件，或子模块存在会被检出覆盖的本地修改时会拒绝更新。脚本会检查 Docker 和 `.env`、执行 Compose 数据库迁移依赖、只重新构建应用镜像、等待应用健康检查，并在失败时打印最近的应用日志。它不会执行 `docker compose down -v`，也不会删除 MySQL 或 Redis 数据卷。
+完整部署模式必须在主仓库的 `main` 分支运行；当主仓库存在未提交的受跟踪文件，或子模块存在会被检出覆盖的本地修改时会拒绝更新。`--restart-only` 不读取或修改 Git 状态。脚本会检查 Docker 和 `.env`；完整部署会执行 Compose 数据库迁移依赖并重新构建应用镜像，两种模式都会等待应用健康检查，并在失败时打印最近的应用日志。它不会执行 `docker compose down -v`，也不会删除 MySQL 或 Redis 数据卷。
 
 主仓库应定期把已经在生产验证过的 `game-hall-community-games` 提交更新为新的子模块基线，但社区插件发布不需要等待主仓库同步指针。需要回滚时，先检出目标主仓库与子模块提交，再使用 `--no-pull` 重建。

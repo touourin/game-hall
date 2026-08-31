@@ -87,6 +87,20 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
+日常只需要重启现有应用进程时，使用轻量模式；它不会拉取代码、构建镜像或重启 MySQL 和 Redis：
+
+```bash
+python3 scripts/restart.py --restart-only
+```
+
+发布最新代码时再执行完整部署：
+
+```bash
+python3 scripts/restart.py
+```
+
+完整参数和远程执行方式见 [部署与服务重启脚本](scripts/README.md)。
+
 启动后，在服务器或同一局域网的设备访问：
 
 ```text

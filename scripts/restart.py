@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import time
+from collections.abc import Sequence
 from pathlib import Path
 
 
@@ -27,14 +28,20 @@ def positive_integer(raw_value: str) -> int:
     return value
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Rebuild and restart the game hall with Docker Compose.",
+        description="Deploy or restart the game hall with Docker Compose.",
     )
-    parser.add_argument(
+    operation = parser.add_mutually_exclusive_group()
+    operation.add_argument(
         "--no-pull",
         action="store_true",
         help="skip Git updates and rebuild the currently checked-out code",
+    )
+    operation.add_argument(
+        "--restart-only",
+        action="store_true",
+        help="restart the existing application container without pulling or building",
     )
     parser.add_argument(
         "--timeout",
@@ -43,7 +50,7 @@ def parse_args() -> argparse.Namespace:
         metavar="SECONDS",
         help=f"health-check timeout (default: {DEFAULT_HEALTH_TIMEOUT})",
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def log(message: str) -> None:
@@ -206,6 +213,19 @@ def start_application() -> None:
     )
 
 
+def restart_existing_application() -> None:
+    log("Restarting the existing game hall application container")
+    run(
+        [
+            "docker",
+            "compose",
+            "restart",
+            "--no-deps",
+            APPLICATION_SERVICE,
+        ]
+    )
+
+
 def deploy_application() -> None:
     run(["docker", "compose", "config", "--quiet"])
     build_application_image()
@@ -277,12 +297,17 @@ def wait_until_healthy(timeout: int) -> None:
 def main() -> int:
     args = parse_args()
     validate_environment()
-    if args.no_pull:
-        log("Skipping Git updates because --no-pull was specified")
-    else:
-        update_sources()
 
-    deploy_application()
+    if args.restart_only:
+        restart_existing_application()
+    else:
+        if args.no_pull:
+            log("Skipping Git updates because --no-pull was specified")
+        else:
+            update_sources()
+
+        deploy_application()
+
     wait_until_healthy(args.timeout)
     return 0
 

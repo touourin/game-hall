@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib.util
 import subprocess
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -87,14 +87,11 @@ def test_main_skips_git_updates_with_no_pull(monkeypatch) -> None:
     monkeypatch.setattr(
         restart,
         "parse_args",
-        lambda: type(
-            "Args",
-            (),
-            {
-                "no_pull": True,
-                "timeout": 120,
-            },
-        )(),
+        lambda: SimpleNamespace(
+            no_pull=True,
+            restart_only=False,
+            timeout=120,
+        ),
     )
     monkeypatch.setattr(restart, "validate_environment", lambda: None)
     monkeypatch.setattr(restart, "update_sources", update_sources)
@@ -105,6 +102,64 @@ def test_main_skips_git_updates_with_no_pull(monkeypatch) -> None:
     assert restart.main() == 0
     update_sources.assert_not_called()
     deploy_application.assert_called_once_with()
+
+
+def test_restart_only_skips_source_updates_and_deployment(monkeypatch) -> None:
+    restart = load_restart_script()
+    update_sources = Mock()
+    deploy_application = Mock()
+    restart_existing_application = Mock()
+    wait_until_healthy = Mock()
+
+    monkeypatch.setattr(
+        restart,
+        "parse_args",
+        lambda: SimpleNamespace(
+            no_pull=False,
+            restart_only=True,
+            timeout=45,
+        ),
+    )
+    monkeypatch.setattr(restart, "validate_environment", lambda: None)
+    monkeypatch.setattr(restart, "update_sources", update_sources)
+    monkeypatch.setattr(restart, "deploy_application", deploy_application)
+    monkeypatch.setattr(
+        restart,
+        "restart_existing_application",
+        restart_existing_application,
+    )
+    monkeypatch.setattr(restart, "wait_until_healthy", wait_until_healthy)
+
+    assert restart.main() == 0
+    update_sources.assert_not_called()
+    deploy_application.assert_not_called()
+    restart_existing_application.assert_called_once_with()
+    wait_until_healthy.assert_called_once_with(45)
+
+
+def test_restart_only_and_no_pull_are_mutually_exclusive() -> None:
+    restart = load_restart_script()
+
+    with pytest.raises(SystemExit):
+        restart.parse_args(["--restart-only", "--no-pull"])
+
+
+def test_restart_only_restarts_the_application_service(monkeypatch) -> None:
+    restart = load_restart_script()
+    commands: list[list[str]] = []
+
+    monkeypatch.setattr(restart, "log", lambda _message: None)
+    monkeypatch.setattr(
+        restart,
+        "run",
+        lambda command, **_kwargs: commands.append(command),
+    )
+
+    restart.restart_existing_application()
+
+    assert commands == [
+        ["docker", "compose", "restart", "--no-deps", "app"],
+    ]
 
 
 def test_deployment_builds_validates_then_restarts(monkeypatch) -> None:
