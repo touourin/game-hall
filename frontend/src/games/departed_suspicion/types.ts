@@ -36,8 +36,11 @@ export interface EquipmentView {
   name: string
   englishName: string
   expansion: string
-  timing: string
   description: string
+  activeWindow: 'open' | 'own_turn' | 'other_turn' | null
+  responseActions: Array<'investigate' | 'extra_investigate' | 'shoot'>
+  responseRole: 'any' | 'actor' | 'target' | 'non_actor' | null
+  triggerWindow: 'after_investigate' | 'after_shot' | 'before_shot_reveal' | null
   persistent: boolean
   requiresCover: boolean
   available?: boolean
@@ -132,7 +135,6 @@ export interface SuspicionGameView {
     investigationTargetPlayerIds: string[]
     canTakeExtraInvestigation: boolean
     canEndTurn: boolean
-    canRespond: boolean
     responseEquipmentIds: string[]
     playableEquipmentIds: string[]
     equipmentOptions: EquipmentPlayOptionView[]

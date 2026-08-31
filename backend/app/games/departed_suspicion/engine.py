@@ -501,7 +501,6 @@ class DepartedSuspicionEngine:
                     and state.pending_shot is None
                     and state.post_shot is None
                 ),
-                "canRespond": response_seat == viewer_seat,
                 "responseEquipmentIds": (
                     playable_equipment_ids
                     if pending is not None and response_seat == viewer_seat
@@ -879,7 +878,7 @@ class DepartedSuspicionEngine:
         return [
             card_id
             for card_id in state.boards[seat].equipment
-            if self._equipment_timing_allows(state, seat, card_id, pending)
+            if self._equipment_response_allows(seat, card_id, pending)
             and self._equipment_form(room, state, seat, card_id) is not None
         ]
 
@@ -910,7 +909,7 @@ class DepartedSuspicionEngine:
         return [
             card_id
             for card_id in board.equipment
-            if self._equipment_timing_allows(state, seat, card_id, None)
+            if self._equipment_open_play_allows(state, seat, card_id)
             and self._equipment_form(room, state, seat, card_id) is not None
         ]
 
@@ -929,30 +928,39 @@ class DepartedSuspicionEngine:
         ]
 
     @staticmethod
-    def _equipment_timing_allows(
+    def _equipment_open_play_allows(
         state: DepartedSuspicionState,
         seat: int,
         card_id: str,
-        pending: PendingAction | None,
     ) -> bool:
-        timing = EQUIPMENT_BY_ID[card_id].timing
-        if timing == "anytime":
+        definition = EQUIPMENT_BY_ID[card_id]
+        if definition.trigger_window == "after_investigate":
+            return state.last_investigation is not None
+        window = definition.active_window
+        if window == "open":
             return True
-        if timing == "own_turn":
+        if window == "own_turn":
             return seat == state.turn_seat
-        if timing == "other_turn":
+        if window == "other_turn":
             return seat != state.turn_seat
-        if timing == "after_investigate":
-            return pending is None and state.last_investigation is not None
-        if pending is None or pending.action != "shoot":
-            return False
-        if timing == "shoot_response":
-            return True
-        if timing == "own_shoot":
-            return seat == pending.actor_seat
-        if timing == "self_shot":
-            return pending.payload.get("targetSeat") == seat
         return False
+
+    @staticmethod
+    def _equipment_response_allows(
+        seat: int,
+        card_id: str,
+        pending: PendingAction,
+    ) -> bool:
+        definition = EQUIPMENT_BY_ID[card_id]
+        if pending.action not in definition.response_actions:
+            return False
+        if definition.response_role == "actor":
+            return seat == pending.actor_seat
+        if definition.response_role == "target":
+            return pending.payload.get("targetSeat") == seat
+        if definition.response_role == "non_actor":
+            return seat != pending.actor_seat
+        return definition.response_role == "any"
 
     def _equipment_form(
         self,
@@ -1103,9 +1111,23 @@ class DepartedSuspicionEngine:
                 ),
             ]
         if card_id == "flashbang":
-            return [player_field("targetSeat", "目标玩家", alive)]
+            pending = state.pending_action
+            targets = (
+                [int(pending.payload["targetSeat"])]
+                if pending is not None
+                and pending.action in {"investigate", "extra_investigate"}
+                else alive
+            )
+            return [player_field("targetSeat", "目标玩家", targets)]
         if card_id == "k9_unit":
-            targets = [target for target in alive if state.boards[target].gun]
+            pending = state.pending_action
+            targets = (
+                [pending.actor_seat]
+                if pending is not None
+                and pending.action == "shoot"
+                and state.boards[pending.actor_seat].gun
+                else [target for target in alive if state.boards[target].gun]
+            )
             return [player_field("targetSeat", "持枪玩家", targets)] if targets else None
         if card_id == "metal_detector":
             targets = self._metal_detector_target_seats(state)
@@ -1474,10 +1496,24 @@ class DepartedSuspicionEngine:
             return
         if card_id == "flashbang":
             target = self._target_seat(room, state, payload)
+            pending = state.pending_action
+            if (
+                pending is not None
+                and pending.action in {"investigate", "extra_investigate"}
+                and target != int(pending.payload["targetSeat"])
+            ):
+                raise GameRuleError("闪光弹响应只能作用于正在被调查的玩家")
             state.choice = PendingChoice("flashbang", target)
             return
         if card_id == "k9_unit":
             target = self._armed_target(room, state, payload)
+            pending = state.pending_action
+            if (
+                pending is not None
+                and pending.action == "shoot"
+                and target != pending.actor_seat
+            ):
+                raise GameRuleError("警犬队响应只能令当前射手丢枪")
             self._drop_gun(state, target)
             return
         if card_id == "metal_detector":
@@ -3103,7 +3139,6 @@ class DepartedSuspicionEngine:
                 "investigationTargetPlayerIds": [],
                 "canTakeExtraInvestigation": False,
                 "canEndTurn": False,
-                "canRespond": False,
                 "responseEquipmentIds": [],
                 "playableEquipmentIds": [],
                 "equipmentOptions": [],

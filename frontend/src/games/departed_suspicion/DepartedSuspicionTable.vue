@@ -153,6 +153,14 @@ function teamLabel(team: 'honest' | 'crooked' | null): string {
   return team === 'honest' ? '正直阵营' : team === 'crooked' ? '腐败阵营' : '身份未明'
 }
 
+function equipmentUsageLabel(card: EquipmentView): string {
+  if (card.triggerWindow === 'after_investigate') return '调查后触发'
+  if (card.triggerWindow === 'after_shot') return '中枪后触发'
+  if (card.triggerWindow === 'before_shot_reveal') return '中枪公开前触发'
+  if (card.responseActions.length && card.activeWindow !== null) return '主动 / 响应'
+  return card.responseActions.length ? '响应' : '主动'
+}
+
 function chooseAction(kind: ActionKind) {
   actionKind.value = kind
   actionTargetSeat.value = null
@@ -368,7 +376,7 @@ async function resolveScanner(exchange: boolean) {
           <small>{{ game.currentPrompt?.title }}</small>
         </div>
       </div>
-      <p>现在轮到你响应。装备会逐张完整结算；也可以直接放弃响应。</p>
+      <p>这件装备能直接改变当前行动。你可以使用，也可以放弃本次响应。</p>
       <div class="equipment-actions">
         <button v-for="card in responseCards" :key="card.id" type="button" data-ui-interaction="choice" @click="openEquipment(card)">{{ card.name }}</button>
         <UiButton compact @click="arcade.action('pass_response')"><SkipForward :size="16" />不响应</UiButton>
@@ -434,7 +442,7 @@ async function resolveScanner(exchange: boolean) {
     </section>
 
     <section v-if="game.legal.canTakeNormalAction || game.legal.canTakeExtraInvestigation || game.legal.canEndTurn" class="turn-console surface">
-      <header><div><strong>行动台</strong><small>{{ game.actionDone ? '可以结束回合' : selfBoard?.restrictedToEquip ? '拐杖复活限制：此后只能获取装备' : '行动声明后，系统按座位顺序询问装备响应' }}</small></div></header>
+      <header><div><strong>行动台</strong><small>{{ game.actionDone ? '可以结束回合' : selfBoard?.restrictedToEquip ? '拐杖复活限制：此后只能获取装备' : '只有能直接改变当前行动的装备才会进入响应' }}</small></div></header>
       <div v-if="game.legal.canTakeNormalAction" class="action-grid" :class="{ restricted: normalActionIds.length === 1 }">
         <button v-if="normalActionIds.includes('investigate')" type="button" data-ui-interaction="choice" :class="{ active: actionKind === 'investigate' }" @click="chooseAction('investigate')"><Search :size="18" /><span><strong>调查</strong><small>私看一张暗置底细</small></span></button>
         <button v-if="normalActionIds.includes('equip')" type="button" data-ui-interaction="choice" :class="{ active: actionKind === 'equip' }" @click="chooseAction('equip')"><PackageOpen :size="18" /><span><strong>获取装备</strong><small>抽一张装备；若有暗牌则公开一张</small></span></button>
@@ -465,10 +473,10 @@ async function resolveScanner(exchange: boolean) {
     </section>
 
     <section v-if="game.equipmentHand.length" class="equipment-hand surface">
-      <header><div><strong>我的装备</strong><small>手牌上限1张 · 可用时机会由服务端校验</small></div><button type="button" data-ui-interaction="choice" @click="showCatalog = true">查看33张资料库</button></header>
+      <header><div><strong>我的装备</strong><small>主动装备可用时直接使用，不会反复询问</small></div><button type="button" data-ui-interaction="choice" @click="showCatalog = true">查看33张资料库</button></header>
       <article v-for="card in game.equipmentHand" :key="card.id">
         <span>{{ String(card.number).padStart(2, '0') }}</span>
-        <div><strong>{{ card.name }}</strong><small>{{ card.englishName }} · {{ card.description }}</small></div>
+        <div><strong>{{ card.name }} · {{ equipmentUsageLabel(card) }}</strong><small>{{ card.englishName }} · {{ card.description }}</small></div>
         <button type="button" data-ui-interaction="lift" :disabled="!game.legal.playableEquipmentIds.includes(card.id)" @click="openEquipment(card)">使用</button>
       </article>
     </section>
@@ -550,7 +558,7 @@ async function resolveScanner(exchange: boolean) {
         <p>{{ game.rulesNotice }}</p>
         <div class="catalog-list">
           <article v-for="card in game.equipmentCatalog" :key="card.id" :class="{ unavailable: card.available === false }">
-            <span>{{ String(card.number).padStart(2, '0') }}</span><div><strong>{{ card.name }} <small>{{ card.englishName }}</small></strong><p>{{ card.description }}</p></div><em>{{ card.available === false ? card.expansion === 'undercover' ? '待完整卧底模式' : '未加入本局牌堆' : card.expansion === 'base' ? '基础' : '炸弹客/叛徒' }}</em>
+            <span>{{ String(card.number).padStart(2, '0') }}</span><div><strong>{{ card.name }} <small>{{ card.englishName }}</small></strong><p>{{ card.description }}</p></div><em>{{ equipmentUsageLabel(card) }} · {{ card.available === false ? card.expansion === 'undercover' ? '待完整卧底模式' : '未加入本局牌堆' : card.expansion === 'base' ? '基础' : '炸弹客/叛徒' }}</em>
           </article>
         </div>
       </section>

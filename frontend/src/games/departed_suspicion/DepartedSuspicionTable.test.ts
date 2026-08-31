@@ -4,16 +4,19 @@ import { vi } from 'vitest'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
 import DepartedSuspicionTable from './DepartedSuspicionTable.vue'
-import type { SuspicionGameView } from './types'
+import type { EquipmentView, SuspicionGameView } from './types'
 
-const catalogCard = {
+const catalogCard: EquipmentView = {
   id: 'k9_unit',
   number: 6,
   name: '警犬队',
   englishName: 'K-9 Unit',
   expansion: 'base',
-  timing: 'anytime',
   description: '令一名持枪玩家立即丢枪。',
+  activeWindow: 'open',
+  responseActions: ['shoot'],
+  responseRole: 'non_actor',
+  triggerWindow: null,
   persistent: false,
   requiresCover: false,
   available: true,
@@ -121,7 +124,6 @@ function snapshot(response = false, allOwnRevealed = false, restrictedToEquip = 
         investigationTargetPlayerIds: response ? [] : ['p2', 'p3', 'p4'],
         canTakeExtraInvestigation: false,
         canEndTurn: false,
-        canRespond: response,
         responseEquipmentIds: response ? ['k9_unit'] : [],
         playableEquipmentIds: response ? ['k9_unit'] : [],
         equipmentOptions: response ? [{
@@ -265,7 +267,6 @@ describe('DepartedSuspicionTable', () => {
       number: 7,
       name: '金属探测器',
       englishName: 'Metal Detector',
-      timing: 'anytime',
       description: '依次调查每名持枪玩家的一张暗置底细。',
     }
     game.players[1].gun = true

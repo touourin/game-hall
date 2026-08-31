@@ -90,6 +90,62 @@ def test_catalog_keeps_all_33_cards_and_only_complete_modes_enter_the_deck() -> 
     assert "new_assignment" not in BOMBERS_EQUIPMENT_IDS
 
 
+def test_live_equipment_uses_explicit_active_and_response_modes() -> None:
+    live_cards = {
+        card.id: card
+        for card in EQUIPMENT_CARDS
+        if card.id in BOMBERS_EQUIPMENT_IDS
+    }
+    active_only = {
+        card_id
+        for card_id, card in live_cards.items()
+        if card.active_window in {"open", "own_turn", "other_turn"}
+        and not card.response_actions
+    }
+    active_responses = {
+        card_id
+        for card_id, card in live_cards.items()
+        if card.active_window == "open" and card.response_actions
+    }
+    response_only = {
+        card_id
+        for card_id, card in live_cards.items()
+        if card.active_window is None and card.response_actions
+    }
+    triggered = {
+        card_id
+        for card_id, card in live_cards.items()
+        if card.trigger_window == "after_investigate"
+    }
+
+    assert active_only == {
+        "blackmail",
+        "coffee",
+        "defibrillator",
+        "evidence_bag",
+        "fake_id",
+        "fingerprint_kit",
+        "grenade",
+        "metal_detector",
+        "planted_evidence",
+        "polygraph",
+        "report_audit",
+        "smoke_grenade",
+        "taser",
+        "truth_serum",
+        "wiretap",
+    }
+    assert active_responses == {"flashbang", "k9_unit"}
+    assert all(live_cards[card_id].response_role == "non_actor" for card_id in active_responses)
+    assert all(live_cards[card_id].response_role is None for card_id in active_only)
+    assert response_only == {
+        "classified_orders",
+        "holster",
+        "restraining_order",
+    }
+    assert triggered == {"surveillance_camera"}
+
+
 def test_undercover_equipment_is_marked_unavailable_in_current_game_modes() -> None:
     engine, room = make_room()
     view = engine.view(room, room.players[0])
@@ -1061,7 +1117,7 @@ def test_k9_cancels_declared_shot_and_shooter_may_choose_a_new_action() -> None:
     assert state.action_done is False
 
 
-def test_k9_disarming_a_bystander_does_not_cancel_the_declared_shot() -> None:
+def test_k9_cannot_disarm_a_bystander_during_a_shot_response() -> None:
     engine, room = make_room()
     state = room.state
     shooter, target, armed_bystander, responder = range(4)
@@ -1073,21 +1129,17 @@ def test_k9_disarming_a_bystander_does_not_cancel_the_declared_shot() -> None:
     state.boards[responder].equipment = ["k9_unit"]
 
     engine.act(room, room.players[shooter], "shoot", {})
-    engine.act(
-        room,
-        room.players[responder],
-        "play_equipment",
-        {"cardId": "k9_unit", "targetSeat": armed_bystander},
-    )
+    with pytest.raises(GameRuleError, match="当前射手"):
+        engine.act(
+            room,
+            room.players[responder],
+            "play_equipment",
+            {"cardId": "k9_unit", "targetSeat": armed_bystander},
+        )
 
-    assert state.boards[armed_bystander].gun is False
-    assert state.pending_action is None
-    assert state.action_done is True
-    assert state.boards[shooter].gun is False
-    assert (
-        not state.boards[target].alive
-        or engine._leader_card(state.boards[target]).wounded is True
-    )
+    state = room.state
+    assert state.boards[armed_bystander].gun is True
+    assert state.pending_action is not None
 
 
 def test_k9_can_return_its_armed_users_gun() -> None:
@@ -1195,7 +1247,7 @@ def test_disguise_blocks_investigation_but_not_truth_serum_reveal() -> None:
     assert "disguise" in state.boards[target].effects
 
 
-def test_equipment_without_explicit_timing_is_usable_on_another_players_turn() -> None:
+def test_open_active_equipment_is_usable_on_another_players_turn() -> None:
     engine, room = make_room()
     state = room.state
     state.turn_seat = 0
@@ -1216,7 +1268,7 @@ def test_equipment_without_explicit_timing_is_usable_on_another_players_turn() -
     assert state.direction == -1
 
 
-def test_anytime_equipment_can_respond_before_a_declared_action_resolves() -> None:
+def test_active_equipment_does_not_interrupt_a_declared_action() -> None:
     engine, room = make_room()
     state = room.state
     state.boards[1].equipment = ["smoke_grenade"]
@@ -1228,11 +1280,9 @@ def test_anytime_equipment_can_respond_before_a_declared_action_resolves() -> No
         {"targetSeat": 2, "cardIndex": 0},
     )
 
-    assert state.pending_action is not None
-    assert engine._response_seat(state.pending_action) == 1
-    assert engine.view(room, room.players[1])["legal"]["responseEquipmentIds"] == [
-        "smoke_grenade"
-    ]
+    assert state.pending_action is None
+    assert state.action_done is True
+    assert engine.view(room, room.players[1])["legal"]["responseEquipmentIds"] == []
     engine.act(
         room,
         room.players[1],
@@ -1240,8 +1290,6 @@ def test_anytime_equipment_can_respond_before_a_declared_action_resolves() -> No
         {"cardId": "smoke_grenade"},
     )
 
-    assert state.pending_action is None
-    assert state.action_done is True
     assert state.direction == -1
 
 
@@ -1344,7 +1392,7 @@ def test_blackmail_can_create_the_immediate_solo_leader_victory() -> None:
     ]
 
 
-def test_equipment_victory_clears_the_action_it_interrupted() -> None:
+def test_active_equipment_victory_does_not_create_an_action_wait() -> None:
     engine, room = make_room()
     state = room.state
     agent_seat, _ = leader_owner(room, "agent")
@@ -1354,15 +1402,6 @@ def test_equipment_victory_clears_the_action_it_interrupted() -> None:
     )
     state.turn_seat = actor
     state.boards[actor].equipment = ["blackmail"]
-
-    engine.act(
-        room,
-        room.players[actor],
-        "investigate",
-        {"targetSeat": agent_seat, "cardIndex": 0},
-    )
-    assert state.pending_action is not None
-    assert engine._response_seat(state.pending_action) == actor
 
     engine.act(
         room,
@@ -1659,7 +1698,37 @@ def test_flashbang_choice_resumes_the_action_it_interrupted() -> None:
     assert original_cards[2].id in state.knowledge[actor]
 
 
-def test_departing_action_player_clears_their_interrupted_flashbang_choice() -> None:
+def test_flashbang_response_cannot_target_an_unrelated_player() -> None:
+    engine, room = make_room()
+    state = room.state
+    actor, responder, target, bystander = range(4)
+    state.boards[responder].equipment = ["flashbang"]
+
+    engine.act(
+        room,
+        room.players[actor],
+        "investigate",
+        {"targetSeat": target, "cardIndex": 0},
+    )
+    option = engine.view(room, room.players[responder])["legal"][
+        "equipmentOptions"
+    ][0]
+    assert option["fields"][0]["options"] == [
+        {"value": target, "label": room.players[target].name}
+    ]
+
+    with pytest.raises(GameRuleError, match="正在被调查"):
+        engine.act(
+            room,
+            room.players[responder],
+            "play_equipment",
+            {"cardId": "flashbang", "targetSeat": bystander},
+        )
+
+    assert room.state.pending_action is not None
+
+
+def test_departing_flashbang_target_clears_the_choice_and_investigation() -> None:
     engine, room = make_room()
     state = room.state
     ordinary = [
@@ -1681,15 +1750,15 @@ def test_departing_action_player_clears_their_interrupted_flashbang_choice() -> 
         room,
         room.players[responder],
         "play_equipment",
-        {"cardId": "flashbang", "targetSeat": actor},
+        {"cardId": "flashbang", "targetSeat": target},
     )
-    assert state.choice is not None and state.choice.seat == actor
+    assert state.choice is not None and state.choice.seat == target
 
-    engine.act(room, room.players[actor], "resign", {})
+    engine.act(room, room.players[target], "resign", {})
 
     assert state.pending_action is None
     assert state.choice is None
-    assert state.turn_seat != actor
+    assert state.action_done is False
 
 
 def test_wound_token_moves_with_a_transferred_leader_card() -> None:
@@ -1987,13 +2056,12 @@ def test_response_priority_follows_seat_order_from_the_action_player() -> None:
     assert engine._response_seat(state.pending_action) == 2
 
 
-def test_smoke_grenade_reverses_the_remaining_equipment_response_order() -> None:
+def test_only_matching_equipment_enters_the_response_order() -> None:
     engine, room = make_room()
     state = room.state
     actor, target = 0, 3
     state.boards[1].equipment = ["smoke_grenade"]
-    state.boards[2].equipment = ["coffee"]
-    state.boards[3].equipment = ["report_audit"]
+    state.boards[2].equipment = ["flashbang"]
 
     engine.act(
         room,
@@ -2002,17 +2070,11 @@ def test_smoke_grenade_reverses_the_remaining_equipment_response_order() -> None
         {"targetSeat": target, "cardIndex": 0},
     )
     assert state.pending_action is not None
-    assert state.pending_action.response_order == [1, 2, 3]
-    engine.act(
-        room,
-        room.players[1],
-        "play_equipment",
-        {"cardId": "smoke_grenade"},
-    )
-
+    assert state.pending_action.response_order == [2]
+    assert engine.view(room, room.players[1])["legal"]["responseEquipmentIds"] == []
+    engine.act(room, room.players[2], "pass_response", {})
+    engine.act(room, room.players[1], "play_equipment", {"cardId": "smoke_grenade"})
     assert state.direction == -1
-    assert state.pending_action is not None
-    assert state.pending_action.response_order == [3, 2]
 
 
 def test_resigning_response_player_is_skipped_without_stalling_action() -> None:
@@ -2025,7 +2087,7 @@ def test_resigning_response_player_is_skipped_without_stalling_action() -> None:
     actor = next(seat for seat in state.boards if seat != responder)
     target = next(seat for seat in state.boards if seat not in {actor, responder})
     state.turn_seat = actor
-    state.boards[responder].equipment = ["coffee"]
+    state.boards[responder].equipment = ["flashbang"]
 
     engine.act(
         room,
@@ -2163,7 +2225,7 @@ def test_mandatory_redirected_shot_cancels_if_its_new_target_leaves() -> None:
     state.boards[shooter].aim_seat = original_target
     state.acquired_gun_turn[shooter] = 0
     state.boards[original_target].equipment = ["restraining_order"]
-    state.boards[new_target].equipment = ["smoke_grenade"]
+    state.boards[new_target].equipment = ["k9_unit"]
 
     engine.act(room, room.players[shooter], "shoot", {})
     engine.act(
@@ -2528,7 +2590,7 @@ def test_equipment_investigation_does_not_open_the_surveillance_camera_window() 
     ]["playableEquipmentIds"]
 
 
-def test_truth_serum_can_invalidate_the_investigation_it_interrupted() -> None:
+def test_truth_serum_is_active_after_an_investigation_resolves() -> None:
     engine, room = make_room()
     state = room.state
     actor, responder, target = 0, 1, 2
@@ -2557,9 +2619,9 @@ def test_truth_serum_can_invalidate_the_investigation_it_interrupted() -> None:
     )
 
     assert investigated_card.revealed is True
-    assert investigated_card.id not in state.knowledge[actor]
+    assert investigated_card.id in state.knowledge[actor]
     assert state.pending_action is None
-    assert state.action_done is False
+    assert state.action_done is True
 
 
 def test_coffee_inserts_a_full_turn_then_resumes_after_the_original_player() -> None:
@@ -2761,7 +2823,7 @@ def test_evidence_bag_prompts_the_recipient_to_keep_one_card() -> None:
     assert "coffee" in state.equipment_deck
 
 
-def test_evidence_bag_can_transfer_a_response_card_into_the_current_window() -> None:
+def test_evidence_bag_can_prepare_a_response_card_before_an_action() -> None:
     engine, room = make_room()
     state = room.state
     shooter, bag_user, target, equipment_owner = 0, 1, 2, 3
@@ -2771,9 +2833,6 @@ def test_evidence_bag_can_transfer_a_response_card_into_the_current_window() -> 
     state.boards[bag_user].equipment = ["evidence_bag"]
     state.boards[equipment_owner].equipment = ["k9_unit"]
 
-    engine.act(room, room.players[shooter], "shoot", {})
-    assert state.pending_action is not None
-    assert engine._response_seat(state.pending_action) == bag_user
     engine.act(
         room,
         room.players[bag_user],
@@ -2786,6 +2845,7 @@ def test_evidence_bag_can_transfer_a_response_card_into_the_current_window() -> 
     )
 
     assert state.boards[target].equipment == ["k9_unit"]
+    engine.act(room, room.players[shooter], "shoot", {})
     assert state.pending_action is not None
     assert engine._response_seat(state.pending_action) == target
     engine.act(
@@ -2801,7 +2861,7 @@ def test_evidence_bag_can_transfer_a_response_card_into_the_current_window() -> 
     assert all(not card.revealed for card in state.boards[target].cards)
 
 
-def test_evidence_bag_hand_limit_finishes_before_the_shot_response_reopens() -> None:
+def test_evidence_bag_hand_limit_finishes_before_a_later_shot_response() -> None:
     engine, room = make_room()
     state = room.state
     shooter, bag_user, target, equipment_owner = 0, 1, 2, 3
@@ -2812,7 +2872,6 @@ def test_evidence_bag_hand_limit_finishes_before_the_shot_response_reopens() -> 
     state.boards[target].equipment = ["coffee"]
     state.boards[equipment_owner].equipment = ["k9_unit"]
 
-    engine.act(room, room.players[shooter], "shoot", {})
     engine.act(
         room,
         room.players[bag_user],
@@ -2825,7 +2884,7 @@ def test_evidence_bag_hand_limit_finishes_before_the_shot_response_reopens() -> 
     )
 
     assert state.choice is not None and state.choice.kind == "equipment_limit"
-    assert state.pending_action is not None
+    assert state.pending_action is None
     engine.act(
         room,
         room.players[target],
@@ -2834,6 +2893,7 @@ def test_evidence_bag_hand_limit_finishes_before_the_shot_response_reopens() -> 
     )
 
     assert state.choice is None
+    engine.act(room, room.players[shooter], "shoot", {})
     assert state.pending_action is not None
     assert engine._response_seat(state.pending_action) == target
     engine.act(
@@ -3067,7 +3127,7 @@ def test_report_audit_skips_players_with_no_hidden_cards() -> None:
     assert set(queued) == set(state.boards) - {already_public}
 
 
-def test_report_audit_resumes_the_action_it_interrupted() -> None:
+def test_report_audit_is_active_after_an_investigation_resolves() -> None:
     engine, room = make_room()
     state = room.state
     actor, responder, target = 0, 1, 2
