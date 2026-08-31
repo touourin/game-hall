@@ -99,6 +99,8 @@ python3 scripts/restart.py --restart-only
 python3 scripts/restart.py
 ```
 
+脚本会在物理内存不足 2 GiB 的 Linux 主机上自动使用串行低内存构建，并在可用 Swap 不足 1 GiB 时于构建前安全退出，避免 Docker 构建拖死 SSH 和现有服务。轻量重启不受该限制。
+
 完整参数和远程执行方式见 [部署与服务重启脚本](scripts/README.md)。
 
 启动后，在服务器或同一局域网的设备访问：

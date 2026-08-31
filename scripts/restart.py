@@ -14,6 +14,7 @@ import threading
 import time
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -21,6 +22,8 @@ PROJECT_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_HEALTH_TIMEOUT = 120
 DEFAULT_BUILD_TIMEOUT = 30 * 60
 BUILD_HEARTBEAT_INTERVAL = 30
+LOW_MEMORY_BUILD_THRESHOLD_BYTES = 2 * 1024**3
+MINIMUM_LOW_MEMORY_SWAP_BYTES = 1024**3
 DEPLOY_BRANCH = "main"
 APPLICATION_SERVICE = "app"
 PLUGIN_VALIDATION_MODULE = "backend.app.games.validate_plugins"
@@ -28,6 +31,15 @@ DEPLOYMENT_LOCK_PATH = Path(tempfile.gettempdir()) / (
     "game-hall-deploy-"
     f"{hashlib.sha256(str(PROJECT_DIR).encode()).hexdigest()[:12]}.lock"
 )
+MEMINFO_PATH = Path("/proc/meminfo")
+
+
+@dataclass(frozen=True)
+class MemoryInfo:
+    total_bytes: int
+    available_bytes: int
+    swap_total_bytes: int
+    swap_free_bytes: int
 
 
 def positive_integer(raw_value: str) -> int:
@@ -85,6 +97,60 @@ def format_duration(seconds: float) -> str:
         return f"{seconds:.1f}s"
     minutes, remaining_seconds = divmod(seconds, 60)
     return f"{int(minutes)}m {remaining_seconds:.0f}s"
+
+
+def format_memory(size_bytes: int) -> str:
+    return f"{size_bytes / 1024**3:.1f} GiB"
+
+
+def read_memory_info() -> MemoryInfo | None:
+    try:
+        lines = MEMINFO_PATH.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+
+    values: dict[str, int] = {}
+    for line in lines:
+        key, separator, raw_value = line.partition(":")
+        if not separator:
+            continue
+        fields = raw_value.split()
+        if not fields or not fields[0].isdigit():
+            continue
+        values[key] = int(fields[0]) * 1024
+
+    total_bytes = values.get("MemTotal")
+    if total_bytes is None:
+        return None
+    return MemoryInfo(
+        total_bytes=total_bytes,
+        available_bytes=values.get("MemAvailable", 0),
+        swap_total_bytes=values.get("SwapTotal", 0),
+        swap_free_bytes=values.get("SwapFree", 0),
+    )
+
+
+def low_memory_build_required(memory: MemoryInfo | None) -> bool:
+    return (
+        memory is not None
+        and memory.total_bytes < LOW_MEMORY_BUILD_THRESHOLD_BYTES
+    )
+
+
+def validate_build_memory(memory: MemoryInfo | None) -> None:
+    if (
+        low_memory_build_required(memory)
+        and memory is not None
+        and memory.swap_free_bytes < MINIMUM_LOW_MEMORY_SWAP_BYTES
+    ):
+        raise RuntimeError(
+            "Low-memory deployments require at least "
+            f"{format_memory(MINIMUM_LOW_MEMORY_SWAP_BYTES)} of free swap; "
+            f"detected {format_memory(memory.total_bytes)} RAM and "
+            f"{format_memory(memory.available_bytes)} available memory with "
+            f"{format_memory(memory.swap_free_bytes)} free swap. Add swap before "
+            "running a full deployment; --restart-only remains available."
+        )
 
 
 @contextmanager
@@ -221,17 +287,18 @@ def validate_source_checkout() -> None:
         )
 
 
-def reset_submodules_to_recorded_commits() -> None:
-    if not (PROJECT_DIR / ".gitmodules").is_file():
-        return
-    log("Preparing Git submodules for the main-branch update")
-    run(["git", "submodule", "sync", "--recursive"])
-    run(["git", "submodule", "update", "--init", "--recursive", "--checkout"])
-
-
 def pull_main_branch() -> None:
     with timed_phase(f"Updating the main repository from origin/{DEPLOY_BRANCH}"):
-        run(["git", "pull", "--ff-only", "origin", DEPLOY_BRANCH])
+        run(
+            [
+                "git",
+                "pull",
+                "--ff-only",
+                "--no-recurse-submodules",
+                "origin",
+                DEPLOY_BRANCH,
+            ]
+        )
 
 
 def update_submodules_from_remotes() -> None:
@@ -254,29 +321,37 @@ def update_submodules_from_remotes() -> None:
 
 def update_sources() -> None:
     validate_source_checkout()
-    # A previous deployment may have advanced a submodule beyond the commit
-    # recorded by the parent repository. Put it back first so the parent can
-    # fast-forward cleanly, then advance it to its configured remote branch.
-    reset_submodules_to_recorded_commits()
     pull_main_branch()
     update_submodules_from_remotes()
 
 
 def build_application_image(timeout: int) -> None:
+    memory = read_memory_info()
+    validate_build_memory(memory)
+    low_memory_build = low_memory_build_required(memory)
+    command = [
+        "docker",
+        "compose",
+        "--progress",
+        "plain",
+        "build",
+    ]
+    if low_memory_build:
+        assert memory is not None
+        log(
+            "Low-memory host detected "
+            f"({format_memory(memory.total_bytes)} RAM, "
+            f"{format_memory(memory.available_bytes)} available, "
+            f"{format_memory(memory.swap_total_bytes)} swap); "
+            "serializing Python and frontend build stages"
+        )
+        command.extend(["--build-arg", "LOW_MEMORY_BUILD=1"])
+    command.append(APPLICATION_SERVICE)
+
     with timed_phase("Building the game hall application image"):
         try:
             with progress_heartbeat("Docker image build is still running"):
-                run(
-                    [
-                        "docker",
-                        "compose",
-                        "--progress",
-                        "plain",
-                        "build",
-                        APPLICATION_SERVICE,
-                    ],
-                    timeout=timeout,
-                )
+                run(command, timeout=timeout)
         except subprocess.TimeoutExpired as error:
             raise RuntimeError(
                 "Application image build exceeded "

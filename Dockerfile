@@ -4,15 +4,7 @@ ARG GITHUB_DOWNLOAD_PREFIX=https://ghfast.top/
 ARG ENABLE_PIKAFISH_AI=1
 ARG ENABLE_KATAGO_AI=1
 ARG ENABLE_DOUZERO_AI=1
-
-FROM node:24-alpine AS web-builder
-
-WORKDIR /build
-COPY frontend/package.json frontend/package-lock.json ./frontend/
-RUN npm --prefix frontend ci --no-audit --no-fund
-COPY frontend/ ./frontend/
-COPY game-hall-community-games/ ./game-hall-community-games/
-RUN npm --prefix frontend run build
+ARG LOW_MEMORY_BUILD=0
 
 
 FROM debian:bookworm-slim AS ai-builder-base
@@ -215,7 +207,38 @@ COPY --from=douzero-model-bundle \
   /bundle/ /opt/game-hall/ai/douzero/
 
 
-FROM douzero-runtime-${ENABLE_DOUZERO_AI} AS runtime
+FROM douzero-runtime-${ENABLE_DOUZERO_AI} AS application-runtime
+
+
+FROM scratch AS web-build-gate-0
+
+COPY backend/__init__.py /build-gate
+
+
+FROM application-runtime AS web-build-gate-1
+
+COPY backend/__init__.py /build-gate
+
+
+FROM web-build-gate-${LOW_MEMORY_BUILD} AS web-build-gate
+
+
+FROM node:24-alpine AS web-builder
+
+ARG LOW_MEMORY_BUILD
+WORKDIR /build
+COPY --from=web-build-gate /build-gate /tmp/build-gate
+COPY frontend/package.json frontend/package-lock.json ./frontend/
+RUN npm --prefix frontend ci --no-audit --no-fund
+COPY frontend/ ./frontend/
+COPY game-hall-community-games/ ./game-hall-community-games/
+RUN if [ "$LOW_MEMORY_BUILD" = "1" ]; then \
+      export NODE_OPTIONS=--max-old-space-size=768; \
+    fi \
+    && npm --prefix frontend run build
+
+
+FROM application-runtime AS runtime
 
 ARG ENABLE_PIKAFISH_AI
 ARG ENABLE_KATAGO_AI

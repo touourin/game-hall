@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import subprocess
+import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from unittest.mock import Mock
@@ -22,6 +23,7 @@ def load_restart_script() -> ModuleType:
     assert spec is not None
     assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -32,11 +34,6 @@ def test_update_sources_updates_main_then_remote_submodules(monkeypatch) -> None
 
     monkeypatch.setattr(
         restart, "validate_source_checkout", lambda: calls.append("validate")
-    )
-    monkeypatch.setattr(
-        restart,
-        "reset_submodules_to_recorded_commits",
-        lambda: calls.append("reset-submodules"),
     )
     monkeypatch.setattr(restart, "pull_main_branch", lambda: calls.append("pull-main"))
     monkeypatch.setattr(
@@ -49,9 +46,31 @@ def test_update_sources_updates_main_then_remote_submodules(monkeypatch) -> None
 
     assert calls == [
         "validate",
-        "reset-submodules",
         "pull-main",
         "update-submodules",
+    ]
+
+
+def test_main_pull_does_not_duplicate_submodule_updates(monkeypatch) -> None:
+    restart = load_restart_script()
+    commands: list[list[str]] = []
+    monkeypatch.setattr(
+        restart,
+        "run",
+        lambda command, **_kwargs: commands.append(command),
+    )
+
+    restart.pull_main_branch()
+
+    assert commands == [
+        [
+            "git",
+            "pull",
+            "--ff-only",
+            "--no-recurse-submodules",
+            "origin",
+            "main",
+        ]
     ]
 
 
@@ -179,6 +198,7 @@ def test_deployment_builds_validates_then_restarts(monkeypatch) -> None:
     calls: list[tuple[list[str], dict[str, object]]] = []
 
     monkeypatch.setattr(restart, "log", lambda _message: None)
+    monkeypatch.setattr(restart, "read_memory_info", lambda: None)
     monkeypatch.setattr(
         restart,
         "run",
@@ -211,8 +231,97 @@ def test_deployment_builds_validates_then_restarts(monkeypatch) -> None:
     ]
 
 
+def test_low_memory_build_serializes_heavy_stages(monkeypatch) -> None:
+    restart = load_restart_script()
+    calls: list[tuple[list[str], dict[str, object]]] = []
+    messages: list[str] = []
+    gibibyte = 1024**3
+
+    monkeypatch.setattr(
+        restart,
+        "read_memory_info",
+        lambda: restart.MemoryInfo(
+            total_bytes=int(1.6 * gibibyte),
+            available_bytes=400 * 1024**2,
+            swap_total_bytes=2 * gibibyte,
+            swap_free_bytes=2 * gibibyte,
+        ),
+    )
+    monkeypatch.setattr(restart, "log", messages.append)
+    monkeypatch.setattr(
+        restart,
+        "run",
+        lambda command, **kwargs: calls.append((command, kwargs)),
+    )
+
+    restart.build_application_image(900)
+
+    assert calls == [
+        (
+            [
+                "docker",
+                "compose",
+                "--progress",
+                "plain",
+                "build",
+                "--build-arg",
+                "LOW_MEMORY_BUILD=1",
+                "app",
+            ],
+            {"timeout": 900},
+        )
+    ]
+    assert any("1.6 GiB RAM" in message for message in messages)
+
+
+def test_memory_info_reads_linux_kibibytes(monkeypatch, tmp_path) -> None:
+    restart = load_restart_script()
+    meminfo = tmp_path / "meminfo"
+    meminfo.write_text(
+        "MemTotal:       1647000 kB\n"
+        "MemAvailable:    420000 kB\n"
+        "SwapTotal:            0 kB\n"
+        "SwapFree:             0 kB\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(restart, "MEMINFO_PATH", meminfo)
+
+    memory = restart.read_memory_info()
+
+    assert memory == restart.MemoryInfo(
+        total_bytes=1647000 * 1024,
+        available_bytes=420000 * 1024,
+        swap_total_bytes=0,
+        swap_free_bytes=0,
+    )
+    assert restart.low_memory_build_required(memory) is True
+
+
+def test_low_memory_build_without_swap_fails_before_docker(monkeypatch) -> None:
+    restart = load_restart_script()
+    run = Mock()
+    gibibyte = 1024**3
+    monkeypatch.setattr(
+        restart,
+        "read_memory_info",
+        lambda: restart.MemoryInfo(
+            total_bytes=int(1.6 * gibibyte),
+            available_bytes=400 * 1024**2,
+            swap_total_bytes=0,
+            swap_free_bytes=0,
+        ),
+    )
+    monkeypatch.setattr(restart, "run", run)
+
+    with pytest.raises(RuntimeError, match="Add swap before"):
+        restart.build_application_image(900)
+
+    run.assert_not_called()
+
+
 def test_build_timeout_keeps_current_application_image(monkeypatch) -> None:
     restart = load_restart_script()
+    monkeypatch.setattr(restart, "read_memory_info", lambda: None)
 
     def run(command: list[str], **_kwargs) -> None:
         raise subprocess.TimeoutExpired(command, 900)
@@ -267,7 +376,11 @@ def test_ai_engines_use_uniform_optional_build_bundles() -> None:
         assert f"{setting}=1" in environment_example
     assert "FROM pikafish-bundle-${ENABLE_PIKAFISH_AI}" in dockerfile
     assert "FROM katago-bundle-${ENABLE_KATAGO_AI}" in dockerfile
-    assert "FROM douzero-runtime-${ENABLE_DOUZERO_AI} AS runtime" in dockerfile
+    assert (
+        "FROM douzero-runtime-${ENABLE_DOUZERO_AI} AS application-runtime"
+        in dockerfile
+    )
+    assert "FROM application-runtime AS runtime" in dockerfile
     assert "COPY --from=pikafish-bundle /bundle/ /" in dockerfile
     assert "COPY --from=katago-bundle /bundle/ /" in dockerfile
     assert "python /tmp/douzero_models.py" in dockerfile
@@ -283,6 +396,11 @@ def test_ai_engines_use_uniform_optional_build_bundles() -> None:
     )
     assert dependency_manifest < heavy_dependency_install < application_source
     assert dockerfile.count("COPY backend/ ./backend/") == 1
+    assert "ARG LOW_MEMORY_BUILD=0" in dockerfile
+    assert "FROM application-runtime AS web-build-gate-1" in dockerfile
+    assert "FROM web-build-gate-${LOW_MEMORY_BUILD} AS web-build-gate" in dockerfile
+    assert "COPY --from=web-build-gate /build-gate" in dockerfile
+    assert "NODE_OPTIONS=--max-old-space-size=768" in dockerfile
     assert "INSTALL_DOUZERO_AI" not in dockerfile + compose + environment_example
     assert "DOUZERO_MODEL_HOST_DIR" not in compose
 
