@@ -193,7 +193,10 @@ function submit() {
 </script>
 
 <template>
-  <main class="account-page page-container">
+  <main
+    class="account-page page-container"
+    :class="{ 'account-page--register': mode === 'register' }"
+  >
     <section class="account-stage">
       <aside class="surface account-intro" aria-label="游戏大厅介绍">
         <div class="account-brand">
@@ -292,28 +295,30 @@ function submit() {
         </label>
 
         <div v-if="mode === 'register'" class="registration-email-fields">
-          <label class="field">
-            <span>邮箱（选填）</span>
-            <input
-              v-model="registrationEmail"
-              type="email"
-              maxlength="254"
-              autocomplete="email"
-              placeholder="用于找回密码"
-              :disabled="registrationEmailBusy"
-            />
-            <small>填写邮箱时，请先在这里完成验证；留空可直接注册。</small>
-          </label>
-          <UiButton
-            variant="secondary"
-            block
-            type="button"
-            :disabled="!canRequestRegistrationEmailCode"
-            @click="requestRegistrationCode"
-          >
-            <Mail :size="17" />
-            {{ registrationEmailBusy ? '正在发送…' : registrationEmailVerifiedForInput ? '重新发送验证码' : '发送验证码' }}
-          </UiButton>
+          <div class="registration-email-row">
+            <label class="field">
+              <span>邮箱（选填）</span>
+              <input
+                v-model="registrationEmail"
+                type="email"
+                maxlength="254"
+                autocomplete="email"
+                placeholder="用于找回密码"
+                :disabled="registrationEmailBusy"
+              />
+            </label>
+            <UiButton
+              variant="secondary"
+              block
+              type="button"
+              :disabled="!canRequestRegistrationEmailCode"
+              @click="requestRegistrationCode"
+            >
+              <Mail :size="17" />
+              {{ registrationEmailBusy ? '正在发送…' : registrationEmailVerifiedForInput ? '重新发送验证码' : '发送验证码' }}
+            </UiButton>
+          </div>
+          <small class="registration-email-hint">填写邮箱时，请先在这里完成验证；留空可直接注册。</small>
           <label v-if="registrationEmailVerifiedForInput" class="field">
             <span>6 位邮箱验证码</span>
             <input
@@ -341,17 +346,42 @@ function submit() {
           </p>
         </div>
 
-        <label v-if="mode === 'login' || mode === 'register'" class="field">
+        <label v-if="mode === 'login'" class="field">
           <span>密码</span>
           <input
             v-model="password"
             type="password"
             minlength="6"
             maxlength="128"
-            :autocomplete="mode === 'login' ? 'current-password' : 'new-password'"
+            autocomplete="current-password"
             placeholder="至少 6 个字符"
           />
         </label>
+
+        <div v-else-if="mode === 'register'" class="registration-password-fields">
+          <label class="field">
+            <span>密码</span>
+            <input
+              v-model="password"
+              type="password"
+              minlength="6"
+              maxlength="128"
+              autocomplete="new-password"
+              placeholder="至少 6 个字符"
+            />
+          </label>
+          <label class="field">
+            <span>确认密码</span>
+            <input
+              v-model="confirmPassword"
+              type="password"
+              minlength="6"
+              maxlength="128"
+              autocomplete="new-password"
+              placeholder="再次输入密码"
+            />
+          </label>
+        </div>
 
         <button
           v-if="mode === 'login'"
@@ -395,18 +425,6 @@ function submit() {
             maxlength="128"
             autocomplete="new-password"
             placeholder="再次输入新密码"
-          />
-        </label>
-
-        <label v-if="mode === 'register'" class="field">
-          <span>确认密码</span>
-          <input
-            v-model="confirmPassword"
-            type="password"
-            minlength="6"
-            maxlength="128"
-            autocomplete="new-password"
-            placeholder="再次输入密码"
           />
         </label>
 
@@ -462,7 +480,9 @@ function submit() {
 
 <style scoped>
 .account-page { width: min(100%, 1060px); }
+.account-page--register { width: min(100%, 1180px); align-items: start; }
 .account-stage { width: 100%; display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(390px, .92fr); align-items: stretch; gap: 10px; }
+.account-page--register .account-stage { grid-template-columns: minmax(0, .9fr) minmax(520px, 1.1fr); align-items: start; }
 .account-intro { position: relative; min-height: 640px; display: flex; flex-direction: column; border-color: color-mix(in srgb, var(--line-strong) 74%, var(--line)); border-radius: var(--radius-lg); padding: clamp(34px, 5vw, 56px); background: radial-gradient(circle at 10% 0, color-mix(in srgb, var(--accent) 13%, transparent), transparent 35%), repeating-radial-gradient(circle at 88% 85%, transparent 0 38px, var(--instrument-line) 39px 40px), var(--panel-sheen), linear-gradient(145deg,color-mix(in srgb,var(--surface-strong) 82%,var(--bg)),var(--surface)); overflow: hidden; }
 .account-intro::after { position: absolute; inset: 5px; border: 1px solid color-mix(in srgb, var(--line-bright) 15%, transparent); border-radius: calc(var(--radius-panel) - 5px); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-highlight) 22%, transparent); content: ''; pointer-events: none; }
 .account-brand { position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; }
@@ -483,6 +503,8 @@ function submit() {
 .account-trust { position: relative; z-index: 1; display: flex; align-items: center; gap: 7px; margin: 17px 0 0; color: var(--text-soft); font-size: 9px; }
 .account-trust svg { color: var(--green); }
 .account-card { z-index: 2; width: auto; display: grid; align-content: center; border-color: color-mix(in srgb, var(--line-strong) 62%, var(--line)); border-radius: var(--radius-lg); padding: clamp(32px, 5vw, 54px); }
+.account-page--register .account-intro { position: sticky; top: calc(18px + env(safe-area-inset-top)); min-height: min(640px, calc(100dvh - 72px)); height: calc(100dvh - 72px); }
+.account-page--register .account-card { align-content: start; padding: clamp(28px, 3vw, 40px); }
 .account-card::after { position: absolute; inset: 5px; border: 1px solid color-mix(in srgb, var(--line-bright) 13%, transparent); border-radius: calc(var(--radius-panel) - 5px); content: ''; pointer-events: none; }
 .account-card .account-mark { display: none; }
 .account-back-button,.forgot-password-button,.reset-resend-button { border: 0; padding: 0; color: var(--accent); background: transparent; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
@@ -491,13 +513,22 @@ function submit() {
 .reset-resend-button { justify-self: center; }
 .reset-resend-button:disabled { cursor: not-allowed; opacity: .55; }
 .account-reset-message { margin: 0; border: 1px solid color-mix(in srgb, var(--green) 36%, var(--line)); border-radius: var(--radius-control); padding: 10px 12px; color: #8fe0bd; background: color-mix(in srgb, var(--green) 7%, var(--surface-inset)); font-size: 11px; font-weight: 700; line-height: 1.6; }
-.registration-email-fields { display: grid; gap: 10px; }
+.account-page--register .account-form > .field,.registration-email-fields .field { margin-bottom: 0; }
+.registration-email-fields { display: grid; gap: 8px; }
+.registration-email-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, auto); align-items: end; gap: 10px; }
+.registration-email-row :deep(.ui-button) { min-height: 52px; }
+.registration-email-hint { color: var(--text-soft); font-size: 10px; font-weight: 700; line-height: 1.5; }
+.registration-password-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.registration-password-fields .field { margin-bottom: 0; }
 .field-hint { margin-top: -2px; color: var(--muted); font-size: 10px; line-height: 1.5; }
 .field-hint.invalid { color: var(--danger); }
 @media (max-width: 820px) {
   .account-page { width: min(100%, 560px); }
+  .account-page--register { align-items: start; }
   .account-stage { grid-template-columns: 1fr; gap: 12px; }
+  .account-page--register .account-stage { grid-template-columns: 1fr; }
   .account-intro { min-height: auto; border-radius: var(--radius-lg); padding: 19px 21px; }
+  .account-page--register .account-intro { position: relative; top: auto; height: auto; min-height: auto; }
   .account-intro::after,.account-features,.account-trust { display: none; }
   .account-intro-copy { margin: 16px 0 0; padding: 0; }
   .account-intro-copy .eyebrow,.account-intro-copy > p:last-child { display: none; }
@@ -516,5 +547,6 @@ function submit() {
   .account-card { border-radius: var(--radius-md); padding: 24px 19px; }
   .account-card h1 { font-size: 31px; }
   .account-copy { margin-bottom: 18px; font-size: 12px; }
+  .registration-email-row,.registration-password-fields { grid-template-columns: 1fr; }
 }
 </style>

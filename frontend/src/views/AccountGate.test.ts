@@ -17,6 +17,23 @@ describe('AccountGate', () => {
     ])
   })
 
+  it('groups registration controls for a compact responsive layout', async () => {
+    const wrapper = mount(AccountGate, {
+      props: { busy: false, error: null },
+    })
+
+    await wrapper.findAll('.account-mode button')[1]!.trigger('click')
+
+    expect(wrapper.classes()).toContain('account-page--register')
+    expect(
+      wrapper.get('.registration-email-row').find('input[type="email"]').exists(),
+    ).toBe(true)
+    expect(wrapper.get('.registration-email-row').find('.ui-button').text()).toContain(
+      '发送验证码',
+    )
+    expect(wrapper.findAll('.registration-password-fields .field')).toHaveLength(2)
+  })
+
   it('submits account credentials for login', async () => {
     const wrapper = mount(AccountGate, {
       props: { busy: false, error: null },
