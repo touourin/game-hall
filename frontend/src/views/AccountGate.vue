@@ -490,6 +490,12 @@ function submit() {
   --account-intro-min-height: 640px;
   --account-card-align: center;
   --account-card-padding: clamp(32px, 5vw, 54px);
+  --account-card-position: relative;
+  --account-card-top: auto;
+  --account-card-height: auto;
+  --account-card-min-height: auto;
+  --account-card-overflow-y: visible;
+  --account-card-scrollbar-gutter: auto;
 }
 .account-page--register {
   width: min(100%, 73.75rem);
@@ -502,6 +508,12 @@ function submit() {
   --account-intro-min-height: min(640px, calc(100dvh - 72px));
   --account-card-align: start;
   --account-card-padding: clamp(28px, 3vw, 40px);
+  --account-card-position: sticky;
+  --account-card-top: calc(18px + env(safe-area-inset-top));
+  --account-card-height: calc(100dvh - 72px);
+  --account-card-min-height: min(640px, calc(100dvh - 72px));
+  --account-card-overflow-y: auto;
+  --account-card-scrollbar-gutter: stable;
 }
 .account-stage { width: 100%; display: grid; grid-template-columns: var(--account-stage-columns); align-items: var(--account-stage-align); gap: 10px; }
 .account-intro { position: var(--account-intro-position); top: var(--account-intro-top); height: var(--account-intro-height); min-height: var(--account-intro-min-height); display: flex; flex-direction: column; border-color: color-mix(in srgb, var(--line-strong) 74%, var(--line)); border-radius: var(--radius-lg); padding: clamp(34px, 5vw, 56px); background: radial-gradient(circle at 10% 0, color-mix(in srgb, var(--accent) 13%, transparent), transparent 35%), repeating-radial-gradient(circle at 88% 85%, transparent 0 38px, var(--instrument-line) 39px 40px), var(--panel-sheen), linear-gradient(145deg,color-mix(in srgb,var(--surface-strong) 82%,var(--bg)),var(--surface)); overflow: hidden; }
@@ -523,8 +535,11 @@ function submit() {
 .account-features small { color: var(--muted); font-size: 8px; line-height: 1.5; }
 .account-trust { position: relative; z-index: 1; display: flex; align-items: center; gap: 7px; margin: 17px 0 0; color: var(--text-soft); font-size: 9px; }
 .account-trust svg { color: var(--green); }
-.account-card { z-index: 2; width: auto; display: grid; align-content: var(--account-card-align); border-color: color-mix(in srgb, var(--line-strong) 62%, var(--line)); border-radius: var(--radius-lg); padding: var(--account-card-padding); }
-.account-card::after { position: absolute; inset: 5px; border: 1px solid color-mix(in srgb, var(--line-bright) 13%, transparent); border-radius: calc(var(--radius-panel) - 5px); content: ''; pointer-events: none; }
+.account-card { position: var(--account-card-position); z-index: 2; top: var(--account-card-top); width: auto; height: var(--account-card-height); min-height: var(--account-card-min-height); display: grid; align-content: var(--account-card-align); overflow-x: clip; overflow-y: var(--account-card-overflow-y); overscroll-behavior-y: contain; scrollbar-color: color-mix(in srgb, var(--accent) 38%, transparent) transparent; scrollbar-gutter: var(--account-card-scrollbar-gutter); scrollbar-width: thin; outline: 1px solid color-mix(in srgb, var(--line-bright) 13%, transparent); outline-offset: -6px; border-color: color-mix(in srgb, var(--line-strong) 62%, var(--line)); border-radius: var(--radius-lg); padding: var(--account-card-padding); }
+.account-card::-webkit-scrollbar { width: 8px; }
+.account-card::-webkit-scrollbar-track { margin-block: 16px; background: transparent; }
+.account-card::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 999px; background: color-mix(in srgb, var(--accent) 38%, transparent); background-clip: padding-box; }
+.account-card::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--accent) 58%, transparent); }
 .account-card .account-mark { display: none; }
 .account-back-button,.forgot-password-button,.reset-resend-button { border: 0; padding: 0; color: var(--accent); background: transparent; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
 .account-back-button { width: fit-content; display: inline-flex; align-items: center; gap: 5px; margin: 4px 0 16px; }
@@ -550,7 +565,7 @@ function submit() {
   .account-intro-copy .eyebrow,.account-intro-copy > p:last-child { display: none; }
   .account-intro-copy h2 { margin: 0; font-size: clamp(1.125rem, 2.5cqi, 1.5rem); line-height: 1.35; }
   .account-intro-copy h2 br { display: none; }
-  .account-card { border-radius: var(--radius-lg); padding: clamp(24px, 7cqi, 42px); }
+  .account-card { position: relative; top: auto; height: auto; min-height: auto; overflow-y: visible; overscroll-behavior-y: auto; scrollbar-gutter: auto; border-radius: var(--radius-lg); padding: clamp(24px, 7cqi, 42px); }
 }
 @container account-gate (max-width: 32.5rem) {
   .account-intro { border-radius: var(--radius-md); }
