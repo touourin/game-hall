@@ -144,6 +144,9 @@ export interface MatchDetail {
       health?: number
       input_count?: number
       pulse_count?: number
+      section_count?: number
+      passed_sections?: number
+      distance_meters?: number
       collision_kind?: string | null
     }
   }

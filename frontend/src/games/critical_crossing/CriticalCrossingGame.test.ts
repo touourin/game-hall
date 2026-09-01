@@ -1,5 +1,6 @@
 import { createPinia } from 'pinia'
 import { mount } from '@vue/test-utils'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import { useArcadeStore } from '../../stores/arcade'
 import type { ArcadeSnapshot } from '../../types/arcade'
 import CriticalCrossingGame from './CriticalCrossingGame.vue'
@@ -9,7 +10,7 @@ function spectatorSnapshot(): ArcadeSnapshot {
     revision: 2,
     roomCode: 'GATE',
     gameKey: 'critical_crossing',
-    gameName: '临界穿越',
+    gameName: '算途疾行',
     options: { difficulty: '5s', allowSpectators: true },
     phase: 'playing',
     hostId: 'p1',
@@ -52,17 +53,18 @@ function spectatorSnapshot(): ArcadeSnapshot {
       seed: 42,
       durationMs: 5_000,
       tickRate: 60,
-      pulseCount: 5,
-      collisionGraceMs: 467,
-      pulseWarningMs: 467,
-      boundaryPressureMs: 600,
+      sectionCount: 5,
       profile: {
-        pulseWarningTicks: 28,
-        pulseFrontSpeed: 180,
-        safeGateRadius: 1_050,
-        boundaryPressureLimit: 36,
+        sectionIntervalTicks: 60,
+        firstSectionTick: 50,
+        laneChangeTicks: 12,
+        jumpDurationTicks: 42,
+        slideDurationTicks: 36,
+        forwardMetersPerSecond: 18,
       },
       elapsedMs: 0,
+      distanceMeters: 0,
+      passedSections: 0,
       crossed: null,
       collisionTick: null,
       collisionKind: null,
@@ -82,9 +84,15 @@ describe('CriticalCrossingGame spectator view', () => {
   it('renders the target local frame without accepting movement', async () => {
     const pinia = createPinia()
     const arcade = useArcadeStore(pinia)
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/', name: 'hall', component: { template: '<div />' } }],
+    })
+    await router.push('/')
+    await router.isReady()
     const wrapper = mount(CriticalCrossingGame, {
       props: { snapshot: spectatorSnapshot() },
-      global: { plugins: [pinia] },
+      global: { plugins: [pinia, router] },
     })
 
     arcade.spectatorFrame = {
@@ -99,9 +107,13 @@ describe('CriticalCrossingGame spectator view', () => {
         localElapsedMs: 2_000,
         crossingState: {
           tick: 120,
-          playerX: 6_200,
-          playerY: 3_100,
-          boundaryPressure: { top: 0, right: 0, bottom: 0, left: 0 },
+          lane: 1,
+          laneChangeFrom: 0,
+          laneChangeTicks: 0,
+          pose: 'run',
+          poseTicks: 0,
+          previousInputMask: 0,
+          passedSections: 2,
           collisionTick: null,
           collisionKind: null,
         },
@@ -110,7 +122,8 @@ describe('CriticalCrossingGame spectator view', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.get('.arena-timer').text()).toContain('3.00')
-    for (const button of wrapper.findAll('.crossing-controls button')) {
+    expect(wrapper.get('.return-main').text()).toContain('返回主界面')
+    for (const button of wrapper.findAll('.runner-controls button')) {
       expect(button.attributes()).toHaveProperty('disabled')
     }
     wrapper.unmount()

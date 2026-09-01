@@ -14,13 +14,11 @@ from backend.app.games.critical_crossing.engine import (
     RIGHT,
     UP,
     CriticalCrossingEngine,
-    boundary_collision,
-    build_pulse_plan,
+    build_course_plan,
     build_safe_route,
     duration_ticks,
-    pulse_fronts,
+    runner_distance_meters,
     simulate_run,
-    update_boundary_pressure,
 )
 
 
@@ -50,7 +48,7 @@ def make_room(difficulty: str = DEFAULT_DIFFICULTY):
 
 
 @pytest.mark.parametrize("difficulty", DIFFICULTIES)
-def test_each_difficulty_accepts_a_server_verified_crossing(
+def test_each_difficulty_accepts_a_server_verified_bridge_run(
     difficulty: str,
 ) -> None:
     config = DIFFICULTIES[difficulty]
@@ -65,13 +63,15 @@ def test_each_difficulty_accepts_a_server_verified_crossing(
     assert room.winner_player_ids == [player.id]
     assert room.state.difficulty == difficulty
     assert room.state.elapsed_ms == config.duration_seconds * 1_000
+    assert room.state.distance_meters == config.duration_seconds * 18
+    assert room.state.passed_sections == config.section_count
     assert engine.view(room, player)["crossed"] is True
 
 
-def test_engine_replays_a_collision_and_records_an_interruption() -> None:
+def test_engine_replays_a_barrier_collision_and_records_an_interruption() -> None:
     config = DIFFICULTIES["5s"]
     engine, room, player, _ = make_room("5s")
-    inputs = [UP | LEFT] * duration_ticks(config.duration_seconds)
+    inputs = [0] * duration_ticks(config.duration_seconds)
     result = simulate_run(room.state.seed, inputs, config)
     assert result.collision_tick is not None
 
@@ -81,6 +81,7 @@ def test_engine_replays_a_collision_and_records_an_interruption() -> None:
     assert room.winner == "interrupted"
     assert room.winner_player_ids == []
     assert room.state.collision_tick == result.collision_tick
+    assert room.state.distance_meters == runner_distance_meters(result.ticks)
 
 
 @pytest.mark.parametrize(
@@ -115,49 +116,37 @@ def test_engine_does_not_accept_an_instant_success() -> None:
 
 
 def test_fixed_plan_vector_matches_the_browser_engine() -> None:
-    plan = build_pulse_plan(3_000_000_005, DIFFICULTIES["5s"])
+    plan = build_course_plan(3_000_000_005, DIFFICULTIES["5s"])
 
-    assert [(pulse.x_gate, pulse.y_gate) for pulse in plan] == [
-        (6_728, 4_303),
-        (3_106, 4_276),
-        (6_748, 2_295),
-        (6_704, 2_147),
-        (6_540, 4_350),
+    assert [
+        (
+            section.impact_tick,
+            section.branch_count,
+            section.active_lanes,
+            section.obstacles,
+            section.safe_lane,
+        )
+        for section in plan
+    ] == [
+        (50, 2, (0, 1), ("gap", "barrier", "ground"), 1),
+        (110, 3, (-1, 0, 1), ("barrier", "overhead", "barrier"), 0),
+        (170, 3, (-1, 0, 1), ("clear", "barrier", "barrier"), -1),
+        (230, 2, (0, 1), ("gap", "barrier", "ground"), 1),
+        (290, 3, (-1, 0, 1), ("overhead", "barrier", "barrier"), -1),
     ]
 
 
-def test_profiles_reduce_reaction_and_boundary_margins() -> None:
-    calibration = DIFFICULTIES["5s"]
-    overload = DIFFICULTIES["8s"]
-    critical = DIFFICULTIES["10s"]
-
-    assert (
-        calibration.pulse_warning_ticks
-        > overload.pulse_warning_ticks
-        > critical.pulse_warning_ticks
-    )
-    assert (
-        calibration.safe_gate_radius
-        > overload.safe_gate_radius
-        > critical.safe_gate_radius
-    )
-    assert (
-        calibration.boundary_pressure_limit
-        > overload.boundary_pressure_limit
-        > critical.boundary_pressure_limit
-    )
-
-
-def test_seeded_intersections_use_all_four_board_quadrants() -> None:
-    config = DIFFICULTIES["10s"]
-    quadrant_counts = {(x, y): 0 for x in range(2) for y in range(2)}
-    for seed in range(1, 4_097):
-        for pulse in build_pulse_plan(seed, config):
-            quadrant = (int(pulse.x_gate > 5_000), int(pulse.y_gate > 3_250))
-            quadrant_counts[quadrant] += 1
-
-    total = sum(quadrant_counts.values())
-    assert all(0.23 < count / total < 0.27 for count in quadrant_counts.values())
+def test_every_short_course_mixes_two_and_three_way_forks_and_actions() -> None:
+    config = DIFFICULTIES["5s"]
+    for seed in range(1, 257):
+        plan = build_course_plan(seed, config)
+        assert {section.branch_count for section in plan} == {2, 3}
+        obstacles = {
+            obstacle
+            for section in plan
+            for obstacle in section.obstacles
+        }
+        assert {"ground", "overhead"} <= obstacles
 
 
 @pytest.mark.parametrize("difficulty", DIFFICULTIES)
@@ -169,75 +158,50 @@ def test_one_thousand_seeds_per_difficulty_have_a_verified_route(
         result = simulate_run(seed, build_safe_route(seed, config), config)
         assert result.crossed, f"{difficulty=} {seed=}"
         assert result.collision_kind is None
+        assert result.passed_sections == config.section_count
 
 
-def test_restart_changes_both_seed_and_intersection_route() -> None:
+def test_w_and_s_are_required_for_ground_and_overhead_obstacles() -> None:
+    config = DIFFICULTIES["5s"]
+    seed = 3_000_000_005
+    route = build_safe_route(seed, config)
+    assert route[30] == UP
+    without_jump = route.copy()
+    without_jump[30] = 0
+    assert simulate_run(seed, without_jump, config).collision_kind == "ground"
+
+    assert route[90] == DOWN
+    without_slide = route.copy()
+    without_slide[90] = 0
+    assert simulate_run(seed, without_slide, config).collision_kind == "overhead"
+
+
+def test_held_direction_changes_only_one_lane_until_released() -> None:
+    config = DIFFICULTIES["5s"]
+    result = simulate_run(1, [RIGHT] * 20, config)
+    assert result.player_lane == 1
+
+    result = simulate_run(1, [LEFT, 0, LEFT] + [0] * 17, config)
+    assert result.player_lane == -1
+
+
+def test_restart_changes_both_seed_and_bridge_route() -> None:
     config = DIFFICULTIES["5s"]
     engine, room, _, _ = make_room("5s")
     previous_seed = room.state.seed
-    previous_plan = build_pulse_plan(previous_seed, config)
+    previous_plan = build_course_plan(previous_seed, config)
 
     engine.start(room)
 
     assert room.state.seed != previous_seed
-    assert build_pulse_plan(room.state.seed, config) != previous_plan
+    assert build_course_plan(room.state.seed, config) != previous_plan
 
 
-def test_first_pulse_waits_for_its_profile_warning() -> None:
-    config = DIFFICULTIES["5s"]
-    plan = build_pulse_plan(162_944_417, config)
-    assert pulse_fronts(plan, config.pulse_warning_ticks - 1, config) == []
-
-    fronts = pulse_fronts(plan, config.pulse_warning_ticks, config)
-    assert [front.side for front in fronts] == [
-        "top",
-        "right",
-        "bottom",
-        "left",
-    ]
-    assert [front.gate for front in fronts] == [
-        plan[0].x_gate,
-        plan[0].y_gate,
-        plan[0].x_gate,
-        plan[0].y_gate,
-    ]
-    assert [front.position for front in fronts] == [
-        585 + config.pulse_front_speed,
-        9_100 - config.pulse_front_speed,
-        5_915 - config.pulse_front_speed,
-        900 + config.pulse_front_speed,
-    ]
-
-
-def test_boundary_camping_triggers_the_tuned_lock() -> None:
-    config = DIFFICULTIES["5s"]
-    pressure = {side: 0 for side in ("top", "right", "bottom", "left")}
-    for _ in range(config.boundary_pressure_limit):
-        pressure = update_boundary_pressure(pressure, 105, 3_250, config)
-    assert not boundary_collision(105, 3_250, pressure, config)
-
-    pressure = update_boundary_pressure(pressure, 105, 3_250, config)
-    assert boundary_collision(105, 3_250, pressure, config)
-
-
-def test_static_center_is_interrupted_without_boundary_pressure() -> None:
+def test_input_mask_supports_all_four_keyboard_actions() -> None:
     config = DIFFICULTIES["5s"]
     result = simulate_run(
         162_944_417,
-        [0] * duration_ticks(config.duration_seconds),
-        config,
-    )
-    assert not result.crossed
-    assert result.collision_kind == "pulse"
-    assert result.max_boundary_pressure == 0
-
-
-def test_crossing_inputs_support_all_four_directions() -> None:
-    config = DIFFICULTIES["5s"]
-    result = simulate_run(
-        162_944_417,
-        [UP, DOWN, LEFT, RIGHT]
-        * (duration_ticks(config.duration_seconds) // 4),
+        [UP, 0, DOWN, 0, LEFT, 0, RIGHT, 0] * 4,
         config,
     )
     assert result.ticks > 0

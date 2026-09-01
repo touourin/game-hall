@@ -1,66 +1,66 @@
-export const BOARD_WIDTH = 10_000
-export const BOARD_HEIGHT = 6_500
 export const TICK_RATE = 60
-
-export const PLAYER_RADIUS = 105
-export const PLAYER_HIT_RADIUS = 32
-export const PLAYER_SPEED = 160
-
-export const PULSE_INTERVAL_TICKS = TICK_RATE
-export const PULSE_FRONT_HIT_RADIUS = 72
-
-export const BOUNDARY_ZONE_X = 900
-export const BOUNDARY_ZONE_Y = 585
-export const BOUNDARY_PRESSURE_DECAY = 1
-export const BOUNDARY_WALL_SPEED = 100
-export const BOUNDARY_WALL_DEPTH = 1_000
 
 export const INPUT_UP = 1
 export const INPUT_DOWN = 2
 export const INPUT_LEFT = 4
 export const INPUT_RIGHT = 8
 
-const GATE_LANE_SALT = 0xC8013EA4
-const GATE_OFFSET_SALT = 0xAD90777D
-const AXIS_Y_SALT = 0x7E95761E
+export const SECTION_INTERVAL_TICKS = TICK_RATE
+export const FIRST_SECTION_TICK = 50
+export const LANE_CHANGE_TICKS = 12
+export const JUMP_DURATION_TICKS = 42
+export const SLIDE_DURATION_TICKS = 36
+export const FORWARD_METERS_PER_SECOND = 18
 
-export type BoundarySide = 'top' | 'right' | 'bottom' | 'left'
-export type CollisionKind = 'pulse' | 'boundary'
+const BRANCH_CYCLE_SALT = 0xB31D6A2F
+const BRANCH_PAIR_SALT = 0x7A61F0C9
+const SAFE_LANE_SALT = 0xC8013EA4
+const ACTION_CYCLE_SALT = 0x4F1B7D93
 
-export const BOUNDARY_SIDES: readonly BoundarySide[] = [
-  'top',
-  'right',
-  'bottom',
-  'left',
-]
+export const RUNNER_LANES = [-1, 0, 1] as const
+
+export type RunnerLane = typeof RUNNER_LANES[number]
+export type RunnerPose = 'run' | 'jump' | 'slide'
+export type ObstacleKind = 'clear' | 'ground' | 'overhead' | 'barrier' | 'gap'
+export type CollisionKind = Exclude<ObstacleKind, 'clear'>
 
 export interface CrossingProfile {
-  pulseWarningTicks: number
-  pulseFrontSpeed: number
-  safeGateRadius: number
-  boundaryPressureLimit: number
+  sectionIntervalTicks: number
+  firstSectionTick: number
+  laneChangeTicks: number
+  jumpDurationTicks: number
+  slideDurationTicks: number
+  forwardMetersPerSecond: number
 }
 
-export interface PulsePlanEntry {
-  xGate: number
-  yGate: number
+export interface CourseSection {
+  impactTick: number
+  branchCount: 2 | 3
+  activeLanes: readonly RunnerLane[]
+  obstacles: readonly [ObstacleKind, ObstacleKind, ObstacleKind]
+  safeLane: RunnerLane
 }
-
-export interface PulseFront {
-  side: BoundarySide
-  position: number
-  gate: number
-}
-
-export type BoundaryPressure = Record<BoundarySide, number>
 
 export interface CrossingState {
   tick: number
-  playerX: number
-  playerY: number
-  boundaryPressure: BoundaryPressure
+  lane: RunnerLane
+  laneChangeFrom: RunnerLane
+  laneChangeTicks: number
+  pose: RunnerPose
+  poseTicks: number
+  previousInputMask: number
+  passedSections: number
   collisionTick: number | null
   collisionKind: CollisionKind | null
+}
+
+export const DEFAULT_CROSSING_PROFILE: CrossingProfile = {
+  sectionIntervalTicks: SECTION_INTERVAL_TICKS,
+  firstSectionTick: FIRST_SECTION_TICK,
+  laneChangeTicks: LANE_CHANGE_TICKS,
+  jumpDurationTicks: JUMP_DURATION_TICKS,
+  slideDurationTicks: SLIDE_DURATION_TICKS,
+  forwardMetersPerSecond: FORWARD_METERS_PER_SECOND,
 }
 
 function mixU32(input: number): number {
@@ -72,152 +72,54 @@ function mixU32(input: number): number {
   return (value ^ (value >>> 16)) >>> 0
 }
 
-function randomWord(seed: number, pulseIndex: number, salt: number): number {
-  const indexKey = Math.imul(pulseIndex + 1, 0x9E3779B9) >>> 0
+function randomWord(seed: number, sectionIndex: number, salt: number): number {
+  const indexKey = Math.imul(sectionIndex + 1, 0x9E3779B9) >>> 0
   return mixU32((seed ^ indexKey ^ salt) >>> 0)
 }
 
-export function pulseSafeGate(
+function laneIndex(lane: RunnerLane): number {
+  return lane + 1
+}
+
+function safeObstacle(seed: number, sectionIndex: number): ObstacleKind {
+  const cycleOffset = randomWord(seed, 0, ACTION_CYCLE_SALT) % 3
+  return (sectionIndex + cycleOffset) % 3 === 1
+    ? 'ground'
+    : (sectionIndex + cycleOffset) % 3 === 2 ? 'overhead' : 'clear'
+}
+
+export function buildCoursePlan(
   seed: number,
-  pulseIndex: number,
-  axis: 'x' | 'y',
-): number {
-  const axisSalt = axis === 'x' ? 0 : AXIS_Y_SALT
-  const ranges: readonly (readonly [number, number])[] = axis === 'x'
-    ? [[3_000, 3_500], [6_500, 7_000]]
-    : [[2_050, 2_450], [4_050, 4_450]]
-  const lane = randomWord(
-    seed,
-    pulseIndex,
-    GATE_LANE_SALT ^ axisSalt,
-  ) % ranges.length
-  const [minimum, maximum] = ranges[lane]!
-  const offset = randomWord(
-    seed,
-    pulseIndex,
-    GATE_OFFSET_SALT ^ axisSalt,
-  ) % (maximum - minimum + 1)
-  return minimum + offset
-}
+  sectionCount: number,
+  profile: CrossingProfile = DEFAULT_CROSSING_PROFILE,
+): CourseSection[] {
+  const branchOffset = randomWord(seed, 0, BRANCH_CYCLE_SALT) % 3
 
-export function buildPulsePlan(
-  seed: number,
-  pulseCount: number,
-): PulsePlanEntry[] {
-  return Array.from({ length: pulseCount }, (_, pulseIndex) => ({
-    xGate: pulseSafeGate(seed, pulseIndex, 'x'),
-    yGate: pulseSafeGate(seed, pulseIndex, 'y'),
-  }))
-}
+  return Array.from({ length: sectionCount }, (_, sectionIndex) => {
+    const branchCount: 2 | 3 = (sectionIndex + branchOffset) % 3 === 0 ? 2 : 3
+    const pairOnRight = Boolean(
+      randomWord(seed, sectionIndex, BRANCH_PAIR_SALT) % 2,
+    )
+    const activeLanes: readonly RunnerLane[] = branchCount === 3
+      ? RUNNER_LANES
+      : pairOnRight ? [0, 1] : [-1, 0]
+    const safeLane = activeLanes[
+      randomWord(seed, sectionIndex, SAFE_LANE_SALT) % activeLanes.length
+    ]!
+    const obstacles = RUNNER_LANES.map((lane): ObstacleKind => {
+      if (!activeLanes.includes(lane)) return 'gap'
+      if (lane === safeLane) return safeObstacle(seed, sectionIndex)
+      return 'barrier'
+    }) as [ObstacleKind, ObstacleKind, ObstacleKind]
 
-export function pulseFronts(
-  plan: readonly PulsePlanEntry[],
-  tick: number,
-  profile: CrossingProfile,
-): PulseFront[] {
-  const fronts: PulseFront[] = []
-  const activeCount = Math.min(
-    plan.length,
-    Math.floor(tick / PULSE_INTERVAL_TICKS) + 1,
-  )
-  for (let pulseIndex = 0; pulseIndex < activeCount; pulseIndex += 1) {
-    const pulse = plan[pulseIndex]!
-    const elapsed = tick
-      - (pulseIndex * PULSE_INTERVAL_TICKS + profile.pulseWarningTicks)
-    if (elapsed < 0) continue
-    const distance = (elapsed + 1) * profile.pulseFrontSpeed
-    for (const side of BOUNDARY_SIDES) {
-      const verticalEdge = side === 'left' || side === 'right'
-      const gate = verticalEdge ? pulse.yGate : pulse.xGate
-      const position = side === 'left'
-        ? BOUNDARY_ZONE_X + distance
-        : side === 'right'
-          ? BOARD_WIDTH - BOUNDARY_ZONE_X - distance
-          : side === 'top'
-            ? BOUNDARY_ZONE_Y + distance
-            : BOARD_HEIGHT - BOUNDARY_ZONE_Y - distance
-      const span = verticalEdge ? BOARD_WIDTH : BOARD_HEIGHT
-      if (position >= -500 && position <= span + 500) {
-        fronts.push({ side, position, gate })
-      }
+    return {
+      impactTick: profile.firstSectionTick
+        + sectionIndex * profile.sectionIntervalTicks,
+      branchCount,
+      activeLanes,
+      obstacles,
+      safeLane,
     }
-  }
-  return fronts
-}
-
-export function pulseCollision(
-  plan: readonly PulsePlanEntry[],
-  tick: number,
-  playerX: number,
-  playerY: number,
-  profile: CrossingProfile,
-): boolean {
-  return pulseFronts(plan, tick, profile).some(({ side, position, gate }) => {
-    const verticalEdge = side === 'left' || side === 'right'
-    const frontDistance = Math.abs((verticalEdge ? playerX : playerY) - position)
-    const gateDistance = Math.abs((verticalEdge ? playerY : playerX) - gate)
-    return frontDistance <= PLAYER_HIT_RADIUS + PULSE_FRONT_HIT_RADIUS
-      && gateDistance > profile.safeGateRadius
-  })
-}
-
-export function boundaryZoneSides(
-  playerX: number,
-  playerY: number,
-): BoundarySide[] {
-  const sides: BoundarySide[] = []
-  if (playerY <= BOUNDARY_ZONE_Y) sides.push('top')
-  if (playerX >= BOARD_WIDTH - BOUNDARY_ZONE_X) sides.push('right')
-  if (playerY >= BOARD_HEIGHT - BOUNDARY_ZONE_Y) sides.push('bottom')
-  if (playerX <= BOUNDARY_ZONE_X) sides.push('left')
-  return sides
-}
-
-export function updateBoundaryPressure(
-  pressure: BoundaryPressure,
-  playerX: number,
-  playerY: number,
-  profile: CrossingProfile,
-): BoundaryPressure {
-  const activeSides = new Set(boundaryZoneSides(playerX, playerY))
-  const pressureMax = profile.boundaryPressureLimit
-    + BOUNDARY_WALL_DEPTH / BOUNDARY_WALL_SPEED
-  return Object.fromEntries(BOUNDARY_SIDES.map(side => [
-    side,
-    activeSides.has(side)
-      ? Math.min(pressureMax, pressure[side] + 1)
-      : Math.max(0, pressure[side] - BOUNDARY_PRESSURE_DECAY),
-  ])) as BoundaryPressure
-}
-
-export function boundaryWallDepth(
-  pressure: number,
-  profile: CrossingProfile,
-): number {
-  if (pressure <= profile.boundaryPressureLimit) return 0
-  return Math.min(
-    BOUNDARY_WALL_DEPTH,
-    (pressure - profile.boundaryPressureLimit) * BOUNDARY_WALL_SPEED,
-  )
-}
-
-export function boundaryCollision(
-  playerX: number,
-  playerY: number,
-  pressure: BoundaryPressure,
-  profile: CrossingProfile,
-): boolean {
-  return BOUNDARY_SIDES.some((side) => {
-    const depth = boundaryWallDepth(pressure[side], profile)
-    if (depth === 0) return false
-    if (side === 'top') return playerY - PLAYER_HIT_RADIUS <= depth
-    if (side === 'right') {
-      return playerX + PLAYER_HIT_RADIUS >= BOARD_WIDTH - depth
-    }
-    if (side === 'bottom') {
-      return playerY + PLAYER_HIT_RADIUS >= BOARD_HEIGHT - depth
-    }
-    return playerX - PLAYER_HIT_RADIUS <= depth
   })
 }
 
@@ -225,75 +127,135 @@ export function durationTicks(durationSeconds: number): number {
   return durationSeconds * TICK_RATE
 }
 
+export function runnerDistanceMeters(
+  tick: number,
+  profile: CrossingProfile = DEFAULT_CROSSING_PROFILE,
+): number {
+  return Math.round(tick * profile.forwardMetersPerSecond / TICK_RATE)
+}
+
 export function createCrossingState(): CrossingState {
   return {
     tick: 0,
-    playerX: BOARD_WIDTH / 2,
-    playerY: BOARD_HEIGHT / 2,
-    boundaryPressure: { top: 0, right: 0, bottom: 0, left: 0 },
+    lane: 0,
+    laneChangeFrom: 0,
+    laneChangeTicks: 0,
+    pose: 'run',
+    poseTicks: 0,
+    previousInputMask: 0,
+    passedSections: 0,
     collisionTick: null,
     collisionKind: null,
   }
 }
 
+function nextLane(lane: RunnerLane, direction: -1 | 1): RunnerLane {
+  return Math.max(-1, Math.min(1, lane + direction)) as RunnerLane
+}
+
+function collisionAtSection(
+  state: Pick<CrossingState, 'lane' | 'pose'>,
+  section: CourseSection,
+): CollisionKind | null {
+  const obstacle = section.obstacles[laneIndex(state.lane)]
+  if (obstacle === 'clear') return null
+  if (obstacle === 'ground' && state.pose === 'jump') return null
+  if (obstacle === 'overhead' && state.pose === 'slide') return null
+  return obstacle
+}
+
 export function advanceCrossingState(
   current: CrossingState,
   inputMask: number,
-  plan: readonly PulsePlanEntry[],
-  profile: CrossingProfile,
+  plan: readonly CourseSection[],
+  profile: CrossingProfile = DEFAULT_CROSSING_PROFILE,
 ): CrossingState {
-  const horizontal = Number(Boolean(inputMask & INPUT_RIGHT))
-    - Number(Boolean(inputMask & INPUT_LEFT))
-  const vertical = Number(Boolean(inputMask & INPUT_DOWN))
-    - Number(Boolean(inputMask & INPUT_UP))
-  const step = horizontal && vertical ? 113 : PLAYER_SPEED
-  const playerX = Math.min(
-    BOARD_WIDTH - PLAYER_RADIUS,
-    Math.max(PLAYER_RADIUS, current.playerX + horizontal * step),
-  )
-  const playerY = Math.min(
-    BOARD_HEIGHT - PLAYER_RADIUS,
-    Math.max(PLAYER_RADIUS, current.playerY + vertical * step),
-  )
-  const boundaryPressure = updateBoundaryPressure(
-    current.boundaryPressure,
-    playerX,
-    playerY,
-    profile,
-  )
+  if (current.collisionTick !== null) return current
 
-  let collisionKind: CollisionKind | null = null
-  if (
-    current.tick >= profile.pulseWarningTicks
-    && boundaryCollision(playerX, playerY, boundaryPressure, profile)
-  ) {
-    collisionKind = 'boundary'
-  } else if (
-    current.tick >= profile.pulseWarningTicks
-    && pulseCollision(plan, current.tick, playerX, playerY, profile)
-  ) {
-    collisionKind = 'pulse'
+  const pressed = inputMask & ~current.previousInputMask
+  const horizontalPressed = pressed & (INPUT_LEFT | INPUT_RIGHT)
+  const verticalPressed = pressed & (INPUT_UP | INPUT_DOWN)
+  let lane = current.lane
+  let laneChangeFrom = current.laneChangeFrom
+  let laneChangeTicks = Math.max(0, current.laneChangeTicks - 1)
+  let pose = current.pose
+  let poseTicks = Math.max(0, current.poseTicks - 1)
+
+  if (poseTicks === 0) pose = 'run'
+
+  if (horizontalPressed === INPUT_LEFT || horizontalPressed === INPUT_RIGHT) {
+    const direction = horizontalPressed === INPUT_LEFT ? -1 : 1
+    const target = nextLane(lane, direction)
+    if (target !== lane) {
+      laneChangeFrom = lane
+      lane = target
+      laneChangeTicks = profile.laneChangeTicks
+    }
   }
+
+  if (pose === 'run') {
+    if (verticalPressed === INPUT_UP) {
+      pose = 'jump'
+      poseTicks = profile.jumpDurationTicks
+    } else if (verticalPressed === INPUT_DOWN) {
+      pose = 'slide'
+      poseTicks = profile.slideDurationTicks
+    }
+  }
+
+  const tick = current.tick + 1
+  const section = plan.find(candidate => candidate.impactTick === tick)
+  const collisionKind = section
+    ? collisionAtSection({ lane, pose }, section)
+    : null
 
   return {
-    tick: current.tick + 1,
-    playerX,
-    playerY,
-    boundaryPressure,
-    collisionTick: collisionKind ? current.tick : null,
+    tick,
+    lane,
+    laneChangeFrom,
+    laneChangeTicks,
+    pose,
+    poseTicks,
+    previousInputMask: inputMask,
+    passedSections: plan.filter(candidate => (
+      candidate.impactTick < tick
+      || (candidate.impactTick === tick && collisionKind === null)
+    )).length,
+    collisionTick: collisionKind ? tick : null,
     collisionKind,
   }
+}
+
+export function runnerLanePosition(
+  state: CrossingState,
+  profile: CrossingProfile = DEFAULT_CROSSING_PROFILE,
+): number {
+  if (state.laneChangeTicks <= 0) return state.lane
+  const progress = 1 - state.laneChangeTicks / profile.laneChangeTicks
+  const eased = progress * progress * (3 - 2 * progress)
+  return state.laneChangeFrom + (state.lane - state.laneChangeFrom) * eased
+}
+
+export function runnerPoseProgress(
+  state: CrossingState,
+  profile: CrossingProfile = DEFAULT_CROSSING_PROFILE,
+): number {
+  if (state.pose === 'run') return 0
+  const duration = state.pose === 'jump'
+    ? profile.jumpDurationTicks
+    : profile.slideDurationTicks
+  return Math.max(0, Math.min(1, 1 - state.poseTicks / duration))
 }
 
 export function replayCrossingRun(
   seed: number,
   inputs: number[],
   durationSeconds: number,
-  profile: CrossingProfile,
+  profile: CrossingProfile = DEFAULT_CROSSING_PROFILE,
 ): CrossingState {
   let state = createCrossingState()
   const targetTicks = durationTicks(durationSeconds)
-  const plan = buildPulsePlan(seed, durationSeconds)
+  const plan = buildCoursePlan(seed, durationSeconds, profile)
   for (const input of inputs.slice(0, targetTicks)) {
     state = advanceCrossingState(state, input, plan, profile)
     if (state.collisionTick !== null) break
@@ -304,38 +266,26 @@ export function replayCrossingRun(
 export function buildSafeRoute(
   seed: number,
   durationSeconds: number,
+  profile: CrossingProfile = DEFAULT_CROSSING_PROFILE,
 ): number[] {
-  let playerX = BOARD_WIDTH / 2
-  let playerY = BOARD_HEIGHT / 2
-  const inputs: number[] = []
-  const plan = buildPulsePlan(seed, durationSeconds)
+  const inputs = Array<number>(durationTicks(durationSeconds)).fill(0)
+  const plan = buildCoursePlan(seed, durationSeconds, profile)
+  let lane: RunnerLane = 0
 
-  for (let tick = 0; tick < durationTicks(durationSeconds); tick += 1) {
-    const pulseIndex = Math.min(
-      Math.floor(tick / PULSE_INTERVAL_TICKS),
-      plan.length - 1,
-    )
-    const pulse = plan[pulseIndex]!
-    const targetX = pulse.xGate
-    const targetY = pulse.yGate
-    const horizontal = playerX < targetX - PLAYER_SPEED / 2
-      ? INPUT_RIGHT
-      : playerX > targetX + PLAYER_SPEED / 2 ? INPUT_LEFT : 0
-    const vertical = playerY < targetY - PLAYER_SPEED / 2
-      ? INPUT_DOWN
-      : playerY > targetY + PLAYER_SPEED / 2 ? INPUT_UP : 0
-    const inputMask = horizontal | vertical
-    inputs.push(inputMask)
+  for (const section of plan) {
+    let cursor = Math.max(0, section.impactTick - 44)
+    while (lane !== section.safeLane) {
+      const direction = lane > section.safeLane ? INPUT_LEFT : INPUT_RIGHT
+      inputs[cursor] = direction
+      cursor += 2
+      lane = nextLane(lane, direction === INPUT_LEFT ? -1 : 1)
+    }
 
-    const step = horizontal && vertical ? 113 : PLAYER_SPEED
-    playerX += step * (
-      Number(Boolean(horizontal & INPUT_RIGHT))
-      - Number(Boolean(horizontal & INPUT_LEFT))
-    )
-    playerY += step * (
-      Number(Boolean(vertical & INPUT_DOWN))
-      - Number(Boolean(vertical & INPUT_UP))
-    )
+    const obstacle = section.obstacles[laneIndex(section.safeLane)]
+    const actionTick = Math.max(0, section.impactTick - 20)
+    if (obstacle === 'ground') inputs[actionTick] = INPUT_UP
+    if (obstacle === 'overhead') inputs[actionTick] = INPUT_DOWN
   }
+
   return inputs
 }

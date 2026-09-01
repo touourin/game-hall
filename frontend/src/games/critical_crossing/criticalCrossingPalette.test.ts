@@ -8,10 +8,10 @@ describe('critical crossing palette', () => {
       const palette = criticalCrossingPalette(theme)
       const material = gameThemeMaterials(theme)
 
-      expect(palette.center).toBe(material.scene.center)
-      expect(palette.edge).toBe(material.scene.bottom)
-      expect(palette.gate).toBe(material.semantic.success)
-      expect(palette.pulse).toBe(material.semantic.danger)
+      expect(palette.atmosphere).toBe(material.scene.fog)
+      expect(palette.deckTop).toBe(material.stage.top)
+      expect(palette.overheadObstacle).toBe(material.semantic.successStrong)
+      expect(palette.barrier).toBe(material.semantic.dangerStrong)
     },
   )
 })

@@ -408,7 +408,7 @@ describe('GameRuleSettings', () => {
     })
     const critical = wrapper
       .findAll('button')
-      .find((button) => button.text().includes('10 秒 · 10 轮'))
+      .find((button) => button.text().includes('10 秒 · 10 段'))
 
     await critical?.trigger('click')
 
@@ -421,9 +421,9 @@ describe('GameRuleSettings', () => {
       allowSpectators: true,
     })
     expect(gameRuleLabels('critical_crossing', { difficulty: '10s' })).toEqual([
-      '临界',
+      '极限',
       '10 秒目标',
-      '10 轮脉冲',
+      '10 段云桥',
     ])
     expect(wrapper.text()).not.toContain('首局先手')
     expect(wrapper.text()).toContain('第一人称观战')

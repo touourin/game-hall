@@ -1,42 +1,43 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   ArrowDown,
   ArrowLeft,
   ArrowRight,
   ArrowUp,
   CircleX,
-  ScanLine,
+  Footprints,
+  House,
   ShieldCheck,
   Sparkles,
 } from '@lucide/vue'
+import runnerBridgeBackdrop from '../../assets/critical-crossing/runner-bridge-backdrop.png'
 import { useArcadeStore } from '../../stores/arcade'
 import { currentTheme } from '../../theme'
 import type { ArcadeSnapshot } from '../../types/arcade'
 import SoloMetricGrid from '../shared/solo/SoloMetricGrid.vue'
 import SoloResultCard from '../shared/solo/SoloResultCard.vue'
 import {
-  BOARD_HEIGHT,
-  BOARD_WIDTH,
-  BOUNDARY_SIDES,
-  BOUNDARY_ZONE_X,
-  BOUNDARY_ZONE_Y,
+  DEFAULT_CROSSING_PROFILE,
   INPUT_DOWN,
   INPUT_LEFT,
   INPUT_RIGHT,
   INPUT_UP,
-  PLAYER_HIT_RADIUS,
-  PLAYER_RADIUS,
-  PULSE_INTERVAL_TICKS,
+  RUNNER_LANES,
   TICK_RATE,
   advanceCrossingState,
-  boundaryWallDepth,
-  buildPulsePlan,
+  buildCoursePlan,
   createCrossingState,
-  pulseFronts,
-  type BoundarySide,
+  runnerDistanceMeters,
+  runnerLanePosition,
+  runnerPoseProgress,
+  type CollisionKind,
+  type CourseSection,
   type CrossingProfile,
   type CrossingState,
+  type ObstacleKind,
+  type RunnerLane,
 } from './crossingEngine'
 import {
   criticalCrossingPalette,
@@ -49,19 +50,26 @@ interface ServerGame {
   seed: number
   durationMs: number
   tickRate: number
-  pulseCount: number
-  collisionGraceMs: number
-  pulseWarningMs: number
-  boundaryPressureMs: number
-  profile: CrossingProfile
+  sectionCount?: number
+  pulseCount?: number
+  profile: CrossingProfile | Record<string, number>
   elapsedMs: number
+  distanceMeters?: number
+  passedSections?: number
   crossed: boolean | null
   collisionTick: number | null
-  collisionKind: 'pulse' | 'boundary' | null
+  collisionKind: CollisionKind | null
+}
+
+interface Projection {
+  y: number
+  halfWidth: number
+  scale: number
 }
 
 const props = defineProps<{ snapshot: ArcadeSnapshot }>()
 const arcade = useArcadeStore()
+const router = useRouter()
 const isSpectating = computed(() => props.snapshot.viewer?.mode === 'spectator')
 const canvas = ref<HTMLCanvasElement | null>(null)
 const phase = ref<'ready' | 'playing' | 'submitting' | 'finished'>(
@@ -71,9 +79,13 @@ const readyCount = ref(3)
 const crossingState = ref<CrossingState>(createCrossingState())
 const inputs = ref<number[]>([])
 const heldMask = ref(0)
+const queuedMask = ref(0)
 const localElapsedMs = ref(0)
 const submitError = ref<string | null>(null)
+const returning = ref(false)
 const activePointers = new Map<number, number>()
+const backdropImage = new Image()
+backdropImage.src = runnerBridgeBackdrop
 let readyTimer: number | null = null
 let animationFrame: number | null = null
 let previousFrame = 0
@@ -87,50 +99,79 @@ const hasTargetSpectators = computed(() => props.snapshot.spectators?.some(
   spectator => spectator.targetPlayerId === props.snapshot.self.id,
 ) ?? false)
 const durationSeconds = computed(() => Math.round(game.value.durationMs / 1_000))
+const sectionCount = computed(() => (
+  game.value.sectionCount
+  ?? game.value.pulseCount
+  ?? durationSeconds.value
+))
+const profile = computed<CrossingProfile>(() => {
+  const candidate = game.value.profile as Partial<CrossingProfile>
+  return typeof candidate.sectionIntervalTicks === 'number'
+    ? candidate as CrossingProfile
+    : DEFAULT_CROSSING_PROFILE
+})
 const targetTicks = computed(() => durationSeconds.value * TICK_RATE)
-const pulsePlan = computed(() => buildPulsePlan(
+const coursePlan = computed(() => buildCoursePlan(
   game.value.seed,
-  game.value.pulseCount,
+  sectionCount.value,
+  profile.value,
 ))
 const remainingMs = computed(() => Math.max(
   0,
   game.value.durationMs - localElapsedMs.value,
 ))
 const remainingLabel = computed(() => (remainingMs.value / 1_000).toFixed(2))
-const boundaryLockLabel = computed(() => (
-  game.value.profile.boundaryPressureLimit / TICK_RATE
-).toFixed(2))
-const pulseIndex = computed(() => Math.min(
-  Math.floor(crossingState.value.tick / PULSE_INTERVAL_TICKS),
-  Math.max(0, game.value.pulseCount - 1),
+const distanceMeters = computed(() => runnerDistanceMeters(
+  crossingState.value.tick,
+  profile.value,
 ))
-const pulseTick = computed(() => crossingState.value.tick % PULSE_INTERVAL_TICKS)
-const currentPulse = computed(() => pulsePlan.value[pulseIndex.value]!)
-const isPulseWarning = computed(() => (
-  pulseTick.value < game.value.profile.pulseWarningTicks
+const resultDistanceMeters = computed(() => (
+  game.value.distanceMeters ?? distanceMeters.value
 ))
-const peakBoundaryPressure = computed(() => Math.max(
-  ...Object.values(crossingState.value.boundaryPressure),
+const resultPassedSections = computed(() => (
+  game.value.passedSections ?? crossingState.value.passedSections
 ))
-const boundaryPressurePercent = computed(() => Math.min(
-  100,
-  Math.round(
-    peakBoundaryPressure.value
-    * 100
-    / game.value.profile.boundaryPressureLimit,
-  ),
-))
-const fieldStatus = computed(() => {
-  if (peakBoundaryPressure.value > 0) {
-    return `边界 ${boundaryPressurePercent.value}%`
-  }
-  return isPulseWarning.value ? '缺口标定' : '交叉脉冲'
+const nextSectionIndex = computed(() => {
+  const index = coursePlan.value.findIndex(
+    section => section.impactTick > crossingState.value.tick,
+  )
+  return index === -1 ? Math.max(0, coursePlan.value.length - 1) : index
 })
-const collisionLabel = computed(() => (
-  crossingState.value.collisionKind === 'boundary'
-    ? '边界封锁'
-    : '脉冲拦截'
+const nextSection = computed(() => coursePlan.value[nextSectionIndex.value])
+const nextSectionTicks = computed(() => Math.max(
+  0,
+  (nextSection.value?.impactTick ?? crossingState.value.tick)
+    - crossingState.value.tick,
 ))
+const poseLabel = computed(() => {
+  if (crossingState.value.pose === 'jump') return '跳跃中'
+  if (crossingState.value.pose === 'slide') return '下蹲滑行'
+  if (crossingState.value.laneChangeTicks > 0) {
+    return crossingState.value.lane > crossingState.value.laneChangeFrom
+      ? '向右变道'
+      : '向左变道'
+  }
+  return '自动疾行'
+})
+const collisionLabel = computed(() => collisionKindLabel(
+  crossingState.value.collisionKind ?? game.value.collisionKind,
+))
+
+function collisionKindLabel(kind: CollisionKind | null): string {
+  if (kind === 'gap') return '跌入断桥缺口'
+  if (kind === 'barrier') return '撞上封路护栏'
+  if (kind === 'ground') return '撞上地面障碍'
+  if (kind === 'overhead') return '撞上上方障碍'
+  return '疾行中断'
+}
+
+function obstacleLabel(kind: ObstacleKind): string {
+  if (kind === 'ground') return '跳跃'
+  if (kind === 'overhead') return '下蹲'
+  if (kind === 'barrier') return '封路'
+  if (kind === 'gap') return '断桥'
+  return '直行'
+}
 
 function publishSpectatorState(force = false) {
   if (isSpectating.value || !hasTargetSpectators.value) return
@@ -156,8 +197,8 @@ function applySpectatorState(raw: Record<string, unknown>) {
   const candidate = nextState as Record<string, unknown>
   if (
     typeof candidate.tick !== 'number'
-    || typeof candidate.playerX !== 'number'
-    || typeof candidate.playerY !== 'number'
+    || typeof candidate.lane !== 'number'
+    || typeof candidate.pose !== 'string'
   ) return
   clearLoop()
   phase.value = nextPhase as typeof phase.value
@@ -184,6 +225,7 @@ function beginReadySequence() {
   crossingState.value = createCrossingState()
   inputs.value = []
   heldMask.value = 0
+  queuedMask.value = 0
   localElapsedMs.value = 0
   submitError.value = null
   submitted = false
@@ -215,13 +257,14 @@ function frame(timestamp: number) {
   const tickDuration = 1_000 / TICK_RATE
   while (accumulator >= tickDuration && phase.value === 'playing') {
     accumulator -= tickDuration
-    const input = heldMask.value
+    const input = heldMask.value | queuedMask.value
+    queuedMask.value = 0
     inputs.value.push(input)
     crossingState.value = advanceCrossingState(
       crossingState.value,
       input,
-      pulsePlan.value,
-      game.value.profile,
+      coursePlan.value,
+      profile.value,
     )
     localElapsedMs.value = Math.min(
       game.value.durationMs,
@@ -264,7 +307,7 @@ function retrySubmission() {
 }
 
 function keyboardMask(code: string): number {
-  if (code === 'ArrowUp' || code === 'KeyW') return INPUT_UP
+  if (code === 'ArrowUp' || code === 'KeyW' || code === 'Space') return INPUT_UP
   if (code === 'ArrowDown' || code === 'KeyS') return INPUT_DOWN
   if (code === 'ArrowLeft' || code === 'KeyA') return INPUT_LEFT
   if (code === 'ArrowRight' || code === 'KeyD') return INPUT_RIGHT
@@ -272,11 +315,12 @@ function keyboardMask(code: string): number {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (isSpectating.value) return
+  if (isSpectating.value || phase.value !== 'playing') return
   const mask = keyboardMask(event.code)
   if (!mask) return
   event.preventDefault()
   heldMask.value |= mask
+  queuedMask.value |= mask
 }
 
 function onKeyup(event: KeyboardEvent) {
@@ -288,11 +332,12 @@ function onKeyup(event: KeyboardEvent) {
 }
 
 function onControlDown(event: PointerEvent, mask: number) {
-  if (isSpectating.value) return
+  if (isSpectating.value || phase.value !== 'playing') return
   event.preventDefault()
   activePointers.set(event.pointerId, mask)
   ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
   heldMask.value |= mask
+  queuedMask.value |= mask
 }
 
 function onControlUp(event: PointerEvent) {
@@ -304,6 +349,7 @@ function onControlUp(event: PointerEvent) {
 
 function clearInput() {
   heldMask.value = 0
+  queuedMask.value = 0
   activePointers.clear()
 }
 
@@ -317,180 +363,434 @@ function resizeCanvas() {
   drawArena()
 }
 
-function warningGate(side: BoundarySide): number {
-  const verticalEdge = side === 'left' || side === 'right'
-  return verticalEdge ? currentPulse.value.yGate : currentPulse.value.xGate
-}
-
-function drawPulseWarning(
+function drawCover(
   context: CanvasRenderingContext2D,
+  image: HTMLImageElement,
   width: number,
   height: number,
-  scaleX: number,
-  scaleY: number,
-  palette: CriticalCrossingPalette,
 ) {
-  if (!isPulseWarning.value || phase.value !== 'playing') return
-  const pulse = .5 + .2 * Math.sin(crossingState.value.tick * .65)
-  const railWidth = Math.max(8, Math.min(width, height) * .022)
+  const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight)
+  const sourceWidth = width / scale
+  const sourceHeight = height / scale
+  const sourceX = (image.naturalWidth - sourceWidth) / 2
+  const sourceY = (image.naturalHeight - sourceHeight) / 2
+  context.drawImage(
+    image,
+    sourceX,
+    sourceY,
+    sourceWidth,
+    sourceHeight,
+    0,
+    0,
+    width,
+    height,
+  )
+}
 
-  for (const side of BOUNDARY_SIDES) {
-    const verticalEdge = side === 'left' || side === 'right'
-    const scale = verticalEdge ? scaleY : scaleX
-    const span = verticalEdge ? height : width
-    const gateRadius = game.value.profile.safeGateRadius
-    const start = Math.max(0, (warningGate(side) - gateRadius) * scale)
-    const end = Math.min(span, (warningGate(side) + gateRadius) * scale)
-    context.globalAlpha = pulse
-    context.fillStyle = palette.pulse
-    if (verticalEdge) {
-      const x = side === 'left' ? 0 : width - railWidth
-      context.fillRect(x, 0, railWidth, start)
-      context.fillRect(x, end, railWidth, height - end)
-      context.fillStyle = palette.gate
-      context.fillRect(x, start, railWidth, Math.max(0, end - start))
-    } else {
-      const y = side === 'top' ? 0 : height - railWidth
-      context.fillRect(0, y, start, railWidth)
-      context.fillRect(end, y, width - end, railWidth)
-      context.fillStyle = palette.gate
-      context.fillRect(start, y, Math.max(0, end - start), railWidth)
-    }
-    context.globalAlpha = 1
+function projectRoad(
+  ticksAhead: number,
+  width: number,
+  height: number,
+): Projection {
+  const visibleTicks = profile.value.sectionIntervalTicks * 4.1
+  const closeness = Math.max(0, Math.min(1, 1 - ticksAhead / visibleTicks))
+  const depth = .035 + .965 * closeness ** 1.65
+  return {
+    y: height * .265 + depth * height * .59,
+    halfWidth: width * (.045 + depth * .43),
+    scale: .16 + depth * 1.02,
   }
 }
 
-function drawPulseFronts(
+function roadLaneCenter(
+  lane: number,
+  projection: Projection,
+  width: number,
+): number {
+  return width / 2 + lane * projection.halfWidth * .62
+}
+
+function drawBridge(
   context: CanvasRenderingContext2D,
   width: number,
   height: number,
-  scaleX: number,
-  scaleY: number,
   palette: CriticalCrossingPalette,
 ) {
-  context.lineCap = 'round'
-  for (const { side, position, gate } of pulseFronts(
-    pulsePlan.value,
-    crossingState.value.tick,
-    game.value.profile,
-  )) {
-    const verticalEdge = side === 'left' || side === 'right'
-    const front = position * (verticalEdge ? scaleX : scaleY)
-    const gateRadius = game.value.profile.safeGateRadius
-    const gateStart = (gate - gateRadius) * (verticalEdge ? scaleY : scaleX)
-    const gateEnd = (gate + gateRadius) * (verticalEdge ? scaleY : scaleX)
-    context.shadowColor = palette.pulseGlow
-    context.shadowBlur = Math.max(7, Math.min(width, height) * .018)
-    context.strokeStyle = palette.pulse
-    context.lineWidth = Math.max(3, Math.min(width, height) * .007)
-    context.beginPath()
-    if (verticalEdge) {
-      context.moveTo(front, 0)
-      context.lineTo(front, gateStart)
-      context.moveTo(front, gateEnd)
-      context.lineTo(front, height)
-    } else {
-      context.moveTo(0, front)
-      context.lineTo(gateStart, front)
-      context.moveTo(gateEnd, front)
-      context.lineTo(width, front)
-    }
-    context.stroke()
-
-    context.shadowColor = palette.gateGlow
-    context.strokeStyle = palette.gate
-    context.lineWidth *= 1.2
-    context.beginPath()
-    if (verticalEdge) {
-      context.moveTo(front, gateStart)
-      context.lineTo(front, gateEnd)
-    } else {
-      context.moveTo(gateStart, front)
-      context.lineTo(gateEnd, front)
-    }
-    context.stroke()
-  }
-  context.shadowBlur = 0
-  context.lineCap = 'butt'
-}
-
-function drawBoundaryPressure(
-  context: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-  scaleX: number,
-  scaleY: number,
-  palette: CriticalCrossingPalette,
-) {
-  for (const side of BOUNDARY_SIDES) {
-    const pressure = crossingState.value.boundaryPressure[side]
-    const ratio = Math.min(
-      1,
-      pressure / game.value.profile.boundaryPressureLimit,
-    )
-    const zoneDepth = side === 'top' || side === 'bottom'
-      ? BOUNDARY_ZONE_Y * scaleY
-      : BOUNDARY_ZONE_X * scaleX
-    const wallDepth = boundaryWallDepth(pressure, game.value.profile)
-      * (side === 'top' || side === 'bottom' ? scaleY : scaleX)
-
-    context.globalAlpha = .28 + ratio * .72
-    context.fillStyle = palette.boundary
-    if (side === 'top') context.fillRect(0, 0, width, zoneDepth)
-    if (side === 'right') context.fillRect(width - zoneDepth, 0, zoneDepth, height)
-    if (side === 'bottom') context.fillRect(0, height - zoneDepth, width, zoneDepth)
-    if (side === 'left') context.fillRect(0, 0, zoneDepth, height)
-    context.globalAlpha = 1
-
-    if (wallDepth <= 0) continue
-    context.fillStyle = palette.boundaryCritical
-    context.shadowColor = palette.pulseGlow
-    context.shadowBlur = Math.max(10, wallDepth * .7)
-    if (side === 'top') context.fillRect(0, 0, width, wallDepth)
-    if (side === 'right') context.fillRect(width - wallDepth, 0, wallDepth, height)
-    if (side === 'bottom') context.fillRect(0, height - wallDepth, width, wallDepth)
-    if (side === 'left') context.fillRect(0, 0, wallDepth, height)
-    context.shadowBlur = 0
-  }
-}
-
-function drawNavigationCore(
-  context: CanvasRenderingContext2D,
-  scaleX: number,
-  scaleY: number,
-  palette: CriticalCrossingPalette,
-) {
-  const x = crossingState.value.playerX * scaleX
-  const y = crossingState.value.playerY * scaleY
-  const radius = Math.max(6.5, PLAYER_RADIUS * Math.min(scaleX, scaleY))
-  const hitRadius = Math.max(3, PLAYER_HIT_RADIUS * Math.min(scaleX, scaleY))
-  const interrupted = crossingState.value.collisionTick !== null
+  const horizonY = height * .265
+  const bottomY = height * 1.03
+  const horizonHalf = width * .045
+  const bottomHalf = width * .49
+  const deck = context.createLinearGradient(0, horizonY, 0, height)
+  deck.addColorStop(0, palette.deckTop)
+  deck.addColorStop(1, palette.deckBottom)
 
   context.beginPath()
-  context.arc(x, y, radius * 2.1, 0, Math.PI * 2)
-  context.fillStyle = palette.core
-  context.globalAlpha = .42
+  context.moveTo(width / 2 - horizonHalf, horizonY)
+  context.lineTo(width / 2 + horizonHalf, horizonY)
+  context.lineTo(width / 2 + bottomHalf, bottomY)
+  context.lineTo(width / 2 - bottomHalf, bottomY)
+  context.closePath()
+  context.fillStyle = deck
   context.fill()
-  context.globalAlpha = 1
 
+  context.strokeStyle = palette.deckEdge
+  context.lineWidth = Math.max(2, width * .003)
+  context.shadowColor = palette.railGlow
+  context.shadowBlur = width * .012
   context.beginPath()
-  context.arc(x, y, radius, 0, Math.PI * 2)
-  context.fillStyle = interrupted ? palette.pulse : palette.core
-  context.strokeStyle = interrupted ? palette.pulseGlow : palette.coreEdge
-  context.lineWidth = Math.max(1.5, radius * .16)
-  context.shadowColor = interrupted ? palette.pulseGlow : palette.gateGlow
-  context.shadowBlur = radius * 2.6
-  context.fill()
+  context.moveTo(width / 2 - horizonHalf, horizonY)
+  context.lineTo(width / 2 - bottomHalf, bottomY)
+  context.moveTo(width / 2 + horizonHalf, horizonY)
+  context.lineTo(width / 2 + bottomHalf, bottomY)
   context.stroke()
   context.shadowBlur = 0
 
+  for (const divider of [-.31, .31]) {
+    context.strokeStyle = palette.laneMark
+    context.lineWidth = Math.max(1, width * .0016)
+    context.setLineDash([height * .035, height * .027])
+    context.lineDashOffset = crossingState.value.tick * height * .004
+    context.beginPath()
+    context.moveTo(width / 2 + divider * horizonHalf * 2, horizonY)
+    context.lineTo(width / 2 + divider * bottomHalf * 2, bottomY)
+    context.stroke()
+  }
+  context.setLineDash([])
+
+  const seamOffset = (crossingState.value.tick * .017) % 1
+  for (let seam = 0; seam < 13; seam += 1) {
+    const value = (seam / 13 + seamOffset) % 1
+    const curved = value ** 2.25
+    const y = horizonY + curved * (bottomY - horizonY)
+    const half = horizonHalf + curved * (bottomHalf - horizonHalf)
+    context.strokeStyle = palette.deckDetail
+    context.globalAlpha = .18 + curved * .32
+    context.lineWidth = Math.max(1, curved * height * .004)
+    context.beginPath()
+    context.moveTo(width / 2 - half, y)
+    context.lineTo(width / 2 + half, y)
+    context.stroke()
+  }
+  context.globalAlpha = 1
+
+  for (const side of [-1, 1]) {
+    context.strokeStyle = palette.rail
+    context.lineWidth = Math.max(1.5, width * .0022)
+    context.beginPath()
+    context.moveTo(width / 2 + side * horizonHalf, horizonY - height * .018)
+    context.lineTo(width / 2 + side * bottomHalf, bottomY - height * .07)
+    context.stroke()
+    for (let post = 0; post < 10; post += 1) {
+      const value = post / 9
+      const curved = value ** 2
+      const y = horizonY + curved * (bottomY - horizonY)
+      const x = width / 2 + side * (
+        horizonHalf + curved * (bottomHalf - horizonHalf)
+      )
+      const postHeight = height * (.012 + curved * .08)
+      context.beginPath()
+      context.moveTo(x, y)
+      context.lineTo(x, y - postHeight)
+      context.stroke()
+    }
+  }
+}
+
+function drawLanePlatform(
+  context: CanvasRenderingContext2D,
+  lane: RunnerLane,
+  section: CourseSection,
+  projection: Projection,
+  width: number,
+  palette: CriticalCrossingPalette,
+) {
+  const x = roadLaneCenter(lane, projection, width)
+  const laneWidth = projection.halfWidth * .52
+  const platformHeight = 24 * projection.scale
+  const active = section.activeLanes.includes(lane)
+
   context.beginPath()
-  context.arc(x, y, hitRadius, 0, Math.PI * 2)
-  context.fillStyle = palette.coreCenter
-  context.shadowColor = palette.gateGlow
-  context.shadowBlur = hitRadius * 2
+  context.roundRect(
+    x - laneWidth / 2,
+    projection.y - platformHeight / 2,
+    laneWidth,
+    platformHeight,
+    Math.max(2, 5 * projection.scale),
+  )
+  context.fillStyle = active ? palette.deckTop : palette.gap
+  context.globalAlpha = active ? .94 : .9
   context.fill()
+  context.globalAlpha = 1
+  context.strokeStyle = active ? palette.deckEdge : palette.barrier
+  context.lineWidth = Math.max(1, 2 * projection.scale)
+  context.stroke()
+}
+
+function drawObstacle(
+  context: CanvasRenderingContext2D,
+  lane: RunnerLane,
+  kind: ObstacleKind,
+  projection: Projection,
+  width: number,
+  palette: CriticalCrossingPalette,
+) {
+  if (kind === 'clear' || kind === 'gap') return
+  const x = roadLaneCenter(lane, projection, width)
+  const laneWidth = projection.halfWidth * .49
+  const scale = projection.scale
+  context.save()
+  context.translate(x, projection.y)
+  context.lineJoin = 'round'
+  context.lineCap = 'round'
+
+  if (kind === 'ground') {
+    const height = 23 * scale
+    context.fillStyle = palette.groundObstacle
+    context.shadowColor = palette.groundObstacle
+    context.shadowBlur = 10 * scale
+    context.fillRect(-laneWidth * .38, -height, laneWidth * .76, height)
+    context.fillStyle = palette.copy
+    for (let stripe = -2; stripe <= 2; stripe += 1) {
+      context.save()
+      context.translate(stripe * laneWidth * .13, -height / 2)
+      context.rotate(-.55)
+      context.fillRect(-2 * scale, -height * .5, 4 * scale, height)
+      context.restore()
+    }
+  } else if (kind === 'overhead') {
+    const top = -68 * scale
+    context.strokeStyle = palette.overheadObstacle
+    context.lineWidth = Math.max(2, 6 * scale)
+    context.shadowColor = palette.overheadObstacle
+    context.shadowBlur = 11 * scale
+    context.beginPath()
+    context.moveTo(-laneWidth * .38, 2 * scale)
+    context.lineTo(-laneWidth * .38, top)
+    context.lineTo(laneWidth * .38, top)
+    context.lineTo(laneWidth * .38, 2 * scale)
+    context.stroke()
+    context.fillStyle = palette.overheadObstacle
+    context.fillRect(-laneWidth * .42, top - 5 * scale, laneWidth * .84, 13 * scale)
+  } else {
+    const obstacleHeight = 52 * scale
+    context.fillStyle = palette.barrier
+    context.strokeStyle = palette.copy
+    context.lineWidth = Math.max(1, 3 * scale)
+    context.shadowColor = palette.barrierGlow
+    context.shadowBlur = 13 * scale
+    context.beginPath()
+    context.roundRect(
+      -laneWidth * .4,
+      -obstacleHeight,
+      laneWidth * .8,
+      obstacleHeight,
+      5 * scale,
+    )
+    context.fill()
+    context.beginPath()
+    context.moveTo(-laneWidth * .25, -obstacleHeight * .8)
+    context.lineTo(laneWidth * .25, -obstacleHeight * .2)
+    context.moveTo(laneWidth * .25, -obstacleHeight * .8)
+    context.lineTo(-laneWidth * .25, -obstacleHeight * .2)
+    context.stroke()
+  }
+  context.restore()
+}
+
+function drawCourse(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  palette: CriticalCrossingPalette,
+) {
+  const visible = coursePlan.value
+    .map(section => ({
+      section,
+      ticksAhead: section.impactTick - crossingState.value.tick,
+    }))
+    .filter(item => item.ticksAhead >= -3
+      && item.ticksAhead <= profile.value.sectionIntervalTicks * 4.1)
+    .sort((a, b) => b.ticksAhead - a.ticksAhead)
+
+  for (const { section, ticksAhead } of visible) {
+    const projection = projectRoad(ticksAhead, width, height)
+    for (const lane of RUNNER_LANES) {
+      drawLanePlatform(context, lane, section, projection, width, palette)
+    }
+    for (const lane of RUNNER_LANES) {
+      drawObstacle(
+        context,
+        lane,
+        section.obstacles[lane + 1],
+        projection,
+        width,
+        palette,
+      )
+    }
+
+    context.save()
+    context.translate(width / 2, projection.y - 82 * projection.scale)
+    context.fillStyle = palette.copy
+    context.globalAlpha = Math.min(1, .38 + projection.scale * .45)
+    context.font = `800 ${Math.max(7, 10 * projection.scale)}px ui-sans-serif`
+    context.textAlign = 'center'
+    context.fillText(`${section.branchCount} 路`, 0, 0)
+    context.restore()
+  }
+}
+
+function drawLimb(
+  context: CanvasRenderingContext2D,
+  points: readonly [number, number][],
+  color: string,
+  width: number,
+) {
+  context.strokeStyle = color
+  context.lineWidth = width
+  context.lineCap = 'round'
+  context.lineJoin = 'round'
+  context.beginPath()
+  context.moveTo(points[0]![0], points[0]![1])
+  for (const [x, y] of points.slice(1)) context.lineTo(x, y)
+  context.stroke()
+}
+
+function drawRunner(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  palette: CriticalCrossingPalette,
+) {
+  const state = crossingState.value
+  const lanePosition = runnerLanePosition(state, profile.value)
+  const laneSpan = width * .268
+  const groundY = height * .86
+  const poseProgress = runnerPoseProgress(state, profile.value)
+  const jumpHeight = state.pose === 'jump'
+    ? Math.sin(Math.PI * poseProgress) * height * .17
+    : 0
+  const slideDrop = state.pose === 'slide' ? height * .025 : 0
+  const x = width / 2 + lanePosition * laneSpan
+  const y = groundY - jumpHeight + slideDrop
+  const scale = Math.max(.66, Math.min(1.3, height / 570))
+  const runSwing = Math.sin(state.tick * .57) * 17
+  const changeDirection = Math.sign(state.lane - state.laneChangeFrom)
+  const laneProgress = state.laneChangeTicks > 0
+    ? 1 - state.laneChangeTicks / profile.value.laneChangeTicks
+    : 0
+  const lean = changeDirection * Math.sin(Math.PI * laneProgress) * .16
+  const interrupted = state.collisionTick !== null
+
+  context.save()
+  context.translate(x, groundY + 7 * scale)
+  context.scale(1 - jumpHeight / height * .65, .28)
+  context.beginPath()
+  context.ellipse(0, 0, 30 * scale, 13 * scale, 0, 0, Math.PI * 2)
+  context.fillStyle = palette.shadow
+  context.globalAlpha = state.pose === 'jump' ? .28 : .62
+  context.fill()
+  context.restore()
+
+  context.save()
+  context.translate(x, y)
+  context.scale(scale, scale)
+  context.rotate(interrupted ? .42 : lean)
+  context.shadowColor = palette.shadow
+  context.shadowBlur = 12
+
+  if (state.pose === 'slide') {
+    drawLimb(context, [[-2, -20], [16, -8], [39, -2]], palette.runnerBody, 11)
+    drawLimb(context, [[-5, -18], [-17, -5], [-5, 1]], palette.runnerBody, 11)
+    context.save()
+    context.translate(0, -38)
+    context.rotate(-.9)
+    context.fillStyle = palette.runnerBody
+    context.strokeStyle = palette.runnerEdge
+    context.lineWidth = 2.5
+    context.beginPath()
+    context.roundRect(-13, -25, 27, 48, 9)
+    context.fill()
+    context.stroke()
+    context.fillStyle = palette.runnerAccent
+    context.fillRect(-13, 7, 27, 8)
+    context.restore()
+    drawLimb(context, [[-2, -51], [-21, -37], [-34, -28]], palette.runnerSkin, 7)
+    context.beginPath()
+    context.arc(-18, -66, 13, 0, Math.PI * 2)
+    context.fillStyle = palette.runnerSkin
+    context.fill()
+  } else {
+    const tuck = state.pose === 'jump' ? 18 * Math.sin(Math.PI * poseProgress) : 0
+    drawLimb(
+      context,
+      [[-7, -35], [-11 - runSwing * .55, -17 - tuck], [-runSwing, 2 - tuck]],
+      palette.runnerBody,
+      11,
+    )
+    drawLimb(
+      context,
+      [[7, -35], [11 + runSwing * .55, -17 - tuck], [runSwing, 2 - tuck]],
+      palette.runnerBody,
+      11,
+    )
+    drawLimb(context, [[-10, -68], [runSwing * .55, -48], [runSwing * .8, -32]], palette.runnerSkin, 7)
+    drawLimb(context, [[10, -68], [-runSwing * .55, -48], [-runSwing * .8, -32]], palette.runnerSkin, 7)
+
+    context.fillStyle = palette.runnerBody
+    context.strokeStyle = palette.runnerEdge
+    context.lineWidth = 2.5
+    context.beginPath()
+    context.roundRect(-15, -81, 30, 50, 10)
+    context.fill()
+    context.stroke()
+    context.fillStyle = palette.runnerAccent
+    context.beginPath()
+    context.moveTo(-15, -54)
+    context.lineTo(15, -65)
+    context.lineTo(15, -51)
+    context.lineTo(-15, -40)
+    context.closePath()
+    context.fill()
+
+    context.beginPath()
+    context.arc(0, -99, 14, 0, Math.PI * 2)
+    context.fillStyle = palette.runnerSkin
+    context.fill()
+    context.strokeStyle = palette.runnerEdge
+    context.stroke()
+    context.fillStyle = palette.runnerBody
+    context.beginPath()
+    context.arc(-2, -104, 14, Math.PI, Math.PI * 2)
+    context.lineTo(12, -98)
+    context.lineTo(-13, -99)
+    context.closePath()
+    context.fill()
+  }
   context.shadowBlur = 0
+  context.restore()
+}
+
+function drawSpeedLines(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  palette: CriticalCrossingPalette,
+) {
+  if (phase.value !== 'playing') return
+  context.strokeStyle = palette.copy
+  context.lineWidth = Math.max(1, width * .001)
+  for (let index = 0; index < 14; index += 1) {
+    const side = index % 2 === 0 ? -1 : 1
+    const cycle = ((crossingState.value.tick * .035 + index * .137) % 1) ** 1.8
+    const y = height * (.32 + cycle * .6)
+    const x = width / 2 + side * width * (.12 + cycle * .42)
+    context.globalAlpha = .06 + cycle * .24
+    context.beginPath()
+    context.moveTo(x, y)
+    context.lineTo(x + side * width * .035, y + height * .055)
+    context.stroke()
+  }
+  context.globalAlpha = 1
 }
 
 function drawArena() {
@@ -499,44 +799,26 @@ function drawArena() {
   if (!element || !context) return
   const width = element.width
   const height = element.height
-  const scaleX = width / BOARD_WIDTH
-  const scaleY = height / BOARD_HEIGHT
   const palette = criticalCrossingPalette(currentTheme.value)
   context.clearRect(0, 0, width, height)
 
-  const background = context.createRadialGradient(
-    width / 2,
-    height / 2,
-    0,
-    width / 2,
-    height / 2,
-    Math.max(width, height) * .72,
-  )
-  background.addColorStop(0, palette.center)
-  background.addColorStop(1, palette.edge)
-  context.fillStyle = background
+  if (backdropImage.complete && backdropImage.naturalWidth > 0) {
+    drawCover(context, backdropImage, width, height)
+  } else {
+    const fallback = context.createLinearGradient(0, 0, 0, height)
+    fallback.addColorStop(0, '#397d9a')
+    fallback.addColorStop(.48, '#f4a776')
+    fallback.addColorStop(1, '#0a1c2c')
+    context.fillStyle = fallback
+    context.fillRect(0, 0, width, height)
+  }
+  context.fillStyle = palette.atmosphere
   context.fillRect(0, 0, width, height)
 
-  context.strokeStyle = palette.grid
-  context.lineWidth = Math.max(1, width / 900)
-  const grid = width / 12
-  for (let x = 0; x < width; x += grid) {
-    context.beginPath()
-    context.moveTo(x, 0)
-    context.lineTo(x, height)
-    context.stroke()
-  }
-  for (let y = 0; y < height; y += grid) {
-    context.beginPath()
-    context.moveTo(0, y)
-    context.lineTo(width, y)
-    context.stroke()
-  }
-
-  drawBoundaryPressure(context, width, height, scaleX, scaleY, palette)
-  drawPulseWarning(context, width, height, scaleX, scaleY, palette)
-  drawPulseFronts(context, width, height, scaleX, scaleY, palette)
-  drawNavigationCore(context, scaleX, scaleY, palette)
+  drawBridge(context, width, height, palette)
+  drawCourse(context, width, height, palette)
+  drawSpeedLines(context, width, height, palette)
+  drawRunner(context, width, height, palette)
 }
 
 async function restartChallenge() {
@@ -544,10 +826,22 @@ async function restartChallenge() {
   await arcade.restartGame()
 }
 
+async function returnToMain() {
+  if (returning.value) return
+  returning.value = true
+  const returned = isSpectating.value || props.snapshot.phase === 'finished'
+    ? await arcade.leaveRoom()
+    : await arcade.abandonRoom()
+  if (returned) await router.push({ name: 'hall' })
+  else returning.value = false
+}
+
 watch(
   () => arcade.spectatorFrame,
-  (frame) => {
-    if (isSpectating.value && frame) applySpectatorState(frame.state)
+  (spectatorFrame) => {
+    if (isSpectating.value && spectatorFrame) {
+      applySpectatorState(spectatorFrame.state)
+    }
   },
 )
 
@@ -575,6 +869,7 @@ watch(
 watch(currentTheme, () => drawArena())
 
 onMounted(() => {
+  backdropImage.addEventListener('load', drawArena)
   if (!isSpectating.value) {
     window.addEventListener('keydown', onKeydown, { passive: false })
     window.addEventListener('keyup', onKeyup, { passive: false })
@@ -583,12 +878,15 @@ onMounted(() => {
   window.addEventListener('resize', resizeCanvas)
   nextTick(() => {
     resizeCanvas()
-    if (props.snapshot.phase === 'playing' && !isSpectating.value) beginReadySequence()
+    if (props.snapshot.phase === 'playing' && !isSpectating.value) {
+      beginReadySequence()
+    }
   })
 })
 
 onBeforeUnmount(() => {
   clearLoop()
+  backdropImage.removeEventListener('load', drawArena)
   window.removeEventListener('keydown', onKeydown)
   window.removeEventListener('keyup', onKeyup)
   window.removeEventListener('blur', clearInput)
@@ -599,46 +897,55 @@ onBeforeUnmount(() => {
 <template>
   <section class="crossing-game">
     <header class="surface crossing-status">
-      <span class="crossing-status-mark"><ScanLine :size="24" /></span>
+      <span class="crossing-status-mark"><Footprints :size="25" /></span>
       <div class="crossing-status-copy">
-        <small>CRITICAL CROSSING · {{ game.difficultyLabel }}</small>
-        <strong>{{ durationSeconds }} 秒临界场</strong>
+        <small>MATH RUNNER · {{ game.difficultyLabel }}</small>
+        <strong>算途疾行 · 云桥赛道</strong>
       </div>
-      <div class="crossing-pulse-track" :aria-label="`共 ${game.pulseCount} 轮脉冲`">
+      <div class="crossing-section-track" :aria-label="`共 ${sectionCount} 段桥面`">
         <i
-          v-for="pulse in game.pulseCount"
-          :key="pulse"
+          v-for="section in sectionCount"
+          :key="section"
           :class="{
-            complete: pulse - 1 < pulseIndex,
-            current: pulse - 1 === pulseIndex && phase === 'playing',
+            complete: section <= crossingState.passedSections,
+            current: section - 1 === nextSectionIndex && phase === 'playing',
           }"
         />
       </div>
+      <button
+        class="return-main"
+        type="button"
+        :disabled="returning || arcade.busy"
+        @click="returnToMain"
+      >
+        <House :size="17" />
+        返回主界面
+      </button>
     </header>
 
     <SoloMetricGrid
-      aria-label="临界穿越状态"
+      aria-label="算途疾行状态"
       :items="[
-        { label: '剩余时间', value: `${remainingLabel} 秒`, tone: remainingMs < 1_000 ? 'danger' : 'warning' },
-        { label: '当前序列', value: `${pulseIndex + 1} / ${game.pulseCount}` },
-        { label: '临界场状态', value: fieldStatus },
+        { label: '前进距离', value: `${distanceMeters} 米`, tone: 'success' },
+        { label: '桥面进度', value: `${crossingState.passedSections} / ${sectionCount}` },
+        { label: '人物动作', value: poseLabel, tone: crossingState.pose === 'run' ? undefined : 'warning' },
       ]"
     />
 
     <section class="crossing-arena surface" :class="`phase-${phase}`">
-      <canvas ref="canvas" aria-label="临界穿越脉冲屏障区域" />
+      <canvas ref="canvas" aria-label="算途疾行三轨云桥跑酷区域" />
 
       <div v-if="phase === 'ready'" class="arena-overlay ready-overlay">
-        <small>方向键 / WASD / 触屏方向盘</small>
+        <small>电脑键盘 · A/D 变道 · W 跳跃 · S 下蹲</small>
         <strong>{{ readyCount }}</strong>
-        <span>读取缺口，准备穿越</span>
+        <span>双脚开跑，观察前方分叉与上下障碍</span>
       </div>
 
       <div v-else-if="phase === 'submitting'" class="arena-overlay result-overlay">
-        <CircleX v-if="crossingState.collisionTick !== null" :size="34" />
-        <ShieldCheck v-else :size="34" />
-        <strong>{{ crossingState.collisionTick !== null ? collisionLabel : '轨迹完整' }}</strong>
-        <span>{{ submitError || `正在校验 ${inputs.length} 帧穿越轨迹…` }}</span>
+        <CircleX v-if="crossingState.collisionTick !== null" :size="36" />
+        <ShieldCheck v-else :size="36" />
+        <strong>{{ crossingState.collisionTick !== null ? collisionLabel : '抵达终点' }}</strong>
+        <span>{{ submitError || `正在校验 ${inputs.length} 帧键盘轨迹…` }}</span>
         <button v-if="submitError" type="button" @click="retrySubmission">重新校验</button>
       </div>
 
@@ -647,103 +954,100 @@ onBeforeUnmount(() => {
         class="arena-overlay finished-overlay"
         :class="{ crossed: game.crossed }"
       >
-        <Sparkles v-if="game.crossed" :size="38" />
-        <CircleX v-else :size="38" />
-        <strong>{{ game.crossed ? `${durationSeconds} 秒穿越完成` : '穿越中断' }}</strong>
+        <Sparkles v-if="game.crossed" :size="40" />
+        <CircleX v-else :size="40" />
+        <strong>{{ game.crossed ? `${resultDistanceMeters} 米疾行完成` : '本次疾行中断' }}</strong>
         <span>{{ snapshot.winReason }}</span>
       </div>
 
       <div v-if="phase === 'playing'" class="arena-timer" aria-live="polite">
-        <small>TIME TO GATE</small><strong>{{ remainingLabel }}</strong>
+        <small>BRIDGE RUN</small><strong>{{ remainingLabel }}</strong>
       </div>
 
       <div
-        v-if="phase === 'playing' && isPulseWarning"
-        class="pulse-warning"
+        v-if="phase !== 'finished' && phase !== 'submitting' && nextSection"
+        class="fork-radar"
         aria-live="polite"
       >
-        <small>序列 {{ String(pulseIndex + 1).padStart(2, '0') }}</small>
-        <strong>交叉脉冲标定中</strong>
-        <span>青色边缘标记安全缺口</span>
+        <span>{{ nextSection.branchCount }}</span>
+        <div>
+          <small>前方分叉</small>
+          <strong>{{ (nextSectionTicks / TICK_RATE).toFixed(1) }} 秒抵达</strong>
+        </div>
       </div>
 
       <div
-        v-if="phase === 'playing' && peakBoundaryPressure > 0"
-        class="boundary-pressure"
-        :class="{ critical: boundaryPressurePercent >= 100 }"
-        aria-live="polite"
+        v-if="phase !== 'finished' && phase !== 'submitting' && nextSection"
+        class="obstacle-radar"
       >
-        <small>{{ boundaryPressurePercent >= 100 ? '边界封锁启动' : '离开边界' }}</small>
-        <strong>{{ boundaryPressurePercent }}%</strong>
-        <i><span :style="{ width: `${boundaryPressurePercent}%` }" /></i>
+        <span
+          v-for="(kind, index) in nextSection.obstacles"
+          :key="index"
+          :class="`obstacle-${kind}`"
+        >{{ obstacleLabel(kind) }}</span>
       </div>
     </section>
 
-    <div v-if="snapshot.phase === 'playing'" class="crossing-controls" aria-label="触屏方向控制">
+    <div v-if="snapshot.phase === 'playing'" class="runner-controls" aria-label="跑酷动作控制">
       <button
-        class="control-up"
         type="button"
         :disabled="isSpectating"
-        aria-label="向上移动"
-        @pointerdown="onControlDown($event, INPUT_UP)"
-        @pointerup="onControlUp"
-        @pointercancel="onControlUp"
-        @lostpointercapture="onControlUp"
-      ><ArrowUp :size="25" /></button>
-      <button
-        class="control-left"
-        type="button"
-        :disabled="isSpectating"
-        aria-label="向左移动"
+        aria-label="向左变道"
         @pointerdown="onControlDown($event, INPUT_LEFT)"
         @pointerup="onControlUp"
         @pointercancel="onControlUp"
         @lostpointercapture="onControlUp"
-      ><ArrowLeft :size="25" /></button>
-      <span><i />导航</span>
+      ><ArrowLeft :size="23" /><span><kbd>A</kbd> 左变道</span></button>
       <button
-        class="control-right"
         type="button"
         :disabled="isSpectating"
-        aria-label="向右移动"
-        @pointerdown="onControlDown($event, INPUT_RIGHT)"
+        aria-label="跳跃"
+        @pointerdown="onControlDown($event, INPUT_UP)"
         @pointerup="onControlUp"
         @pointercancel="onControlUp"
         @lostpointercapture="onControlUp"
-      ><ArrowRight :size="25" /></button>
+      ><ArrowUp :size="23" /><span><kbd>W</kbd> 跳跃</span></button>
       <button
-        class="control-down"
         type="button"
         :disabled="isSpectating"
-        aria-label="向下移动"
+        aria-label="下蹲滑行"
         @pointerdown="onControlDown($event, INPUT_DOWN)"
         @pointerup="onControlUp"
         @pointercancel="onControlUp"
         @lostpointercapture="onControlUp"
-      ><ArrowDown :size="25" /></button>
+      ><ArrowDown :size="23" /><span><kbd>S</kbd> 下蹲</span></button>
+      <button
+        type="button"
+        :disabled="isSpectating"
+        aria-label="向右变道"
+        @pointerdown="onControlDown($event, INPUT_RIGHT)"
+        @pointerup="onControlUp"
+        @pointercancel="onControlUp"
+        @lostpointercapture="onControlUp"
+      ><ArrowRight :size="23" /><span><kbd>D</kbd> 右变道</span></button>
     </div>
 
     <p class="crossing-hint">
-      <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 或 <kbd>WASD</kbd>
-      移动 · 提前进入青色缺口，贴边约 {{ boundaryLockLabel }} 秒会触发封锁
+      人物会自动向前跑：<kbd>A</kbd><kbd>D</kbd> 左右变道，<kbd>W</kbd>/<kbd>空格</kbd>
+      跳过地面障碍，<kbd>S</kbd> 下蹲避开上方障碍
     </p>
 
     <SoloResultCard
       v-if="snapshot.phase === 'finished'"
-      :eyebrow="game.crossed ? '临界场已穿越' : collisionLabel"
-      :title="game.crossed ? '导航核心安全通过' : '重新读取下一处缺口'"
-      :score="(game.elapsedMs / 1_000).toFixed(2)"
-      score-unit="秒"
+      :eyebrow="game.crossed ? '云桥疾行完成' : collisionLabel"
+      :title="game.crossed ? '双脚跑过整段算途' : '观察分叉，再跑一次'"
+      :score="resultDistanceMeters"
+      score-unit="米"
       :description="snapshot.winReason"
       :tone="game.crossed ? 'success' : 'danger'"
       :metrics="[
         { label: '挑战模式', value: `${game.difficultyLabel} · ${durationSeconds} 秒` },
-        { label: '轨迹结果', value: game.crossed ? '完整穿越' : collisionLabel },
+        { label: '通过桥段', value: `${resultPassedSections} / ${sectionCount}` },
         { label: '服务端校验', value: `${game.tickRate} Hz` },
       ]"
       :can-restart="snapshot.actions.canRestart"
       :busy="arcade.busy"
-      restart-label="重新穿越"
+      restart-label="重新起跑"
       @restart="restartChallenge"
     />
   </section>
@@ -751,8 +1055,8 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .crossing-game {
-  --cross-accent: var(--accent);
-  width: min(100%, 920px);
+  --runner-accent: #ff7a48;
+  width: min(100%, 1080px);
   display: grid;
   gap: 14px;
   margin: 0 auto;
@@ -760,11 +1064,11 @@ onBeforeUnmount(() => {
 
 .crossing-status {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 13px;
-  padding: 13px 15px;
-  border-color: color-mix(in srgb, var(--cross-accent) 24%, var(--line));
+  padding: 12px 14px;
+  border-color: color-mix(in srgb, var(--runner-accent) 25%, var(--line));
 }
 
 .crossing-status-mark {
@@ -772,50 +1076,69 @@ onBeforeUnmount(() => {
   aspect-ratio: 1;
   display: grid;
   place-items: center;
-  border: 1px solid color-mix(in srgb, var(--cross-accent) 38%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--runner-accent) 42%, var(--line));
   border-radius: 15px;
-  color: var(--cross-accent);
-  background: color-mix(in srgb, var(--cross-accent) 9%, var(--surface-inset));
-  box-shadow: inset 0 1px 0 color-mix(in srgb, white 14%, transparent);
+  color: var(--runner-accent);
+  background: color-mix(in srgb, var(--runner-accent) 10%, var(--surface-inset));
 }
 
 .crossing-status-copy { min-width: 0; }
 .crossing-status-copy small,
 .crossing-status-copy strong { display: block; }
 .crossing-status-copy small {
-  color: var(--cross-accent);
+  color: var(--runner-accent);
   font-size: 8px;
-  font-weight: 900;
-  letter-spacing: .12em;
+  font-weight: 950;
+  letter-spacing: .14em;
 }
 .crossing-status-copy strong { margin-top: 4px; font-size: 17px; }
 
-.crossing-pulse-track { display: flex; gap: 5px; }
-.crossing-pulse-track i {
-  width: 13px;
+.crossing-section-track { display: flex; gap: 5px; }
+.crossing-section-track i {
+  width: 12px;
   height: 4px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--muted) 26%, transparent);
 }
-.crossing-pulse-track i.complete { background: color-mix(in srgb, var(--cross-accent) 55%, var(--line)); }
-.crossing-pulse-track i.current {
-  width: 24px;
-  background: var(--cross-accent);
-  box-shadow: 0 0 13px color-mix(in srgb, var(--cross-accent) 72%, transparent);
+.crossing-section-track i.complete { background: color-mix(in srgb, var(--accent) 70%, var(--line)); }
+.crossing-section-track i.current {
+  width: 23px;
+  background: var(--runner-accent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--runner-accent) 68%, transparent);
 }
+
+.return-main {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid color-mix(in srgb, var(--runner-accent) 38%, var(--line));
+  border-radius: 11px;
+  padding: 0 12px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--runner-accent) 9%, var(--surface-inset));
+  font-size: 10px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.return-main:hover { border-color: var(--runner-accent); color: var(--runner-accent); }
+.return-main:disabled { cursor: wait; opacity: .56; }
 
 .crossing-arena {
   position: relative;
-  aspect-ratio: 20 / 13;
+  aspect-ratio: 16 / 9;
   overflow: hidden;
-  border-color: color-mix(in srgb, var(--cross-accent) 32%, var(--line));
-  background: var(--surface-inset);
-  box-shadow: var(--shadow-raised), inset 0 0 70px color-mix(in srgb, var(--bg) 64%, transparent);
+  border-color: color-mix(in srgb, var(--runner-accent) 38%, var(--line));
+  background: #0a1c2c;
+  box-shadow: var(--shadow-raised), inset 0 0 90px rgba(0, 13, 25, .5);
+  isolation: isolate;
 }
 .crossing-arena::after {
   position: absolute;
+  z-index: 6;
   inset: 7px;
-  border: 1px solid color-mix(in srgb, var(--cross-accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, white 18%, transparent);
   border-radius: calc(var(--radius-panel) - 7px);
   content: '';
   pointer-events: none;
@@ -824,172 +1147,160 @@ onBeforeUnmount(() => {
 
 .arena-overlay {
   position: absolute;
-  z-index: 3;
+  z-index: 5;
   inset: 0;
   display: grid;
   place-items: center;
   align-content: center;
   gap: 8px;
   padding: 24px;
+  color: #f7fbff;
   text-align: center;
-  background: color-mix(in srgb, var(--surface-primary) 72%, transparent);
-  backdrop-filter: blur(7px);
+  background: linear-gradient(180deg, rgba(4, 20, 34, .34), rgba(4, 14, 25, .74));
+  backdrop-filter: blur(3px);
 }
 .arena-overlay small {
-  color: var(--cross-accent);
+  color: #ffc09e;
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 950;
   letter-spacing: .12em;
 }
 .arena-overlay strong { font-family: "Songti SC", "STSong", serif; }
 .ready-overlay strong {
-  color: var(--cross-accent);
-  font-size: clamp(72px, 16vw, 126px);
-  line-height: .9;
-  text-shadow: 0 0 35px color-mix(in srgb, var(--cross-accent) 50%, transparent);
+  color: #ff8b5d;
+  font-size: clamp(72px, 16vw, 132px);
+  line-height: .88;
+  text-shadow: 0 0 38px rgba(255, 119, 70, .65);
 }
-.ready-overlay span { color: var(--text-soft); font-weight: 850; letter-spacing: .12em; }
+.ready-overlay span { color: #e7f4ff; font-weight: 850; letter-spacing: .08em; }
 .result-overlay svg,
-.finished-overlay svg { color: var(--red); filter: drop-shadow(0 0 14px color-mix(in srgb, var(--red) 48%, transparent)); }
+.finished-overlay svg { color: #ff6b78; filter: drop-shadow(0 0 14px rgba(255, 80, 99, .55)); }
 .result-overlay strong,
-.finished-overlay strong { color: var(--text); font-size: clamp(30px, 6vw, 52px); }
+.finished-overlay strong { font-size: clamp(30px, 6vw, 54px); }
 .result-overlay span,
-.finished-overlay span { max-width: 480px; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.finished-overlay span { max-width: 500px; color: #d4e4f0; font-size: 11px; line-height: 1.7; }
+.finished-overlay.crossed svg { color: #67e0cf; }
 .result-overlay button {
-  min-width: 112px;
   margin-top: 7px;
-  border: 1px solid color-mix(in srgb, var(--red) 48%, var(--line));
+  border: 1px solid rgba(255, 107, 120, .65);
   border-radius: 11px;
-  padding: 10px 15px;
-  color: var(--text);
-  background: color-mix(in srgb, var(--red) 12%, var(--surface-elevated));
+  padding: 10px 16px;
+  color: white;
+  background: rgba(255, 107, 120, .14);
   font-weight: 850;
   cursor: pointer;
 }
-.finished-overlay.crossed svg { color: var(--cross-accent); }
 
 .arena-timer {
   position: absolute;
-  z-index: 2;
-  top: 14px;
+  z-index: 3;
+  top: 15px;
   left: 50%;
   display: grid;
   justify-items: center;
-  border: 1px solid color-mix(in srgb, var(--cross-accent) 20%, var(--line));
+  border: 1px solid rgba(255, 255, 255, .24);
   border-radius: 999px;
-  padding: 6px 14px;
-  color: var(--text);
-  background: color-mix(in srgb, var(--surface-primary) 72%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, white 12%, transparent);
+  padding: 6px 15px;
+  color: white;
+  background: rgba(5, 20, 33, .68);
   transform: translateX(-50%);
   backdrop-filter: blur(9px);
 }
-.arena-timer small { color: var(--red); font-size: 7px; font-weight: 950; letter-spacing: .18em; }
+.arena-timer small { color: #ff9a70; font-size: 7px; font-weight: 950; letter-spacing: .18em; }
 .arena-timer strong { font-size: 18px; font-variant-numeric: tabular-nums; }
 
-.pulse-warning {
+.fork-radar {
   position: absolute;
-  z-index: 2;
+  z-index: 3;
   top: 15px;
   left: 15px;
-  display: grid;
-  gap: 2px;
-  border: 1px solid color-mix(in srgb, var(--cross-accent) 42%, var(--line));
-  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgba(103, 224, 207, .52);
+  border-radius: 13px;
   padding: 8px 11px;
-  color: var(--text);
-  background: color-mix(in srgb, var(--surface-primary) 78%, transparent);
+  color: white;
+  background: rgba(5, 20, 33, .7);
   backdrop-filter: blur(9px);
 }
-.pulse-warning small { color: var(--cross-accent); font-size: 7px; font-weight: 950; letter-spacing: .12em; }
-.pulse-warning strong { font-size: 11px; }
-.pulse-warning span { color: var(--muted); font-size: 8px; }
+.fork-radar > span {
+  width: 32px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: #062229;
+  background: #67e0cf;
+  font-size: 18px;
+  font-weight: 950;
+}
+.fork-radar div { display: grid; gap: 2px; }
+.fork-radar small { color: #9fc9d5; font-size: 7px; font-weight: 900; letter-spacing: .1em; }
+.fork-radar strong { font-size: 10px; }
 
-.boundary-pressure {
+.obstacle-radar {
   position: absolute;
-  z-index: 2;
+  z-index: 3;
   right: 15px;
   bottom: 15px;
-  width: 132px;
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 4px 8px;
-  border: 1px solid color-mix(in srgb, var(--accent) 48%, var(--line));
-  border-radius: 11px;
-  padding: 8px 10px;
-  color: color-mix(in srgb, var(--accent) 72%, var(--text));
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface-primary));
+  grid-template-columns: repeat(3, minmax(44px, 1fr));
+  gap: 5px;
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 12px;
+  padding: 6px;
+  background: rgba(5, 20, 33, .7);
   backdrop-filter: blur(9px);
 }
-.boundary-pressure small { align-self: end; font-size: 8px; font-weight: 900; }
-.boundary-pressure strong { font-size: 15px; font-variant-numeric: tabular-nums; }
-.boundary-pressure i {
-  grid-column: 1 / -1;
-  height: 3px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--muted) 22%, transparent);
+.obstacle-radar span {
+  border-radius: 8px;
+  padding: 6px 7px;
+  color: white;
+  background: rgba(103, 224, 207, .22);
+  font-size: 8px;
+  font-weight: 900;
+  text-align: center;
 }
-.boundary-pressure i span { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
-.boundary-pressure.critical {
-  border-color: color-mix(in srgb, var(--red) 70%, var(--line));
-  color: var(--red);
-  background: color-mix(in srgb, var(--red) 13%, var(--surface-primary));
-}
-.boundary-pressure.critical i span { background: var(--red); }
+.obstacle-radar .obstacle-barrier,
+.obstacle-radar .obstacle-gap { background: rgba(255, 84, 105, .3); }
+.obstacle-radar .obstacle-ground { background: rgba(255, 196, 91, .32); }
+.obstacle-radar .obstacle-overhead { background: rgba(103, 224, 207, .32); }
 
-.crossing-controls {
-  width: min(100%, 330px);
+.runner-controls {
+  width: min(100%, 680px);
   display: grid;
-  grid-template: repeat(3, 56px) / repeat(3, 56px);
-  justify-content: center;
-  gap: 6px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
   margin: 0 auto;
   user-select: none;
   touch-action: none;
 }
-.crossing-controls button {
-  display: grid;
-  place-items: center;
-  border: 1px solid color-mix(in srgb, var(--cross-accent) 34%, var(--line));
-  border-radius: 15px;
-  color: color-mix(in srgb, var(--cross-accent) 78%, var(--text));
+.runner-controls button {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--runner-accent) 34%, var(--line));
+  border-radius: 14px;
+  color: var(--text);
   background: var(--control-surface), var(--surface-inset);
   box-shadow: var(--shadow-contact), inset 0 1px 0 color-mix(in srgb, white 16%, transparent);
   touch-action: none;
   cursor: pointer;
 }
-.crossing-controls button:active {
-  border-color: var(--cross-accent);
-  color: var(--accent-contrast);
-  background: var(--cross-accent);
-  transform: scale(.95);
+.runner-controls button:active {
+  color: white;
+  background: var(--runner-accent);
+  transform: translateY(2px);
 }
-.control-up { grid-area: 1 / 2; }
-.control-left { grid-area: 2 / 1; }
-.control-right { grid-area: 2 / 3; }
-.control-down { grid-area: 3 / 2; }
-.crossing-controls > span {
-  grid-area: 2 / 2;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 4px;
-  color: var(--muted);
-  font-size: 8px;
-  font-weight: 850;
-}
-.crossing-controls > span i {
-  width: 8px;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: var(--cross-accent);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--cross-accent) 76%, transparent);
-}
-
-.crossing-hint { margin: -3px 0 0; color: var(--muted); font-size: 9px; text-align: center; }
+.runner-controls button span { font-size: 9px; font-weight: 900; }
+.runner-controls kbd,
 .crossing-hint kbd {
-  display: inline-block;
+  display: inline-grid;
+  min-width: 22px;
+  place-items: center;
   margin: 0 1px;
   border: 1px solid var(--line);
   border-bottom-width: 2px;
@@ -998,33 +1309,42 @@ onBeforeUnmount(() => {
   color: var(--text);
   background: var(--surface-inset);
   font: inherit;
-  font-weight: 900;
+  font-weight: 950;
 }
+.crossing-hint { margin: -3px 0 0; color: var(--muted); font-size: 9px; text-align: center; }
 
 @media (min-width: 760px) and (hover: hover) and (pointer: fine) {
-  .crossing-controls { display: none; }
+  .runner-controls { display: none; }
 }
 
-@media (max-width: 600px) {
-  .crossing-status { grid-template-columns: auto minmax(0, 1fr); }
-  .crossing-pulse-track { grid-column: 1 / -1; justify-content: center; }
+@media (max-width: 760px) {
+  .crossing-status { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .crossing-section-track { grid-column: 1 / -1; grid-row: 2; justify-content: center; }
+  .return-main { grid-column: 3; grid-row: 1; padding: 0 9px; }
+  .return-main svg { display: none; }
   .crossing-arena { aspect-ratio: 4 / 3; }
-  .crossing-controls { grid-template: repeat(3, 52px) / repeat(3, 52px); }
-  .crossing-hint { line-height: 1.8; }
-  .pulse-warning { top: 10px; left: 10px; }
-  .boundary-pressure { right: 10px; bottom: 10px; }
+  .runner-controls { grid-template-columns: repeat(2, 1fr); }
+  .crossing-hint { line-height: 1.9; }
+}
+
+@media (max-width: 480px) {
+  .crossing-status-copy strong { font-size: 14px; }
+  .return-main { font-size: 8px; }
+  .fork-radar { top: 10px; left: 10px; }
+  .obstacle-radar { right: 10px; bottom: 10px; }
+  .arena-timer { top: 10px; }
 }
 
 @media (orientation: landscape) and (max-height: 560px) {
-  .crossing-game { grid-template-columns: minmax(0, 1fr) 190px; width: min(100%, 900px); }
+  .crossing-game { grid-template-columns: minmax(0, 1fr) 180px; width: min(100%, 1040px); }
   .crossing-game > :first-child,
   .crossing-game > :nth-child(2) { grid-column: 1 / -1; }
   .crossing-arena { grid-column: 1; }
-  .crossing-controls { grid-column: 2; align-self: center; }
+  .runner-controls { grid-column: 2; align-self: center; grid-template-columns: 1fr; }
   .crossing-hint { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .crossing-controls button:active { transform: none; }
+  .runner-controls button:active { transform: none; }
 }
 </style>

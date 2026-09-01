@@ -13,9 +13,9 @@ export const criticalCrossingGame = defineBuiltinGame({
   key: 'critical_crossing',
   catalog: {
     order: 130,
-    name: '临界穿越',
+    name: '算途疾行',
     players: { min: 1, max: 1 },
-    description: '识别脉冲缺口，穿越不断收紧的临界场',
+    description: '在云桥上自动疾行，变道、跳跃与下蹲穿过随机分叉',
     tone: 'crossing',
     category: '个人挑战',
     artwork: {
@@ -26,11 +26,11 @@ export const criticalCrossingGame = defineBuiltinGame({
   capabilities: soloGameCapabilities({ spectatorFrames: true }),
   presentation: {
     component: defineAsyncComponent(() => import('./CriticalCrossingGame.vue')),
-    roomLayout: 'standard',
+    roomLayout: 'wide',
     skinKind: null,
     roomShell: {
       headerEyebrowSuffix: snapshot => ` · ${snapshot.game.difficultyLabel}模式`,
-      headerTitle: () => '临界穿越',
+      headerTitle: () => '算途疾行',
       statsMode: snapshot => String(snapshot.options.difficulty ?? '5s'),
     },
     solo: criticalCrossingSoloPresentation,
@@ -38,14 +38,14 @@ export const criticalCrossingGame = defineBuiltinGame({
   rules: {
     settingsGroups: [{
       key: 'difficulty',
-      title: '穿越时长',
+      title: '疾行时长',
       control: 'cards',
       columns: 3,
-      description: '每轮均为四向交叉脉冲；档位越高，预警更短、缺口更窄',
+      description: '人物会自动前进；赛道混合两路、三路分叉以及地面和上方障碍',
       options: [
-        ['5s', '校准', '5 秒 · 5 轮 · 宽缺口'],
-        ['8s', '过载', '8 秒 · 8 轮 · 标准缺口'],
-        ['10s', '临界', '10 秒 · 10 轮 · 窄缺口'],
+        ['5s', '校准', '5 秒 · 5 段 · 入门节奏'],
+        ['8s', '疾行', '8 秒 · 8 段 · 连续分叉'],
+        ['10s', '极限', '10 秒 · 10 段 · 完整云桥'],
       ],
     }],
     defaults: {
@@ -53,9 +53,9 @@ export const criticalCrossingGame = defineBuiltinGame({
       allowSpectators: true,
     },
     labels: options => {
-      if (options.difficulty === '10s') return ['临界', '10 秒目标', '10 轮脉冲']
-      if (options.difficulty === '8s') return ['过载', '8 秒目标', '8 轮脉冲']
-      return ['校准', '5 秒目标', '5 轮脉冲']
+      if (options.difficulty === '10s') return ['极限', '10 秒目标', '10 段云桥']
+      if (options.difficulty === '8s') return ['疾行', '8 秒目标', '8 段云桥']
+      return ['校准', '5 秒目标', '5 段云桥']
     },
   },
   records: {

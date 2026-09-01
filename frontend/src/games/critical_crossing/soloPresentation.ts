@@ -1,4 +1,4 @@
-import { ScanLine } from '@lucide/vue'
+import { Footprints } from '@lucide/vue'
 import type {
   BuiltinGameSoloMetric,
   BuiltinGameSoloPresentation,
@@ -7,35 +7,35 @@ import type {
 const difficultyMetrics: Record<string, readonly BuiltinGameSoloMetric[]> = {
   '5s': [
     { label: '目标时间', value: '5.00 秒' },
-    { label: '脉冲序列', value: '5 轮' },
+    { label: '云桥路段', value: '5 段' },
     { label: '轨迹采样', value: '60 Hz' },
   ],
   '8s': [
     { label: '目标时间', value: '8.00 秒' },
-    { label: '脉冲序列', value: '8 轮' },
+    { label: '云桥路段', value: '8 段' },
     { label: '轨迹采样', value: '60 Hz' },
   ],
   '10s': [
     { label: '目标时间', value: '10.00 秒' },
-    { label: '脉冲序列', value: '10 轮' },
+    { label: '云桥路段', value: '10 段' },
     { label: '轨迹采样', value: '60 Hz' },
   ],
 }
 
 export const criticalCrossingSoloPresentation: BuiltinGameSoloPresentation = {
-  icon: ScanLine,
-  accent: '#6a9eaa',
+  icon: Footprints,
+  accent: '#ef7b4d',
   hasRuleSettings: true,
   content: options => ({
-    category: '路径穿越',
-    kicker: '缺口识别与连续路线判断',
-    title: '沿着安全缺口穿过临界场',
-    description: '同时读取横纵缺口，在四向交叉脉冲抵达前进入安全交点；不要长期停留在封锁边界。',
-    button: '进入临界穿越',
-    features: ['连续交叉脉冲', '随机安全交点', '服务端重放轨迹'],
+    category: '桥梁跑酷',
+    kicker: '自动前进、分叉判断与动作配合',
+    title: '在两路与三路云桥间疾行',
+    description: '人物会自动向前奔跑；用 A/D 变道、W 跳过地面障碍、S 下蹲避开上方障碍。',
+    button: '进入算途疾行',
+    features: ['两路 / 三路随机分叉', '跑跳蹲人物动画', '服务端重放键盘轨迹'],
     metrics: difficultyMetrics[String(options.difficulty ?? '5s')]
       ?? difficultyMetrics['5s']!,
-    stages: ['读取预警', '移动到缺口', '持续穿越'],
-    recordNote: '服务器会重放全部方向输入，三种难度分别记录成绩。',
+    stages: ['观察桥面', '变道与闪避', '冲过终点'],
+    recordNote: '服务器会重放全部变道与动作输入，三种难度分别记录成绩。',
   }),
 }

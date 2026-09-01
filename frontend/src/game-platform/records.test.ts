@@ -62,7 +62,7 @@ describe('built-in game record presentations', () => {
     expect(leaderboardPresentation('minesweeper').filters).toHaveLength(3)
     expect(statsPresentation('minesweeper').defaultMode).toBe('beginner')
     expect(leaderboardPresentation('critical_crossing').titleSuffix?.('8s', undefined))
-      .toBe(' · 8 秒过载')
+      .toBe(' · 8 秒疾行')
   })
 
   it('keeps Avalon mode filters inside the Avalon module', () => {

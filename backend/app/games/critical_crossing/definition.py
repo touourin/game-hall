@@ -27,10 +27,10 @@ CRITICAL_CROSSING_GAME = GameRegistration(
     engine_factory=CriticalCrossingEngine,
     catalog=GameCatalogMetadata(
         order=130,
-        name="临界穿越",
+        name="算途疾行",
         min_players=1,
         max_players=1,
-        description="识别脉冲缺口，穿越不断收紧的临界场",
+        description="在云桥上自动疾行，变道、跳跃与下蹲穿过随机分叉",
     ),
     capabilities=GameCapabilities(
         guests=False,
