@@ -101,6 +101,14 @@ python3 scripts/restart.py
 
 脚本会在物理内存不足 2 GiB 的 Linux 主机上自动使用串行低内存构建，并在可用 Swap 不足 1 GiB 时于构建前安全退出，避免 Docker 构建拖死 SSH 和现有服务。轻量重启不受该限制。
 
+对于仅承担运行职责的低内存生产服务器，使用专用部署入口。它保留代码更新、生产资源构建、插件校验、数据库迁移、容器切换和健康检查，只跳过已经在开发机或 CI 完成的前端类型、图标及主题重复校验：
+
+```bash
+python3 scripts/deploy_low_memory.py
+```
+
+专用入口仍要求至少 1 GiB 可用 Swap，但前端构建的 Node.js 堆上限更低，适合 2 GiB 以下服务器。正常开发和发布前仍应运行 `npm --prefix frontend run build` 与完整测试。
+
 完整参数和远程执行方式见 [部署与服务重启脚本](scripts/README.md)。
 
 启动后，在服务器或同一局域网的设备访问：

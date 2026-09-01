@@ -5,6 +5,7 @@ ARG ENABLE_PIKAFISH_AI=1
 ARG ENABLE_KATAGO_AI=1
 ARG ENABLE_DOUZERO_AI=1
 ARG LOW_MEMORY_BUILD=0
+ARG FRONTEND_BUILD_VALIDATION=1
 
 
 FROM debian:bookworm-slim AS ai-builder-base
@@ -226,16 +227,26 @@ FROM web-build-gate-${LOW_MEMORY_BUILD} AS web-build-gate
 FROM node:24-alpine AS web-builder
 
 ARG LOW_MEMORY_BUILD
+ARG FRONTEND_BUILD_VALIDATION
 WORKDIR /build
 COPY --from=web-build-gate /build-gate /tmp/build-gate
 COPY frontend/package.json frontend/package-lock.json ./frontend/
 RUN npm --prefix frontend ci --no-audit --no-fund
 COPY frontend/ ./frontend/
 COPY game-hall-community-games/ ./game-hall-community-games/
-RUN if [ "$LOW_MEMORY_BUILD" = "1" ]; then \
-      export NODE_OPTIONS=--max-old-space-size=768; \
+RUN case "$FRONTEND_BUILD_VALIDATION" in \
+      0) frontend_build=build:assets ;; \
+      1) frontend_build=build ;; \
+      *) echo "FRONTEND_BUILD_VALIDATION must be 0 or 1" >&2; exit 1 ;; \
+    esac \
+    && if [ "$LOW_MEMORY_BUILD" = "1" ]; then \
+      if [ "$FRONTEND_BUILD_VALIDATION" = "1" ]; then \
+        export NODE_OPTIONS=--max-old-space-size=768; \
+      else \
+        export NODE_OPTIONS=--max-old-space-size=256; \
+      fi; \
     fi \
-    && npm --prefix frontend run build
+    && npm --prefix frontend run "$frontend_build"
 
 
 FROM application-runtime AS runtime

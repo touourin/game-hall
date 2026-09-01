@@ -121,7 +121,10 @@ def test_main_skips_git_updates_with_no_pull(monkeypatch) -> None:
 
     assert restart.main() == 0
     update_sources.assert_not_called()
-    deploy_application.assert_called_once_with(900)
+    deploy_application.assert_called_once_with(
+        900,
+        build_profile=restart.VERIFIED_BUILD_PROFILE,
+    )
 
 
 def test_restart_only_skips_source_updates_and_deployment(monkeypatch) -> None:
@@ -274,6 +277,46 @@ def test_low_memory_build_serializes_heavy_stages(monkeypatch) -> None:
     assert any("1.6 GiB RAM" in message for message in messages)
 
 
+def test_low_memory_profile_builds_runtime_assets_with_a_smaller_heap(
+    monkeypatch,
+) -> None:
+    restart = load_restart_script()
+    calls: list[tuple[list[str], dict[str, object]]] = []
+    messages: list[str] = []
+
+    monkeypatch.setattr(restart, "read_memory_info", lambda: None)
+    monkeypatch.setattr(restart, "log", messages.append)
+    monkeypatch.setattr(
+        restart,
+        "run",
+        lambda command, **kwargs: calls.append((command, kwargs)),
+    )
+
+    restart.build_application_image(
+        900,
+        build_profile=restart.LOW_MEMORY_BUILD_PROFILE,
+    )
+
+    assert calls == [
+        (
+            [
+                "docker",
+                "compose",
+                "--progress",
+                "plain",
+                "build",
+                "--build-arg",
+                "LOW_MEMORY_BUILD=1",
+                "--build-arg",
+                "FRONTEND_BUILD_VALIDATION=0",
+                "app",
+            ],
+            {"timeout": 900},
+        )
+    ]
+    assert any("Runtime frontend build enabled" in message for message in messages)
+
+
 def test_memory_info_reads_linux_kibibytes(monkeypatch, tmp_path) -> None:
     restart = load_restart_script()
     meminfo = tmp_path / "meminfo"
@@ -401,6 +444,9 @@ def test_ai_engines_use_uniform_optional_build_bundles() -> None:
     assert "FROM web-build-gate-${LOW_MEMORY_BUILD} AS web-build-gate" in dockerfile
     assert "COPY --from=web-build-gate /build-gate" in dockerfile
     assert "NODE_OPTIONS=--max-old-space-size=768" in dockerfile
+    assert "ARG FRONTEND_BUILD_VALIDATION=1" in dockerfile
+    assert "NODE_OPTIONS=--max-old-space-size=256" in dockerfile
+    assert "frontend_build=build:assets" in dockerfile
     assert "INSTALL_DOUZERO_AI" not in dockerfile + compose + environment_example
     assert "DOUZERO_MODEL_HOST_DIR" not in compose
 
@@ -411,3 +457,16 @@ def test_docker_build_context_excludes_runtime_data_and_secrets() -> None:
 
     assert {".env", ".env.*", "backups", "logs"} <= ignored_paths
     assert "!.env.example" in ignored_paths
+
+
+def test_low_memory_entrypoint_reuses_the_restart_deployer() -> None:
+    entrypoint = (PROJECT_ROOT / "scripts" / "deploy_low_memory.py").read_text(
+        encoding="utf-8"
+    )
+    frontend_package = (PROJECT_ROOT / "frontend" / "package.json").read_text(
+        encoding="utf-8"
+    )
+
+    assert "LOW_MEMORY_BUILD_PROFILE" in entrypoint
+    assert "run_cli(build_profile=LOW_MEMORY_BUILD_PROFILE)" in entrypoint
+    assert '"build:assets": "npm run plugins:sync && vite build"' in frontend_package

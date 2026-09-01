@@ -16,6 +16,25 @@ python3 scripts/restart.py --restart-only
 ssh root@SERVER_IP 'cd /opt/game-hall && python3 scripts/restart.py --restart-only'
 ```
 
+## 低内存生产部署
+
+物理内存不足 2 GiB、只负责运行服务的生产服务器，使用专用入口发布新代码：
+
+```bash
+python3 scripts/deploy_low_memory.py
+```
+
+该入口与 `restart.py` 共享同一套源码更新、部署锁、Docker 构建、社区插件发布校验、数据库迁移、容器切换和健康检查逻辑，不维护第二份部署流程。区别只在前端镜像阶段：它生成相同的 Vite 生产资源，但不在低内存服务器上重复执行 `vue-tsc`、游戏图标检查和主题检查，并将 Node.js 堆上限从完整构建的 768 MiB 降至 256 MiB。社区插件边界检查和部署后的后端插件加载校验仍会执行。
+
+低内存入口同样支持常用参数：
+
+```bash
+python3 scripts/deploy_low_memory.py --no-pull
+python3 scripts/deploy_low_memory.py --build-timeout 3600
+```
+
+它仍要求至少 1 GiB 可用 Swap。发布前应在开发机或 CI 运行完整测试和 `npm --prefix frontend run build`；`restart.py` 的标准完整构建行为保持不变。
+
 三套模型 AI 使用一致的构建开关：`ENABLE_PIKAFISH_AI`、`ENABLE_KATAGO_AI` 和
 `ENABLE_DOUZERO_AI`，取值只能是 `0` 或 `1`，默认全部启用。关闭一项会跳过对应
 下载、编译或运行依赖，并从最终应用镜像中省略该引擎和模型。

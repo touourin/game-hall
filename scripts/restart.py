@@ -35,6 +35,25 @@ MEMINFO_PATH = Path("/proc/meminfo")
 
 
 @dataclass(frozen=True)
+class BuildProfile:
+    name: str
+    force_serial_stages: bool
+    validate_frontend: bool
+
+
+VERIFIED_BUILD_PROFILE = BuildProfile(
+    name="verified",
+    force_serial_stages=False,
+    validate_frontend=True,
+)
+LOW_MEMORY_BUILD_PROFILE = BuildProfile(
+    name="low-memory",
+    force_serial_stages=True,
+    validate_frontend=False,
+)
+
+
+@dataclass(frozen=True)
 class MemoryInfo:
     total_bytes: int
     available_bytes: int
@@ -325,10 +344,17 @@ def update_sources() -> None:
     update_submodules_from_remotes()
 
 
-def build_application_image(timeout: int) -> None:
+def build_application_image(
+    timeout: int,
+    *,
+    build_profile: BuildProfile = VERIFIED_BUILD_PROFILE,
+) -> None:
     memory = read_memory_info()
     validate_build_memory(memory)
-    low_memory_build = low_memory_build_required(memory)
+    low_memory_build = (
+        build_profile.force_serial_stages
+        or low_memory_build_required(memory)
+    )
     command = [
         "docker",
         "compose",
@@ -337,15 +363,26 @@ def build_application_image(timeout: int) -> None:
         "build",
     ]
     if low_memory_build:
-        assert memory is not None
+        if memory is None:
+            memory_summary = "memory information unavailable"
+        else:
+            memory_summary = (
+                f"{format_memory(memory.total_bytes)} RAM, "
+                f"{format_memory(memory.available_bytes)} available, "
+                f"{format_memory(memory.swap_total_bytes)} swap"
+            )
         log(
-            "Low-memory host detected "
-            f"({format_memory(memory.total_bytes)} RAM, "
-            f"{format_memory(memory.available_bytes)} available, "
-            f"{format_memory(memory.swap_total_bytes)} swap); "
-            "serializing Python and frontend build stages"
+            f"Serial low-memory image build enabled ({memory_summary})"
         )
         command.extend(["--build-arg", "LOW_MEMORY_BUILD=1"])
+    if not build_profile.validate_frontend:
+        log(
+            "Runtime frontend build enabled; full type, icon, and theme "
+            "validation remains available through the standard build"
+        )
+        command.extend(
+            ["--build-arg", "FRONTEND_BUILD_VALIDATION=0"]
+        )
     command.append(APPLICATION_SERVICE)
 
     with timed_phase("Building the game hall application image"):
@@ -406,9 +443,13 @@ def restart_existing_application() -> None:
         )
 
 
-def deploy_application(build_timeout: int) -> None:
+def deploy_application(
+    build_timeout: int,
+    *,
+    build_profile: BuildProfile = VERIFIED_BUILD_PROFILE,
+) -> None:
     run(["docker", "compose", "config", "--quiet"])
-    build_application_image(build_timeout)
+    build_application_image(build_timeout, build_profile=build_profile)
     validate_application_image()
     start_application()
 
@@ -474,7 +515,10 @@ def wait_until_healthy(timeout: int) -> None:
     )
 
 
-def main() -> int:
+def main(
+    *,
+    build_profile: BuildProfile = VERIFIED_BUILD_PROFILE,
+) -> int:
     args = parse_args()
     with deployment_lock():
         validate_environment()
@@ -487,18 +531,28 @@ def main() -> int:
             else:
                 update_sources()
 
-            deploy_application(args.build_timeout)
+            deploy_application(
+                args.build_timeout,
+                build_profile=build_profile,
+            )
 
         wait_until_healthy(args.timeout)
     return 0
 
 
-if __name__ == "__main__":
+def run_cli(
+    *,
+    build_profile: BuildProfile = VERIFIED_BUILD_PROFILE,
+) -> int:
     try:
-        raise SystemExit(main())
+        return main(build_profile=build_profile)
     except KeyboardInterrupt:
         print("\nInterrupted.", file=sys.stderr)
-        raise SystemExit(130)
+        return 130
     except (RuntimeError, subprocess.CalledProcessError) as error:
         print(f"Error: {error}", file=sys.stderr)
-        raise SystemExit(1)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(run_cli())
