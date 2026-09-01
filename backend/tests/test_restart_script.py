@@ -234,6 +234,102 @@ def test_deployment_builds_validates_then_restarts(monkeypatch) -> None:
     ]
 
 
+def test_low_memory_deployment_suspends_runtime_services(monkeypatch) -> None:
+    restart = load_restart_script()
+    calls: list[tuple[list[str], dict[str, object]]] = []
+
+    monkeypatch.setattr(restart, "log", lambda _message: None)
+    monkeypatch.setattr(restart, "read_memory_info", lambda: None)
+    monkeypatch.setattr(
+        restart,
+        "run",
+        lambda command, **kwargs: calls.append((command, kwargs)),
+    )
+
+    restart.deploy_application(
+        900,
+        build_profile=restart.LOW_MEMORY_BUILD_PROFILE,
+    )
+
+    assert calls == [
+        (["docker", "compose", "config", "--quiet"], {}),
+        (
+            [
+                "docker",
+                "compose",
+                "stop",
+                "--timeout",
+                "30",
+                "app",
+                "mysql",
+                "redis",
+            ],
+            {},
+        ),
+        (
+            [
+                "docker",
+                "compose",
+                "--progress",
+                "plain",
+                "build",
+                "--build-arg",
+                "LOW_MEMORY_BUILD=1",
+                "--build-arg",
+                "FRONTEND_BUILD_VALIDATION=0",
+                "app",
+            ],
+            {"timeout": 900},
+        ),
+        (
+            [
+                "docker",
+                "compose",
+                "run",
+                "--rm",
+                "--no-deps",
+                "app",
+                "python",
+                "-m",
+                "backend.app.games.validate_plugins",
+            ],
+            {},
+        ),
+        (["docker", "compose", "up", "-d", "--no-build", "app"], {}),
+    ]
+
+
+def test_low_memory_deployment_restores_services_after_failure(monkeypatch) -> None:
+    restart = load_restart_script()
+    commands: list[list[str]] = []
+
+    monkeypatch.setattr(restart, "log", lambda _message: None)
+    monkeypatch.setattr(restart, "read_memory_info", lambda: None)
+
+    def run(command: list[str], **_kwargs) -> None:
+        commands.append(command)
+        if "build" in command:
+            raise subprocess.CalledProcessError(1, command)
+
+    monkeypatch.setattr(restart, "run", run)
+
+    with pytest.raises(subprocess.CalledProcessError):
+        restart.deploy_application(
+            900,
+            build_profile=restart.LOW_MEMORY_BUILD_PROFILE,
+        )
+
+    assert commands[-1] == [
+        "docker",
+        "compose",
+        "start",
+        "mysql",
+        "redis",
+        "app",
+    ]
+    assert ["docker", "compose", "up", "-d", "--no-build", "app"] not in commands
+
+
 def test_low_memory_build_serializes_heavy_stages(monkeypatch) -> None:
     restart = load_restart_script()
     calls: list[tuple[list[str], dict[str, object]]] = []

@@ -13,7 +13,7 @@ import tempfile
 import threading
 import time
 from collections.abc import Iterator, Sequence
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -39,17 +39,20 @@ class BuildProfile:
     name: str
     force_serial_stages: bool
     validate_frontend: bool
+    suspend_runtime_services: bool
 
 
 VERIFIED_BUILD_PROFILE = BuildProfile(
     name="verified",
     force_serial_stages=False,
     validate_frontend=True,
+    suspend_runtime_services=False,
 )
 LOW_MEMORY_BUILD_PROFILE = BuildProfile(
     name="low-memory",
     force_serial_stages=True,
     validate_frontend=False,
+    suspend_runtime_services=True,
 )
 
 
@@ -443,15 +446,55 @@ def restart_existing_application() -> None:
         )
 
 
+@contextmanager
+def suspended_runtime_services() -> Iterator[None]:
+    services = [APPLICATION_SERVICE, "mysql", "redis"]
+    log(
+        "Stopping application, MySQL, and Redis during the low-memory build"
+    )
+    try:
+        run(
+            [
+                "docker",
+                "compose",
+                "stop",
+                "--timeout",
+                "30",
+                *services,
+            ]
+        )
+        yield
+    except BaseException:
+        log("Restoring the previous application services after deployment failure")
+        run(
+            [
+                "docker",
+                "compose",
+                "start",
+                "mysql",
+                "redis",
+                APPLICATION_SERVICE,
+            ],
+            check=False,
+        )
+        raise
+
+
 def deploy_application(
     build_timeout: int,
     *,
     build_profile: BuildProfile = VERIFIED_BUILD_PROFILE,
 ) -> None:
     run(["docker", "compose", "config", "--quiet"])
-    build_application_image(build_timeout, build_profile=build_profile)
-    validate_application_image()
-    start_application()
+    runtime_context = (
+        suspended_runtime_services()
+        if build_profile.suspend_runtime_services
+        else nullcontext()
+    )
+    with runtime_context:
+        build_application_image(build_timeout, build_profile=build_profile)
+        validate_application_image()
+        start_application()
 
 
 def container_status() -> str:

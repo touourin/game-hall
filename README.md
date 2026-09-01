@@ -107,7 +107,7 @@ python3 scripts/restart.py
 python3 scripts/deploy_low_memory.py
 ```
 
-专用入口仍要求至少 1 GiB 可用 Swap，但前端构建的 Node.js 堆上限更低，适合 2 GiB 以下服务器。正常开发和发布前仍应运行 `npm --prefix frontend run build` 与完整测试。
+专用入口仍要求至少 1 GiB 可用 Swap。为给 Docker 构建释放足够内存，它会在构建期间临时停止应用、MySQL 和 Redis，因此会产生一个短暂维护窗口；构建或校验失败时会自动恢复原有容器。正常开发和发布前仍应运行 `npm --prefix frontend run build` 与完整测试。
 
 完整参数和远程执行方式见 [部署与服务重启脚本](scripts/README.md)。
 
