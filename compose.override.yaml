@@ -1,0 +1,4 @@
+services:
+  app:
+    ports:
+      - "${GAME_HALL_BIND_HOST:-0.0.0.0}:${GAME_HALL_PORT:-${AVALON_PORT:-10618}}:8000"

@@ -89,18 +89,18 @@ HTTPS_DOMAIN=departedspirit.com
 HTTPS_BACKEND_PORT=10618
 ```
 
-部署脚本会自动把应用限制到服务器回环地址，并启动 Compose 管理的 Caddy 在
+部署脚本会选择独立的 HTTPS Compose 配置，把应用限制到服务器回环地址，并启动 Caddy 在
 `80/443` 提供自动证书、HTTP 跳转和反向代理。启用前必须确保域名已经指向服务器，
 且云安全组允许 TCP `80` 和 `443`。保持 `HTTPS_ENABLED=0` 则继续直接发布
 `GAME_HALL_PORT`，无需运行 Caddy；完整切换说明见
 [部署与服务重启脚本](scripts/README.md#http-与-https-开关)。
-HTTPS 模式应通过 `restart.py` 部署，避免直接调用 Compose 时绕过入口开关编排。
+HTTPS 模式统一通过 `restart.py` 部署。默认的 `docker compose` 命令保留给 HTTP
+直连环境；已经启用 HTTPS 的服务器不要绕过脚本直接执行 Compose。
 
 大厅不再显示固定密码访问页，浏览器会自动建立内部传输会话，然后进入账号登录、注册或游客入席页面。默认配置使用数据库和用户 `game_hall`，并只在服务器回环地址发布 MySQL `1025` 与 Redis `7878`；容器内部仍使用标准端口 `3306` 与 `6379`。
 
-```bash
-docker compose up -d --build
-```
+首次使用默认 HTTP 模式时也可以直接执行 `docker compose up -d --build`；HTTPS
+模式以及后续生产发布统一使用下面的部署脚本。
 
 日常只需要重启现有应用或应用入口时，使用轻量模式；它不会拉取代码、构建镜像或重启 MySQL 和 Redis，但会应用 `.env` 中最新的 HTTP/HTTPS 配置：
 
@@ -113,6 +113,10 @@ python3 scripts/restart.py --restart-only
 ```bash
 python3 scripts/restart.py
 ```
+
+脚本会先验证选中的入口配置；首次启用 HTTPS 时会在切换端口前拉取并校验 Caddy。
+切换后的健康检查失败会自动恢复之前正在运行的 HTTP/HTTPS 入口。脚本更新了主仓库
+代码时，还会用更新后的部署程序重新执行，避免旧脚本继续解释新配置。
 
 脚本会在物理内存不足 2 GiB 的 Linux 主机上自动使用串行低内存构建，并在可用 Swap 不足 1 GiB 时于构建前安全退出，避免 Docker 构建拖死 SSH 和现有服务。轻量重启不受该限制。
 

@@ -119,34 +119,9 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
-    ports:
-      - "${GAME_HALL_BIND_HOST:-0.0.0.0}:${GAME_HALL_PORT:-${AVALON_PORT:-10618}}:8000"
     volumes:
       - ./logs:/var/log/game-hall
-
-  caddy:
-    image: caddy:2.11.4-alpine
-    container_name: game-hall-caddy
-    profiles:
-      - https
-    restart: unless-stopped
-    logging: *default-logging
-    environment:
-      HTTPS_DOMAIN: ${HTTPS_DOMAIN:-}
-      TZ: ${TZ:-Asia/Shanghai}
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
-    depends_on:
-      app:
-        condition: service_healthy
 
 volumes:
   mysql-data:
   redis-data:
-  caddy-data:
-  caddy-config:

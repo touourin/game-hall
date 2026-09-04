@@ -34,11 +34,17 @@ HTTPS_BACKEND_PORT=10618
 ```
 
 随后正常运行 `python3 scripts/restart.py`；如果代码和镜像已经是最新版本，也可以运行
-`python3 scripts/restart.py --restart-only`。脚本会自动启用 Compose 的 `https` profile，
-把应用限制在 `127.0.0.1:HTTPS_BACKEND_PORT`，并让 Caddy 独占公网 `80/443`。
+`python3 scripts/restart.py --restart-only`。脚本会选择 `compose.https.yaml`，把应用
+限制在 `127.0.0.1:HTTPS_BACKEND_PORT`，并让 Caddy 独占公网 `80/443`。
 Caddy 会自动签发、续期证书并将 HTTP 重定向到 HTTPS，证书保存在独立 Docker
 volume 中，应用重建不会丢失；反向代理直接连接 Compose 内的 `app:8000`，因此
 Socket.IO/WebSocket 无需额外配置。
+
+基础服务定义保存在 `compose.yaml`。`compose.override.yaml` 是 Docker Compose
+自动加载的默认 HTTP 入口，因此原来的 `docker compose up` 用法仍保持 HTTP 直连；
+HTTPS 入口独立存放在 `compose.https.yaml`，只由部署脚本显式选择。两种入口不会
+在同一次脚本运行中向应用注入冲突端口，也不会临时改写 `GAME_HALL_PORT`。已经启用
+HTTPS 的服务器必须使用部署脚本，不应直接执行默认的 `docker compose up`。
 
 启用前必须让 `HTTPS_DOMAIN` 的 DNS 记录指向服务器，并在云安全组中放行 TCP
 `80` 和 `443`。`HTTPS_DOMAIN` 只能填写域名，不能包含 `https://`、路径、端口、
@@ -46,6 +52,8 @@ Socket.IO/WebSocket 无需额外配置。
 
 将 `HTTPS_ENABLED` 改回 `0` 后再次运行脚本，会删除 Caddy 运行容器并恢复
 `GAME_HALL_PORT` 的 HTTP 直连；已签发证书的 volume 会保留，重新启用时可以复用。
+切换前脚本会完成 Compose 和 Caddy 配置预检；切换后若容器、证书或代理健康检查
+失败，会尽力恢复切换前实际运行的入口和端口。
 
 ## 低内存生产部署
 
@@ -78,6 +86,8 @@ python3 scripts/deploy_low_memory.py --build-timeout 3600
 每次运行都会先以 `--ff-only` 更新主仓库的 `main` 分支，再把所有 Git
 Submodule 更新到各自配置的远端分支（`game-hall-community-games` 为 `origin/main`）。
 主仓库记录的子模块提交是开发、CI、复现和回滚使用的已验证基线，不限制服务器获取社区仓库的最新正式代码。
+如果主仓库版本发生变化，当前进程不会继续使用已经载入内存的旧部署逻辑，而是以
+`--no-pull` 重新执行同一个入口文件；低内存入口也会保持低内存构建配置。
 
 Submodule 对主项目本身是可选依赖：普通克隆未初始化它时，主项目会以零社区插件运行。生产环境执行正常更新流程时，脚本仍会初始化并更新社区仓库；拉取、构建或插件校验失败都会终止部署。使用 `--no-pull` 时则按当前检出状态构建，因此未初始化 Submodule 会得到仅含官方游戏的镜像。
 

@@ -5,12 +5,8 @@ from __future__ import annotations
 import argparse
 import fcntl
 import hashlib
-import ipaddress
 import os
-import re
 import shutil
-import socket
-import ssl
 import subprocess
 import sys
 import tempfile
@@ -20,7 +16,26 @@ from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+
+from ingress import (
+    APPLICATION_CONTAINER,
+    APPLICATION_SERVICE,
+    CADDYFILE_PATH,
+    HTTP_INGRESS,
+    HTTPS_COMPOSE_LAYOUT,
+    HTTPS_CONTAINER,
+    HTTPS_SERVICE,
+    IngressConfig,
+    compose_command,
+    compose_environment,
+    container_environment,
+    container_is_running,
+    https_responds,
+    load_ingress_config,
+    normalize_public_domain,
+    parse_container_inspection,
+    published_app_binding as parse_published_app_binding,
+)
 
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
@@ -30,20 +45,12 @@ BUILD_HEARTBEAT_INTERVAL = 30
 LOW_MEMORY_BUILD_THRESHOLD_BYTES = 2 * 1024**3
 MINIMUM_LOW_MEMORY_SWAP_BYTES = 1024**3
 DEPLOY_BRANCH = "main"
-APPLICATION_SERVICE = "app"
-HTTPS_SERVICE = "caddy"
-HTTPS_PROFILE = "https"
-DEFAULT_HTTPS_BACKEND_PORT = 10618
 PLUGIN_VALIDATION_MODULE = "backend.app.games.validate_plugins"
 DEPLOYMENT_LOCK_PATH = Path(tempfile.gettempdir()) / (
     "game-hall-deploy-"
     f"{hashlib.sha256(str(PROJECT_DIR).encode()).hexdigest()[:12]}.lock"
 )
 MEMINFO_PATH = Path("/proc/meminfo")
-ENV_FILE_PATH = PROJECT_DIR / ".env"
-HOSTNAME_LABEL_PATTERN = re.compile(
-    r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?",
-)
 
 
 @dataclass(frozen=True)
@@ -76,22 +83,6 @@ class MemoryInfo:
     swap_free_bytes: int
 
 
-@dataclass(frozen=True)
-class IngressConfig:
-    https_enabled: bool
-    domain: str | None = None
-    backend_port: int = DEFAULT_HTTPS_BACKEND_PORT
-
-    @property
-    def services(self) -> tuple[str, ...]:
-        if self.https_enabled:
-            return APPLICATION_SERVICE, HTTPS_SERVICE
-        return (APPLICATION_SERVICE,)
-
-
-HTTP_INGRESS = IngressConfig(https_enabled=False)
-
-
 def positive_integer(raw_value: str) -> int:
     try:
         value = int(raw_value)
@@ -100,99 +91,6 @@ def positive_integer(raw_value: str) -> int:
     if value <= 0:
         raise argparse.ArgumentTypeError("must be a positive integer")
     return value
-
-
-def read_dotenv(path: Path) -> dict[str, str]:
-    values: dict[str, str] = {}
-    for line_number, raw_line in enumerate(
-        path.read_text(encoding="utf-8").splitlines(),
-        start=1,
-    ):
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if line.startswith("export "):
-            line = line.removeprefix("export ").lstrip()
-        key, separator, raw_value = line.partition("=")
-        key = key.strip()
-        if not separator or not key:
-            raise RuntimeError(f"Invalid .env entry on line {line_number}")
-
-        value = raw_value.strip()
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
-            value = value[1:-1]
-        elif " #" in value:
-            value = value.split(" #", 1)[0].rstrip()
-        values[key] = value
-    return values
-
-
-def environment_setting(
-    name: str,
-    dotenv: Mapping[str, str],
-    *,
-    default: str = "",
-) -> str:
-    return os.environ.get(name, dotenv.get(name, default)).strip()
-
-
-def normalize_public_domain(raw_domain: str) -> str:
-    if not raw_domain:
-        fail("HTTPS_DOMAIN is required when HTTPS_ENABLED=1")
-    if any(character in raw_domain for character in "/:*"):
-        fail("HTTPS_DOMAIN must be a hostname without a scheme, port, or wildcard")
-
-    try:
-        domain = raw_domain.rstrip(".").encode("idna").decode("ascii").lower()
-    except UnicodeError as error:
-        raise RuntimeError("HTTPS_DOMAIN is not a valid hostname") from error
-
-    if len(domain) > 253 or "." not in domain:
-        fail("HTTPS_DOMAIN must be a publicly resolvable domain name")
-    try:
-        ipaddress.ip_address(domain)
-    except ValueError:
-        pass
-    else:
-        fail("HTTPS_DOMAIN must be a domain name, not an IP address")
-
-    labels = domain.split(".")
-    if any(HOSTNAME_LABEL_PATTERN.fullmatch(label) is None for label in labels):
-        fail("HTTPS_DOMAIN is not a valid hostname")
-    return domain
-
-
-def load_ingress_config(path: Path = ENV_FILE_PATH) -> IngressConfig:
-    dotenv = read_dotenv(path)
-    enabled_value = environment_setting(
-        "HTTPS_ENABLED",
-        dotenv,
-        default="0",
-    )
-    if enabled_value not in {"0", "1"}:
-        fail("HTTPS_ENABLED must be 0 or 1")
-    if enabled_value == "0":
-        return HTTP_INGRESS
-
-    raw_backend_port = environment_setting(
-        "HTTPS_BACKEND_PORT",
-        dotenv,
-        default=str(DEFAULT_HTTPS_BACKEND_PORT),
-    )
-    try:
-        backend_port = int(raw_backend_port)
-    except ValueError as error:
-        raise RuntimeError("HTTPS_BACKEND_PORT must be an integer") from error
-    if not 1 <= backend_port <= 65535 or backend_port in {80, 443}:
-        fail("HTTPS_BACKEND_PORT must be between 1 and 65535 and cannot be 80 or 443")
-
-    return IngressConfig(
-        https_enabled=True,
-        domain=normalize_public_domain(
-            environment_setting("HTTPS_DOMAIN", dotenv),
-        ),
-        backend_port=backend_port,
-    )
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -372,32 +270,6 @@ def run(
     )
 
 
-def compose_command(
-    ingress: IngressConfig,
-    *arguments: str,
-) -> list[str]:
-    command = ["docker", "compose"]
-    if ingress.https_enabled:
-        command.extend(["--profile", HTTPS_PROFILE])
-    command.extend(arguments)
-    return command
-
-
-def compose_environment(ingress: IngressConfig) -> Mapping[str, str] | None:
-    if not ingress.https_enabled:
-        return None
-
-    environment = os.environ.copy()
-    environment.update(
-        {
-            "GAME_HALL_BIND_HOST": "127.0.0.1",
-            "GAME_HALL_PORT": str(ingress.backend_port),
-            "HTTPS_DOMAIN": ingress.domain or "",
-        }
-    )
-    return environment
-
-
 def run_compose(
     ingress: IngressConfig,
     *arguments: str,
@@ -405,17 +277,13 @@ def run_compose(
     check: bool = True,
     timeout: int | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    options: dict[str, Any] = {}
-    if capture_output:
-        options["capture_output"] = True
-    if not check:
-        options["check"] = False
-    environment = compose_environment(ingress)
-    if environment is not None:
-        options["env"] = environment
-    if timeout is not None:
-        options["timeout"] = timeout
-    return run(compose_command(ingress, *arguments), **options)
+    return run(
+        compose_command(ingress, *arguments),
+        capture_output=capture_output,
+        check=check,
+        env=compose_environment(ingress),
+        timeout=timeout,
+    )
 
 
 def require_command(command: str, message: str) -> None:
@@ -426,8 +294,6 @@ def require_command(command: str, message: str) -> None:
 def validate_environment() -> None:
     require_command("docker", "Docker is not installed or is not in PATH")
 
-    if not (PROJECT_DIR / "compose.yaml").is_file():
-        fail(f"compose.yaml was not found in {PROJECT_DIR}")
     if not (PROJECT_DIR / ".env").is_file():
         fail(".env was not found; copy .env.example to .env and configure it first")
 
@@ -445,7 +311,10 @@ def validate_environment() -> None:
 
 
 def validate_ingress_environment(ingress: IngressConfig) -> None:
-    if ingress.https_enabled and not (PROJECT_DIR / "Caddyfile").is_file():
+    for compose_file in ingress.compose_files:
+        if not compose_file.is_file():
+            fail(f"{compose_file.name} was not found in {PROJECT_DIR}")
+    if ingress.https_enabled and not CADDYFILE_PATH.is_file():
         fail("Caddyfile is required when HTTPS_ENABLED=1")
 
 
@@ -497,6 +366,13 @@ def pull_main_branch() -> None:
         )
 
 
+def repository_revision() -> str:
+    return run(
+        ["git", "rev-parse", "HEAD"],
+        capture_output=True,
+    ).stdout.strip()
+
+
 def update_submodules_from_remotes() -> None:
     if not (PROJECT_DIR / ".gitmodules").is_file():
         return
@@ -515,16 +391,36 @@ def update_submodules_from_remotes() -> None:
     )
 
 
-def update_sources() -> None:
+def update_sources() -> bool:
     validate_source_checkout()
+    previous_revision = repository_revision()
     pull_main_branch()
     update_submodules_from_remotes()
+    return repository_revision() != previous_revision
+
+
+def reexec_updated_entrypoint(args: argparse.Namespace) -> None:
+    entrypoint = Path(sys.argv[0]).resolve()
+    log("Restarting the deployment command with the updated source code")
+    os.execv(
+        sys.executable,
+        [
+            sys.executable,
+            str(entrypoint),
+            "--no-pull",
+            "--build-timeout",
+            str(args.build_timeout),
+            "--timeout",
+            str(args.timeout),
+        ],
+    )
 
 
 def build_application_image(
     timeout: int,
     *,
     build_profile: BuildProfile = VERIFIED_BUILD_PROFILE,
+    ingress: IngressConfig = HTTP_INGRESS,
 ) -> None:
     memory = read_memory_info()
     validate_build_memory(memory)
@@ -532,9 +428,7 @@ def build_application_image(
         build_profile.force_serial_stages
         or low_memory_build_required(memory)
     )
-    command = [
-        "docker",
-        "compose",
+    arguments = [
         "--progress",
         "plain",
         "build",
@@ -551,21 +445,21 @@ def build_application_image(
         log(
             f"Serial low-memory image build enabled ({memory_summary})"
         )
-        command.extend(["--build-arg", "LOW_MEMORY_BUILD=1"])
+        arguments.extend(["--build-arg", "LOW_MEMORY_BUILD=1"])
     if not build_profile.validate_frontend:
         log(
             "Runtime frontend build enabled; full type, icon, and theme "
             "validation remains available through the standard build"
         )
-        command.extend(
+        arguments.extend(
             ["--build-arg", "FRONTEND_BUILD_VALIDATION=0"]
         )
-    command.append(APPLICATION_SERVICE)
+    arguments.append(APPLICATION_SERVICE)
 
     with timed_phase("Building the game hall application image"):
         try:
             with progress_heartbeat("Docker image build is still running"):
-                run(command, timeout=timeout)
+                run_compose(ingress, *arguments, timeout=timeout)
         except subprocess.TimeoutExpired as error:
             raise RuntimeError(
                 "Application image build exceeded "
@@ -574,58 +468,98 @@ def build_application_image(
             ) from error
 
 
-def validate_application_image() -> None:
+def validate_application_image(ingress: IngressConfig = HTTP_INGRESS) -> None:
     with timed_phase(
         "Validating the community game release registry and published plugins"
     ):
-        run(
-            [
-                "docker",
-                "compose",
-                "run",
-                "--rm",
-                "--no-deps",
-                APPLICATION_SERVICE,
-                "python",
-                "-m",
-                PLUGIN_VALIDATION_MODULE,
-            ]
+        run_compose(
+            ingress,
+            "run",
+            "--rm",
+            "--no-deps",
+            APPLICATION_SERVICE,
+            "python",
+            "-m",
+            PLUGIN_VALIDATION_MODULE,
         )
 
 
 def remove_https_proxy() -> None:
-    run(
-        [
-            "docker",
-            "compose",
-            "--profile",
-            HTTPS_PROFILE,
-            "rm",
-            "--stop",
-            "--force",
-            HTTPS_SERVICE,
-        ],
+    run_compose(
+        HTTPS_COMPOSE_LAYOUT,
+        "rm",
+        "--stop",
+        "--force",
+        HTTPS_SERVICE,
         check=False,
     )
 
 
-def start_application(ingress: IngressConfig = HTTP_INGRESS) -> None:
-    with timed_phase("Restarting the game hall with the validated image"):
-        if not ingress.https_enabled:
-            remove_https_proxy()
-        run_compose(
-            ingress,
-            "up",
-            "-d",
-            "--no-build",
-            *ingress.services,
+def inspect_container(container: str) -> dict[str, object] | None:
+    result = run(
+        ["docker", "inspect", container],
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    return parse_container_inspection(result.stdout)
+
+
+def published_app_binding() -> tuple[str, int] | None:
+    return parse_published_app_binding(inspect_container(APPLICATION_CONTAINER))
+
+
+def detect_running_ingress(target: IngressConfig) -> IngressConfig:
+    binding = published_app_binding()
+    bind_host, app_host_port = binding or (
+        target.bind_host,
+        target.app_host_port,
+    )
+    caddy = inspect_container(HTTPS_CONTAINER)
+    if not container_is_running(caddy):
+        return IngressConfig(
+            https_enabled=False,
+            app_host_port=app_host_port,
+            bind_host=bind_host,
         )
 
+    environment = container_environment(caddy)
+    domain = environment.get("HTTPS_DOMAIN") or target.domain
+    if domain is None:
+        fail("Cannot determine the domain used by the running HTTPS proxy")
+    return IngressConfig(
+        https_enabled=True,
+        app_host_port=app_host_port,
+        bind_host="127.0.0.1",
+        domain=normalize_public_domain(domain),
+    )
 
-def restart_existing_application(ingress: IngressConfig = HTTP_INGRESS) -> None:
-    with timed_phase("Recreating the existing game hall transport and application"):
-        if not ingress.https_enabled:
-            remove_https_proxy()
+
+def prepare_ingress(ingress: IngressConfig) -> None:
+    validate_ingress_environment(ingress)
+    with timed_phase("Validating the selected HTTP/HTTPS ingress"):
+        run_compose(ingress, "config", "--quiet")
+        if ingress.https_enabled:
+            run_compose(
+                ingress,
+                "run",
+                "--rm",
+                "--no-deps",
+                "--entrypoint",
+                "caddy",
+                HTTPS_SERVICE,
+                "validate",
+                "--config",
+                "/etc/caddy/Caddyfile",
+            )
+
+
+def activate_runtime(ingress: IngressConfig, *, restart_only: bool) -> None:
+    if not ingress.https_enabled:
+        remove_https_proxy()
+
+    if restart_only:
         run_compose(
             ingress,
             "up",
@@ -645,6 +579,52 @@ def restart_existing_application(ingress: IngressConfig = HTTP_INGRESS) -> None:
                 "--force-recreate",
                 HTTPS_SERVICE,
             )
+        return
+
+    run_compose(
+        ingress,
+        "up",
+        "-d",
+        "--no-build",
+        *ingress.services,
+    )
+
+
+def replace_runtime(
+    ingress: IngressConfig,
+    *,
+    timeout: int,
+    restart_only: bool,
+    previous_ingress: IngressConfig | None = None,
+) -> None:
+    previous = previous_ingress or detect_running_ingress(ingress)
+    try:
+        with timed_phase("Applying the selected HTTP/HTTPS ingress"):
+            activate_runtime(ingress, restart_only=restart_only)
+        wait_until_healthy(timeout, ingress)
+    except BaseException:
+        if previous != ingress:
+            log("Restoring the previous ingress after the failed switch")
+            try:
+                activate_runtime(previous, restart_only=True)
+                wait_until_healthy(DEFAULT_HEALTH_TIMEOUT, previous)
+                print("Previous ingress restored successfully.", flush=True)
+            except BaseException as rollback_error:
+                print(
+                    f"Warning: automatic ingress rollback failed: {rollback_error}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+        raise
+
+
+def restart_application(ingress: IngressConfig, *, timeout: int) -> None:
+    prepare_ingress(ingress)
+    replace_runtime(
+        ingress,
+        timeout=timeout,
+        restart_only=True,
+    )
 
 
 @contextmanager
@@ -652,9 +632,7 @@ def suspended_runtime_services(
     ingress: IngressConfig = HTTP_INGRESS,
 ) -> Iterator[None]:
     services = [*ingress.services[::-1], "mysql", "redis"]
-    log(
-        "Stopping application, MySQL, and Redis during the low-memory build"
-    )
+    log("Stopping runtime services during the low-memory build")
     try:
         run_compose(
             ingress,
@@ -680,19 +658,30 @@ def suspended_runtime_services(
 def deploy_application(
     build_timeout: int,
     *,
+    health_timeout: int = DEFAULT_HEALTH_TIMEOUT,
     build_profile: BuildProfile = VERIFIED_BUILD_PROFILE,
     ingress: IngressConfig = HTTP_INGRESS,
 ) -> None:
-    run_compose(ingress, "config", "--quiet")
+    prepare_ingress(ingress)
+    previous_ingress = detect_running_ingress(ingress)
     runtime_context = (
-        suspended_runtime_services(ingress)
+        suspended_runtime_services(previous_ingress)
         if build_profile.suspend_runtime_services
         else nullcontext()
     )
     with runtime_context:
-        build_application_image(build_timeout, build_profile=build_profile)
-        validate_application_image()
-        start_application(ingress)
+        build_application_image(
+            build_timeout,
+            build_profile=build_profile,
+            ingress=ingress,
+        )
+        validate_application_image(ingress)
+        replace_runtime(
+            ingress,
+            timeout=health_timeout,
+            restart_only=False,
+            previous_ingress=previous_ingress,
+        )
 
 
 def container_status(
@@ -737,31 +726,6 @@ def show_recent_logs(ingress: IngressConfig = HTTP_INGRESS) -> None:
         *ingress.services,
         check=False,
     )
-
-
-def https_responds(ingress: IngressConfig, timeout: float = 3) -> bool:
-    if not ingress.https_enabled or ingress.domain is None:
-        return True
-
-    request = (
-        f"GET / HTTP/1.1\r\nHost: {ingress.domain}\r\n"
-        "Connection: close\r\n\r\n"
-    ).encode("ascii")
-    try:
-        context = ssl.create_default_context()
-        with socket.create_connection(("127.0.0.1", 443), timeout=timeout) as raw:
-            with context.wrap_socket(raw, server_hostname=ingress.domain) as secure:
-                secure.settimeout(timeout)
-                secure.sendall(request)
-                with secure.makefile("rb") as response:
-                    status_line = response.readline(4096).decode(
-                        "ascii",
-                        errors="replace",
-                    )
-        status_code = int(status_line.split(" ", 2)[1])
-    except (IndexError, OSError, ssl.SSLError, ValueError):
-        return False
-    return 200 <= status_code < 400
 
 
 def wait_until_healthy(
@@ -825,25 +789,24 @@ def main(
     with deployment_lock():
         validate_environment()
         ingress = load_ingress_config()
-        validate_ingress_environment(ingress)
         if ingress.https_enabled:
             log(f"HTTPS ingress enabled for {ingress.domain}")
 
         if args.restart_only:
-            restart_existing_application(ingress)
+            restart_application(ingress, timeout=args.timeout)
         else:
             if args.no_pull:
                 log("Skipping Git updates because --no-pull was specified")
-            else:
-                update_sources()
+            elif update_sources():
+                reexec_updated_entrypoint(args)
+                return 0
 
             deploy_application(
                 args.build_timeout,
+                health_timeout=args.timeout,
                 build_profile=build_profile,
                 ingress=ingress,
             )
-
-        wait_until_healthy(args.timeout, ingress)
     return 0
 
 

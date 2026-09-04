@@ -1,0 +1,31 @@
+services:
+  app:
+    ports:
+      - "127.0.0.1:${HTTPS_BACKEND_PORT:-10618}:8000"
+
+  caddy:
+    image: caddy:2.11.4-alpine
+    container_name: game-hall-caddy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    environment:
+      HTTPS_DOMAIN: ${HTTPS_DOMAIN:-}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  caddy-data:
+  caddy-config:
