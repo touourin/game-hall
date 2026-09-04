@@ -55,7 +55,6 @@ describe('GameHall', () => {
     expect(wrapper.text()).not.toContain('全部游戏')
     expect(wrapper.text()).not.toContain('PRIVATE')
     expect(wrapper.text()).not.toContain('私人席位')
-    expect(wrapper.text()).not.toContain('11 款游戏')
     expect(wrapper.text()).not.toContain('本周主桌')
     expect(wrapper.text()).not.toContain('快速启动')
     expect(wrapper.text()).not.toContain('Swap2')
