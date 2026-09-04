@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
@@ -114,9 +114,15 @@ def test_main_skips_git_updates_with_no_pull(monkeypatch) -> None:
         ),
     )
     monkeypatch.setattr(restart, "validate_environment", lambda: None)
+    monkeypatch.setattr(restart, "load_ingress_config", lambda: restart.HTTP_INGRESS)
+    monkeypatch.setattr(restart, "validate_ingress_environment", lambda _config: None)
     monkeypatch.setattr(restart, "update_sources", update_sources)
     monkeypatch.setattr(restart, "deploy_application", deploy_application)
-    monkeypatch.setattr(restart, "wait_until_healthy", lambda _timeout: None)
+    monkeypatch.setattr(
+        restart,
+        "wait_until_healthy",
+        lambda _timeout, _ingress: None,
+    )
     monkeypatch.setattr(restart, "log", lambda _message: None)
 
     assert restart.main() == 0
@@ -124,6 +130,7 @@ def test_main_skips_git_updates_with_no_pull(monkeypatch) -> None:
     deploy_application.assert_called_once_with(
         900,
         build_profile=restart.VERIFIED_BUILD_PROFILE,
+        ingress=restart.HTTP_INGRESS,
     )
 
 
@@ -145,6 +152,8 @@ def test_restart_only_skips_source_updates_and_deployment(monkeypatch) -> None:
         ),
     )
     monkeypatch.setattr(restart, "validate_environment", lambda: None)
+    monkeypatch.setattr(restart, "load_ingress_config", lambda: restart.HTTP_INGRESS)
+    monkeypatch.setattr(restart, "validate_ingress_environment", lambda _config: None)
     monkeypatch.setattr(restart, "update_sources", update_sources)
     monkeypatch.setattr(restart, "deploy_application", deploy_application)
     monkeypatch.setattr(
@@ -157,8 +166,8 @@ def test_restart_only_skips_source_updates_and_deployment(monkeypatch) -> None:
     assert restart.main() == 0
     update_sources.assert_not_called()
     deploy_application.assert_not_called()
-    restart_existing_application.assert_called_once_with()
-    wait_until_healthy.assert_called_once_with(45)
+    restart_existing_application.assert_called_once_with(restart.HTTP_INGRESS)
+    wait_until_healthy.assert_called_once_with(45, restart.HTTP_INGRESS)
 
 
 def test_restart_only_and_no_pull_are_mutually_exclusive() -> None:
@@ -168,7 +177,7 @@ def test_restart_only_and_no_pull_are_mutually_exclusive() -> None:
         restart.parse_args(["--restart-only", "--no-pull"])
 
 
-def test_restart_only_restarts_the_application_service(monkeypatch) -> None:
+def test_restart_only_recreates_the_http_application_service(monkeypatch) -> None:
     restart = load_restart_script()
     commands: list[list[str]] = []
 
@@ -182,8 +191,182 @@ def test_restart_only_restarts_the_application_service(monkeypatch) -> None:
     restart.restart_existing_application()
 
     assert commands == [
-        ["docker", "compose", "restart", "--no-deps", "app"],
+        [
+            "docker",
+            "compose",
+            "--profile",
+            "https",
+            "rm",
+            "--stop",
+            "--force",
+            "caddy",
+        ],
+        [
+            "docker",
+            "compose",
+            "up",
+            "-d",
+            "--no-build",
+            "--no-deps",
+            "--force-recreate",
+            "app",
+        ],
     ]
+
+
+def test_https_ingress_config_is_loaded_from_dotenv(monkeypatch, tmp_path) -> None:
+    restart = load_restart_script()
+    dotenv = tmp_path / ".env"
+    dotenv.write_text(
+        "HTTPS_ENABLED=1\n"
+        "HTTPS_DOMAIN=DepartedSpirit.com.\n"
+        "HTTPS_BACKEND_PORT=12000\n",
+        encoding="utf-8",
+    )
+    for setting in ("HTTPS_ENABLED", "HTTPS_DOMAIN", "HTTPS_BACKEND_PORT"):
+        monkeypatch.delenv(setting, raising=False)
+
+    assert restart.load_ingress_config(dotenv) == restart.IngressConfig(
+        https_enabled=True,
+        domain="departedspirit.com",
+        backend_port=12000,
+    )
+
+
+@pytest.mark.parametrize(
+    ("contents", "message"),
+    [
+        ("HTTPS_ENABLED=yes\n", "HTTPS_ENABLED must be 0 or 1"),
+        (
+            "HTTPS_ENABLED=1\nHTTPS_DOMAIN=https://example.com\n",
+            "without a scheme",
+        ),
+        (
+            "HTTPS_ENABLED=1\nHTTPS_DOMAIN=127.0.0.1\n",
+            "not an IP address",
+        ),
+        (
+            "HTTPS_ENABLED=1\nHTTPS_DOMAIN=example.com\nHTTPS_BACKEND_PORT=443\n",
+            "cannot be 80 or 443",
+        ),
+    ],
+)
+def test_invalid_https_ingress_config_fails(
+    monkeypatch,
+    tmp_path,
+    contents: str,
+    message: str,
+) -> None:
+    restart = load_restart_script()
+    dotenv = tmp_path / ".env"
+    dotenv.write_text(contents, encoding="utf-8")
+    for setting in ("HTTPS_ENABLED", "HTTPS_DOMAIN", "HTTPS_BACKEND_PORT"):
+        monkeypatch.delenv(setting, raising=False)
+
+    with pytest.raises(RuntimeError, match=message):
+        restart.load_ingress_config(dotenv)
+
+
+def test_https_restart_recreates_private_app_then_caddy(monkeypatch) -> None:
+    restart = load_restart_script()
+    calls: list[tuple[list[str], dict[str, object]]] = []
+    ingress = restart.IngressConfig(
+        https_enabled=True,
+        domain="departedspirit.com",
+        backend_port=10618,
+    )
+
+    monkeypatch.setattr(restart, "log", lambda _message: None)
+    monkeypatch.setattr(
+        restart,
+        "run",
+        lambda command, **kwargs: calls.append((command, kwargs)),
+    )
+
+    restart.restart_existing_application(ingress)
+
+    assert [call[0][-1] for call in calls] == ["app", "caddy"]
+    for command, options in calls:
+        assert command[:4] == ["docker", "compose", "--profile", "https"]
+        assert command[4:10] == [
+            "up",
+            "-d",
+            "--no-build",
+            "--no-deps",
+            "--force-recreate",
+            command[-1],
+        ]
+        environment = options["env"]
+        assert isinstance(environment, dict)
+        assert environment["GAME_HALL_BIND_HOST"] == "127.0.0.1"
+        assert environment["GAME_HALL_PORT"] == "10618"
+        assert environment["HTTPS_DOMAIN"] == "departedspirit.com"
+
+
+def test_https_compose_service_persists_certificates() -> None:
+    compose = (PROJECT_ROOT / "compose.yaml").read_text(encoding="utf-8")
+    caddyfile = (PROJECT_ROOT / "Caddyfile").read_text(encoding="utf-8")
+
+    assert "caddy:2.11.4-alpine" in compose
+    assert "profiles:\n      - https" in compose
+    assert "./Caddyfile:/etc/caddy/Caddyfile:ro" in compose
+    assert "caddy-data:/data" in compose
+    assert "caddy-config:/config" in compose
+    assert '${GAME_HALL_BIND_HOST:-0.0.0.0}' in compose
+    assert "{$HTTPS_DOMAIN}" in caddyfile
+    assert "reverse_proxy app:8000" in caddyfile
+
+
+def test_https_probe_validates_tls_and_proxy_response(monkeypatch) -> None:
+    restart = load_restart_script()
+    ingress = restart.IngressConfig(
+        https_enabled=True,
+        domain="departedspirit.com",
+    )
+    raw_socket = MagicMock()
+    raw_socket.__enter__.return_value = raw_socket
+    secure_socket = MagicMock()
+    secure_socket.__enter__.return_value = secure_socket
+    response = MagicMock()
+    response.__enter__.return_value = response
+    response.readline.return_value = b"HTTP/1.1 200 OK\r\n"
+    secure_socket.makefile.return_value = response
+    tls_context = MagicMock()
+    tls_context.wrap_socket.return_value = secure_socket
+
+    monkeypatch.setattr(
+        restart.socket,
+        "create_connection",
+        lambda address, timeout: raw_socket,
+    )
+    monkeypatch.setattr(
+        restart.ssl,
+        "create_default_context",
+        lambda: tls_context,
+    )
+
+    assert restart.https_responds(ingress) is True
+    tls_context.wrap_socket.assert_called_once_with(
+        raw_socket,
+        server_hostname="departedspirit.com",
+    )
+    secure_socket.sendall.assert_called_once()
+
+
+def test_https_probe_retries_certificate_failures(monkeypatch) -> None:
+    restart = load_restart_script()
+    ingress = restart.IngressConfig(
+        https_enabled=True,
+        domain="departedspirit.com",
+    )
+
+    def fail_connection(_address, timeout):
+        assert timeout == 3
+        raise OSError("certificate endpoint is not ready")
+
+    monkeypatch.setattr(restart.socket, "create_connection", fail_connection)
+
+    assert restart.https_responds(ingress) is False
 
 
 def test_deployment_lock_rejects_overlapping_runs(monkeypatch, tmp_path) -> None:
@@ -229,6 +412,19 @@ def test_deployment_builds_validates_then_restarts(monkeypatch) -> None:
                 "backend.app.games.validate_plugins",
             ],
             {},
+        ),
+        (
+            [
+                "docker",
+                "compose",
+                "--profile",
+                "https",
+                "rm",
+                "--stop",
+                "--force",
+                "caddy",
+            ],
+            {"check": False},
         ),
         (["docker", "compose", "up", "-d", "--no-build", "app"], {}),
     ]
@@ -294,6 +490,19 @@ def test_low_memory_deployment_suspends_runtime_services(monkeypatch) -> None:
                 "backend.app.games.validate_plugins",
             ],
             {},
+        ),
+        (
+            [
+                "docker",
+                "compose",
+                "--profile",
+                "https",
+                "rm",
+                "--stop",
+                "--force",
+                "caddy",
+            ],
+            {"check": False},
         ),
         (["docker", "compose", "up", "-d", "--no-build", "app"], {}),
     ]

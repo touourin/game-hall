@@ -81,13 +81,28 @@ cp .env.example .env
 
 模板中的敏感值统一留空。启动前必须在 `.env` 中为 `GAME_HALL_SIGNING_SECRET`、`MYSQL_PASSWORD`、`MYSQL_ROOT_PASSWORD` 和 `REDIS_PASSWORD` 分别填写不同的随机值，例如可多次运行 `openssl rand -hex 32` 生成；任一必填项留空时 Compose 会直接拒绝启动。不要把 `.env` 提交到 Git。
 
+默认使用原来的 HTTP 直连模式。需要为公网域名启用自动 HTTPS 时，在 `.env` 中设置：
+
+```dotenv
+HTTPS_ENABLED=1
+HTTPS_DOMAIN=departedspirit.com
+HTTPS_BACKEND_PORT=10618
+```
+
+部署脚本会自动把应用限制到服务器回环地址，并启动 Compose 管理的 Caddy 在
+`80/443` 提供自动证书、HTTP 跳转和反向代理。启用前必须确保域名已经指向服务器，
+且云安全组允许 TCP `80` 和 `443`。保持 `HTTPS_ENABLED=0` 则继续直接发布
+`GAME_HALL_PORT`，无需运行 Caddy；完整切换说明见
+[部署与服务重启脚本](scripts/README.md#http-与-https-开关)。
+HTTPS 模式应通过 `restart.py` 部署，避免直接调用 Compose 时绕过入口开关编排。
+
 大厅不再显示固定密码访问页，浏览器会自动建立内部传输会话，然后进入账号登录、注册或游客入席页面。默认配置使用数据库和用户 `game_hall`，并只在服务器回环地址发布 MySQL `1025` 与 Redis `7878`；容器内部仍使用标准端口 `3306` 与 `6379`。
 
 ```bash
 docker compose up -d --build
 ```
 
-日常只需要重启现有应用进程时，使用轻量模式；它不会拉取代码、构建镜像或重启 MySQL 和 Redis：
+日常只需要重启现有应用或应用入口时，使用轻量模式；它不会拉取代码、构建镜像或重启 MySQL 和 Redis，但会应用 `.env` 中最新的 HTTP/HTTPS 配置：
 
 ```bash
 python3 scripts/restart.py --restart-only

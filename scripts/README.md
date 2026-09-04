@@ -8,13 +8,44 @@
 python3 scripts/restart.py --restart-only
 ```
 
-该模式不会拉取代码、构建镜像、运行数据库迁移或执行插件发布校验，也会显式跳过 MySQL 和 Redis 等依赖服务；它只重启现有 `app` 容器、等待健康检查，并在失败时打印最近的应用日志。适合内存较小的服务器和不涉及代码更新的日常服务重启。
+该模式不会拉取代码、构建镜像、运行数据库迁移或执行插件发布校验，也会显式跳过 MySQL 和 Redis 等依赖服务；它使用现有镜像重建 `app` 以及当前启用的 HTTPS 入口，使 `.env` 中的端口或 HTTPS 开关立即生效，然后等待健康检查。适合不涉及代码更新的日常服务重启和入口配置切换。
 
 从另一台电脑轻量重启服务器：
 
 ```bash
 ssh root@SERVER_IP 'cd /opt/game-hall && python3 scripts/restart.py --restart-only'
 ```
+
+## HTTP 与 HTTPS 开关
+
+默认配置保持原来的 HTTP 直连方式：
+
+```dotenv
+HTTPS_ENABLED=0
+GAME_HALL_PORT=10618
+```
+
+启用 HTTPS 时只需在服务器 `.env` 中配置：
+
+```dotenv
+HTTPS_ENABLED=1
+HTTPS_DOMAIN=departedspirit.com
+HTTPS_BACKEND_PORT=10618
+```
+
+随后正常运行 `python3 scripts/restart.py`；如果代码和镜像已经是最新版本，也可以运行
+`python3 scripts/restart.py --restart-only`。脚本会自动启用 Compose 的 `https` profile，
+把应用限制在 `127.0.0.1:HTTPS_BACKEND_PORT`，并让 Caddy 独占公网 `80/443`。
+Caddy 会自动签发、续期证书并将 HTTP 重定向到 HTTPS，证书保存在独立 Docker
+volume 中，应用重建不会丢失；反向代理直接连接 Compose 内的 `app:8000`，因此
+Socket.IO/WebSocket 无需额外配置。
+
+启用前必须让 `HTTPS_DOMAIN` 的 DNS 记录指向服务器，并在云安全组中放行 TCP
+`80` 和 `443`。`HTTPS_DOMAIN` 只能填写域名，不能包含 `https://`、路径、端口、
+通配符或 IP；`HTTPS_BACKEND_PORT` 默认 `10618`，且不能使用 `80` 或 `443`。
+
+将 `HTTPS_ENABLED` 改回 `0` 后再次运行脚本，会删除 Caddy 运行容器并恢复
+`GAME_HALL_PORT` 的 HTTP 直连；已签发证书的 volume 会保留，重新启用时可以复用。
 
 ## 低内存生产部署
 
@@ -84,6 +115,6 @@ python3 scripts/restart.py --no-pull
 ssh root@SERVER_IP 'cd /opt/game-hall && python3 scripts/restart.py'
 ```
 
-完整部署模式必须在主仓库的 `main` 分支运行；当主仓库存在未提交的受跟踪文件，或子模块存在会被检出覆盖的本地修改时会拒绝更新。`--restart-only` 不读取或修改 Git 状态。脚本会检查 Docker 和 `.env`；完整部署会执行 Compose 数据库迁移依赖并重新构建应用镜像，两种模式都会等待应用健康检查，并在失败时打印最近的应用日志。它不会执行 `docker compose down -v`，也不会删除 MySQL 或 Redis 数据卷。
+完整部署模式必须在主仓库的 `main` 分支运行；当主仓库存在未提交的受跟踪文件，或子模块存在会被检出覆盖的本地修改时会拒绝更新。`--restart-only` 不读取或修改 Git 状态。脚本会检查 Docker、`.env` 和入口配置；完整部署会执行 Compose 数据库迁移依赖并重新构建应用镜像，两种模式都会等待应用容器健康，HTTPS 模式还会验证本机 `443` 上的受信任证书和代理响应。它不会执行 `docker compose down -v`，也不会删除 MySQL、Redis 或 Caddy 数据卷。
 
 主仓库应定期把已经在生产验证过的 `game-hall-community-games` 提交更新为新的子模块基线，但社区插件发布不需要等待主仓库同步指针。需要回滚时，先检出目标主仓库与子模块提交，再使用 `--no-pull` 重建。
